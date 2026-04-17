@@ -4,8 +4,8 @@ dist/
 .vite/
 coverage/
 *.log
-web-admin/node_modules/
-web-admin/dist/
+*.tsbuildinfo
+test-results/
 api/bin/
 
 .aider*
