@@ -1,0 +1,173 @@
+name: API Replay Soak Nightly
+
+on:
+  schedule:
+    - cron: "15 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  replay-soak-nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq lsof unzip zsh
+
+      - name: Replay Multi-State Soak
+        run: |
+          chmod +x ./docs/testing/curl-pg-replay-multi-state-curve.zsh
+          chmod +x ./docs/testing/curl-pg-replay-multi-state-soak.zsh
+          DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' \
+          API_PORT=18085 \
+          API_BASE_URL=http://localhost:18085 \
+          SOAK_ROUNDS=4 \
+          SOAK_INTERVAL_SECONDS=20 \
+          SOAK_WORKDIR=/tmp/mp_pg_replay_soak \
+          SOAK_LOG_CSV=/tmp/mp_pg_replay_soak/metrics.csv \
+          /bin/zsh ./docs/testing/curl-pg-replay-multi-state-soak.zsh | tee /tmp/mp_pg_replay_soak.log
+        shell: bash
+
+      - name: Collect Replay Soak History
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HISTORY_LIMIT: "14"
+        run: |
+          set -euo pipefail
+
+          mkdir -p /tmp/mp_pg_replay_history/current
+          if [[ -f /tmp/mp_pg_replay_soak/metrics.csv ]]; then
+            cp /tmp/mp_pg_replay_soak/metrics.csv /tmp/mp_pg_replay_history/current/metrics.csv
+            echo "summary: current_metrics_present=true"
+          else
+            echo "summary: current_metrics_present=false"
+            echo "summary: current_metrics_missing_reason=soak_step_failed_or_metrics_not_generated"
+          fi
+
+          artifacts_api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=api-replay-soak-nightly&per_page=100"
+          artifacts_json="$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${artifacts_api}")"
+
+          echo "${artifacts_json}" | jq -r '.artifacts[] | select(.expired==false) | [.id,.created_at,.archive_download_url] | @tsv' \
+            | sort -t$'\t' -k2,2r \
+            | head -n "${HISTORY_LIMIT}" \
+            | while IFS=$'\t' read -r artifact_id created_at download_url; do
+                [[ -n "${artifact_id}" ]] || continue
+
+                target_dir="/tmp/mp_pg_replay_history/${created_at%%T*}-${artifact_id}"
+                mkdir -p "${target_dir}/zip" "${target_dir}/artifact"
+
+                curl -fsSL \
+                  -H "Authorization: Bearer ${GH_TOKEN}" \
+                  -H "Accept: application/vnd.github+json" \
+                  "${download_url}" \
+                  -o "${target_dir}/zip/artifact.zip"
+
+                unzip -oq "${target_dir}/zip/artifact.zip" -d "${target_dir}/artifact"
+                metrics_path="$(find "${target_dir}/artifact" -type f -name 'metrics.csv' | head -n1 || true)"
+                if [[ -n "${metrics_path}" ]]; then
+                  cp "${metrics_path}" "${target_dir}/metrics.csv"
+                else
+                  rm -rf "${target_dir}"
+                fi
+              done
+
+          history_count="$(find /tmp/mp_pg_replay_history -type f -name 'metrics.csv' | wc -l | tr -d '[:space:]')"
+          echo "summary: history_metrics_files=${history_count}"
+        shell: bash
+
+      - name: Replay Soak Nightly Review
+        if: always()
+        run: |
+          chmod +x ./docs/testing/curl-pg-replay-soak-review.zsh
+          SOAK_REVIEW_ROOT=/tmp/mp_pg_replay_history \
+          SOAK_REVIEW_WORKDIR=/tmp/mp_pg_replay_soak/review \
+          SOAK_REVIEW_MIN_DAYS=7 \
+          SOAK_REVIEW_DROP_RATIO_MAX=0.5 \
+          SOAK_REVIEW_MAX_ALLOWED_MISSING_DAYS=1 \
+          SOAK_REVIEW_STRICT=false \
+          /bin/zsh ./docs/testing/curl-pg-replay-soak-review.zsh | tee /tmp/mp_pg_replay_soak_review.log
+
+          if [[ -f /tmp/mp_pg_replay_soak/review/report.md && -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            cat /tmp/mp_pg_replay_soak/review/report.md >>"${GITHUB_STEP_SUMMARY}"
+          fi
+        shell: bash
+
+      - name: Replay Soak Nightly Sign-off Snapshot
+        if: always()
+        run: |
+          signoff_fail_on_hold=false
+          if [[ -f /tmp/mp_pg_replay_soak/review/summary.json ]]; then
+            days_gap="$(jq -r '.days_gap_to_min_days // 999999' /tmp/mp_pg_replay_soak/review/summary.json)"
+            coverage_days_gap="$(jq -r '.coverage_days_gap_to_allowed // 999999' /tmp/mp_pg_replay_soak/review/summary.json)"
+            review_status="$(jq -r '.status // "unknown"' /tmp/mp_pg_replay_soak/review/summary.json)"
+            if [[ "${days_gap}" == "0" ]]; then
+              signoff_fail_on_hold=true
+            fi
+            echo "summary: signoff_gate_review_status=${review_status}"
+            echo "summary: signoff_gate_days_gap=${days_gap}"
+            echo "summary: signoff_gate_coverage_days_gap=${coverage_days_gap}"
+          else
+            echo "summary: signoff_gate_summary_json_missing=true"
+          fi
+
+          chmod +x ./docs/testing/curl-pg-replay-soak-signoff.zsh
+          SOAK_SIGNOFF_SUMMARY_JSON=/tmp/mp_pg_replay_soak/review/summary.json \
+          SOAK_SIGNOFF_DAY_CSV=/tmp/mp_pg_replay_soak/review/day-summary.csv \
+          SOAK_SIGNOFF_METRIC_CSV=/tmp/mp_pg_replay_soak/review/metric-summary.csv \
+          SOAK_SIGNOFF_REPORT_MD=/tmp/mp_pg_replay_soak/review/signoff.md \
+          SOAK_SIGNOFF_FAIL_ON_HOLD="${signoff_fail_on_hold}" \
+          /bin/zsh ./docs/testing/curl-pg-replay-soak-signoff.zsh | tee /tmp/mp_pg_replay_soak_signoff.log
+
+          if [[ -f /tmp/mp_pg_replay_soak/review/signoff.md && -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            cat /tmp/mp_pg_replay_soak/review/signoff.md >>"${GITHUB_STEP_SUMMARY}"
+          fi
+        shell: bash
+
+      - name: Upload Soak Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-replay-soak-nightly
+          path: |
+            /tmp/mp_pg_replay_soak.log
+            /tmp/mp_pg_replay_soak_review.log
+            /tmp/mp_pg_replay_soak_signoff.log
+            /tmp/mp_pg_replay_soak/metrics.csv
+            /tmp/mp_pg_replay_soak/rounds
+            /tmp/mp_pg_replay_soak/review
+            /tmp/mp_pg_replay_history
+            /tmp/mp_pg_replay_curve_api.log

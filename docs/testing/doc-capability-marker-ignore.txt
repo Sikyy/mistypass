@@ -1,0 +1,9 @@
+# Optional glob patterns for markdown files excluded from marker guard.
+# Keep this file minimal; add a short comment for each exception.
+#
+# Example:
+# docs/generated/**
+# docs/**/third_party/*.md
+
+# Generated execution evidence files; not maintained as capability docs.
+docs/testing/artifacts/**

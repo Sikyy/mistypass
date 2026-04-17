@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+dist/
+.vite/
+coverage/
+*.log
+web-admin/node_modules/
+web-admin/dist/
+api/bin/
+
+.aider*

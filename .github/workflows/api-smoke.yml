@@ -1,0 +1,185 @@
+name: API Smoke
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  api-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq lsof zsh
+
+      - name: Docs Capability Marker Guard
+        run: /bin/zsh ./docs/testing/check-doc-capability-markers.zsh
+
+      - name: PostgreSQL Replay Soak Review/Sign-off Smoke
+        run: /bin/zsh ./docs/testing/curl-pg-replay-soak-review-signoff-smoke.zsh
+
+      - name: Unit Test
+        working-directory: api
+        run: go test ./...
+
+      - name: Start API with PostgreSQL
+        run: |
+          cd api
+          DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' nohup go run ./cmd/api >/tmp/mp_api_ci.log 2>&1 &
+          echo $! >/tmp/mp_api_pid
+          for i in {1..80}; do
+            if curl -fsS http://localhost:8080/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 0.25
+          done
+          echo "API startup failed"
+          tail -n 200 /tmp/mp_api_ci.log || true
+          exit 1
+        shell: bash
+
+      - name: Gateway + Employee Regression
+        run: ./docs/testing/curl-regression-gateway-employee.zsh
+
+      - name: Enterprise Sync + Access Batch Regression
+        run: ./docs/testing/curl-enterprise-sync-access-batch.zsh
+
+      - name: Enterprise Sync Worker Alert Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18081 API_BASE_URL=http://localhost:18081 ./docs/testing/curl-enterprise-sync-worker-alert.zsh
+
+      - name: Audit Webhook Fan-out Regression
+        run: ./docs/testing/curl-audit-webhook-fanout.zsh | tee /tmp/mp_audit_webhook_fanout.log
+        shell: bash
+
+      - name: Gateway Serial + Protocol Regression
+        run: ./docs/testing/curl-gateway-serial-protocol.zsh
+
+      - name: Gateway Serial Inventory CSV Regression
+        run: ./docs/testing/curl-gateway-serial-inventory-csv.zsh
+
+      - name: Gateway Serial Inventory Batch Regression
+        run: ./docs/testing/curl-gateway-serial-inventory-batch.zsh
+
+      - name: Wallet Job Retry Regression
+        run: ./docs/testing/curl-wallet-job-retry.zsh
+
+      - name: Wallet Job Queue Process Regression
+        run: ./docs/testing/curl-wallet-job-queue-process.zsh
+
+      - name: Wallet Job DLQ Requeue Regression
+        run: ./docs/testing/curl-wallet-job-dlq-requeue.zsh
+
+      - name: Wallet Job DLQ Governance Regression
+        run: ./docs/testing/curl-wallet-job-dlq-governance.zsh
+
+      - name: Wallet Alert Dispatch Regression
+        run: ./docs/testing/curl-wallet-job-alert-dispatch.zsh
+
+      - name: Wallet Alert Dispatch Retry Regression
+        run: ./docs/testing/curl-wallet-job-alert-dispatch-retry.zsh
+
+      - name: Wallet Alert Dispatch Resend Regression
+        run: ./docs/testing/curl-wallet-job-alert-dispatch-resend.zsh
+
+      - name: Wallet Alert Dispatch WhatsApp Regression
+        run: ./docs/testing/curl-wallet-job-alert-dispatch-whatsapp.zsh
+
+      - name: Wallet Alert Dispatch WhatsApp Meta Regression
+        run: ./docs/testing/curl-wallet-job-alert-dispatch-whatsapp-meta.zsh
+
+      - name: Gateway Event Priority Queue Regression
+        run: ./docs/testing/curl-gateway-event-priority-checkpoint.zsh
+
+      - name: Gateway Event Multi-Queue Isolation Regression
+        run: ./docs/testing/curl-gateway-event-multi-queue-isolation.zsh
+
+      - name: Gateway Event Checkpoint Default Fallback Regression
+        run: ./docs/testing/curl-gateway-event-checkpoint-fallback-default.zsh
+
+      - name: Gateway Edge Queue Executor Simulation Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18085 API_BASE_URL=http://localhost:18085 ./docs/testing/curl-gateway-edge-queue-executor-sim.zsh
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [[ -f /tmp/mp_api_pid ]]; then
+            kill "$(cat /tmp/mp_api_pid)" >/dev/null 2>&1 || true
+          fi
+          pkill -f "go run ./cmd/api" >/dev/null 2>&1 || true
+        shell: bash
+
+      - name: PostgreSQL Persistence Smoke
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' ./docs/testing/curl-pg-persistence-smoke.zsh
+
+      - name: PostgreSQL Replay Retry + Idempotent Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18083 API_BASE_URL=http://localhost:18083 ./docs/testing/curl-pg-replay-retry-idempotent.zsh
+
+      - name: PostgreSQL Replay Concurrency Baseline
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18084 API_BASE_URL=http://localhost:18084 WRITE_COUNT=25 CONCURRENT_NOOP=6 P95_MS_THRESHOLD=8000 NOOP_MAX_MS_THRESHOLD=12000 CATCHUP_MIN_OPS_PER_SEC=20 ./docs/testing/curl-pg-replay-concurrency-baseline.zsh
+
+      - name: Gateway Queue Ingest Restart Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18082 API_BASE_URL=http://localhost:18082 ./docs/testing/curl-gateway-event-queue-ingest-restart.zsh
+
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-smoke-logs
+          path: |
+            /tmp/mp_api_ci.log
+            /tmp/mp_gateway_employee_api.log
+            /tmp/mp_enterprise_sync_access_api.log
+            /tmp/mp_enterprise_sync_worker_alert_api.log
+            /tmp/mp_gateway_serial_protocol_api.log
+            /tmp/mp_gateway_inventory_csv_api.log
+            /tmp/mp_gateway_inventory_batch_api.log
+            /tmp/mp_audit_webhook_fanout.log
+            /tmp/mp_wallet_queue_process_api.log
+            /tmp/mp_wallet_dlq_requeue_api.log
+            /tmp/mp_wallet_dlq_governance_api.log
+            /tmp/mp_wallet_job_alert_dispatch_api.log
+            /tmp/mp_wallet_job_alert_dispatch_retry_api.log
+            /tmp/mp_wallet_job_alert_resend_api.log
+            /tmp/mp_wallet_job_alert_whatsapp_api.log
+            /tmp/mp_wallet_job_alert_whatsapp_meta_api.log
+            /tmp/mp_resend_alert_dispatch.log
+            /tmp/mp_whatsapp_meta_dispatch.log
+            /tmp/mp_gateway_event_priority_checkpoint.log
+            /tmp/mp_gateway_event_multi_queue_isolation.log
+            /tmp/mp_gateway_event_checkpoint_fallback_default.log
+            /tmp/mp_gateway_edge_queue_executor_sim.log
+            /tmp/mp_pg_persistence_api.log
+            /tmp/mp_pg_replay_retry_api.log
+            /tmp/mp_pg_replay_concurrency_api.log
+            /tmp/mp_gateway_event_queue_ingest_restart.log
+            /tmp/mp_pg_replay_soak_review_smoke_review_gap.log
+            /tmp/mp_pg_replay_soak_review_smoke_signoff_gap.log
+            /tmp/mp_pg_replay_soak_review_smoke_review_pass.log
+            /tmp/mp_pg_replay_soak_review_smoke_signoff_pass.log
