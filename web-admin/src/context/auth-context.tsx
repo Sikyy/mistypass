@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 
-import { getCurrentUser, type CurrentUser } from "@/lib/api"
+import { getCurrentUser, setAuthTokenProvider, type CurrentUser } from "@/lib/api"
 import { clearSession, getToken, saveSession, subscribeAuthSessionChange } from "@/lib/auth"
+import { queryClient } from "@/lib/query-client"
 
 type AuthContextValue = {
   token: string | null
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return subscribeAuthSessionChange(({ accessToken }) => {
       if (!accessToken) {
+        queryClient.clear()
         setToken(null)
         setViewer(null)
         setBootstrapping(false)
@@ -34,6 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     })
   }, [])
+
+  useEffect(() => {
+    setAuthTokenProvider(() => token)
+    return () => {
+      setAuthTokenProvider(null)
+    }
+  }, [token])
 
   useEffect(() => {
     if (!token) {
@@ -71,18 +80,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token])
 
-  function setAuthenticatedSession(nextToken: string, nextRefreshToken: string, nextViewer: CurrentUser) {
+  const setAuthenticatedSession = useCallback((nextToken: string, nextRefreshToken: string, nextViewer: CurrentUser) => {
     saveSession(nextToken, nextRefreshToken, "login")
+    queryClient.clear()
     setToken(nextToken)
     setViewer(nextViewer)
     setBootstrapping(false)
-  }
+  }, [])
 
-  function logout() {
+  const logout = useCallback(() => {
     clearSession()
+    queryClient.clear()
     setToken(null)
     setViewer(null)
-  }
+  }, [])
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -92,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthenticatedSession,
       logout,
     }),
-    [token, viewer, bootstrapping]
+    [token, viewer, bootstrapping, setAuthenticatedSession, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -105,4 +116,3 @@ export function useAuth(): AuthContextValue {
   }
   return value
 }
-

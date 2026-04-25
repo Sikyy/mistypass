@@ -1,3 +1,4 @@
+import i18n from "@/lib/i18n"
 import type { EnterpriseEmployee } from "@/lib/api"
 
 import type { AccessSection } from "./access-sections-tabs"
@@ -12,14 +13,21 @@ export type PositionTemplateSpec = {
   permissionPreset: string
 }
 
+function t(key: string, defaultValue: string, options?: Record<string, unknown>) {
+  return i18n.t(key, {
+    defaultValue,
+    ...options,
+  })
+}
+
 export function policyStatusLabel(status: string) {
   switch (status) {
     case "active":
-      return "启用"
+      return t("accessPage.components.utils.policyStatus.active", "Active")
     case "inactive":
-      return "停用"
+      return t("accessPage.components.utils.policyStatus.inactive", "Inactive")
     case "draft":
-      return "草稿"
+      return t("accessPage.components.utils.policyStatus.draft", "Draft")
     default:
       return status
   }
@@ -28,9 +36,9 @@ export function policyStatusLabel(status: string) {
 export function deliveryLabel(method: string) {
   switch (method) {
     case "wallet":
-      return "MistyPass 移动凭证"
+      return t("accessPage.components.utils.delivery.wallet", "MistyPass mobile pass")
     case "email_qr":
-      return "邮件二维码凭证"
+      return t("accessPage.components.utils.delivery.emailQr", "Email QR pass")
     default:
       return method
   }
@@ -54,23 +62,29 @@ export function parseDateTime(value: string): Date | null {
 }
 
 export function remainingLabel(validUntil: string, now: number): string {
-  const expiresAt = parseDateTime(validUntil)
-  if (!expiresAt) {
-    return "时间格式异常"
-  }
-  const deltaMs = expiresAt.getTime() - now
-  if (deltaMs <= 0) {
-    return "已到期"
-  }
-  const totalSeconds = Math.floor(deltaMs / 1000)
-  const days = Math.floor(totalSeconds / 86400)
-  const hours = Math.floor((totalSeconds % 86400) / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  if (days > 0) {
-    return `${days}天 ${hours}时 ${minutes}分`
-  }
-  return `${hours}时 ${minutes}分 ${seconds}秒`
+	const expiresAt = parseDateTime(validUntil)
+	if (!expiresAt) {
+		return t("accessPage.components.utils.remaining.invalidTime", "Invalid time format")
+	}
+	const deltaMs = expiresAt.getTime() - now
+	if (deltaMs <= 0) {
+		return t("accessPage.components.utils.remaining.expired", "Expired")
+	}
+	const totalMinutes = Math.floor(deltaMs / 60000)
+	const days = Math.floor(totalMinutes / 1440)
+	const hours = Math.floor((totalMinutes % 1440) / 60)
+	const minutes = totalMinutes % 60
+	if (days > 0) {
+		return t("accessPage.components.utils.remaining.days", "{{days}}d {{hours}}h {{minutes}}m", {
+			days,
+			hours,
+			minutes,
+		})
+	}
+	return t("accessPage.components.utils.remaining.hours", "{{hours}}h {{minutes}}m", {
+		hours,
+		minutes,
+	})
 }
 
 export function isGrantExpired(validUntil: string, now: number): boolean {
@@ -99,11 +113,11 @@ export function getGrantLifecycleStatus(validUntil: string, now: number): GrantL
 export function grantLifecycleLabel(status: GrantLifecycleStatus): string {
   switch (status) {
     case "expired":
-      return "已到期"
+      return t("accessPage.components.utils.grantLifecycle.expired", "Expired")
     case "expiring_soon":
-      return "24 小时内到期"
+      return t("accessPage.components.utils.grantLifecycle.expiringSoon", "Expiring within 24h")
     default:
-      return "当前有效"
+      return t("accessPage.components.utils.grantLifecycle.active", "Active")
   }
 }
 
@@ -134,16 +148,29 @@ export function scopeSummary(
   doorName?: string
 ): string {
   if (scopeType === "all") {
-    return "全部区域"
+    return t("accessPage.components.utils.scopeSummary.all", "All areas")
   }
   if (scopeType === "building") {
-    return `楼宇：${buildingName || "-"}`
+    return t("accessPage.components.utils.scopeSummary.building", "Building: {{building}}", {
+      building: buildingName || "-",
+    })
   }
   if (scopeType === "area") {
-    return `楼宇：${buildingName || "-"} / 区域：${areaName || "-"}`
+    return t("accessPage.components.utils.scopeSummary.area", "Building: {{building}} / Area: {{area}}", {
+      building: buildingName || "-",
+      area: areaName || "-",
+    })
   }
   if (scopeType === "door") {
-    return `楼宇：${buildingName || "-"} / 区域：${areaName || "-"} / 门点：${doorName || "-"}`
+    return t(
+      "accessPage.components.utils.scopeSummary.door",
+      "Building: {{building}} / Area: {{area}} / Door: {{door}}",
+      {
+        building: buildingName || "-",
+        area: areaName || "-",
+        door: doorName || "-",
+      }
+    )
   }
   return scopeType
 }
@@ -153,25 +180,37 @@ export const positionTemplateSpec: PositionTemplateSpec[] = [
     position: "Security / Satpam / Guard",
     defaultGroup: "Factory Security",
     accessRole: "operator",
-    permissionPreset: "告警处置 + 门禁巡检 + 关键门点优先通行",
+    permissionPreset: t(
+      "accessPage.components.utils.positionTemplate.security.permissionPreset",
+      "Alarm handling + gate patrol + priority access for critical doors"
+    ),
   },
   {
     position: "Facility / Engineering / Building",
     defaultGroup: "Building Operations",
     accessRole: "building_admin",
-    permissionPreset: "楼宇级配置发布 + 网关运维 + 公共设备区访问",
+    permissionPreset: t(
+      "accessPage.components.utils.positionTemplate.facility.permissionPreset",
+      "Building-level configuration release + gateway operations + shared facility area access"
+    ),
   },
   {
     position: "IT / Identity / Admin",
     defaultGroup: "Tenant Platform Admin",
     accessRole: "tenant_admin",
-    permissionPreset: "租户级策略与用户组管理 + 全部区域授权",
+    permissionPreset: t(
+      "accessPage.components.utils.positionTemplate.admin.permissionPreset",
+      "Tenant-level policy and group management + all-area authorization"
+    ),
   },
   {
     position: "General Employee",
     defaultGroup: "Common Office Access",
     accessRole: "resident",
-    permissionPreset: "办公区/公共区默认通行，无需逐人分配",
+    permissionPreset: t(
+      "accessPage.components.utils.positionTemplate.employee.permissionPreset",
+      "Default office/common-area access without per-person assignment"
+    ),
   },
 ]
 
@@ -254,13 +293,25 @@ export function inferPolicyStarterScope(
 export function inferPolicyStarterName(groupName: string, accessRole: string): string {
   switch (accessRole.trim().toLowerCase()) {
     case "tenant_admin":
-      return `${groupName} 全域管理策略`
+      return t("accessPage.components.utils.policyStarterName.tenantAdmin", "{{groupName}} all-area management policy", {
+        groupName,
+      })
     case "building_admin":
-      return `${groupName} 楼宇运维策略`
+      return t("accessPage.components.utils.policyStarterName.buildingAdmin", "{{groupName}} building operations policy", {
+        groupName,
+      })
     case "operator":
-      return `${groupName} 巡检与关键门点策略`
+      return t(
+        "accessPage.components.utils.policyStarterName.operator",
+        "{{groupName}} patrol and critical-door policy",
+        {
+          groupName,
+        }
+      )
     default:
-      return `${groupName} 办公通行策略`
+      return t("accessPage.components.utils.policyStarterName.default", "{{groupName}} office access policy", {
+        groupName,
+      })
   }
 }
 
@@ -310,22 +361,25 @@ export function sectionFromAccessPath(pathname: string): string | undefined {
 export function enterpriseFlowStageLabel(stage?: string): string {
   switch ((stage || "").trim()) {
     case "directory":
-      return "同步结果已承接到员工与用户组"
+      return t(
+        "accessPage.components.utils.enterpriseFlowStage.directory",
+        "Sync result has been carried into employees and user groups"
+      )
     case "policies":
-      return "用户组结果已承接到权限策略"
+      return t("accessPage.components.utils.enterpriseFlowStage.policies", "Group result has been carried into access policies")
     case "issuance":
-      return "权限策略结果已承接到凭证发放"
+      return t("accessPage.components.utils.enterpriseFlowStage.issuance", "Policy result has been carried into pass issuance")
     default:
-      return "已承接企业页主路径"
+      return t("accessPage.components.utils.enterpriseFlowStage.default", "Carried from enterprise main flow")
   }
 }
 
 export function enterpriseFlowSegmentLabel(segmentHint?: string): string {
   switch ((segmentHint || "").trim()) {
     case "directory_usage":
-      return "同步结果到用户组使用"
+      return t("accessPage.components.utils.enterpriseFlowSegment.directoryUsage", "Sync result to group usage")
     case "policy_delivery":
-      return "用户组使用到权限下发"
+      return t("accessPage.components.utils.enterpriseFlowSegment.policyDelivery", "Group usage to policy delivery")
     default:
       return ""
   }
@@ -334,11 +388,11 @@ export function enterpriseFlowSegmentLabel(segmentHint?: string): string {
 export function enterpriseFlowSegmentStatusLabel(statusHint?: string): string {
   switch ((statusHint || "").trim()) {
     case "ready":
-      return "已承接"
+      return t("accessPage.components.utils.enterpriseFlowSegmentStatus.ready", "Ready")
     case "attention":
-      return "待收口"
+      return t("accessPage.components.utils.enterpriseFlowSegmentStatus.attention", "Needs closure")
     case "pending":
-      return "待补齐"
+      return t("accessPage.components.utils.enterpriseFlowSegmentStatus.pending", "Pending")
     default:
       return ""
   }
@@ -349,13 +403,16 @@ export function validateScope(scopeType: ScopeType, buildingID: string, areaID: 
     return ""
   }
   if (scopeType === "building" && !buildingID) {
-    return "选择楼宇后才能保存楼宇范围授权"
+    return t(
+      "accessPage.components.utils.validateScope.buildingRequired",
+      "Select a building before saving building-level authorization"
+    )
   }
   if (scopeType === "area" && (!buildingID || !areaID)) {
-    return "区域范围必须同时选择楼宇和区域"
+    return t("accessPage.components.utils.validateScope.areaRequired", "Area scope requires both building and area")
   }
   if (scopeType === "door" && (!buildingID || !areaID || !doorID)) {
-    return "门点范围必须同时选择楼宇、区域和门点"
+    return t("accessPage.components.utils.validateScope.doorRequired", "Door scope requires building, area, and door")
   }
   return ""
 }

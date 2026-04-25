@@ -1186,6 +1186,7 @@ func TestDispatchJobMetricsAlertsWithEmailAndWhatsAppUnifiedReceipt(t *testing.T
 func TestDispatchJobMetricsAlertsWithResendProvider(t *testing.T) {
 	var capturedAuth string
 	var capturedFrom string
+	var capturedIdempotencyKey string
 	var capturedTo []string
 	var capturedSubject string
 
@@ -1194,6 +1195,7 @@ func TestDispatchJobMetricsAlertsWithResendProvider(t *testing.T) {
 			t.Fatalf("expected POST, got %s", r.Method)
 		}
 		capturedAuth = r.Header.Get("Authorization")
+		capturedIdempotencyKey = r.Header.Get("Idempotency-Key")
 		defer r.Body.Close()
 		var body struct {
 			From    string   `json:"from"`
@@ -1258,11 +1260,62 @@ func TestDispatchJobMetricsAlertsWithResendProvider(t *testing.T) {
 	if capturedFrom != "alerts@mistypass.local" {
 		t.Fatalf("unexpected provider from: %s", capturedFrom)
 	}
+	if capturedIdempotencyKey == "" {
+		t.Fatalf("expected provider idempotency header to be set")
+	}
+	if capturedIdempotencyKey != result.Items[0].IdempotencyKey {
+		t.Fatalf("expected provider idempotency header %q, got %q", result.Items[0].IdempotencyKey, capturedIdempotencyKey)
+	}
 	if len(capturedTo) != 1 || capturedTo[0] != "security@example.com" {
 		t.Fatalf("unexpected provider to: %+v", capturedTo)
 	}
 	if capturedSubject == "" {
 		t.Fatalf("expected provider subject to be set")
+	}
+}
+
+func TestDispatchAlertWithResendProviderForwardsIdempotencyKey(t *testing.T) {
+	var capturedAuth string
+	var capturedIdempotencyKey string
+
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		capturedAuth = r.Header.Get("Authorization")
+		capturedIdempotencyKey = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer provider.Close()
+
+	svc := NewService()
+	if err := svc.SetJobAlertEmailDeliveryOptions(JobAlertEmailDeliveryOptions{
+		Provider:       "resend",
+		EmailFrom:      "alerts@mistypass.local",
+		ReceiverMap:    map[string][]string{"security": {"security@example.com"}},
+		ResendEndpoint: provider.URL,
+		ResendAPIKey:   "re_test_token",
+		ResendTimeout:  3 * time.Second,
+	}); err != nil {
+		t.Fatalf("set resend options failed: %v", err)
+	}
+
+	result := svc.DispatchAlert(AlertDeliveryInput{
+		TenantID:       "tenant_demo_jakarta",
+		Channels:       []string{"email"},
+		ReceiverGroups: []string{"security"},
+		IdempotencyKey: "ent_alert_lineage_key_001",
+		EmailSubject:   "Enterprise alert",
+		EmailText:      "provider should receive idempotency key",
+	})
+	if result.Status != "sent" || result.Provider != "resend" {
+		t.Fatalf("unexpected dispatch alert result: %+v", result)
+	}
+	if capturedAuth != "Bearer re_test_token" {
+		t.Fatalf("unexpected provider auth header: %s", capturedAuth)
+	}
+	if capturedIdempotencyKey != "ent_alert_lineage_key_001" {
+		t.Fatalf("expected forwarded idempotency header, got %q", capturedIdempotencyKey)
 	}
 }
 

@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect, useMemo, useState } from "react"
+import type { TFunction } from "i18next"
 import { RefreshCwIcon } from "lucide-react"
+import { Controller, useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
+import { z } from "zod"
 
+import {
+  EnterpriseHRISConnectorPanel,
+  type TalentaConnectorSaveInput,
+} from "@/components/enterprise/enterprise-hris-connector-panel"
+import {
+  classifyEnterpriseSyncWorkerAlertLevel,
+  describeEnterpriseSyncWorkerAlertGuidance,
+} from "@/components/enterprise/enterprise-sync-worker-alert-guidance"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,13 +28,23 @@ import {
 } from "@/components/ui/select"
 import { TabsContent } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { type EnterpriseSyncJob, type EnterpriseSyncWorkerAlertSummaryItem } from "@/lib/api"
+import {
+  type EnterpriseHRISConnector,
+  type EnterpriseHRISSecret,
+  type EnterpriseSyncJob,
+  type EnterpriseSyncWorkerAlertSummaryItem,
+} from "@/lib/api"
 
 // smoke-contract markers: /access/directory /access/policies /wallet?scenario=employee_mobile
 
 type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
 type EnterpriseWorkflowState = "completed" | "pending" | "blocked"
 type SyncFocusHint = "worker_alert"
+type HRISWebhookExecutionKindHint = "all" | "receipt_process" | "dlq_replay"
+type HRISWebhookExecutionModeHint = "all" | "inline" | "queued"
+type HRISWebhookExecutionQueueStateHint = "all" | "ready" | "cooldown" | "in_flight" | "attempt_limit" | "terminal"
+type HRISWebhookExecutionReplayScopeHint = "all" | "replayed" | "worker_required"
+type HRISWebhookExecutionStatusHint = "all" | "queued" | "running" | "succeeded" | "failed"
 type WorkerReviewStatusHint = "handled"
 type WorkerReviewStageHint = "alerts" | "directory" | "policies" | "issuance" | "sync"
 type MainflowSegmentHint = "directory_usage" | "policy_delivery" | "issuance_receipt"
@@ -69,6 +92,74 @@ type EnterpriseSyncSourceOption = {
   value: string
 }
 
+function formatLifecycleToken(value?: string) {
+  const normalized = (value || "").trim().toLowerCase()
+  if (!normalized) {
+    return ""
+  }
+  return normalized.replace(/_/g, " ")
+}
+
+function createEnterpriseSyncSubmitSchema(t: TFunction) {
+  return z.object({
+    sync_source: z
+      .string()
+      .trim()
+      .min(1, t("enterpriseSyncWorkspace.validation.syncSourceRequired"))
+      .max(32, t("enterpriseSyncWorkspace.validation.syncSourceInvalid")),
+    sync_request_id: z
+      .string()
+      .trim()
+      .max(64, t("enterpriseSyncWorkspace.validation.requestIDMax"))
+      .optional()
+      .or(z.literal("")),
+    sync_payload: z
+      .string()
+      .trim()
+      .min(1, t("enterpriseSyncWorkspace.validation.syncPayloadRequired"))
+      .superRefine((value, context) => {
+        try {
+          const parsed = JSON.parse(value) as unknown
+          if (!Array.isArray(parsed)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("enterpriseSyncWorkspace.validation.syncPayloadArrayRequired"),
+            })
+            return
+          }
+          if (parsed.length === 0) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("enterpriseSyncWorkspace.validation.syncPayloadMinItems"),
+            })
+          }
+        } catch {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("enterpriseSyncWorkspace.validation.syncPayloadInvalidJSON"),
+          })
+        }
+      }),
+  })
+}
+
+function matchesSearchTokens(values: string[], query: string) {
+  const normalizedValues = values.map((value) => value.toLowerCase())
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter(Boolean)
+  if (tokens.length === 0) {
+    return true
+  }
+  return tokens.every((token) => normalizedValues.some((value) => value.includes(token)))
+}
+
+type EnterpriseSyncSubmitSchema = ReturnType<typeof createEnterpriseSyncSubmitSchema>
+type EnterpriseSyncSubmitFormValues = z.infer<EnterpriseSyncSubmitSchema>
+
 type EnterpriseSyncFeedbackAction = {
   kind: "section" | "route"
   label: string
@@ -99,20 +190,41 @@ type EnterpriseSyncSourceStatusCard = {
 
 type EnterpriseSyncWorkspaceProps = {
   activeEmployeeCount: number
+  apiBaseURL: string
   alertsLink: string
   directoryLink: string
   failedSyncJobCount: number
   formatDateTime: (value?: string) => string
   goToSection: (section: EnterpriseSection) => void
+  hrisConnectors: EnterpriseHRISConnector[]
+  hrisSecrets: EnterpriseHRISSecret[]
   initialFilterContextKey?: string
   initialFocusHint?: SyncFocusHint
+  initialWorkerAction?: string
+  initialWorkerConnectorID?: string
+  initialWorkerFailureStage?: string
   initialWorkerFilter?: "all" | "alerting" | "hot" | "stable"
+  initialWorkerKind?: string
+  initialWorkerLabel?: string
+  initialWorkerMode?: string
+  initialWorkerQueueState?: string
   initialWorkerQuery?: string
+  initialWorkerReplayState?: string
+  initialWorkerRequestID?: string
   initialWorkerReviewStage?: WorkerReviewStageHint
   initialWorkerReviewStatus?: WorkerReviewStatusHint
+  initialWorkerStatus?: string
+  initialWorkerVendor?: string
+  initialExecutionID?: string
+  initialExecutionKind?: HRISWebhookExecutionKindHint
+  initialExecutionMode?: HRISWebhookExecutionModeHint
+  initialExecutionQueueState?: HRISWebhookExecutionQueueStateHint
+  initialExecutionReplayScope?: HRISWebhookExecutionReplayScopeHint
+  initialExecutionStatus?: HRISWebhookExecutionStatusHint
   latestSyncJob: EnterpriseSyncJob | null
   loading: boolean
-  onSyncEmployees: (event: FormEvent<HTMLFormElement>) => void
+  onSaveTalentaConnector: (input: TalentaConnectorSaveInput) => Promise<void>
+  onSyncEmployees: (payload: { source: string; requestID: string; payload: string }) => void
   onSyncPayloadChange: (value: string) => void
   onSyncRequestIDChange: (value: string) => void
   onSyncSourceChange: (value: string) => void
@@ -145,19 +257,40 @@ type EnterpriseSyncWorkspaceProps = {
 
 export function EnterpriseSyncWorkspace({
   activeEmployeeCount,
+  apiBaseURL,
   alertsLink,
   directoryLink,
   failedSyncJobCount,
   formatDateTime,
   goToSection,
+  hrisConnectors,
+  hrisSecrets,
   initialFilterContextKey,
   initialFocusHint,
+  initialWorkerAction,
+  initialWorkerConnectorID,
+  initialWorkerFailureStage,
   initialWorkerFilter,
+  initialWorkerKind,
+  initialWorkerLabel,
+  initialWorkerMode,
+  initialWorkerQueueState,
   initialWorkerQuery,
+  initialWorkerReplayState,
+  initialWorkerRequestID,
   initialWorkerReviewStage,
   initialWorkerReviewStatus,
+  initialWorkerStatus,
+  initialWorkerVendor,
+  initialExecutionID,
+  initialExecutionKind,
+  initialExecutionMode,
+  initialExecutionQueueState,
+  initialExecutionReplayScope,
+  initialExecutionStatus,
   latestSyncJob,
   loading,
+  onSaveTalentaConnector,
   onSyncEmployees,
   onSyncPayloadChange,
   onSyncRequestIDChange,
@@ -188,23 +321,55 @@ export function EnterpriseSyncWorkspace({
   workflowStateVariant,
   writable,
 }: EnterpriseSyncWorkspaceProps) {
+  const { t } = useTranslation()
   const latestSyncReady = Boolean(latestSyncJob && latestSyncJob.status === "completed" && latestSyncJob.rejected === 0)
   const hasSyncFailure = Boolean(latestSyncJob && (latestSyncJob.status !== "completed" || latestSyncJob.rejected > 0))
   const [focusHint, setFocusHint] = useState<SyncFocusHint | "">("")
+  const [workerActionScope, setWorkerActionScope] = useState("")
+  const [workerConnectorScope, setWorkerConnectorScope] = useState("")
+  const [workerFailureStageScope, setWorkerFailureStageScope] = useState("")
   const [workerFilter, setWorkerFilter] = useState<"all" | "alerting" | "hot" | "stable">("all")
+  const [workerKindScope, setWorkerKindScope] = useState("")
+  const [workerLabelScope, setWorkerLabelScope] = useState("")
+  const [workerModeScope, setWorkerModeScope] = useState("")
+  const [workerQueueStateScope, setWorkerQueueStateScope] = useState("")
   const [workerQuery, setWorkerQuery] = useState("")
+  const [workerReplayStateScope, setWorkerReplayStateScope] = useState("")
+  const [workerRequestScope, setWorkerRequestScope] = useState("")
   const [workerReviewStage, setWorkerReviewStage] = useState<WorkerReviewStageHint | "">("")
   const [workerReviewStatus, setWorkerReviewStatus] = useState<WorkerReviewStatusHint | "">("")
+  const [workerStatusScope, setWorkerStatusScope] = useState("")
+  const [workerVendorScope, setWorkerVendorScope] = useState("")
+  const [executionIDScope, setExecutionIDScope] = useState("")
+  const [executionKindScope, setExecutionKindScope] = useState("")
+  const [executionModeScope, setExecutionModeScope] = useState("")
+  const [executionQueueStateScope, setExecutionQueueStateScope] = useState("")
+  const [executionReplayScopeScope, setExecutionReplayScopeScope] = useState("")
+  const [executionStatusScope, setExecutionStatusScope] = useState("")
   const [appliedInitialFilterContextKey, setAppliedInitialFilterContextKey] = useState("")
+  const syncSubmitSchema = useMemo(() => createEnterpriseSyncSubmitSchema(t), [t])
+  const syncSubmitForm = useForm<EnterpriseSyncSubmitFormValues>({
+    resolver: zodResolver(syncSubmitSchema),
+    values: {
+      sync_source: syncSource,
+      sync_request_id: syncRequestID,
+      sync_payload: syncPayload,
+    },
+  })
+  const syncRequestIDField = syncSubmitForm.register("sync_request_id")
+  const syncPayloadField = syncSubmitForm.register("sync_payload")
+  const syncSubmitFormError =
+    syncSubmitForm.formState.errors.sync_source?.message ||
+    syncSubmitForm.formState.errors.sync_request_id?.message ||
+    syncSubmitForm.formState.errors.sync_payload?.message ||
+    ""
 
-  const classifyWorkerAlert = (item: EnterpriseSyncWorkerAlertSummaryItem): "alerting" | "hot" | "stable" => {
-    if (item.count === 0) {
-      return "stable"
-    }
-    if (item.last_threshold > 0 && item.last_failed >= item.last_threshold) {
-      return "hot"
-    }
-    return "alerting"
+  function onSubmitSyncEmployees(values: EnterpriseSyncSubmitFormValues) {
+    onSyncEmployees({
+      source: values.sync_source,
+      requestID: values.sync_request_id || "",
+      payload: values.sync_payload,
+    })
   }
 
   useEffect(() => {
@@ -212,76 +377,121 @@ export function EnterpriseSyncWorkspace({
       return
     }
     setFocusHint(initialFocusHint || "")
+    setWorkerActionScope(initialWorkerAction?.trim() || "")
+    setWorkerConnectorScope(initialWorkerConnectorID?.trim() || "")
+    setWorkerFailureStageScope(initialWorkerFailureStage?.trim() || "")
     setWorkerFilter(initialWorkerFilter || "all")
+    setWorkerKindScope(initialWorkerKind?.trim() || "")
+    setWorkerLabelScope(initialWorkerLabel?.trim() || "")
+    setWorkerModeScope(initialWorkerMode?.trim() || "")
+    setWorkerQueueStateScope(initialWorkerQueueState?.trim() || "")
     setWorkerQuery(initialWorkerQuery?.trim() || "")
+    setWorkerReplayStateScope(initialWorkerReplayState?.trim() || "")
+    setWorkerRequestScope(initialWorkerRequestID?.trim() || "")
     setWorkerReviewStatus(initialWorkerReviewStatus || "")
     setWorkerReviewStage(initialWorkerReviewStage || "")
+    setWorkerStatusScope(initialWorkerStatus?.trim() || "")
+    setWorkerVendorScope(initialWorkerVendor?.trim() || "")
+    setExecutionIDScope(initialExecutionID?.trim() || "")
+    setExecutionKindScope(initialExecutionKind?.trim() || "")
+    setExecutionModeScope(initialExecutionMode?.trim() || "")
+    setExecutionQueueStateScope(initialExecutionQueueState?.trim() || "")
+    setExecutionReplayScopeScope(initialExecutionReplayScope?.trim() || "")
+    setExecutionStatusScope(initialExecutionStatus?.trim() || "")
     setAppliedInitialFilterContextKey(initialFilterContextKey)
   }, [
     appliedInitialFilterContextKey,
+    initialExecutionID,
+    initialExecutionKind,
+    initialExecutionMode,
+    initialExecutionQueueState,
+    initialExecutionReplayScope,
+    initialExecutionStatus,
     initialFilterContextKey,
     initialFocusHint,
+    initialWorkerAction,
+    initialWorkerConnectorID,
+    initialWorkerFailureStage,
     initialWorkerFilter,
+    initialWorkerKind,
+    initialWorkerLabel,
+    initialWorkerMode,
+    initialWorkerQueueState,
+    initialWorkerRequestID,
+    initialWorkerReplayState,
     initialWorkerReviewStage,
     initialWorkerReviewStatus,
     initialWorkerQuery,
+    initialWorkerStatus,
+    initialWorkerVendor,
   ])
 
   const workerCounts = useMemo(() => {
     return {
       all: workerAlerts.length,
-      alerting: workerAlerts.filter((item) => classifyWorkerAlert(item) === "alerting").length,
-      hot: workerAlerts.filter((item) => classifyWorkerAlert(item) === "hot").length,
-      stable: workerAlerts.filter((item) => classifyWorkerAlert(item) === "stable").length,
+      alerting: workerAlerts.filter((item) => classifyEnterpriseSyncWorkerAlertLevel(item) === "alerting").length,
+      hot: workerAlerts.filter((item) => classifyEnterpriseSyncWorkerAlertLevel(item) === "hot").length,
+      stable: workerAlerts.filter((item) => classifyEnterpriseSyncWorkerAlertLevel(item) === "stable").length,
     }
   }, [workerAlerts])
 
   const filteredWorkerAlerts = useMemo(() => {
-    const normalizedQuery = workerQuery.trim().toLowerCase()
+    const normalizedActionScope = workerActionScope.trim().toLowerCase()
+    const normalizedKindScope = workerKindScope.trim().toLowerCase()
+    const normalizedLabelScope = workerLabelScope.trim().toLowerCase()
+    const normalizedQuery = workerQuery.trim()
     return workerAlerts.filter((item) => {
-      const category = classifyWorkerAlert(item)
+      const category = classifyEnterpriseSyncWorkerAlertLevel(item)
       const categoryPass = workerFilter === "all" || category === workerFilter
-      const queryPass =
-        normalizedQuery.length === 0 ||
+      const actionPass =
+        normalizedActionScope.length === 0 || (item.worker_action || "").trim().toLowerCase() === normalizedActionScope
+      const kindPass =
+        normalizedKindScope.length === 0 || (item.worker_kind || "").trim().toLowerCase() === normalizedKindScope
+      const labelPass =
+        normalizedLabelScope.length === 0 || (item.worker_label || "").trim().toLowerCase() === normalizedLabelScope
+      const queryPass = matchesSearchTokens(
         [
           item.tenant_id,
+          item.worker_action || "",
+          item.worker_kind || "",
+          item.worker_label || "",
           String(item.count),
           String(item.last_failed),
           String(item.last_threshold),
           String(item.last_processed),
           String(item.last_applied),
-        ]
-          .map((value) => value.toLowerCase())
-          .some((value) => value.includes(normalizedQuery))
-      return categoryPass && queryPass
+        ],
+        normalizedQuery
+      )
+      return categoryPass && actionPass && kindPass && labelPass && queryPass
     })
-  }, [workerAlerts, workerFilter, workerQuery])
+  }, [workerActionScope, workerAlerts, workerFilter, workerKindScope, workerLabelScope, workerQuery])
 
   const workerReviewStageLabel = useMemo(() => {
     switch (workerReviewStage) {
       case "alerts":
-        return "审批与异常"
+        return t("enterpriseSyncWorkspace.workerReview.stage.alerts")
       case "directory":
-        return "员工与用户组"
+        return t("enterpriseSyncWorkspace.workerReview.stage.directory")
       case "policies":
-        return "权限策略"
+        return t("enterpriseSyncWorkspace.workerReview.stage.policies")
       case "issuance":
-        return "凭证发放"
+        return t("enterpriseSyncWorkspace.workerReview.stage.issuance")
       case "sync":
-        return "导入与同步"
+        return t("enterpriseSyncWorkspace.workerReview.stage.sync")
       default:
-        return "当前工作区"
+        return t("enterpriseSyncWorkspace.workerReview.stage.current")
     }
-  }, [workerReviewStage])
+  }, [t, workerReviewStage])
 
   const mainflowSegmentLabel = (hint: MainflowSegmentHint) => {
     switch (hint) {
       case "directory_usage":
-        return "同步结果到用户组使用"
+        return t("enterpriseSyncWorkspace.mainflow.segment.directoryUsage")
       case "policy_delivery":
-        return "用户组使用到权限下发"
+        return t("enterpriseSyncWorkspace.mainflow.segment.policyDelivery")
       case "issuance_receipt":
-        return "策略下发到发放执行与回执"
+        return t("enterpriseSyncWorkspace.mainflow.segment.issuanceReceipt")
       default:
         return hint
     }
@@ -290,12 +500,12 @@ export function EnterpriseSyncWorkspace({
   const mainflowSegmentStatusLabel = (status: MainflowSegmentStatus) => {
     switch (status) {
       case "ready":
-        return "已承接"
+        return t("enterpriseSyncWorkspace.mainflow.status.ready")
       case "attention":
-        return "待收口"
+        return t("enterpriseSyncWorkspace.mainflow.status.attention")
       case "pending":
       default:
-        return "待补齐"
+        return t("enterpriseSyncWorkspace.mainflow.status.pending")
     }
   }
 
@@ -381,35 +591,56 @@ export function EnterpriseSyncWorkspace({
     return hashPart ? `${nextPath}#${hashPart}` : nextPath
   }
 
+  const executionRouteHints = {
+    execution_id: executionIDScope,
+    execution_kind: executionKindScope,
+    execution_mode: executionModeScope,
+    execution_queue_state: executionQueueStateScope,
+    execution_replay_scope: executionReplayScopeScope,
+    execution_status: executionStatusScope,
+  }
+
   function buildWorkerAlertScopedLinks(item: EnterpriseSyncWorkerAlertSummaryItem) {
-    const category = classifyWorkerAlert(item)
+    const category = classifyEnterpriseSyncWorkerAlertLevel(item)
     const workerFilterHint = category === "hot" ? "hot" : category === "alerting" ? "alerting" : "stable"
     const remediationHint = category === "hot" ? "worker_hot_alert" : category === "alerting" ? "worker_alerting" : ""
     const workerScopeLabel = selectedTenantName || item.tenant_id
 
     const workerHints = {
+      worker_connector_id: workerConnectorScope,
+      worker_failure_stage: workerFailureStageScope,
       remediation_hint: remediationHint,
+      worker_action: item.worker_action || "",
       worker_alert_failed: String(item.last_failed),
+      worker_alert_label: item.worker_label || "",
       worker_alert_last_seen: item.last_seen_at || "",
       worker_alert_level: category,
       worker_alert_tenant_id: item.tenant_id,
       worker_alert_threshold: String(item.last_threshold),
+      worker_kind: item.worker_kind || "",
+      worker_mode: workerModeScope,
+      worker_queue_state: workerQueueStateScope,
       worker_filter_hint: workerFilterHint,
       worker_query_hint: item.tenant_id,
+      worker_replay_state: workerReplayStateScope,
+      worker_request_id: workerRequestScope,
+      worker_status: workerStatusScope,
+      worker_vendor: workerVendorScope,
     }
 
     return {
       alerts: withRouteHints(alertsLink, {
         alerts_view_hint: "directory_exceptions",
         ...workerHints,
+        ...executionRouteHints,
       }),
       directory: withRouteHints(directoryLink, {
-        group_desc: `来源${workerScopeLabel} worker 告警`,
+        group_desc: t("enterpriseSyncWorkspace.hints.workerGroupDesc", { scope: workerScopeLabel }),
         group_member_email: "",
         group_member_id: "",
         group_member_name: "",
         group_member_status: "",
-        group_name: `${workerScopeLabel} Worker 告警复核`,
+        group_name: t("enterpriseSyncWorkspace.hints.workerGroupName", { scope: workerScopeLabel }),
         ...workerHints,
       }),
       policies: withRouteHints(policiesLink, {
@@ -417,8 +648,8 @@ export function EnterpriseSyncWorkspace({
         group_member_id: "",
         group_member_name: "",
         group_member_status: "",
-        policy_group: `${workerScopeLabel} Worker 告警复核`,
-        policy_name: `${workerScopeLabel} Worker 告警策略复核`,
+        policy_group: t("enterpriseSyncWorkspace.hints.workerPolicyGroup", { scope: workerScopeLabel }),
+        policy_name: t("enterpriseSyncWorkspace.hints.workerPolicyName", { scope: workerScopeLabel }),
         ...workerHints,
       }),
       wallet: withRouteHints(walletLink, {
@@ -442,67 +673,95 @@ export function EnterpriseSyncWorkspace({
     title: string
   }> = [
     {
-      title: "同步结果",
+      title: t("enterpriseSyncWorkspace.pipeline.syncResult.title"),
       ready: latestSyncReady,
       helper: latestSyncJob
-        ? `${syncSourceLabel(latestSyncJob.source)} 最近结果 ${latestSyncJob.status} / rejected ${latestSyncJob.rejected}`
-        : "尚未生成首批同步结果",
+        ? t("enterpriseSyncWorkspace.pipeline.syncResult.helperWithJob", {
+            source: syncSourceLabel(latestSyncJob.source),
+            status: latestSyncJob.status,
+            rejected: latestSyncJob.rejected,
+          })
+        : t("enterpriseSyncWorkspace.pipeline.syncResult.helperNoJob"),
       action: !latestSyncJob
         ? {
             kind: "section",
             section: "sync",
-            label: "去导入与同步",
+            label: t("enterpriseSyncWorkspace.pipeline.syncResult.actionGoSync"),
           }
         : latestSyncReady
           ? {
               kind: "section",
               section: "sync",
-              label: "查看同步结果",
+              label: t("enterpriseSyncWorkspace.pipeline.syncResult.actionView"),
             }
           : {
               kind: "section",
               section: "alerts",
-              label: "去审批与异常",
+              label: t("enterpriseSyncWorkspace.pipeline.syncResult.actionGoAlerts"),
             },
     },
     {
-      title: "员工目录",
+      title: t("enterpriseSyncWorkspace.pipeline.employeeDirectory.title"),
       ready: activeEmployeeCount > 0,
-      helper: activeEmployeeCount > 0 ? `${activeEmployeeCount} 名在职员工` : "目录仍为空",
+      helper:
+        activeEmployeeCount > 0
+          ? t("enterpriseSyncWorkspace.pipeline.employeeDirectory.helperReady", { count: activeEmployeeCount })
+          : t("enterpriseSyncWorkspace.pipeline.employeeDirectory.helperEmpty"),
       action: {
         kind: "section",
         section: "employees",
-        label: activeEmployeeCount > 0 ? "查看员工目录" : "去员工目录复核",
+        label:
+          activeEmployeeCount > 0
+            ? t("enterpriseSyncWorkspace.pipeline.employeeDirectory.actionView")
+            : t("enterpriseSyncWorkspace.pipeline.employeeDirectory.actionReview"),
       },
     },
     {
-      title: "用户组",
+      title: t("enterpriseSyncWorkspace.pipeline.userGroups.title"),
       ready: tenantGroupsCount > 0,
-      helper: tenantGroupsCount > 0 ? `${tenantGroupsCount} 个用户组` : "尚未建立稳定用户组",
+      helper:
+        tenantGroupsCount > 0
+          ? t("enterpriseSyncWorkspace.pipeline.userGroups.helperReady", { count: tenantGroupsCount })
+          : t("enterpriseSyncWorkspace.pipeline.userGroups.helperEmpty"),
       action: {
         kind: "route",
         to: directoryLink,
-        label: tenantGroupsCount > 0 ? "查看员工与用户组" : "去员工与用户组",
+        label:
+          tenantGroupsCount > 0
+            ? t("enterpriseSyncWorkspace.pipeline.userGroups.actionView")
+            : t("enterpriseSyncWorkspace.pipeline.userGroups.actionGo"),
       },
     },
     {
-      title: "权限策略",
+      title: t("enterpriseSyncWorkspace.pipeline.policies.title"),
       ready: tenantPoliciesCount > 0,
-      helper: tenantPoliciesCount > 0 ? `${tenantPoliciesCount} 条策略` : "尚未落策略",
+      helper:
+        tenantPoliciesCount > 0
+          ? t("enterpriseSyncWorkspace.pipeline.policies.helperReady", { count: tenantPoliciesCount })
+          : t("enterpriseSyncWorkspace.pipeline.policies.helperEmpty"),
       action: {
         kind: "route",
         to: policiesLink,
-        label: tenantPoliciesCount > 0 ? "查看权限策略" : "去权限策略",
+        label:
+          tenantPoliciesCount > 0
+            ? t("enterpriseSyncWorkspace.pipeline.policies.actionView")
+            : t("enterpriseSyncWorkspace.pipeline.policies.actionGo"),
       },
     },
     {
-      title: "凭证发放",
+      title: t("enterpriseSyncWorkspace.pipeline.issuance.title"),
       ready: issuedPassCount > 0,
-      helper: issuedPassCount > 0 ? `${issuedPassCount} 张已发放凭证` : "尚未开始发放",
+      helper:
+        issuedPassCount > 0
+          ? t("enterpriseSyncWorkspace.pipeline.issuance.helperReady", { count: issuedPassCount })
+          : t("enterpriseSyncWorkspace.pipeline.issuance.helperEmpty"),
       action: {
         kind: "route",
         to: walletLink,
-        label: issuedPassCount > 0 ? "查看发放中心" : "去凭证发放",
+        label:
+          issuedPassCount > 0
+            ? t("enterpriseSyncWorkspace.pipeline.issuance.actionView")
+            : t("enterpriseSyncWorkspace.pipeline.issuance.actionGo"),
       },
     },
   ]
@@ -512,56 +771,97 @@ export function EnterpriseSyncWorkspace({
       ? {
           kind: "section" as const,
           section: "sync" as const,
-          label: "去导入与同步",
+          label: t("enterpriseSyncWorkspace.pipeline.primaryAction.goSync"),
         }
       : !latestSyncReady
         ? {
             kind: "section" as const,
             section: "alerts" as const,
-            label: "去审批与异常",
+            label: t("enterpriseSyncWorkspace.pipeline.primaryAction.goAlerts"),
           }
         : activeEmployeeCount === 0
           ? {
               kind: "section" as const,
               section: "employees" as const,
-              label: "查看员工目录",
+              label: t("enterpriseSyncWorkspace.pipeline.primaryAction.viewEmployees"),
             }
           : tenantGroupsCount === 0
             ? {
                 kind: "route" as const,
                 to: directoryLink,
-                label: "去员工与用户组",
+                label: t("enterpriseSyncWorkspace.pipeline.primaryAction.goDirectory"),
               }
             : tenantPoliciesCount === 0
               ? {
                   kind: "route" as const,
                   to: policiesLink,
-                  label: "去权限策略",
+                  label: t("enterpriseSyncWorkspace.pipeline.primaryAction.goPolicies"),
                 }
               : issuedPassCount === 0
                 ? {
                     kind: "route" as const,
                     to: walletLink,
-                    label: "去凭证发放",
+                    label: t("enterpriseSyncWorkspace.pipeline.primaryAction.goIssuance"),
                   }
                 : {
                     kind: "route" as const,
                     to: walletLink,
-                    label: "查看发放中心",
+                    label: t("enterpriseSyncWorkspace.pipeline.primaryAction.viewIssuance"),
                   }
   const workerReviewAlertsLink = withRouteHints(alertsLink, {
     alerts_view_hint: "directory_exceptions",
+    worker_action: workerActionScope,
+    worker_alert_label: workerLabelScope,
+    worker_connector_id: workerConnectorScope,
+    worker_failure_stage: workerFailureStageScope,
     worker_filter_hint: workerFilter === "all" ? "" : workerFilter,
+    worker_kind: workerKindScope,
+    worker_mode: workerModeScope,
+    worker_queue_state: workerQueueStateScope,
     worker_query_hint: workerQuery,
+    worker_replay_state: workerReplayStateScope,
+    worker_request_id: workerRequestScope,
     worker_review_stage_hint: "",
     worker_review_status_hint: "",
+    worker_status: workerStatusScope,
+    worker_vendor: workerVendorScope,
+    ...executionRouteHints,
   })
   const workerReviewResetLink = withRouteHints(syncLink, {
     sync_focus_hint: "worker_alert",
+    worker_action: workerActionScope,
+    worker_alert_label: workerLabelScope,
+    worker_connector_id: workerConnectorScope,
+    worker_failure_stage: workerFailureStageScope,
     worker_filter_hint: workerFilter === "all" ? "" : workerFilter,
+    worker_kind: workerKindScope,
+    worker_mode: workerModeScope,
+    worker_queue_state: workerQueueStateScope,
     worker_query_hint: workerQuery,
+    worker_replay_state: workerReplayStateScope,
+    worker_request_id: workerRequestScope,
     worker_review_stage_hint: "",
     worker_review_status_hint: "",
+    worker_status: workerStatusScope,
+    worker_vendor: workerVendorScope,
+    ...executionRouteHints,
+  })
+  const executionReviewAlertsLink = withRouteHints(alertsLink, {
+    alerts_view_hint: "directory_exceptions",
+    worker_action: workerActionScope,
+    worker_alert_label: workerLabelScope,
+    worker_connector_id: workerConnectorScope,
+    worker_failure_stage: workerFailureStageScope,
+    worker_filter_hint: workerFilter === "all" ? "" : workerFilter,
+    worker_kind: workerKindScope,
+    worker_mode: workerModeScope,
+    worker_queue_state: workerQueueStateScope,
+    worker_query_hint: workerQuery,
+    worker_replay_state: workerReplayStateScope,
+    worker_request_id: workerRequestScope,
+    worker_status: workerStatusScope,
+    worker_vendor: workerVendorScope,
+    ...executionRouteHints,
   })
   const syncReferenceSource = latestSyncJob?.source?.trim() || syncSource.trim()
   const syncReferenceJobID = latestSyncJob?.id?.trim() || ""
@@ -572,6 +872,15 @@ export function EnterpriseSyncWorkspace({
     tenantGroupsCount === 0 ? "pending" : tenantPoliciesCount > 0 ? "ready" : "attention"
   const issuanceReceiptStatus: MainflowSegmentStatus =
     tenantPoliciesCount === 0 ? "pending" : issuedPassCount > 0 ? "ready" : "attention"
+  const hasExecutionContext =
+    Boolean(
+      executionIDScope ||
+        executionKindScope ||
+        executionModeScope ||
+        executionQueueStateScope ||
+        executionReplayScopeScope ||
+        executionStatusScope
+    )
   const mainflowSegments: Array<{
     actionLabel: string
     description: string
@@ -585,18 +894,27 @@ export function EnterpriseSyncWorkspace({
       status: directoryUsageStatus,
       metric:
         activeEmployeeCount === 0
-          ? "目录尚未接通，用户组承接尚未开始。"
-          : `在职员工 ${activeEmployeeCount} 名 / 用户组 ${tenantGroupsCount} 个。`,
-      actionLabel: "去员工与用户组承接",
+          ? t("enterpriseSyncWorkspace.mainflow.directoryUsage.metricPending")
+          : t("enterpriseSyncWorkspace.mainflow.directoryUsage.metricReady", {
+              employees: activeEmployeeCount,
+              groups: tenantGroupsCount,
+            }),
+      actionLabel: t("enterpriseSyncWorkspace.mainflow.directoryUsage.action"),
       description:
         directoryUsageStatus === "ready"
-          ? "同步结果已进入用户组使用态，可继续复核策略下发。"
+          ? t("enterpriseSyncWorkspace.mainflow.directoryUsage.descriptionReady")
           : directoryUsageStatus === "attention"
-            ? "已有同步结果，但用户组承接不足，需先补齐组织分组。"
-            : "先完成同步并形成有效目录，再建立用户组承接关系。",
+            ? t("enterpriseSyncWorkspace.mainflow.directoryUsage.descriptionAttention")
+            : t("enterpriseSyncWorkspace.mainflow.directoryUsage.descriptionPending"),
       to: withRouteHints(directoryLink, {
-        group_desc: syncReferenceSource ? `来源 ${syncReferenceSource.toUpperCase()} 同步分段承接` : "来源同步分段承接",
-        group_name: selectedTenantName ? `${selectedTenantName} 用户组承接` : "同步用户组承接",
+        group_desc: syncReferenceSource
+          ? t("enterpriseSyncWorkspace.hints.segmentGroupDescWithSource", {
+              source: syncReferenceSource.toUpperCase(),
+            })
+          : t("enterpriseSyncWorkspace.hints.segmentGroupDesc"),
+        group_name: selectedTenantName
+          ? t("enterpriseSyncWorkspace.hints.segmentGroupNameWithTenant", { tenant: selectedTenantName })
+          : t("enterpriseSyncWorkspace.hints.segmentGroupName"),
         segment_hint: "directory_usage",
         segment_status_hint: directoryUsageStatus,
         sync_job_id: syncReferenceJobID,
@@ -609,18 +927,27 @@ export function EnterpriseSyncWorkspace({
       status: policyDeliveryStatus,
       metric:
         tenantGroupsCount === 0
-          ? "尚无可承接策略下发的用户组。"
-          : `用户组 ${tenantGroupsCount} 个 / 策略 ${tenantPoliciesCount} 条。`,
-      actionLabel: "去权限策略承接",
+          ? t("enterpriseSyncWorkspace.mainflow.policyDelivery.metricPending")
+          : t("enterpriseSyncWorkspace.mainflow.policyDelivery.metricReady", {
+              groups: tenantGroupsCount,
+              policies: tenantPoliciesCount,
+            }),
+      actionLabel: t("enterpriseSyncWorkspace.mainflow.policyDelivery.action"),
       description:
         policyDeliveryStatus === "ready"
-          ? "策略下发已承接用户组，可继续推进发放与回执复核。"
+          ? t("enterpriseSyncWorkspace.mainflow.policyDelivery.descriptionReady")
           : policyDeliveryStatus === "attention"
-            ? "用户组已就绪，但策略下发尚未形成闭环。"
-            : "先补齐用户组，再进入权限策略下发。",
+            ? t("enterpriseSyncWorkspace.mainflow.policyDelivery.descriptionAttention")
+            : t("enterpriseSyncWorkspace.mainflow.policyDelivery.descriptionPending"),
       to: withRouteHints(policiesLink, {
-        policy_group: selectedTenantName ? `${selectedTenantName} 用户组承接` : "同步用户组承接",
-        policy_name: syncReferenceSource ? `${syncReferenceSource.toUpperCase()} 同步策略下发复核` : "同步策略下发复核",
+        policy_group: selectedTenantName
+          ? t("enterpriseSyncWorkspace.hints.segmentGroupNameWithTenant", { tenant: selectedTenantName })
+          : t("enterpriseSyncWorkspace.hints.segmentGroupName"),
+        policy_name: syncReferenceSource
+          ? t("enterpriseSyncWorkspace.hints.segmentPolicyNameWithSource", {
+              source: syncReferenceSource.toUpperCase(),
+            })
+          : t("enterpriseSyncWorkspace.hints.segmentPolicyName"),
         segment_hint: "policy_delivery",
         segment_status_hint: policyDeliveryStatus,
         sync_job_id: syncReferenceJobID,
@@ -633,15 +960,18 @@ export function EnterpriseSyncWorkspace({
       status: issuanceReceiptStatus,
       metric:
         tenantPoliciesCount === 0
-          ? "尚无策略下发结果，无法稳定进入发放执行。"
-          : `策略 ${tenantPoliciesCount} 条 / 已发放凭证 ${issuedPassCount} 张。`,
-      actionLabel: "去凭证发放承接",
+          ? t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.metricPending")
+          : t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.metricReady", {
+              policies: tenantPoliciesCount,
+              issued: issuedPassCount,
+            }),
+      actionLabel: t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.action"),
       description:
         issuanceReceiptStatus === "ready"
-          ? "发放执行已承接策略结果，可继续核对交付与回执状态。"
+          ? t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.descriptionReady")
           : issuanceReceiptStatus === "attention"
-            ? "策略下发已就绪，但发放执行与回执链路仍需补齐。"
-            : "先补齐策略下发，再推进发放执行与回执。",
+            ? t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.descriptionAttention")
+            : t("enterpriseSyncWorkspace.mainflow.issuanceReceipt.descriptionPending"),
       to: withRouteHints(walletLink, {
         segment_hint: "issuance_receipt",
         segment_status_hint: issuanceReceiptStatus,
@@ -655,25 +985,28 @@ export function EnterpriseSyncWorkspace({
   const unresolvedMainflowLabel = unresolvedMainflowSegments.map((item) => mainflowSegmentLabel(item.hint)).join("、")
   const mainflowPriorityAction: MainflowPriorityAction = hasSyncFailure
     ? {
-        title: "优先处理同步异常再继续主流程",
-        description: "最近同步仍有失败或 rejected，建议先在审批与异常收口，再继续目录、策略和发放承接。",
+        title: t("enterpriseSyncWorkspace.mainflow.priority.failure.title"),
+        description: t("enterpriseSyncWorkspace.mainflow.priority.failure.description"),
         kind: "section",
         section: "alerts",
-        label: "去审批与异常优先收口",
+        label: t("enterpriseSyncWorkspace.mainflow.priority.failure.action"),
       }
     : unresolvedMainflowSegments.length === 0
       ? {
-          title: "主流程分段已全部承接",
-          description: "同步、用户组、策略和发放承接均已连通，可继续在发放页做回执复核与状态维护。",
+          title: t("enterpriseSyncWorkspace.mainflow.priority.done.title"),
+          description: t("enterpriseSyncWorkspace.mainflow.priority.done.description"),
           kind: "route",
           to: walletLink,
-          label: "去凭证发放继续维护",
+          label: t("enterpriseSyncWorkspace.mainflow.priority.done.action"),
         }
       : (() => {
           const first = unresolvedMainflowSegments[0]
           return {
-            title: "当前唯一优先动作",
-            description: `当前待收口分段：${unresolvedMainflowLabel}。建议先处理“${mainflowSegmentLabel(first.hint)}”，避免并行跳转导致主流程再次断点。`,
+            title: t("enterpriseSyncWorkspace.mainflow.priority.pending.title"),
+            description: t("enterpriseSyncWorkspace.mainflow.priority.pending.description", {
+              unresolved: unresolvedMainflowLabel,
+              first: mainflowSegmentLabel(first.hint),
+            }),
             kind: "route",
             to: first.to,
             label: first.actionLabel,
@@ -690,8 +1023,8 @@ export function EnterpriseSyncWorkspace({
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">快速导入入口</CardTitle>
-            <CardDescription>把 HRIS、SCIM、CSV 和手动同步做成企业页的一等能力，而不是藏在用户组提示里。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseSyncWorkspace.quickImport.title")}</CardTitle>
+            <CardDescription>{t("enterpriseSyncWorkspace.quickImport.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {syncSourceOptions.map((item) => (
@@ -713,7 +1046,9 @@ export function EnterpriseSyncWorkspace({
                     variant={syncSource === item.value ? "default" : "outline"}
                     onClick={() => onSyncSourceChange(item.value)}
                   >
-                    {syncSource === item.value ? "当前来源" : "设为当前来源"}
+                    {syncSource === item.value
+                      ? t("enterpriseSyncWorkspace.quickImport.currentSource")
+                      : t("enterpriseSyncWorkspace.quickImport.setAsCurrent")}
                   </Button>
                 </div>
               </div>
@@ -723,50 +1058,71 @@ export function EnterpriseSyncWorkspace({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">同步任务提交</CardTitle>
+            <CardTitle className="text-base">{t("enterpriseSyncWorkspace.submit.title")}</CardTitle>
             <CardDescription>
-              当前先提供 JSON 导入工作台，用于打通后端同步链路；后续再替换成正式的 HRIS / SCIM 表单。
+              {t("enterpriseSyncWorkspace.submit.description")}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-3" onSubmit={onSyncEmployees}>
+            <form className="space-y-3" onSubmit={syncSubmitForm.handleSubmit(onSubmitSyncEmployees)}>
               <div className="grid gap-3 md:grid-cols-2">
-                <Select value={syncSource} onValueChange={onSyncSourceChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="选择同步来源" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {syncSourceOptions.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={syncSubmitForm.control}
+                  name="sync_source"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value)
+                        onSyncSourceChange(value)
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t("enterpriseSyncWorkspace.submit.selectSourcePlaceholder")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {syncSourceOptions.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 <Input
-                  value={syncRequestID}
-                  onChange={(event) => onSyncRequestIDChange(event.target.value)}
+                  {...syncRequestIDField}
+                  onChange={(event) => {
+                    syncRequestIDField.onChange(event)
+                    onSyncRequestIDChange(event.target.value)
+                  }}
                   placeholder="request_id"
                 />
               </div>
               <Textarea
-                value={syncPayload}
-                onChange={(event) => onSyncPayloadChange(event.target.value)}
+                {...syncPayloadField}
+                onChange={(event) => {
+                  syncPayloadField.onChange(event)
+                  onSyncPayloadChange(event.target.value)
+                }}
                 rows={14}
                 placeholder={sampleSyncPayload}
                 disabled={!writable}
               />
               {!writable ? (
                 <p className="mp-kpi-note">
-                  当前角色为只读，无法发起同步；请由企业管理员或平台管理员操作。
+                  {t("enterpriseSyncWorkspace.submit.readonlyHint")}
                 </p>
               ) : null}
               <div className="flex justify-end">
-                <Button type="submit" disabled={syncing || !writable}>
+                <Button type="submit" disabled={syncing || !writable || syncSubmitForm.formState.isSubmitting}>
                   <RefreshCwIcon className={`mr-1.5 size-4 ${syncing ? "animate-spin" : ""}`} />
-                  {syncing ? "提交中..." : "提交同步任务"}
+                  {syncing
+                    ? t("enterpriseSyncWorkspace.submit.submitting")
+                    : t("enterpriseSyncWorkspace.submit.submit")}
                 </Button>
               </div>
+              {syncSubmitFormError ? <p className="text-sm text-destructive">{syncSubmitFormError}</p> : null}
             </form>
 
             <div className="mt-4 rounded-xl border bg-muted/10 px-4 py-3">
@@ -792,10 +1148,20 @@ export function EnterpriseSyncWorkspace({
         </Card>
       </div>
 
+      <EnterpriseHRISConnectorPanel
+        apiBaseURL={apiBaseURL}
+        connectors={hrisConnectors}
+        loading={loading}
+        onSaveTalentaConnector={onSaveTalentaConnector}
+        secrets={hrisSecrets}
+        selectedTenantName={selectedTenantName}
+        writable={writable}
+      />
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">同步来源状态总览</CardTitle>
-          <CardDescription>并排查看各导入来源的最近结果与下一步动作，避免只围绕当前来源做局部判断。</CardDescription>
+          <CardTitle className="text-base">{t("enterpriseSyncWorkspace.sourceOverview.title")}</CardTitle>
+          <CardDescription>{t("enterpriseSyncWorkspace.sourceOverview.description")}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {syncSourceStatusCards.map((item) => (
@@ -806,7 +1172,9 @@ export function EnterpriseSyncWorkspace({
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
               <p className="mt-2 text-xs text-muted-foreground">{item.metrics}</p>
-              <p className="mt-1 text-xs text-muted-foreground">最近完成时间：{item.latestEndedAt}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("enterpriseSyncWorkspace.sourceOverview.latestEndedAt", { value: item.latestEndedAt })}
+              </p>
               <div className="mt-2 space-y-1">
                 {item.checkpoints.map((checkpoint) => (
                   <p key={`${item.source}-${checkpoint}`} className="mp-kpi-note">
@@ -830,7 +1198,12 @@ export function EnterpriseSyncWorkspace({
                   return (
                     <div className="flex flex-wrap items-center gap-2">
                       {renderNavAction(primaryAction)}
-                      {fallbackAction ? renderNavAction(fallbackAction, { label: "按该来源处理", variant: "outline" }) : null}
+                      {fallbackAction
+                        ? renderNavAction(fallbackAction, {
+                            label: t("enterpriseSyncWorkspace.sourceOverview.fallbackAction"),
+                            variant: "outline",
+                          })
+                        : null}
                     </div>
                   )
                 })()}
@@ -842,15 +1215,19 @@ export function EnterpriseSyncWorkspace({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">连续主流程分段状态</CardTitle>
-          <CardDescription>把“同步结果到用户组使用再到权限下发”拆成分段状态，并给出统一收口提示与优先动作。</CardDescription>
+          <CardTitle className="text-base">{t("enterpriseSyncWorkspace.mainflow.title")}</CardTitle>
+          <CardDescription>{t("enterpriseSyncWorkspace.mainflow.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-xl border bg-muted/10 px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-medium">{mainflowPriorityAction.title}</p>
               <Badge variant={unresolvedMainflowSegments.length > 0 ? "secondary" : "outline"}>
-                {unresolvedMainflowSegments.length > 0 ? `${unresolvedMainflowSegments.length} 个分段待收口` : "分段已连通"}
+                {unresolvedMainflowSegments.length > 0
+                  ? t("enterpriseSyncWorkspace.mainflow.unresolvedCount", {
+                      count: unresolvedMainflowSegments.length,
+                    })
+                  : t("enterpriseSyncWorkspace.mainflow.connected")}
               </Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">{mainflowPriorityAction.description}</p>
@@ -867,7 +1244,11 @@ export function EnterpriseSyncWorkspace({
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium">{mainflowSegmentLabel(item.hint)}</p>
                     <Badge variant={mainflowSegmentStatusVariant(item.status)}>{mainflowSegmentStatusLabel(item.status)}</Badge>
-                    {unresolvedRank > 0 ? <Badge variant="secondary">{`优先级 #${unresolvedRank}`}</Badge> : null}
+                    {unresolvedRank > 0 ? (
+                      <Badge variant="secondary">
+                        {t("enterpriseSyncWorkspace.mainflow.priorityRank", { rank: unresolvedRank })}
+                      </Badge>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{item.metric}</p>
@@ -883,21 +1264,32 @@ export function EnterpriseSyncWorkspace({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card data-testid="enterprise-sync-worker-alerts-card">
         <CardHeader>
-          <CardTitle className="text-base">Worker 告警记录定位</CardTitle>
-          <CardDescription>在导入与同步工作区直接承接 worker 告警线索，并给出处理后回流到目录、策略和发放的动作。</CardDescription>
+          <CardTitle className="text-base">{t("enterpriseSyncWorkspace.workerAlerts.title")}</CardTitle>
+          <CardDescription>{t("enterpriseSyncWorkspace.workerAlerts.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {[
-              { value: "all", label: `全部（${workerCounts.all}）` },
-              { value: "alerting", label: `告警中（${workerCounts.alerting}）` },
-              { value: "hot", label: `超阈值（${workerCounts.hot}）` },
-              { value: "stable", label: `稳定（${workerCounts.stable}）` },
+              { value: "all", label: t("enterpriseSyncWorkspace.workerAlerts.filters.all", { count: workerCounts.all }) },
+              {
+                value: "alerting",
+                label: t("enterpriseSyncWorkspace.workerAlerts.filters.alerting", {
+                  count: workerCounts.alerting,
+                }),
+              },
+              { value: "hot", label: t("enterpriseSyncWorkspace.workerAlerts.filters.hot", { count: workerCounts.hot }) },
+              {
+                value: "stable",
+                label: t("enterpriseSyncWorkspace.workerAlerts.filters.stable", {
+                  count: workerCounts.stable,
+                }),
+              },
             ].map((item) => (
               <Button
                 key={item.value}
+                data-testid={`enterprise-sync-worker-alert-filter-${item.value}`}
                 size="sm"
                 variant={workerFilter === item.value ? "default" : "outline"}
                 onClick={() => setWorkerFilter(item.value as "all" | "alerting" | "hot" | "stable")}
@@ -908,20 +1300,111 @@ export function EnterpriseSyncWorkspace({
           </div>
           <div className="flex items-center gap-2">
             <Input
+              data-testid="enterprise-sync-worker-alert-query"
               value={workerQuery}
               onChange={(event) => setWorkerQuery(event.target.value)}
-              placeholder="按租户 / failed / threshold 筛选"
+              placeholder={t("enterpriseSyncWorkspace.workerAlerts.queryPlaceholder")}
               className="h-8"
             />
             {workerQuery.trim() ? (
               <Button size="sm" variant="outline" onClick={() => setWorkerQuery("")}>
-                清空
+                {t("enterpriseSyncWorkspace.workerAlerts.clear")}
               </Button>
             ) : null}
           </div>
+          {workerActionScope ||
+          workerConnectorScope ||
+          workerFailureStageScope ||
+          workerKindScope ||
+          workerLabelScope ||
+          workerModeScope ||
+          workerQueueStateScope ||
+          executionIDScope ||
+          executionKindScope ||
+          executionModeScope ||
+          executionQueueStateScope ||
+          executionReplayScopeScope ||
+          executionStatusScope ||
+          workerReplayStateScope ||
+          workerRequestScope ||
+          workerStatusScope ||
+          workerVendorScope ? (
+            <div className="flex flex-wrap items-center gap-2" data-testid="enterprise-sync-worker-alert-scope">
+              {workerLabelScope ? <Badge variant="secondary">{workerLabelScope}</Badge> : null}
+              {workerActionScope ? <Badge variant="secondary">{workerActionScope}</Badge> : null}
+              {workerKindScope ? <Badge variant="outline">{workerKindScope}</Badge> : null}
+              {workerConnectorScope ? <Badge variant="outline">{workerConnectorScope}</Badge> : null}
+              {workerRequestScope ? <Badge variant="outline">{workerRequestScope}</Badge> : null}
+              {workerFailureStageScope ? <Badge variant="outline">{workerFailureStageScope}</Badge> : null}
+              {workerVendorScope ? <Badge variant="outline">{workerVendorScope}</Badge> : null}
+              {workerModeScope ? <Badge variant="outline">{workerModeScope}</Badge> : null}
+              {workerStatusScope ? <Badge variant="outline">{workerStatusScope}</Badge> : null}
+              {workerQueueStateScope ? <Badge variant="outline">{workerQueueStateScope}</Badge> : null}
+              {workerReplayStateScope ? <Badge variant="outline">{workerReplayStateScope}</Badge> : null}
+              {executionIDScope ? <Badge variant="secondary">{executionIDScope}</Badge> : null}
+              {executionKindScope ? <Badge variant="outline">{formatLifecycleToken(executionKindScope)}</Badge> : null}
+              {executionModeScope ? <Badge variant="outline">{formatLifecycleToken(executionModeScope)}</Badge> : null}
+              {executionStatusScope ? <Badge variant="outline">{formatLifecycleToken(executionStatusScope)}</Badge> : null}
+              {executionQueueStateScope ? (
+                <Badge variant="outline">{formatLifecycleToken(executionQueueStateScope)}</Badge>
+              ) : null}
+              {executionReplayScopeScope ? (
+                <Badge variant="outline">{formatLifecycleToken(executionReplayScopeScope)}</Badge>
+              ) : null}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setWorkerActionScope("")
+                  setWorkerConnectorScope("")
+                  setWorkerFailureStageScope("")
+                  setWorkerKindScope("")
+                  setWorkerLabelScope("")
+                  setWorkerModeScope("")
+                  setWorkerQueueStateScope("")
+                  setWorkerReplayStateScope("")
+                  setWorkerRequestScope("")
+                  setWorkerStatusScope("")
+                  setWorkerVendorScope("")
+                  setExecutionIDScope("")
+                  setExecutionKindScope("")
+                  setExecutionModeScope("")
+                  setExecutionQueueStateScope("")
+                  setExecutionReplayScopeScope("")
+                  setExecutionStatusScope("")
+                }}
+              >
+                {t("enterpriseSyncWorkspace.workerAlerts.clear")}
+              </Button>
+            </div>
+          ) : null}
           {focusHint === "worker_alert" ? (
-            <div className="rounded-lg border bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-              已按 worker 告警线索定位到导入与同步工作区，可先确认告警级别与最近失败量，再回流目录、策略或发放。
+            <div
+              className="rounded-lg border bg-muted/10 px-3 py-2 text-xs text-muted-foreground"
+              data-testid="enterprise-sync-worker-alert-focus"
+            >
+              {t("enterpriseSyncWorkspace.workerAlerts.focusHint")}
+            </div>
+          ) : null}
+          {hasExecutionContext ? (
+            <div
+              className="rounded-lg border bg-muted/10 px-3 py-2"
+              data-testid="enterprise-sync-execution-context"
+            >
+              <p className="text-xs text-muted-foreground">
+                {t("enterpriseSyncWorkspace.executionContext.focusHint", {
+                  defaultValue: "Execution context from alerts is active in this sync workspace.",
+                })}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <Link to={executionReviewAlertsLink} data-testid="enterprise-sync-execution-context-alerts-link">
+                    {t("enterpriseSyncWorkspace.executionContext.returnToAlerts", {
+                      defaultValue: "Return to alerts",
+                    })}
+                  </Link>
+                </Button>
+              </div>
             </div>
           ) : null}
           {workerReviewStatus === "handled" ? (
@@ -930,55 +1413,113 @@ export function EnterpriseSyncWorkspace({
               data-testid="enterprise-sync-worker-review"
             >
               <p className="text-xs text-emerald-700">
-                已从{workerReviewStageLabel}回流到导入与同步。建议先去审批与异常做二次复核，再确认 worker 告警是否持续下降。
+                {t("enterpriseSyncWorkspace.workerAlerts.reviewHandled", { stage: workerReviewStageLabel })}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button asChild size="sm" variant="outline">
                   <Link to={workerReviewAlertsLink} data-testid="enterprise-sync-worker-review-alerts-link">
-                    去审批与异常二次复核
+                    {t("enterpriseSyncWorkspace.workerAlerts.goSecondaryReview")}
                   </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link to={workerReviewResetLink}>清除本次回流状态</Link>
+                  <Link to={workerReviewResetLink}>{t("enterpriseSyncWorkspace.workerAlerts.clearReviewState")}</Link>
                 </Button>
               </div>
             </div>
           ) : null}
           <div className="space-y-2">
             {filteredWorkerAlerts.slice(0, 4).map((item) => {
-              const category = classifyWorkerAlert(item)
+              const category = classifyEnterpriseSyncWorkerAlertLevel(item)
+              const guidance = describeEnterpriseSyncWorkerAlertGuidance(item, t)
               const scopedLinks = buildWorkerAlertScopedLinks(item)
+              const workerTitle = item.worker_label?.trim() || item.worker_action?.trim() || "Worker Alert"
               return (
-                <div key={`${item.tenant_id}-${item.last_seen_at}`} className="rounded-xl border bg-muted/10 px-4 py-3">
+                <div
+                  key={`${item.tenant_id}-${item.worker_action || "worker"}-${item.last_seen_at}`}
+                  className="rounded-xl border bg-muted/10 px-4 py-3"
+                  data-testid="enterprise-sync-worker-alert-item"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium">{selectedTenantName ?? item.tenant_id}</p>
+                    <div>
+                      <p className="font-medium">{workerTitle}</p>
+                      <p className="text-xs text-muted-foreground">{selectedTenantName ?? item.tenant_id}</p>
+                    </div>
                     <Badge variant={category === "hot" ? "destructive" : category === "alerting" ? "secondary" : "outline"}>
-                      {category === "hot" ? "超阈值" : category === "alerting" ? "告警中" : "稳定"}
+                      {category === "hot"
+                        ? t("enterpriseSyncWorkspace.workerAlerts.category.hot")
+                        : category === "alerting"
+                          ? t("enterpriseSyncWorkspace.workerAlerts.category.alerting")
+                          : t("enterpriseSyncWorkspace.workerAlerts.category.stable")}
                     </Badge>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     failed {item.last_failed} / threshold {item.last_threshold} / last seen {formatDateTime(item.last_seen_at)}
                   </p>
+                  {guidance ? (
+                    <div
+                      className="mt-3 rounded-lg border border-muted-foreground/15 bg-background/80 px-3 py-3"
+                      data-testid="enterprise-sync-worker-alert-guidance"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p
+                          className="text-sm font-medium"
+                          data-testid="enterprise-sync-worker-alert-guidance-title"
+                        >
+                          {guidance.title}
+                        </p>
+                        <Badge
+                          variant={guidance.badgeVariant}
+                          data-testid="enterprise-sync-worker-alert-guidance-badge"
+                        >
+                          {guidance.badgeLabel}
+                        </Badge>
+                      </div>
+                      <p
+                        className="mt-1 text-xs text-muted-foreground"
+                        data-testid="enterprise-sync-worker-alert-guidance-summary"
+                      >
+                        {guidance.summary}
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        <p className="mp-kpi-note">
+                          {t("enterpriseSyncWorkspace.workerAlerts.guidance.actionsTitle")}
+                        </p>
+                        <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                          {guidance.suggestions.map((suggestion, index) => (
+                            <li
+                              key={`${workerTitle}-${index}-${suggestion}`}
+                              data-testid={`enterprise-sync-worker-alert-guidance-suggestion-${index}`}
+                            >
+                              {suggestion}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Button asChild size="sm" variant="outline">
-                      <Link to={scopedLinks.alerts}>去审批与异常处理</Link>
+                      <Link to={scopedLinks.alerts}>{t("enterpriseSyncWorkspace.workerAlerts.goAlerts")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={scopedLinks.directory}>处理后去员工与用户组</Link>
+                      <Link to={scopedLinks.directory}>{t("enterpriseSyncWorkspace.workerAlerts.goDirectory")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={scopedLinks.policies}>处理后去权限策略</Link>
+                      <Link to={scopedLinks.policies}>{t("enterpriseSyncWorkspace.workerAlerts.goPolicies")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={scopedLinks.wallet}>处理后去凭证发放</Link>
+                      <Link to={scopedLinks.wallet}>{t("enterpriseSyncWorkspace.workerAlerts.goWallet")}</Link>
                     </Button>
                   </div>
                 </div>
               )
             })}
             {!loading && filteredWorkerAlerts.length === 0 ? (
-              <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-                当前筛选下没有 worker 告警记录。
+              <div
+                className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground"
+                data-testid="enterprise-sync-worker-alert-empty"
+              >
+                {t("enterpriseSyncWorkspace.workerAlerts.empty")}
               </div>
             ) : null}
           </div>
@@ -988,46 +1529,71 @@ export function EnterpriseSyncWorkspace({
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">同步结果与下一步</CardTitle>
-            <CardDescription>同步完成后不该停在任务提交，而应直接进入目录复核、用户组、策略或异常处理。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseSyncWorkspace.outcome.title")}</CardTitle>
+            <CardDescription>{t("enterpriseSyncWorkspace.outcome.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border bg-muted/10 px-4 py-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-medium">
-                  {latestSyncJob ? `${syncSourceLabel(latestSyncJob.source)} 最近结果` : "还没有同步结果"}
+                  {latestSyncJob
+                    ? t("enterpriseSyncWorkspace.outcome.latestResultWithSource", {
+                        source: syncSourceLabel(latestSyncJob.source),
+                      })
+                    : t("enterpriseSyncWorkspace.outcome.noResult")}
                 </p>
                 {latestSyncJob ? (
                   <Badge variant={statusBadgeVariant(latestSyncJob.status)}>{latestSyncJob.status}</Badge>
                 ) : (
-                  <Badge variant="secondary">待导入</Badge>
+                  <Badge variant="secondary">{t("enterpriseSyncWorkspace.outcome.pendingImport")}</Badge>
                 )}
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
                 {latestSyncJob
-                  ? `最近一次同步创建 ${latestSyncJob.created}，更新 ${latestSyncJob.updated}，停用 ${latestSyncJob.deactivated}，rejected ${latestSyncJob.rejected}。`
-                  : "先选择一个同步来源并提交首批员工目录，后续状态会在这里直接汇总。"}
+                  ? t("enterpriseSyncWorkspace.outcome.latestResultSummary", {
+                      created: latestSyncJob.created,
+                      updated: latestSyncJob.updated,
+                      deactivated: latestSyncJob.deactivated,
+                      rejected: latestSyncJob.rejected,
+                    })
+                  : t("enterpriseSyncWorkspace.outcome.noResultHint")}
               </p>
               {latestSyncJob ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  开始于 {formatDateTime(latestSyncJob.started_at)}，结束于 {formatDateTime(latestSyncJob.ended_at)}。
+                  {t("enterpriseSyncWorkspace.outcome.startedEnded", {
+                    startedAt: formatDateTime(latestSyncJob.started_at),
+                    endedAt: formatDateTime(latestSyncJob.ended_at),
+                  })}
                 </p>
               ) : null}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">目录结果</p>
-                <p className="mt-1 text-sm font-medium">{loading ? "--" : `${activeEmployeeCount} 名在职员工`}</p>
-              </div>
-              <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">待复核</p>
-                <p className="mt-1 text-sm font-medium">{loading ? "--" : `${failedSyncJobCount} 条同步异常`}</p>
-              </div>
-              <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">后续承接</p>
+                <p className="mp-kpi-note">{t("enterpriseSyncWorkspace.outcome.kpi.directoryResult")}</p>
                 <p className="mt-1 text-sm font-medium">
-                  {loading ? "--" : `${tenantGroupsCount} 个组 / ${tenantPoliciesCount} 条策略`}
+                  {loading
+                    ? "--"
+                    : t("enterpriseSyncWorkspace.outcome.kpi.activeEmployees", { count: activeEmployeeCount })}
+                </p>
+              </div>
+              <div className="rounded-lg border bg-muted/10 px-3 py-3">
+                <p className="mp-kpi-note">{t("enterpriseSyncWorkspace.outcome.kpi.pendingReview")}</p>
+                <p className="mt-1 text-sm font-medium">
+                  {loading
+                    ? "--"
+                    : t("enterpriseSyncWorkspace.outcome.kpi.syncFailures", { count: failedSyncJobCount })}
+                </p>
+              </div>
+              <div className="rounded-lg border bg-muted/10 px-3 py-3">
+                <p className="mp-kpi-note">{t("enterpriseSyncWorkspace.outcome.kpi.followup")}</p>
+                <p className="mt-1 text-sm font-medium">
+                  {loading
+                    ? "--"
+                    : t("enterpriseSyncWorkspace.outcome.kpi.groupsPolicies", {
+                        groups: tenantGroupsCount,
+                        policies: tenantPoliciesCount,
+                      })}
                 </p>
               </div>
             </div>
@@ -1037,16 +1603,25 @@ export function EnterpriseSyncWorkspace({
               <p className="mt-1 text-sm text-muted-foreground">{syncOutcomeAction.description}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {renderNavAction(mainflowPriorityNavAction, { variant: "default" })}
-                {syncOutcomeFallbackAction ? renderNavAction(syncOutcomeFallbackAction, { label: "按同步结果处理", variant: "outline" }) : null}
+                {syncOutcomeFallbackAction
+                  ? renderNavAction(syncOutcomeFallbackAction, {
+                      label: t("enterpriseSyncWorkspace.outcome.fallbackBySyncResult"),
+                      variant: "outline",
+                    })
+                  : null}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">动作已与“连续主流程分段状态”的优先级保持一致。</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("enterpriseSyncWorkspace.outcome.priorityAligned")}</p>
             </div>
 
             <div className="rounded-xl border bg-muted/10 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">目录到策略主流程连通检查</p>
+                <p className="font-medium">{t("enterpriseSyncWorkspace.pipelineCheck.title")}</p>
                 <Badge variant={hasSyncFailure ? "destructive" : pendingSteps > 0 ? "secondary" : "outline"}>
-                  {hasSyncFailure ? "同步异常待处理" : pendingSteps > 0 ? `${pendingSteps} 个步骤待补` : "主流程已连通"}
+                  {hasSyncFailure
+                    ? t("enterpriseSyncWorkspace.pipelineCheck.badgeFailure")
+                    : pendingSteps > 0
+                      ? t("enterpriseSyncWorkspace.pipelineCheck.badgePending", { count: pendingSteps })
+                      : t("enterpriseSyncWorkspace.pipelineCheck.badgeReady")}
                 </Badge>
               </div>
 
@@ -1059,12 +1634,21 @@ export function EnterpriseSyncWorkspace({
                     <div key={item.title} className="rounded-lg border bg-background px-3 py-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium">{item.title}</p>
-                        <Badge variant={item.ready ? "outline" : "secondary"}>{item.ready ? "已就绪" : "待补齐"}</Badge>
+                        <Badge variant={item.ready ? "outline" : "secondary"}>
+                          {item.ready
+                            ? t("enterpriseSyncWorkspace.pipelineCheck.stepReady")
+                            : t("enterpriseSyncWorkspace.pipelineCheck.stepPending")}
+                        </Badge>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">{item.helper}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {renderNavAction(primaryAction, { variant: item.ready ? "outline" : "default" })}
-                        {fallbackAction ? renderNavAction(fallbackAction, { label: "按本步骤处理", variant: "outline" }) : null}
+                        {fallbackAction
+                          ? renderNavAction(fallbackAction, {
+                              label: t("enterpriseSyncWorkspace.pipelineCheck.fallbackByStep"),
+                              variant: "outline",
+                            })
+                          : null}
                       </div>
                     </div>
                   )
@@ -1073,22 +1657,27 @@ export function EnterpriseSyncWorkspace({
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {renderNavAction(mainflowPriorityNavAction, { variant: "default" })}
-                {pipelineFallbackAction ? renderNavAction(pipelineFallbackAction, { label: "按连通检查处理", variant: "outline" }) : null}
+                {pipelineFallbackAction
+                  ? renderNavAction(pipelineFallbackAction, {
+                      label: t("enterpriseSyncWorkspace.pipelineCheck.fallbackByConnectivity"),
+                      variant: "outline",
+                    })
+                  : null}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">连通检查动作已与分段优先动作保持一致。</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("enterpriseSyncWorkspace.pipelineCheck.priorityAligned")}</p>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">最近同步结果</CardTitle>
-            <CardDescription>直接复核最近任务的来源、增量结果和失败情况，不用跳去异常页才看得到。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseSyncWorkspace.recentResults.title")}</CardTitle>
+            <CardDescription>{t("enterpriseSyncWorkspace.recentResults.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {!loading && sortedSyncJobs.length === 0 ? (
               <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm text-muted-foreground">
-                当前还没有同步记录。建议先选择导入来源并提交首批员工目录。
+                {t("enterpriseSyncWorkspace.recentResults.empty")}
               </div>
             ) : null}
             {sortedSyncJobs.slice(0, 4).map((item) => (
@@ -1101,10 +1690,18 @@ export function EnterpriseSyncWorkspace({
                   <Badge variant={statusBadgeVariant(item.status)}>{item.status}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  创建 {item.created} / 更新 {item.updated} / 停用 {item.deactivated} / rejected {item.rejected}
+                  {t("enterpriseSyncWorkspace.recentResults.rowSummary", {
+                    created: item.created,
+                    updated: item.updated,
+                    deactivated: item.deactivated,
+                    rejected: item.rejected,
+                  })}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  操作人 {item.actor || "-"} / {formatDateTime(item.ended_at || item.started_at)}
+                  {t("enterpriseSyncWorkspace.recentResults.rowActorAt", {
+                    actor: item.actor || "-",
+                    at: formatDateTime(item.ended_at || item.started_at),
+                  })}
                 </p>
               </div>
             ))}
@@ -1116,8 +1713,8 @@ export function EnterpriseSyncWorkspace({
         <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">同步异常分类</CardTitle>
-              <CardDescription>把 rejected、停用和空目录风险拆开处理，避免所有问题都挤在同一个“失败”概念里。</CardDescription>
+              <CardTitle className="text-base">{t("enterpriseSyncWorkspace.issueCards.title")}</CardTitle>
+              <CardDescription>{t("enterpriseSyncWorkspace.issueCards.description")}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               {syncIssueCards.map((item) => (
@@ -1142,8 +1739,8 @@ export function EnterpriseSyncWorkspace({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">同步处理闭环</CardTitle>
-              <CardDescription>把“看到异常”继续推进到“下一步去哪里处理、处理后怎么回到目录主路径”。</CardDescription>
+              <CardTitle className="text-base">{t("enterpriseSyncWorkspace.remediation.title")}</CardTitle>
+              <CardDescription>{t("enterpriseSyncWorkspace.remediation.description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {syncRemediationSteps.map((item, index) => {
@@ -1162,12 +1759,17 @@ export function EnterpriseSyncWorkspace({
                     <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {renderNavAction(primaryAction, { variant: followPriority ? "default" : "outline" })}
-                      {fallbackAction ? renderNavAction(fallbackAction, { label: "按本步骤处理", variant: "outline" }) : null}
+                      {fallbackAction
+                        ? renderNavAction(fallbackAction, {
+                            label: t("enterpriseSyncWorkspace.remediation.fallbackByStep"),
+                            variant: "outline",
+                          })
+                        : null}
                     </div>
                   </div>
                 )
               })}
-              <p className="mp-kpi-note">处理闭环中的未完成步骤会优先跟随分段收口动作。</p>
+              <p className="mp-kpi-note">{t("enterpriseSyncWorkspace.remediation.priorityHint")}</p>
             </CardContent>
           </Card>
         </div>

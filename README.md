@@ -43,9 +43,92 @@ cd api
 DATABASE_URL='postgres://user:pass@localhost:5432/mistypass?sslmode=disable' go run ./cmd/api
 ```
 
+Optional Redis / Dragonfly volatile store (session + revoked token + rate limit):
+
+```bash
+cd api
+REDIS_ADDR='127.0.0.1:6379' REDIS_KEY_PREFIX='mistypass' go run ./cmd/api
+```
+
+Docker Compose one-command dev stack (API + PostgreSQL + Redis + EMQX):
+
+```bash
+docker compose up -d --build
+docker compose logs -f api
+```
+
+The default Compose stack now binds service ports to `127.0.0.1`, disables demo users unless explicitly enabled, and replaces public/default infra credentials with local-only passwords. Override these via your shell or a repo-root `.env` file when needed:
+
+- `POSTGRES_PASSWORD`
+- `REDIS_PASSWORD`
+- `EMQX_DASHBOARD_USERNAME`
+- `EMQX_DASHBOARD_PASSWORD`
+- `GATEWAY_BOOTSTRAP_TOKEN`
+- `ENABLE_DEMO_USERS` (default in Compose: `false`)
+- `JWT_SECRET` and `HRIS_VAULT_MASTER_KEY` (recommended if you need stable auth tokens or HRIS secret decryption across container restarts)
+
+Stop and clean all local data volumes:
+
+```bash
+docker compose down -v
+```
+
+Optional TLS termination (Caddy reverse proxy, production-ready entrypoint):
+
+```bash
+MISTYPASS_DOMAIN=api.example.com docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d --build
+```
+
+Notes:
+
+- Caddy terminates TLS on `:443` and reverse proxies to `api:8080`.
+- For public domains, Caddy will auto-manage certificates.
+- For local development, omit `MISTYPASS_DOMAIN` and Caddy will use `localhost`.
+
+Default local ports:
+
+- All host ports in the default Compose stack are bound to `127.0.0.1` only.
+- API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
+- PgBouncer: `localhost:6432` (API container defaults to `pgbouncer:5432`)
+- Redis: `localhost:6379`
+- EMQX MQTT: `localhost:1883`
+- EMQX Dashboard: `http://localhost:18083` (`EMQX_DASHBOARD_USERNAME` / `EMQX_DASHBOARD_PASSWORD`)
+- NATS: `localhost:4222` (monitoring: `http://localhost:8222`)
+
 Optional env:
 
 - `DATABASE_AUTO_MIGRATE` (default: `true`) auto-creates snapshot table `mistypass` plus projection tables `mistypass_*`, and auto-migrates legacy `app_state` rows if present.
+- `MQTT_ENABLED` (default: `false`)
+- `MQTT_BROKER_URL` (default: `tcp://localhost:1883`)
+- `MQTT_TOPIC_PREFIX` (default: `mistypass`)
+- `NATS_ENABLED` (default: `false`)
+- `NATS_SERVER_URL` (default: `nats://localhost:4222`)
+- `NATS_SUBJECT_PREFIX` (default: `mistypass`)
+- `AUTH_ADMIN_MFA_REQUIRED` (default: `false`)
+- `EXTERNAL_AUTH_ENABLED` (default: `false`)
+- `EXTERNAL_AUTH_PROVIDER` (default: `generic_oidc`)
+- `EXTERNAL_AUTH_USERINFO_URL` (required when external auth enabled)
+
+Event table partitioning (pg_partman, monthly):
+
+- The runtime schema now supports partition-friendly event upserts (`ON CONFLICT (id, at)`).
+- To migrate existing `mistypass_access_events` / `mistypass_device_events` and enable pg_partman maintenance, run:
+
+```bash
+psql "$DATABASE_URL" -f deploy/postgres/event-partitioning-partman.sql
+```
+
+- For Docker Compose local stack:
+
+```bash
+cat deploy/postgres/event-partitioning-partman.sql | docker compose exec -T postgres psql -U postgres -d mistypass
+```
+
+Notes:
+
+- `pg_partman` must be available in the PostgreSQL instance before running the script.
+- The script configures monthly partitions with 6-month retention.
 
 Default server:
 
@@ -55,6 +138,7 @@ Default server:
 MVP endpoints (Chi Router):
 
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/external/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/me`
@@ -67,6 +151,10 @@ MVP endpoints (Chi Router):
 - `POST /api/v1/enterprise/jit-provision-approvals/external-sync/callback`
 - `GET /api/v1/auth/users/{userID}/building-scope`
 - `PUT /api/v1/auth/users/{userID}/building-scope`
+- `GET /api/v1/auth/mfa/admin/status`
+- `POST /api/v1/auth/mfa/admin/setup`
+- `POST /api/v1/auth/mfa/admin/enable`
+- `POST /api/v1/auth/mfa/admin/disable`
 - `POST /api/v1/app/auth/login`
 - `POST /api/v1/app/auth/refresh`
 - `GET /api/v1/app/me`
@@ -114,7 +202,11 @@ MVP endpoints (Chi Router):
 - `POST /api/v1/gateways/{gatewayID}/devices/probe-legacy`
 - `POST /api/v1/gateways/{gatewayID}/config/publish`
 - `POST /api/v1/gateways/{gatewayID}/reboot`
+- `POST /api/v1/gateways/{gatewayID}/ota/tasks`
+- `GET /api/v1/gateways/{gatewayID}/ota/tasks`
+- `PATCH /api/v1/gateways/{gatewayID}/ota/tasks/{taskID}/status`
 - `GET /api/v1/gateways/{gatewayID}/events/checkpoint`
+- `GET /api/v1/gateways/{gatewayID}/mqtt/bootstrap`
 - `GET /api/v1/gateways/events/checkpoint/summary`
 - `GET /api/v1/access-policies`
 - `POST /api/v1/access-policies`
@@ -130,7 +222,9 @@ MVP endpoints (Chi Router):
 - `POST /api/v1/visitor-passes`
 - `GET /api/v1/events/access`
 - `GET /api/v1/events/device`
+- `GET /api/v1/events/stream`
 - `GET /api/v1/alarms`
+- `GET /api/v1/alarms/stream`
 - `PATCH /api/v1/alarms/{alarmID}/status`
 - `GET /api/v1/audit-logs`
 - `GET /api/v1/audit/webhook/config`
@@ -215,6 +309,7 @@ VITE_API_BASE_URL=http://localhost:8080 npm run dev
 ## 4. Login behavior
 
 The backend now issues signed access/refresh tokens and enforces role/tenant scope from token claims.
+Docker Compose now starts with demo users disabled by default; only set `ENABLE_DEMO_USERS=true` for local smoke tests that need seeded accounts.
 
 Suggested test credentials (`ENABLE_DEMO_USERS=true` only):
 
@@ -228,11 +323,32 @@ Suggested test credentials (`ENABLE_DEMO_USERS=true` only):
 Auth/session env vars:
 
 - `APP_ENV` (`development` | `production`, default: `development`)
-- `ENABLE_DEMO_USERS` (default: `true` in non-production, `false` in production)
-- `JWT_SECRET` (required when `APP_ENV=production`; non-production uses ephemeral in-memory secret if omitted)
+- `ENABLE_DEMO_USERS` (default: `false`; only enabled when explicitly set to `true`)
+- `JWT_SECRET` (required when `APP_ENV=production`; non-production uses a CSPRNG-generated ephemeral in-memory secret if omitted)
+- `HRIS_VAULT_MASTER_KEY` (required when `APP_ENV=production`; recommended in non-production if HRIS secrets must remain decryptable after restart)
 - `JWT_ISSUER` (default: `mistypass-api`)
 - `JWT_ACCESS_TTL` (seconds or duration, default: `1h`)
 - `JWT_REFRESH_TTL` (seconds or duration, default: `168h`)
+- `AUTH_ADMIN_MFA_REQUIRED` (default: `false`; when `true`, `super_admin`/`tenant_admin` login requires enrolled TOTP MFA)
+- `EXTERNAL_AUTH_ENABLED` (default: `false`; enables `/api/v1/auth/external/login`)
+- `EXTERNAL_AUTH_PROVIDER` (default: `generic_oidc`; supports `generic_oidc|casdoor|ory_kratos`)
+- `EXTERNAL_AUTH_USERINFO_URL` (required when external auth enabled; userinfo/whoami endpoint)
+- `GATEWAY_BOOTSTRAP_TOKEN` (required in production; used by device-side `POST /api/v1/gateway/register` bootstrap authentication)
+- `EXTERNAL_AUTH_TIMEOUT` (duration, default: `8s`)
+- `EXTERNAL_AUTH_DEFAULT_ROLE` (default: `resident`; fallback role when provider payload has no role)
+- `REDIS_ADDR` (optional; when configured, auth refresh session, revoked access token blacklist, and API/login rate-limit counters migrate to Redis-compatible backend)
+- `REDIS_PASSWORD` (optional)
+- `REDIS_DB` (default: `0`)
+- `REDIS_KEY_PREFIX` (default: `mistypass`)
+- `REDIS_DIAL_TIMEOUT` (duration, default: `3s`)
+- `REDIS_READ_TIMEOUT` (duration, default: `3s`)
+- `REDIS_WRITE_TIMEOUT` (duration, default: `3s`)
+- `MQTT_ENABLED` (default: `false`; enables gateway MQTT bootstrap contract endpoint)
+- `MQTT_BROKER_URL` (default: `tcp://localhost:1883`)
+- `MQTT_TOPIC_PREFIX` (default: `mistypass`; tenant/gateway topic namespace root)
+- `NATS_ENABLED` (default: `false`; enables internal event bus publishing)
+- `NATS_SERVER_URL` (default: `nats://localhost:4222`)
+- `NATS_SUBJECT_PREFIX` (default: `mistypass`; internal bus subject namespace root)
 
 Wallet remote validation env vars (optional):
 
@@ -298,7 +414,8 @@ Legacy credential (old docs/examples):
 
 Gateway bootstrap auth:
 
-- `POST /api/v1/gateway/register` returns `device_token`
+- `POST /api/v1/gateway/register` requires `X-Bootstrap-Token: <bootstrap_token>` (or `Authorization: Bearer <bootstrap_token>`) and then returns `device_token`
+- `bootstrap_token` comes from server-side `GATEWAY_BOOTSTRAP_TOKEN`
 - Other `/api/v1/gateway/*` bootstrap endpoints require `X-Device-Token: <device_token>`
 - `Authorization: Bearer <device_token>` is also accepted
 - `POST /api/v1/gateway/config/pull` returns desired config version + bound doors/devices, and now includes `authz_cache` (scoped by bound doors) with `version/generated_at/expires_at/ttl_seconds/scope/counts`, plus `policy` (`fallback_mode/no_cache_behavior/max_stale_seconds/stale_until/rollback_version`) and `status_codes` (`AUTHZ_CACHE_*`) for edge-side expiry/rollback handling. Request may carry optional `authz_cache_version`; response returns `authz_cache.status` (`AUTHZ_CACHE_FRESH|STALE|MISSING|DRIFT`).
@@ -313,6 +430,7 @@ Gateway bootstrap auth:
   - If `acked_count` exceeds server-side queue ingest total, returns `409` with `next_action=retry_with_server_event_total` and `server_event_total` (with `server_total_source`; `default` queue has `event_rows_fallback` for legacy snapshots).
 - `GET /api/v1/gateways/{gatewayID}/events/checkpoint` lets admin query latest gateway queue watermark records.
 - `GET /api/v1/gateways/events/checkpoint/summary` provides queue-level lag view (`event_total/acked_total/lag_total`) and `time_window_trend` (computed from recent `gateway_event_checkpoint_reported` audit logs; supports `trend_window_minutes`).
+- OTA firmware task APIs are available on `/api/v1/gateways/{gatewayID}/ota/tasks`: create task (`POST` with `firmware_version/firmware_url/firmware_sha256`), list tasks (`GET`), and status updates (`PATCH .../{taskID}/status` with `queued|dispatching|succeeded|failed|canceled`).
 - Replayed events return the same `event_id` with `deduplicated=true`, preventing duplicate rows in `/api/v1/events/access|device`.
 - Optional `occurred_at` must be RFC3339 when provided.
 - For MistyPass-produced hardware, serials should be imported first via `POST /api/v1/gateways/serial-inventory/import`; registration/attach will consume serial status.
@@ -329,6 +447,12 @@ Building admin scope management:
 - `GET/PUT /api/v1/auth/users/{userID}/building-scope` can read/update scope
 - `building_admin` can only read/write resources within allowed `building_ids`
 - `users`, `user-groups`, `visitor-passes` write APIs now support `building_id`
+
+Admin MFA and external auth:
+
+- Admin MFA endpoints (`/api/v1/auth/mfa/admin/*`) support TOTP enrollment (`setup`), activation (`enable` with code), status query, and disable.
+- When `AUTH_ADMIN_MFA_REQUIRED=true`, `super_admin` / `tenant_admin` login requires enrolled and valid `mfa_code`.
+- External auth login (`POST /api/v1/auth/external/login`) validates provider access token via configured userinfo endpoint, then issues local MistyPass JWT session via trusted identity bridge.
 
 Enterprise auth exchange behavior:
 
@@ -388,12 +512,17 @@ Audit webhook PoC behavior:
 - `GET /api/v1/audit/webhook/config` reads current tenant webhook config.
 - `POST /api/v1/audit/webhook/dispatch` manually dispatches one audit event (`audit_log_id` or latest by filter).
 - `GET /api/v1/audit/webhook/deliveries` lists recent delivery records with `status/http_status/error`.
+- When `NATS_ENABLED=true`, audit events are fanned out to NATS subjects:
+  - `mistypass.audit.log.appended`
+  - `mistypass.audit.webhook.dispatched`
+  - `mistypass.audit.webhook.dispatch.failed`
 - Regression script: `docs/testing/curl-audit-webhook-fanout.zsh` covers disabled conflict, unreachable endpoint failure record, and action-filter conflict.
 
 ## 5. Notes
 
 - By default data is in-memory and resets when the API restarts.
 - If `DATABASE_URL` is configured, current phase persists `tenant`/`space`/`access`/`gateway`/`enterprise`/`event`/`alarm`/`audit`/`wallet` module state into PostgreSQL snapshot table `mistypass` and syncs it into `mistypass_*` projection tables.
+- If `REDIS_ADDR` is configured, auth refresh session state, revoked access token blacklist, and IP rate-limit counters use Redis/Dragonfly for multi-instance consistency.
 - This is a delivery-focused MVP scaffold intended for rapid extension.
 
 ## 6. Wallet planning

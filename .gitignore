@@ -7,5 +7,20 @@ coverage/
 *.tsbuildinfo
 test-results/
 api/bin/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+docker-compose.override.yml
+docker-compose.*.override.yml
+*.local
+*.secret
+*.secrets
+.idea/
+.vscode/
 
 .aider*

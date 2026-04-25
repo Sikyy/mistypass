@@ -133,6 +133,7 @@ BOOTSTRAP_REGISTER_PAYLOAD="$(jq -nc \
   --arg building "${BUILDING_ID}" \
   '{serial_number:$sn,tenant_id:$tenant,building_id:$building,device_capacity:4}')"
 BOOTSTRAP_REGISTER_RAW="$(curl -sS -X POST "${API_BASE_URL}/api/v1/gateway/register" \
+  -H "X-Bootstrap-Token: ${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev-bootstrap-local-only-20260424}" \
   -H "Content-Type: application/json" \
   -d "${BOOTSTRAP_REGISTER_PAYLOAD}" \
   -w $'\n%{http_code}')"

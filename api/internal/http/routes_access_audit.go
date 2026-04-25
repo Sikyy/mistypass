@@ -1,15 +1,19 @@
 package httpx
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
+	"github.com/mistypass/cloud/api/internal/modules/event"
 )
 
 func (s *server) listUsers(w http.ResponseWriter, r *http.Request) {
@@ -546,6 +550,124 @@ func (s *server) listDeviceEvents(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) streamEvents(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	ctx := r.Context()
+	lastRevision := ""
+
+	send := func(eventName string, payload any) bool {
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return false
+		}
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventName, encoded); err != nil {
+			return false
+		}
+		flusher.Flush()
+		return true
+	}
+
+	sendUpdate := func() bool {
+		accessItems := s.eventSvc.ListAccessEvents(tenantID)
+		deviceItems := s.eventSvc.ListDeviceEvents(tenantID)
+		if buildingScope != nil {
+			accessItems = filterAccessEventsByScope(accessItems, buildingScope)
+			deviceItems = filterDeviceEventsByScope(deviceItems, buildingScope)
+		}
+
+		revision, latestAt := eventsStreamRevision(accessItems, deviceItems)
+		if revision == lastRevision {
+			return true
+		}
+		lastRevision = revision
+		return send("update", map[string]any{
+			"tenant_id":    tenantID,
+			"access_total": len(accessItems),
+			"device_total": len(deviceItems),
+			"latest_at":    latestAt,
+			"revision":     revision,
+			"updated_at":   time.Now().UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	if !send("hello", map[string]any{
+		"tenant_id":    tenantID,
+		"stream":       "events",
+		"connected":    true,
+		"connected_at": time.Now().UTC().Format(time.RFC3339Nano),
+	}) {
+		return
+	}
+	changeCh, unsubscribe := s.eventSvc.SubscribeChanges()
+	defer unsubscribe()
+	if !sendUpdate() {
+		return
+	}
+
+	heartbeatTicker := time.NewTicker(15 * time.Second)
+	defer heartbeatTicker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-changeCh:
+			if !sendUpdate() {
+				return
+			}
+		case <-heartbeatTicker.C:
+			if !send("heartbeat", map[string]any{
+				"stream": "events",
+				"at":     time.Now().UTC().Format(time.RFC3339Nano),
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func eventsStreamRevision(accessItems []event.AccessEvent, deviceItems []event.DeviceEvent) (string, string) {
+	latestUnix := int64(0)
+	latestAt := ""
+
+	for i := range accessItems {
+		nextUnix := accessItems[i].At.UTC().UnixNano()
+		if nextUnix >= latestUnix {
+			latestUnix = nextUnix
+			latestAt = accessItems[i].At.UTC().Format(time.RFC3339Nano)
+		}
+	}
+	for i := range deviceItems {
+		nextUnix := deviceItems[i].At.UTC().UnixNano()
+		if nextUnix >= latestUnix {
+			latestUnix = nextUnix
+			latestAt = deviceItems[i].At.UTC().Format(time.RFC3339Nano)
+		}
+	}
+
+	revision := fmt.Sprintf("%d:%d:%d", len(accessItems), len(deviceItems), latestUnix)
+	return revision, latestAt
+}
+
 func (s *server) listAlarms(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
@@ -562,6 +684,116 @@ func (s *server) listAlarms(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
 	})
+}
+
+func (s *server) streamAlarms(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming not supported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	ctx := r.Context()
+	lastRevision := ""
+
+	send := func(eventName string, payload any) bool {
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return false
+		}
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventName, encoded); err != nil {
+			return false
+		}
+		flusher.Flush()
+		return true
+	}
+
+	sendUpdate := func() bool {
+		items := s.alarmSvc.List(tenantID)
+		if buildingScope != nil {
+			items = filterAlarmsByScope(items, buildingScope)
+		}
+		revision, latestAt, openCount := alarmsStreamRevision(items)
+		if revision == lastRevision {
+			return true
+		}
+		lastRevision = revision
+		return send("update", map[string]any{
+			"tenant_id":  tenantID,
+			"total":      len(items),
+			"open_total": openCount,
+			"latest_at":  latestAt,
+			"revision":   revision,
+			"updated_at": time.Now().UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	if !send("hello", map[string]any{
+		"tenant_id":    tenantID,
+		"stream":       "alarms",
+		"connected":    true,
+		"connected_at": time.Now().UTC().Format(time.RFC3339Nano),
+	}) {
+		return
+	}
+	changeCh, unsubscribe := s.alarmSvc.SubscribeChanges()
+	defer unsubscribe()
+	if !sendUpdate() {
+		return
+	}
+
+	heartbeatTicker := time.NewTicker(15 * time.Second)
+	defer heartbeatTicker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-changeCh:
+			if !sendUpdate() {
+				return
+			}
+		case <-heartbeatTicker.C:
+			if !send("heartbeat", map[string]any{
+				"stream": "alarms",
+				"at":     time.Now().UTC().Format(time.RFC3339Nano),
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func alarmsStreamRevision(items []alarm.Alarm) (string, string, int) {
+	latestUnix := int64(0)
+	latestAt := ""
+	openCount := 0
+	for i := range items {
+		if strings.EqualFold(strings.TrimSpace(items[i].Status), "open") {
+			openCount++
+		}
+		nextUnix := items[i].CreatedAt.UTC().UnixNano()
+		if nextUnix >= latestUnix {
+			latestUnix = nextUnix
+			latestAt = items[i].CreatedAt.UTC().Format(time.RFC3339Nano)
+		}
+	}
+	revision := fmt.Sprintf("%d:%d:%d", len(items), openCount, latestUnix)
+	return revision, latestAt, openCount
 }
 
 func (s *server) updateAlarmStatus(w http.ResponseWriter, r *http.Request) {
@@ -656,16 +888,18 @@ func (s *server) getAuditWebhookConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	config.SigningSecret = ""
 	writeJSON(w, http.StatusOK, config)
 }
 
 func (s *server) upsertAuditWebhookConfig(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		TenantID  string   `json:"tenant_id"`
-		Enabled   bool     `json:"enabled"`
-		Endpoint  string   `json:"endpoint"`
-		Actions   []string `json:"actions"`
-		UpdatedBy string   `json:"updated_by"`
+		TenantID      string   `json:"tenant_id"`
+		Enabled       bool     `json:"enabled"`
+		Endpoint      string   `json:"endpoint"`
+		Actions       []string `json:"actions"`
+		SigningSecret string   `json:"signing_secret"`
+		UpdatedBy     string   `json:"updated_by"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -681,6 +915,7 @@ func (s *server) upsertAuditWebhookConfig(w http.ResponseWriter, r *http.Request
 		request.Enabled,
 		request.Endpoint,
 		request.Actions,
+		request.SigningSecret,
 		request.UpdatedBy,
 	)
 	if err != nil {
@@ -696,6 +931,7 @@ func (s *server) upsertAuditWebhookConfig(w http.ResponseWriter, r *http.Request
 	}
 
 	s.appendAuditLog(r, tenantID, "audit_webhook_config_upsert", config.Endpoint, "web_admin")
+	config.SigningSecret = ""
 	writeJSON(w, http.StatusOK, config)
 }
 
@@ -767,6 +1003,21 @@ func (s *server) dispatchAuditWebhook(w http.ResponseWriter, r *http.Request) {
 
 	delivery, dispatchErr := s.auditSvc.DispatchWebhookForLog(r.Context(), tenantID, targetLog, nil)
 	if dispatchErr != nil {
+		s.publishInternalEvent(
+			r.Context(),
+			"audit.webhook.dispatch.failed",
+			map[string]any{
+				"tenant_id":    tenantID,
+				"audit_log_id": targetLog.ID,
+				"action":       targetLog.Action,
+				"delivery":     delivery,
+				"error":        dispatchErr.Error(),
+			},
+			map[string]string{
+				"tenant_id": tenantID,
+				"status":    "failed",
+			},
+		)
 		switch {
 		case errors.Is(dispatchErr, audit.ErrWebhookTenantIDRequired),
 			errors.Is(dispatchErr, audit.ErrWebhookEndpointRequired),
@@ -791,6 +1042,20 @@ func (s *server) dispatchAuditWebhook(w http.ResponseWriter, r *http.Request) {
 		"audit_webhook_dispatched",
 		"event_id="+targetLog.ID+",delivery_id="+delivery.ID,
 		"audit_webhook",
+	)
+	s.publishInternalEvent(
+		r.Context(),
+		"audit.webhook.dispatched",
+		map[string]any{
+			"tenant_id":    tenantID,
+			"audit_log_id": targetLog.ID,
+			"action":       targetLog.Action,
+			"delivery":     delivery,
+		},
+		map[string]string{
+			"tenant_id": tenantID,
+			"status":    delivery.Status,
+		},
 	)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"delivery": delivery,

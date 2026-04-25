@@ -59,6 +59,11 @@
 }
 ```
 
+请求头要求：
+
+- `X-Bootstrap-Token: <bootstrap_token>`
+- `bootstrap_token` 来自服务端配置 `GATEWAY_BOOTSTRAP_TOKEN`
+
 关键响应字段：
 
 - `gateway_id`

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -71,6 +72,26 @@ type jwkKey struct {
 	Use string `json:"use"`
 	N   string `json:"n"`
 	E   string `json:"e"`
+}
+
+type jwksCacheEntry struct {
+	keys      map[string]*rsa.PublicKey
+	expiresAt time.Time
+}
+
+var oidcJWKSNow = func() time.Time {
+	return time.Now().UTC()
+}
+
+var oidcJWKSCacheTTL = time.Hour
+var oidcJWKSCacheMaxEntries = 128
+var oidcJWKSPayloadMaxBytes int64 = 1 << 20
+
+var oidcJWKSCache = struct {
+	mu      sync.RWMutex
+	entries map[string]jwksCacheEntry
+}{
+	entries: map[string]jwksCacheEntry{},
 }
 
 func (s *Service) VerifyOIDCIDToken(config IDPConfig, rawToken, expectedEmail string) (OIDCIdentity, error) {
@@ -186,7 +207,17 @@ func effectiveJWKSURL(config IDPConfig) string {
 }
 
 func fetchJWKS(rawURL string) (map[string]*rsa.PublicKey, error) {
-	jwksBytes, err := readJWKSBytes(rawURL)
+	nextURL := strings.TrimSpace(rawURL)
+	if nextURL == "" {
+		return nil, ErrIDPJWKSURLRequired
+	}
+
+	now := oidcJWKSNow()
+	if cached, ok := loadCachedJWKS(nextURL, now); ok {
+		return cached, nil
+	}
+
+	jwksBytes, err := readJWKSBytes(nextURL)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +247,84 @@ func fetchJWKS(rawURL string) (map[string]*rsa.PublicKey, error) {
 	if len(keys) == 0 {
 		return nil, ErrOIDCJWKSFetchFailed
 	}
-	return keys, nil
+
+	storeCachedJWKS(nextURL, keys, now.Add(oidcJWKSCacheTTL))
+	return cloneJWKSPublicKeys(keys), nil
+}
+
+func loadCachedJWKS(rawURL string, now time.Time) (map[string]*rsa.PublicKey, bool) {
+	oidcJWKSCache.mu.RLock()
+	entry, exists := oidcJWKSCache.entries[rawURL]
+	oidcJWKSCache.mu.RUnlock()
+	if !exists {
+		return nil, false
+	}
+	if now.Before(entry.expiresAt) {
+		return cloneJWKSPublicKeys(entry.keys), true
+	}
+
+	oidcJWKSCache.mu.Lock()
+	entry, exists = oidcJWKSCache.entries[rawURL]
+	if exists && !now.Before(entry.expiresAt) {
+		delete(oidcJWKSCache.entries, rawURL)
+	}
+	oidcJWKSCache.mu.Unlock()
+	return nil, false
+}
+
+func storeCachedJWKS(rawURL string, keys map[string]*rsa.PublicKey, expiresAt time.Time) {
+	if rawURL == "" || len(keys) == 0 {
+		return
+	}
+	now := oidcJWKSNow()
+	oidcJWKSCache.mu.Lock()
+	for cacheURL, entry := range oidcJWKSCache.entries {
+		if !now.Before(entry.expiresAt) {
+			delete(oidcJWKSCache.entries, cacheURL)
+		}
+	}
+	if _, exists := oidcJWKSCache.entries[rawURL]; !exists && oidcJWKSCacheMaxEntries > 0 {
+		for len(oidcJWKSCache.entries) >= oidcJWKSCacheMaxEntries {
+			oldestURL := ""
+			var oldestExpiry time.Time
+			for cacheURL, entry := range oidcJWKSCache.entries {
+				if oldestURL == "" || entry.expiresAt.Before(oldestExpiry) {
+					oldestURL = cacheURL
+					oldestExpiry = entry.expiresAt
+				}
+			}
+			if oldestURL == "" {
+				break
+			}
+			delete(oidcJWKSCache.entries, oldestURL)
+		}
+	}
+	oidcJWKSCache.entries[rawURL] = jwksCacheEntry{
+		keys:      cloneJWKSPublicKeys(keys),
+		expiresAt: expiresAt,
+	}
+	oidcJWKSCache.mu.Unlock()
+}
+
+func clearOIDCJWKSCache() {
+	oidcJWKSCache.mu.Lock()
+	oidcJWKSCache.entries = map[string]jwksCacheEntry{}
+	oidcJWKSCache.mu.Unlock()
+}
+
+func cloneJWKSPublicKeys(keys map[string]*rsa.PublicKey) map[string]*rsa.PublicKey {
+	if len(keys) == 0 {
+		return map[string]*rsa.PublicKey{}
+	}
+	cloned := make(map[string]*rsa.PublicKey, len(keys))
+	for kid, key := range keys {
+		if key == nil {
+			continue
+		}
+		copied := *key
+		cloned[kid] = &copied
+	}
+	return cloned
 }
 
 func readJWKSBytes(rawURL string) ([]byte, error) {
@@ -227,7 +335,11 @@ func readJWKSBytes(rawURL string) ([]byte, error) {
 
 	if strings.HasPrefix(next, "data:application/json;base64,") {
 		encoded := strings.TrimPrefix(next, "data:application/json;base64,")
-		return base64.StdEncoding.DecodeString(encoded)
+		payload, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			return nil, err
+		}
+		return limitOIDCJWKSPayload(payload)
 	}
 	if strings.HasPrefix(next, "data:application/json,") {
 		escaped := strings.TrimPrefix(next, "data:application/json,")
@@ -235,7 +347,7 @@ func readJWKSBytes(rawURL string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return []byte(unescaped), nil
+		return limitOIDCJWKSPayload([]byte(unescaped))
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -251,7 +363,18 @@ func readJWKSBytes(rawURL string) ([]byte, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, ErrOIDCJWKSFetchFailed
 	}
-	return io.ReadAll(resp.Body)
+	payload, err := io.ReadAll(io.LimitReader(resp.Body, oidcJWKSPayloadMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	return limitOIDCJWKSPayload(payload)
+}
+
+func limitOIDCJWKSPayload(payload []byte) ([]byte, error) {
+	if int64(len(payload)) > oidcJWKSPayloadMaxBytes {
+		return nil, ErrOIDCJWKSFetchFailed
+	}
+	return payload, nil
 }
 
 func rsaPublicKeyFromJWK(nRaw, eRaw string) (*rsa.PublicKey, error) {

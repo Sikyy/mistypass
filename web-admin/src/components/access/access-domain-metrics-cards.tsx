@@ -1,4 +1,5 @@
 import { Clock4Icon, ShieldCheckIcon, TicketIcon, UsersRoundIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -21,47 +22,66 @@ export function AccessDomainMetricsCards({
   visitorGrantCount,
   expiredGrantCount,
 }: AccessDomainMetricsCardsProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardDescription>策略数</CardDescription>
+          <CardDescription>{t("accessPage.components.metrics.policies", { defaultValue: "Policies" })}</CardDescription>
           <CardTitle className="flex items-center gap-2 text-2xl">
             {loading ? "--" : policyCount} <ShieldCheckIcon className="size-4 text-muted-foreground" />
           </CardTitle>
         </CardHeader>
-        <CardContent className="mp-kpi-note">独立管理楼宇、区域、门点权限规则。</CardContent>
+        <CardContent className="mp-kpi-note">
+          {t("accessPage.components.metrics.policiesNote", {
+            defaultValue: "Manage building/area/door access rules independently.",
+          })}
+        </CardContent>
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardDescription>员工与用户组</CardDescription>
+          <CardDescription>{t("accessPage.components.metrics.directory", { defaultValue: "Employees & groups" })}</CardDescription>
           <CardTitle className="flex items-center gap-2 text-2xl">
             {loading ? "--" : activeEmployeeCount} <UsersRoundIcon className="size-4 text-muted-foreground" />
           </CardTitle>
         </CardHeader>
         <CardContent className="mp-kpi-note">
-          {loading ? "正在加载目录状态..." : `${groupCount} 个用户组，按组织目录维护成员。`}
+          {loading
+            ? t("accessPage.components.metrics.directoryLoading", { defaultValue: "Loading directory status..." })
+            : t("accessPage.components.metrics.directoryNote", {
+                defaultValue: "{{groupCount}} groups maintained from organization directory.",
+                groupCount,
+              })}
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardDescription>临时与访客授权</CardDescription>
+          <CardDescription>{t("accessPage.components.metrics.grants", { defaultValue: "Temporary & visitor grants" })}</CardDescription>
           <CardTitle className="flex items-center gap-2 text-2xl">
             {loading ? "--" : grantCount} <Clock4Icon className="size-4 text-muted-foreground" />
           </CardTitle>
         </CardHeader>
         <CardContent className="mp-kpi-note">
-          {loading ? "正在统计授权..." : `访客 ${visitorGrantCount} 条，已到期 ${expiredGrantCount} 条。`}
+          {loading
+            ? t("accessPage.components.metrics.grantsLoading", { defaultValue: "Counting grants..." })
+            : t("accessPage.components.metrics.grantsNote", {
+                defaultValue: "Visitors {{visitorGrantCount}}, expired {{expiredGrantCount}}.",
+                visitorGrantCount,
+                expiredGrantCount,
+              })}
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardDescription>下发方式</CardDescription>
+          <CardDescription>{t("accessPage.components.metrics.deliveryMethods", { defaultValue: "Delivery methods" })}</CardDescription>
           <CardTitle className="flex items-center gap-2 text-2xl">
             2 <TicketIcon className="size-4 text-muted-foreground" />
           </CardTitle>
         </CardHeader>
-        <CardContent className="mp-kpi-note">MistyPass 移动凭证 / 邮件二维码。</CardContent>
+        <CardContent className="mp-kpi-note">
+          {t("accessPage.components.metrics.deliveryMethodsNote", { defaultValue: "MistyPass mobile pass / email QR." })}
+        </CardContent>
       </Card>
     </div>
   )

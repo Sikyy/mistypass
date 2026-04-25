@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,8 @@ export function AccessGrantStarterCard({
   onApply,
   showTopologyAction = false,
 }: AccessGrantStarterCardProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="rounded-xl border bg-muted/10 px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -33,14 +36,19 @@ export function AccessGrantStarterCard({
       </div>
       <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       <p className="mt-2 text-xs text-muted-foreground">{reviewNote}</p>
-      <p className="mt-1 text-xs text-muted-foreground">建议截止时间：{validUntilLabel}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {t("accessPage.components.grantStarterCard.suggestedDeadline", {
+          defaultValue: "Suggested deadline: {{validUntilLabel}}",
+          validUntilLabel,
+        })}
+      </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button size="sm" variant="outline" onClick={onApply}>
-          套用到左侧表单
+          {t("accessPage.components.grantStarterCard.applyButton", { defaultValue: "Apply to left form" })}
         </Button>
         {showTopologyAction ? (
           <Button asChild size="sm" variant="ghost">
-            <Link to="/spaces">去补空间拓扑</Link>
+            <Link to="/spaces">{t("accessPage.components.grantStarterCard.goTopology", { defaultValue: "Complete topology" })}</Link>
           </Button>
         ) : null}
       </div>

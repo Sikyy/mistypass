@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { AuthProvider } from "@/context/auth-context";
+import "@/lib/i18n";
 import { queryClient } from "@/lib/query-client";
 import App from "./App";
 import "./index.css";

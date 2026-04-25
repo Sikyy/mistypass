@@ -3,13 +3,16 @@ package audit
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -23,12 +26,13 @@ var ErrWebhookActionFiltered = errors.New("audit webhook action is filtered")
 var ErrAuditLogNotFound = errors.New("audit log not found")
 
 type WebhookConfig struct {
-	TenantID  string    `json:"tenant_id"`
-	Enabled   bool      `json:"enabled"`
-	Endpoint  string    `json:"endpoint"`
-	Actions   []string  `json:"actions,omitempty"`
-	UpdatedBy string    `json:"updated_by"`
-	UpdatedAt time.Time `json:"updated_at"`
+	TenantID      string    `json:"tenant_id"`
+	Enabled       bool      `json:"enabled"`
+	Endpoint      string    `json:"endpoint"`
+	Actions       []string  `json:"actions,omitempty"`
+	SigningSecret string    `json:"signing_secret,omitempty"`
+	UpdatedBy     string    `json:"updated_by"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type WebhookDelivery struct {
@@ -38,11 +42,21 @@ type WebhookDelivery struct {
 	Action       string    `json:"action"`
 	Endpoint     string    `json:"endpoint"`
 	Status       string    `json:"status"`
+	AttemptCount int       `json:"attempt_count,omitempty"`
 	HTTPStatus   int       `json:"http_status,omitempty"`
 	Error        string    `json:"error,omitempty"`
 	ResponseBody string    `json:"response_body,omitempty"`
 	DispatchedAt time.Time `json:"dispatched_at"`
 }
+
+const (
+	webhookSignatureHeader          = "X-MistyPass-Signature"
+	webhookSignatureTimestampHeader = "X-MistyPass-Signature-Timestamp"
+	webhookSignatureAlgorithm       = "sha256"
+	webhookDispatchMaxAttempts      = 3
+	webhookDispatchRetryBaseDelay   = 200 * time.Millisecond
+	webhookDeliveryMaxRecords       = 1000
+)
 
 func (s *Service) GetWebhookConfig(tenantID string) (WebhookConfig, error) {
 	nextTenantID := strings.TrimSpace(tenantID)
@@ -65,6 +79,7 @@ func (s *Service) UpsertWebhookConfig(
 	enabled bool,
 	endpoint string,
 	actions []string,
+	signingSecret string,
 	updatedBy string,
 ) (WebhookConfig, error) {
 	nextTenantID := strings.TrimSpace(tenantID)
@@ -74,6 +89,7 @@ func (s *Service) UpsertWebhookConfig(
 
 	nextEndpoint := strings.TrimSpace(endpoint)
 	nextActions := normalizeWebhookActions(actions)
+	nextSigningSecret := strings.TrimSpace(signingSecret)
 	nextUpdatedBy := strings.TrimSpace(updatedBy)
 	if nextUpdatedBy == "" {
 		nextUpdatedBy = "system"
@@ -89,6 +105,9 @@ func (s *Service) UpsertWebhookConfig(
 	if nextEndpoint == "" {
 		nextEndpoint = strings.TrimSpace(current.Endpoint)
 	}
+	if nextSigningSecret == "" {
+		nextSigningSecret = strings.TrimSpace(current.SigningSecret)
+	}
 	if enabled {
 		if nextEndpoint == "" {
 			return WebhookConfig{}, ErrWebhookEndpointRequired
@@ -99,12 +118,13 @@ func (s *Service) UpsertWebhookConfig(
 	}
 
 	record := WebhookConfig{
-		TenantID:  nextTenantID,
-		Enabled:   enabled,
-		Endpoint:  nextEndpoint,
-		Actions:   nextActions,
-		UpdatedBy: nextUpdatedBy,
-		UpdatedAt: time.Now().UTC(),
+		TenantID:      nextTenantID,
+		Enabled:       enabled,
+		Endpoint:      nextEndpoint,
+		Actions:       nextActions,
+		SigningSecret: nextSigningSecret,
+		UpdatedBy:     nextUpdatedBy,
+		UpdatedAt:     time.Now().UTC(),
 	}
 	s.webhookConfigs[nextTenantID] = record
 	if err := s.persistLocked(); err != nil {
@@ -186,28 +206,16 @@ func (s *Service) DispatchWebhookForLog(
 		client = &http.Client{Timeout: 8 * time.Second}
 	}
 
+	dispatchedAt := time.Now().UTC()
 	payload := map[string]any{
 		"tenant_id": nextTenantID,
 		"event":     logRecord,
-		"sent_at":   time.Now().UTC(),
+		"sent_at":   dispatchedAt,
 	}
 	bodyBytes, err := json.Marshal(payload)
 	if err != nil {
 		return WebhookDelivery{}, err
 	}
-
-	request, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		config.Endpoint,
-		bytes.NewReader(bodyBytes),
-	)
-	if err != nil {
-		return WebhookDelivery{}, err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-MistyPass-Event-ID", strings.TrimSpace(logRecord.ID))
-	request.Header.Set("X-MistyPass-Event-Action", strings.TrimSpace(logRecord.Action))
 
 	delivery := WebhookDelivery{
 		TenantID:     nextTenantID,
@@ -215,7 +223,7 @@ func (s *Service) DispatchWebhookForLog(
 		Action:       strings.TrimSpace(logRecord.Action),
 		Endpoint:     strings.TrimSpace(config.Endpoint),
 		Status:       "failed",
-		DispatchedAt: time.Now().UTC(),
+		DispatchedAt: dispatchedAt,
 	}
 	deliveryID, idErr := webhookDeliveryID()
 	if idErr != nil {
@@ -223,38 +231,83 @@ func (s *Service) DispatchWebhookForLog(
 	}
 	delivery.ID = deliveryID
 
-	resp, reqErr := client.Do(request)
-	if reqErr != nil {
-		delivery.Error = strings.TrimSpace(reqErr.Error())
-		s.recordWebhookDelivery(delivery)
-		return delivery, fmt.Errorf("webhook request failed: %w", reqErr)
-	}
-	defer resp.Body.Close()
+	signingSecret := strings.TrimSpace(config.SigningSecret)
+	var lastErr error
+	for attempt := 1; attempt <= webhookDispatchMaxAttempts; attempt++ {
+		delivery.AttemptCount = attempt
+		request, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			config.Endpoint,
+			bytes.NewReader(bodyBytes),
+		)
+		if err != nil {
+			return WebhookDelivery{}, err
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("X-MistyPass-Event-ID", strings.TrimSpace(logRecord.ID))
+		request.Header.Set("X-MistyPass-Event-Action", strings.TrimSpace(logRecord.Action))
+		if signingSecret != "" {
+			timestamp := strconv.FormatInt(dispatchedAt.Unix(), 10)
+			request.Header.Set(webhookSignatureTimestampHeader, timestamp)
+			request.Header.Set(webhookSignatureHeader, webhookPayloadSignature(signingSecret, timestamp, bodyBytes))
+		}
 
-	responseBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 8*1024))
-	if readErr != nil {
-		delivery.Error = strings.TrimSpace(readErr.Error())
+		resp, reqErr := client.Do(request)
+		if reqErr != nil {
+			delivery.Error = strings.TrimSpace(reqErr.Error())
+			delivery.HTTPStatus = 0
+			delivery.ResponseBody = ""
+			lastErr = fmt.Errorf("webhook request failed: %w", reqErr)
+			if !shouldRetryWebhookDispatch(attempt, 0) || !waitWebhookRetryDelay(ctx, attempt) {
+				break
+			}
+			continue
+		}
+
+		responseBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, 8*1024))
+		_ = resp.Body.Close()
+		if readErr != nil {
+			delivery.Error = strings.TrimSpace(readErr.Error())
+			delivery.HTTPStatus = resp.StatusCode
+			delivery.ResponseBody = ""
+			lastErr = fmt.Errorf("failed reading webhook response: %w", readErr)
+			if !shouldRetryWebhookDispatch(attempt, resp.StatusCode) || !waitWebhookRetryDelay(ctx, attempt) {
+				break
+			}
+			continue
+		}
+
 		delivery.HTTPStatus = resp.StatusCode
-		s.recordWebhookDelivery(delivery)
-		return delivery, fmt.Errorf("failed reading webhook response: %w", readErr)
-	}
-	delivery.HTTPStatus = resp.StatusCode
-	delivery.ResponseBody = strings.TrimSpace(string(responseBytes))
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		delivery.Status = "success"
-		s.recordWebhookDelivery(delivery)
-		return delivery, nil
+		delivery.ResponseBody = strings.TrimSpace(string(responseBytes))
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			delivery.Status = "success"
+			delivery.Error = ""
+			s.recordWebhookDelivery(delivery)
+			return delivery, nil
+		}
+
+		delivery.Error = fmt.Sprintf("webhook status %d", resp.StatusCode)
+		lastErr = fmt.Errorf("webhook returned status %d", resp.StatusCode)
+		if !shouldRetryWebhookDispatch(attempt, resp.StatusCode) || !waitWebhookRetryDelay(ctx, attempt) {
+			break
+		}
 	}
 
-	delivery.Error = fmt.Sprintf("webhook status %d", resp.StatusCode)
+	if lastErr == nil {
+		lastErr = errors.New("webhook dispatch failed")
+	}
 	s.recordWebhookDelivery(delivery)
-	return delivery, fmt.Errorf("webhook returned status %d", resp.StatusCode)
+	return delivery, lastErr
 }
 
 func (s *Service) recordWebhookDelivery(delivery WebhookDelivery) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.webhookDeliveries = append([]WebhookDelivery{delivery}, s.webhookDeliveries...)
+	if len(s.webhookDeliveries) > webhookDeliveryMaxRecords {
+		s.webhookDeliveries = append([]WebhookDelivery(nil), s.webhookDeliveries[:webhookDeliveryMaxRecords]...)
+	}
 	_ = s.persistLocked()
 }
 
@@ -299,4 +352,41 @@ func webhookDeliveryID() (string, error) {
 		return "", err
 	}
 	return "awd_" + hex.EncodeToString(raw), nil
+}
+
+func webhookPayloadSignature(secret, timestamp string, payload []byte) string {
+	mac := hmac.New(sha256.New, []byte(strings.TrimSpace(secret)))
+	mac.Write([]byte(strings.TrimSpace(timestamp)))
+	mac.Write([]byte("."))
+	mac.Write(payload)
+	return webhookSignatureAlgorithm + "=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func shouldRetryWebhookDispatch(attempt int, statusCode int) bool {
+	if attempt >= webhookDispatchMaxAttempts {
+		return false
+	}
+	if statusCode == 0 {
+		return true
+	}
+	if statusCode == http.StatusRequestTimeout || statusCode == http.StatusTooManyRequests {
+		return true
+	}
+	return statusCode >= http.StatusInternalServerError
+}
+
+func waitWebhookRetryDelay(ctx context.Context, attempt int) bool {
+	if attempt >= webhookDispatchMaxAttempts {
+		return false
+	}
+	delay := webhookDispatchRetryBaseDelay * time.Duration(1<<(attempt-1))
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
 }

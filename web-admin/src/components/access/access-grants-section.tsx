@@ -1,5 +1,5 @@
-import { type FormEvent } from "react"
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { AccessDomainBanner } from "@/components/access/access-domain-banner"
 import { AccessGrantDetailDialog } from "@/components/access/access-grant-detail-dialog"
@@ -68,7 +68,20 @@ type AccessGrantsSectionProps = {
   onScopeTypeChange: (value: ScopeType) => void
   onStarterApply: (starterID: string) => void
   onStatusChange: (value: "all" | "active" | "expiring_soon" | "expired") => void
-  onSubmitGrant: (event: FormEvent<HTMLFormElement>) => void
+  onSubmitGrant: (payload: {
+    scopeType: ScopeType
+    deliveryMethod: DeliveryMethod
+    buildingID: string
+    areaID: string
+    doorID: string
+    granteeName: string
+    granteeGender: string
+    granteePhone: string
+    granteeEmail: string
+    mobileModel: string
+    passType: string
+    validUntil: string
+  }) => void
   onValidUntilChange: (value: string) => void
   passType: string
   passTypeFilter: string
@@ -144,21 +157,29 @@ export function AccessGrantsSection({
   walletLink,
   walletFilteredLink,
 }: AccessGrantsSectionProps) {
+  const { t } = useTranslation()
   const hasFilteredWalletLink = walletFilteredLink.trim().length > 0
 
   return (
     <div className="space-y-4">
       <AccessDomainBanner
-        title="临时与访客授权"
-        description="这里专门处理短期授权、访客通行和邮件二维码。长期员工、批量补发和凭证状态维护统一放在“凭证发放”页，不再重复建设两套入口。"
+        title={t("accessPage.components.grantsSection.bannerTitle", { defaultValue: "Temporary & visitor grants" })}
+        description={t("accessPage.components.grantsSection.bannerDescription", {
+          defaultValue:
+            "This section handles short-term grants, visitor access, and email QR only. Long-term employee issuance and status operations stay in pass issuance.",
+        })}
         actions={
           <>
             <Button asChild size="sm" variant="outline">
-              <Link to={walletLink}>去访客/临时发放</Link>
+              <Link to={walletLink}>
+                {t("accessPage.components.grantsSection.goVisitorTemporaryIssuance", { defaultValue: "Go to visitor/temporary issuance" })}
+              </Link>
             </Button>
             {hasFilteredWalletLink ? (
               <Button asChild size="sm" variant="outline">
-                <Link to={walletFilteredLink}>按当前筛选继续发放</Link>
+                <Link to={walletFilteredLink}>
+                  {t("accessPage.components.grantsSection.continueIssuanceByFilter", { defaultValue: "Continue issuance by current filters" })}
+                </Link>
               </Button>
             ) : null}
           </>
@@ -167,8 +188,12 @@ export function AccessGrantsSection({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">快速授权场景</CardTitle>
-          <CardDescription>直接套用常见场景的范围、方式、对象类型和失效时间，减少短期授权逐项手填。</CardDescription>
+          <CardTitle className="text-base">{t("accessPage.components.grantsSection.quickScenariosTitle", { defaultValue: "Quick grant scenarios" })}</CardTitle>
+          <CardDescription>
+            {t("accessPage.components.grantsSection.quickScenariosDescription", {
+              defaultValue: "Apply common scope/method/subject/expiry presets to reduce repetitive manual input.",
+            })}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 lg:grid-cols-2">
           {starters.map((starter) => (
@@ -181,7 +206,7 @@ export function AccessGrantsSection({
               reviewNote={starter.reviewNote}
               validUntilLabel={starter.validUntilLabel}
               onApply={() => onStarterApply(starter.id)}
-              showTopologyAction={starter.reviewNote.includes("拓扑还不完整")}
+              showTopologyAction={starter.reviewNote.toLowerCase().includes("topology") && starter.reviewNote.toLowerCase().includes("incomplete")}
             />
           ))}
         </CardContent>
@@ -190,8 +215,14 @@ export function AccessGrantsSection({
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">创建临时授权</CardTitle>
-            <CardDescription>单独处理访客、临时证和短期访问，不再和长期员工权限混在一起。</CardDescription>
+            <CardTitle className="text-base">
+              {t("accessPage.components.grantsSection.createGrantTitle", { defaultValue: "Create temporary grant" })}
+            </CardTitle>
+            <CardDescription>
+              {t("accessPage.components.grantsSection.createGrantDescription", {
+                defaultValue: "Handle visitor/temporary/short-term access separately from long-term employee permissions.",
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <AccessGrantForm
@@ -230,8 +261,13 @@ export function AccessGrantsSection({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">授权台账</CardTitle>
-            <CardDescription>展示授权时效、授权人信息与实名详情；支持按日期、方式、对象类型和状态筛选。</CardDescription>
+            <CardTitle className="text-base">{t("accessPage.components.grantsSection.ledgerTitle", { defaultValue: "Grant ledger" })}</CardTitle>
+            <CardDescription>
+              {t("accessPage.components.grantsSection.ledgerDescription", {
+                defaultValue:
+                  "Show validity, authorizer info, and identity details; supports filtering by date, method, subject type, and status.",
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <AccessGrantOverviewCards
@@ -262,17 +298,25 @@ export function AccessGrantsSection({
 
             {filtersActive ? (
               <div className="rounded-lg border bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
-                当前筛选命中 {filteredCount} 条授权记录。若要回到完整台账，可清空筛选。
+                {t("accessPage.components.grantsSection.filteredHint", {
+                  defaultValue: "Current filters matched {{filteredCount}} grant records. Clear filters to return to full ledger.",
+                  filteredCount,
+                })}
               </div>
             ) : null}
             {filtersActive && hasFilteredWalletLink ? (
               <div className="rounded-lg border bg-muted/10 px-3 py-2">
                 <p className="mp-kpi-note">
-                  可基于当前筛选结果直接回流到凭证发放，并预填首个命中对象线索，减少跨页重复检索。
+                  {t("accessPage.components.grantsSection.filteredIssuanceHint", {
+                    defaultValue:
+                      "You can jump to pass issuance with current filters and prefill the first matched target hint to reduce cross-page re-search.",
+                  })}
                 </p>
                 <div className="mt-2">
                   <Button asChild size="sm" variant="outline">
-                    <Link to={walletFilteredLink}>按当前筛选继续发放</Link>
+                    <Link to={walletFilteredLink}>
+                      {t("accessPage.components.grantsSection.continueIssuanceByFilter", { defaultValue: "Continue issuance by current filters" })}
+                    </Link>
                   </Button>
                 </div>
               </div>

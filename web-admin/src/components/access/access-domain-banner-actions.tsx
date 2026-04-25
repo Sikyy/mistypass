@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 
@@ -19,21 +20,29 @@ export function AccessDomainBannerActions({
   hasWorkerAlertFlowHints,
   enterpriseSyncWorkerReviewLink,
 }: AccessDomainBannerActionsProps) {
+  const { t } = useTranslation()
+
   return (
     <>
       <Button asChild size="sm">
         <Link to={primaryActionTo}>{primaryActionLabel}</Link>
       </Button>
       <Button asChild size="sm" variant="outline">
-        <Link to={enterpriseHomeLink}>打开企业目录与同步</Link>
+        <Link to={enterpriseHomeLink}>
+          {t("accessPage.components.bannerActions.openEnterpriseSync", { defaultValue: "Open enterprise directory & sync" })}
+        </Link>
       </Button>
       {hasWorkerAlertFlowHints ? (
         <Button asChild size="sm" variant="outline">
-          <Link to={enterpriseSyncWorkerReviewLink}>处理完成后回导入与同步复核</Link>
+          <Link to={enterpriseSyncWorkerReviewLink}>
+            {t("accessPage.components.bannerActions.backToSyncReview", {
+              defaultValue: "Return to import & sync review after handling",
+            })}
+          </Link>
         </Button>
       ) : null}
       <Button asChild size="sm" variant="outline">
-        <Link to={walletEmployeeLink}>去凭证发放</Link>
+        <Link to={walletEmployeeLink}>{t("accessPage.components.bannerActions.goPassIssuance", { defaultValue: "Go to pass issuance" })}</Link>
       </Button>
     </>
   )

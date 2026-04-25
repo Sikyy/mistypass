@@ -585,3 +585,85 @@ func TestAddAndGetQueueIngestTotal(t *testing.T) {
 		t.Fatalf("unexpected queue ingest delta error: %v", err)
 	}
 }
+
+func TestCreateListAndUpdateOTATask(t *testing.T) {
+	svc := NewService()
+
+	created, err := svc.CreateOTATask(
+		"tenant_demo_jakarta",
+		"gw_demo_001",
+		"v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"tenant-admin@example.com",
+	)
+	if err != nil {
+		t.Fatalf("create ota task error: %v", err)
+	}
+	if created.ID == "" || created.Status != gatewayOTATaskStatusQueued {
+		t.Fatalf("unexpected created ota task: %+v", created)
+	}
+
+	items, err := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_001")
+	if err != nil {
+		t.Fatalf("list ota tasks error: %v", err)
+	}
+	if len(items) == 0 || items[0].ID != created.ID {
+		t.Fatalf("expected created task in list, got %+v", items)
+	}
+
+	updated, err := svc.UpdateOTATaskStatus(
+		"tenant_demo_jakarta",
+		"gw_demo_001",
+		created.ID,
+		"failed",
+		"gateway offline",
+		"ops@example.com",
+	)
+	if err != nil {
+		t.Fatalf("update ota task status error: %v", err)
+	}
+	if updated.Status != gatewayOTATaskStatusFailed || updated.ErrorMessage != "gateway offline" {
+		t.Fatalf("unexpected updated ota task: %+v", updated)
+	}
+}
+
+func TestCreateOTATaskValidation(t *testing.T) {
+	svc := NewService()
+
+	_, err := svc.CreateOTATask(
+		"tenant_demo_jakarta",
+		"gw_demo_001",
+		"",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"",
+		"",
+	)
+	if err != ErrGatewayOTAFirmwareVersionRequired {
+		t.Fatalf("unexpected missing version error: %v", err)
+	}
+
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta",
+		"gw_demo_001",
+		"v2.4.1",
+		"",
+		"",
+		"",
+	)
+	if err != ErrGatewayOTAFirmwareURLRequired {
+		t.Fatalf("unexpected missing url error: %v", err)
+	}
+
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta",
+		"gw_demo_001",
+		"v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"invalid_sha256",
+		"",
+	)
+	if err != ErrGatewayOTAFirmwareSHA256Invalid {
+		t.Fatalf("unexpected invalid sha256 error: %v", err)
+	}
+}

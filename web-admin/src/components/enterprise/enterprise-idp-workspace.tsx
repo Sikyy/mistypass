@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,42 +48,59 @@ export function EnterpriseIDPWorkspace({
   syncJobsCount,
   workerAlertCount,
 }: EnterpriseIDPWorkspaceProps) {
+  const { t } = useTranslation()
   return (
     <TabsContent value="idp">
       <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">企业登录落地工作区</CardTitle>
-            <CardDescription>把 SSO、目录来源和审批积压放在一起看，避免企业自身登录只是一个配置快照。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseIdpWorkspace.title")}</CardTitle>
+            <CardDescription>{t("enterpriseIdpWorkspace.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border bg-muted/10 px-4 py-3">
-              <p className="font-medium">{idpReady ? "企业登录已具备基础条件" : "企业登录仍有前置缺口"}</p>
+              <p className="font-medium">
+                {idpReady
+                  ? t("enterpriseIdpWorkspace.readiness.readyTitle")
+                  : t("enterpriseIdpWorkspace.readiness.notReadyTitle")}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {idpReady
-                  ? "当前可以围绕审批积压、目录同步和 JIT 开通继续做收口。"
-                  : "建议先补 IdP 配置，再回到审批与异常处理自动开户、同步失败和 worker 告警。"}
+                  ? t("enterpriseIdpWorkspace.readiness.readyDescription")
+                  : t("enterpriseIdpWorkspace.readiness.notReadyDescription")}
               </p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
               <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">企业登录</p>
-                <p className="mt-1 text-sm font-medium">{loading ? "--" : idpConfig?.status || "未配置"}</p>
+                <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.kpi.enterpriseLogin.title")}</p>
+                <p className="mt-1 text-sm font-medium">
+                  {loading ? "--" : idpConfig?.status || t("enterpriseIdpWorkspace.unconfigured")}
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {idpConfig ? `${idpConfig.provider} / ${idpConfig.sync_mode}` : "建议先启用企业 SSO。"}
+                  {idpConfig
+                    ? `${idpConfig.provider} / ${idpConfig.sync_mode}`
+                    : t("enterpriseIdpWorkspace.kpi.enterpriseLogin.hintNoConfig")}
                 </p>
                 <Button size="sm" variant="outline" className="mt-3" onClick={() => goToSection("idp")}>
-                  {idpReady ? "复核企业登录" : "去企业登录"}
+                  {idpReady
+                    ? t("enterpriseIdpWorkspace.kpi.enterpriseLogin.review")
+                    : t("enterpriseIdpWorkspace.kpi.enterpriseLogin.go")}
                 </Button>
               </div>
               <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">目录来源</p>
+                <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.kpi.directorySource.title")}</p>
                 <p className="mt-1 text-sm font-medium">
-                  {loading ? "--" : activeEmployeeCount > 0 ? `${activeEmployeeCount} 名员工` : "尚未接通"}
+                  {loading
+                    ? "--"
+                    : activeEmployeeCount > 0
+                      ? t("enterpriseIdpWorkspace.kpi.directorySource.employeeCount", { count: activeEmployeeCount })
+                      : t("enterpriseIdpWorkspace.kpi.directorySource.notConnected")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {syncJobsCount > 0 ? `最近同步 ${syncJobsCount} 次` : "建议先接入 HRIS、SCIM、CSV 或手动同步。"}
+                  {syncJobsCount > 0
+                    ? t("enterpriseIdpWorkspace.kpi.directorySource.syncCount", { count: syncJobsCount })
+                    : t("enterpriseIdpWorkspace.kpi.directorySource.hintNoSync")}
                 </p>
                 <Button
                   size="sm"
@@ -90,19 +108,28 @@ export function EnterpriseIDPWorkspace({
                   className="mt-3"
                   onClick={() => goToSection(activeEmployeeCount > 0 ? "employees" : "sync")}
                 >
-                  {activeEmployeeCount > 0 ? "查看员工目录" : "去导入与同步"}
+                  {activeEmployeeCount > 0
+                    ? t("enterpriseIdpWorkspace.kpi.directorySource.viewEmployees")
+                    : t("enterpriseIdpWorkspace.kpi.directorySource.goSync")}
                 </Button>
               </div>
               <div className="rounded-lg border bg-muted/10 px-3 py-3">
-                <p className="mp-kpi-note">审批与异常</p>
+                <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.kpi.approvals.title")}</p>
                 <p className="mt-1 text-sm font-medium">
-                  {loading ? "--" : `${pendingApprovalCount} 条待审批 / ${failedSyncJobCount} 条待复核`}
+                  {loading
+                    ? "--"
+                    : t("enterpriseIdpWorkspace.kpi.approvals.metric", {
+                        pending: pendingApprovalCount,
+                        failed: failedSyncJobCount,
+                      })}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {workerAlertCount > 0 ? `最近累计 ${workerAlertCount} 条 worker 告警。` : "当前未发现额外 worker 告警。"}
+                  {workerAlertCount > 0
+                    ? t("enterpriseIdpWorkspace.kpi.approvals.workerAlertCount", { count: workerAlertCount })
+                    : t("enterpriseIdpWorkspace.kpi.approvals.noWorkerAlert")}
                 </p>
                 <Button size="sm" variant="outline" className="mt-3" onClick={() => goToSection("alerts")}>
-                  去审批与异常
+                  {t("enterpriseIdpWorkspace.kpi.approvals.go")}
                 </Button>
               </div>
             </div>
@@ -111,30 +138,30 @@ export function EnterpriseIDPWorkspace({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">企业登录 / SSO 配置概览</CardTitle>
-            <CardDescription>把“企业自身登录”单独抬成一个模块，不再和平台级租户管理叙事混在同一语境。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseIdpWorkspace.overview.title")}</CardTitle>
+            <CardDescription>{t("enterpriseIdpWorkspace.overview.description")}</CardDescription>
           </CardHeader>
           <CardContent>
             {!idpConfig ? (
               <div className="rounded-lg border bg-muted/20 p-4 text-sm text-muted-foreground">
-                当前组织还没有企业登录配置。建议先接入 IdP，再配合 JIT Provision 和员工同步。
+                {t("enterpriseIdpWorkspace.overview.empty")}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="mp-kpi-note">Provider</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.provider")}</p>
                   <p className="mt-1 font-medium">{idpConfig.provider}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="mp-kpi-note">状态</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.status")}</p>
                   <p className="mt-1 font-medium">{idpConfig.status}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="mp-kpi-note">同步模式</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.syncMode")}</p>
                   <p className="mt-1 font-medium">{idpConfig.sync_mode}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/20 p-3">
-                  <p className="mp-kpi-note">最近更新</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.updatedAt")}</p>
                   <p className="mt-1 font-medium">{formatDateTime(idpConfig.updated_at)}</p>
                 </div>
               </div>
@@ -143,11 +170,11 @@ export function EnterpriseIDPWorkspace({
             {idpConfig ? (
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div className="rounded-lg border bg-muted/15 p-3">
-                  <p className="mp-kpi-note">Issuer URL</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.issuerURL")}</p>
                   <p className="mt-1 break-all text-sm">{idpConfig.issuer_url || "-"}</p>
                 </div>
                 <div className="rounded-lg border bg-muted/15 p-3">
-                  <p className="mp-kpi-note">Scopes</p>
+                  <p className="mp-kpi-note">{t("enterpriseIdpWorkspace.overview.scopes")}</p>
                   <p className="mt-1 text-sm">{idpConfig.scopes?.join(", ") || "-"}</p>
                 </div>
               </div>
@@ -157,8 +184,8 @@ export function EnterpriseIDPWorkspace({
 
         <Card className="xl:col-span-2" data-testid="enterprise-idp-outcome">
           <CardHeader>
-            <CardTitle className="text-base">企业登录完成后的下一步</CardTitle>
-            <CardDescription>企业登录配置不是终点。配置完成后，应该继续把目录、审批、策略和发放主路径接起来。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseIdpWorkspace.outcome.title")}</CardTitle>
+            <CardDescription>{t("enterpriseIdpWorkspace.outcome.description")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border bg-muted/10 px-4 py-3">
@@ -175,10 +202,10 @@ export function EnterpriseIDPWorkspace({
                   </Button>
                 )}
                 <Button asChild size="sm" variant="outline">
-                  <Link to={directoryLink}>去员工与用户组</Link>
+                  <Link to={directoryLink}>{t("enterpriseIdpWorkspace.outcome.goDirectory")}</Link>
                 </Button>
                 <Button asChild size="sm" variant="outline">
-                  <Link to={policiesLink}>去权限策略</Link>
+                  <Link to={policiesLink}>{t("enterpriseIdpWorkspace.outcome.goPolicies")}</Link>
                 </Button>
               </div>
             </div>

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import {
   Dialog,
   DialogContent,
@@ -18,6 +20,8 @@ export function AccessGrantDetailDialog({
   open,
   onOpenChange,
 }: AccessGrantDetailDialogProps) {
+  const { t, i18n } = useTranslation()
+
   return (
     <Dialog
       open={open}
@@ -27,48 +31,60 @@ export function AccessGrantDetailDialog({
     >
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>被授权人基本信息</DialogTitle>
-          <DialogDescription>用于核验授权对象身份、联系方式与设备信息。</DialogDescription>
+          <DialogTitle>{t("accessPage.components.grantDetailDialog.title", { defaultValue: "Grantee profile" })}</DialogTitle>
+          <DialogDescription>
+            {t("accessPage.components.grantDetailDialog.description", {
+              defaultValue: "Used to verify identity, contact details, and device info for granted subject.",
+            })}
+          </DialogDescription>
         </DialogHeader>
         {grant ? (
           <div className="grid gap-2 text-sm">
             <div>
-              <span className="text-muted-foreground">授权 ID：</span>
+              <span className="text-muted-foreground">{t("accessPage.components.grantDetailDialog.labels.grantID", { defaultValue: "Grant ID:" })}</span>
               <span className="font-medium">{grant.id}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">姓名：</span>
+              <span className="text-muted-foreground">{t("accessPage.components.grantDetailDialog.labels.name", { defaultValue: "Name:" })}</span>
               <span>{grant.grantee_name}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">性别：</span>
+              <span className="text-muted-foreground">{t("accessPage.components.grantDetailDialog.labels.gender", { defaultValue: "Gender:" })}</span>
               <span>{grant.grantee_gender || "-"}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">手机号：</span>
+              <span className="text-muted-foreground">{t("accessPage.components.grantDetailDialog.labels.phone", { defaultValue: "Phone:" })}</span>
               <span>{grant.grantee_phone}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">邮箱：</span>
+              <span className="text-muted-foreground">{t("accessPage.components.grantDetailDialog.labels.email", { defaultValue: "Email:" })}</span>
               <span>{grant.grantee_email}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">手机型号：</span>
+              <span className="text-muted-foreground">
+                {t("accessPage.components.grantDetailDialog.labels.mobileModel", { defaultValue: "Mobile model:" })}
+              </span>
               <span>{grant.mobile_model || "-"}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">对象类型：</span>
+              <span className="text-muted-foreground">
+                {t("accessPage.components.grantDetailDialog.labels.subjectType", { defaultValue: "Subject type:" })}
+              </span>
               <span>{grant.pass_type || "-"}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">授权人：</span>
+              <span className="text-muted-foreground">
+                {t("accessPage.components.grantDetailDialog.labels.authorizedBy", { defaultValue: "Authorized by:" })}
+              </span>
               <span>
                 {grant.authorized_by_email || "-"} {grant.authorized_by_role ? `(${grant.authorized_by_role})` : ""}
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground">授权时间：</span>
-              <span>{new Date(grant.authorized_at || grant.created_at).toLocaleString("zh-CN")}</span>
+              <span className="text-muted-foreground">
+                {t("accessPage.components.grantDetailDialog.labels.authorizedAt", { defaultValue: "Authorized at:" })}
+              </span>
+              <span>{new Date(grant.authorized_at || grant.created_at).toLocaleString(i18n.language)}</span>
             </div>
           </div>
         ) : null}

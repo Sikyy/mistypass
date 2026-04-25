@@ -60,12 +60,15 @@
 ```json
 {
   "tenant_id": "tenant_demo_jakarta",
-  "source": "scim_sync",
+  "source": "hris_talenta",
   "actor": "hris-sync-worker",
   "request_id": "req-20260415-1001",
+  "connector_id": "connector_talenta_jakarta",
+  "raw_payload_ref": "s3://mistypass-sync-raw/talenta/2026-04-22/event-001.json",
   "employees": [
     {
       "external_id": "hris-jkt-1001",
+      "employee_number": "EMP-1001",
       "email": "arief.putra@sudirman.co",
       "full_name": "Arief Putra",
       "department": "Finance",
@@ -73,7 +76,14 @@
       "location": "Jakarta",
       "phone": "+62-811-0000-1111",
       "manager_external_id": "hris-jkt-0001",
-      "employment_status": "active"
+      "employment_status": "active",
+      "join_date": "2024-01-15",
+      "resign_date": "",
+      "shift_code": "SHIFT-A",
+      "schedule_window": "mon-fri:09:00-18:00",
+      "leave_status": "none",
+      "cost_center": "CC-FIN-01",
+      "photo_url": "https://cdn.vendor.local/photos/EMP-1001.jpg"
     }
   ]
 }
@@ -116,9 +126,10 @@
 
 同步语义：
 
-- `source` 缺省时默认 `manual_sync`。
+- `source` 缺省时默认 `manual_sync`，并做白名单校验（推荐值：`hris_talenta/hris_gadjian/hris_greatday/hris_linovhr/hris_sunfish/manual/csv_import`；兼容 `manual_sync/scim_sync/hris_import/hris/scim`）。
 - `actor` 缺省时默认 `system`。
 - `request_id` 参与幂等：同租户同 `request_id` 重复提交会复用已记录结果。
+- `connector_id`、`raw_payload_ref` 可选；当携带 `request_id` 时会写入 sync request 记录，供排障与重放引用。
 - 仅邮箱域名匹配 `active domain mapping` 的员工会被接受，其他记录计入 `rejected`。
 - `employment_status` 会归一化，`inactive/terminated/disabled/suspended/deprovisioned` 会映射到员工 `status=inactive`。
 

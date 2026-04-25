@@ -78,11 +78,83 @@ async function setupApiMocks(page: Page, viewer: MockViewer) {
 
 async function login(page: Page, email: string) {
   await page.goto("/login")
+  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill(email)
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
   await expect(page).toHaveURL(/\/dashboard$/)
 }
+
+test("super_admin should see grouped navigation, scope banner, and platform audit entry", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-super-admin-nav-groups",
+    email: "super.admin.nav@sudirman.co",
+    role: "super_admin",
+    tenant_id: "",
+    building_ids: [],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await expect(page.getByText("Command", { exact: true })).toBeVisible()
+  await expect(page.getByText("Sites", { exact: true })).toBeVisible()
+  await expect(page.getByText("People", { exact: true })).toBeVisible()
+  await expect(page.getByText("Platform", { exact: true })).toBeVisible()
+  await expect(page.getByText("平台范围", { exact: true })).toBeVisible()
+  await expect(page.getByText("跨租户", { exact: true })).toBeVisible()
+
+  await page.getByRole("link", { name: /审计/ }).click()
+  await expect(page).toHaveURL(/\/audit$/)
+})
+
+test("enterprise entry should use platform health title and sync default for super_admin", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-super-admin-enterprise-entry",
+    email: "super.admin.enterprise@sudirman.co",
+    role: "super_admin",
+    tenant_id: "",
+    building_ids: [],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await page.goto("/enterprise")
+  await expect(page.getByRole("heading", { name: "企业健康" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "同步" })).toHaveAttribute("data-state", "active")
+})
+
+test("enterprise entry should use directory and SSO title with directory default for tenant_admin", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-tenant-admin-enterprise-entry",
+    email: "tenant.admin.enterprise@sudirman.co",
+    role: "tenant_admin",
+    tenant_id: "tenant-sudirman",
+    building_ids: ["building-1"],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await page.goto("/enterprise")
+  await expect(page.getByRole("heading", { name: "目录与登录" })).toBeVisible()
+  await expect(page.getByRole("tab", { name: "员工" })).toHaveAttribute("data-state", "active")
+  await expect(page.getByRole("tab", { name: "IDP" })).toBeVisible()
+})
+
+test("resident should stop at the no-permission page instead of entering app shell", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-resident-no-admin",
+    email: "resident.noadmin@sudirman.co",
+    role: "resident",
+    tenant_id: "tenant-sudirman",
+    building_ids: [],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await expect(page.getByText("当前账号不能进入管理后台")).toBeVisible()
+  await expect(page.getByText("退出并切换账号")).toBeVisible()
+  await expect(page.getByRole("link", { name: /仪表盘/ })).toHaveCount(0)
+})
 
 test("building_admin without building scope should show empty-scope boundary hints across pages", async ({ page }) => {
   const viewer: MockViewer = {
@@ -95,6 +167,8 @@ test("building_admin without building scope should show empty-scope boundary hin
   await setupApiMocks(page, viewer)
   await login(page, viewer.email)
 
+  await expect(page.getByText("楼宇范围", { exact: true })).toBeVisible()
+  await expect(page.getByText("未分配楼宇", { exact: true })).toBeVisible()
   await expect(
     page.getByText("当前楼宇管理员尚未分配 `building_ids` 范围。仪表盘只保留空态指标，不展示任何楼宇级运行数据。")
   ).toBeVisible()
@@ -163,4 +237,19 @@ test("operator should see read-only boundary hints on gateways page", async ({ p
   await expect(
     page.getByText("当前角色无网关写权限，仅可查看状态。按钮禁用或缺失属于权限边界，不是系统异常。")
   ).toBeVisible()
+})
+
+test("operator should be redirected by enterprise route guard", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-operator-enterprise-guard",
+    email: "operator.enterprise.guard@sudirman.co",
+    role: "operator",
+    tenant_id: "tenant-sudirman",
+    building_ids: ["building-1"],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await page.goto("/enterprise")
+  await expect(page).toHaveURL(/\/dashboard$/)
 })

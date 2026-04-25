@@ -80,7 +80,9 @@ curl -sS -X POST "$API_BASE_URL/api/v1/gateways/serial-inventory/import" \
 ### 5.2 设备 bootstrap 注册（网关侧）
 
 ```bash
+export GATEWAY_BOOTSTRAP_TOKEN=${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev-bootstrap-local-only-20260424}
 REGISTER_JSON=$(curl -sS -X POST "$API_BASE_URL/api/v1/gateway/register" \
+  -H "X-Bootstrap-Token: $GATEWAY_BOOTSTRAP_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"serial_number\":\"$GW_SERIAL\",\"tenant_id\":\"$TENANT_ID\",\"building_id\":\"$BUILDING_ID\",\"device_capacity\":4}")
 

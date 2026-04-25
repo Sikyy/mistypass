@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,35 +30,36 @@ export function EnterpriseEmployeesWorkspace({
   loading,
   statusBadgeVariant,
 }: EnterpriseEmployeesWorkspaceProps) {
+  const { t } = useTranslation()
   return (
     <TabsContent value="employees">
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <CardTitle className="text-base">员工目录</CardTitle>
-            <CardDescription>同步完成后，去权限页建立用户组和访问策略。</CardDescription>
+            <CardTitle className="text-base">{t("enterpriseEmployees.title")}</CardTitle>
+            <CardDescription>{t("enterpriseEmployees.description")}</CardDescription>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link to={directoryLink}>去员工与用户组</Link>
+            <Link to={directoryLink}>{t("enterpriseEmployees.goDirectory")}</Link>
           </Button>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>姓名</TableHead>
-                <TableHead>邮箱</TableHead>
-                <TableHead>部门 / 岗位</TableHead>
-                <TableHead>来源</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>最近同步</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.name")}</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.email")}</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.departmentJob")}</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.source")}</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.status")}</TableHead>
+                <TableHead>{t("enterpriseEmployees.table.lastSynced")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!loading && employees.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                    还没有企业员工目录，请先在“导入与同步”里接入 HRIS、SCIM 或 CSV。
+                    {t("enterpriseEmployees.empty")}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -66,9 +68,10 @@ export function EnterpriseEmployeesWorkspace({
                   <TableCell className="font-medium">{item.full_name}</TableCell>
                   <TableCell>{item.email}</TableCell>
                   <TableCell>
-                    {item.department || "-"} / {item.job_title || "-"}
+                    {item.department || t("enterpriseEmployees.table.emptyDash")} /{" "}
+                    {item.job_title || t("enterpriseEmployees.table.emptyDash")}
                   </TableCell>
-                  <TableCell>{item.source || "-"}</TableCell>
+                  <TableCell>{item.source || t("enterpriseEmployees.table.emptyDash")}</TableCell>
                   <TableCell>
                     <Badge variant={statusBadgeVariant(item.status)}>{item.status}</Badge>
                   </TableCell>

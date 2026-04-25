@@ -55,6 +55,12 @@ var ErrGatewayEventCheckpointAckedCountInvalid = errors.New("event checkpoint ac
 var ErrGatewayEventCheckpointAckedCountRegression = errors.New("event checkpoint acked_count regression")
 var ErrGatewayQueueIngestTotalNotFound = errors.New("gateway queue ingest total not found")
 var ErrGatewayQueueIngestDeltaInvalid = errors.New("gateway queue ingest delta is invalid")
+var ErrGatewayOTATaskIDRequired = errors.New("gateway ota task_id is required")
+var ErrGatewayOTAFirmwareVersionRequired = errors.New("gateway ota firmware_version is required")
+var ErrGatewayOTAFirmwareURLRequired = errors.New("gateway ota firmware_url is required")
+var ErrGatewayOTAFirmwareSHA256Invalid = errors.New("gateway ota firmware_sha256 is invalid")
+var ErrGatewayOTATaskStatusInvalid = errors.New("gateway ota task status is invalid")
+var ErrGatewayOTATaskNotFound = errors.New("gateway ota task not found")
 
 const defaultDeviceCapacity = 4
 
@@ -78,6 +84,14 @@ const (
 	serialInventoryStatusConsumed  = "consumed"
 	serialInventoryStatusFrozen    = "frozen"
 	serialInventoryStatusScrapped  = "scrapped"
+)
+
+const (
+	gatewayOTATaskStatusQueued      = "queued"
+	gatewayOTATaskStatusDispatching = "dispatching"
+	gatewayOTATaskStatusSucceeded   = "succeeded"
+	gatewayOTATaskStatusFailed      = "failed"
+	gatewayOTATaskStatusCanceled    = "canceled"
 )
 
 type GatewayDevice struct {
@@ -227,6 +241,21 @@ type GatewayQueueIngestTotal struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type GatewayOTATask struct {
+	ID              string    `json:"id"`
+	GatewayID       string    `json:"gateway_id"`
+	TenantID        string    `json:"tenant_id"`
+	FirmwareVersion string    `json:"firmware_version"`
+	FirmwareURL     string    `json:"firmware_url"`
+	FirmwareSHA256  string    `json:"firmware_sha256,omitempty"`
+	Status          string    `json:"status"`
+	ErrorMessage    string    `json:"error_message,omitempty"`
+	RequestedBy     string    `json:"requested_by,omitempty"`
+	UpdatedBy       string    `json:"updated_by,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
 type StateStore interface {
 	Load(key string, dst any) (bool, error)
 	Save(key string, value any) error
@@ -240,6 +269,7 @@ type stateSnapshot struct {
 	ConfigStates      []GatewayConfigState      `json:"config_states,omitempty"`
 	EventCheckpoints  []GatewayEventCheckpoint  `json:"event_checkpoints,omitempty"`
 	QueueIngestTotals []GatewayQueueIngestTotal `json:"queue_ingest_totals,omitempty"`
+	OTATasks          []GatewayOTATask          `json:"ota_tasks,omitempty"`
 }
 
 type Service struct {
@@ -249,6 +279,7 @@ type Service struct {
 	configStates      []GatewayConfigState
 	eventCheckpoints  []GatewayEventCheckpoint
 	queueIngestTotals []GatewayQueueIngestTotal
+	otaTasks          []GatewayOTATask
 	stateStore        StateStore
 }
 
@@ -315,6 +346,7 @@ func NewService() *Service {
 		configStates:      []GatewayConfigState{},
 		eventCheckpoints:  []GatewayEventCheckpoint{},
 		queueIngestTotals: []GatewayQueueIngestTotal{},
+		otaTasks:          []GatewayOTATask{},
 	}
 }
 
@@ -1441,6 +1473,181 @@ func (s *Service) Reboot(tenantID, gatewayID string) (CommandAck, error) {
 	return CommandAck{}, ErrGatewayNotFound
 }
 
+func (s *Service) CreateOTATask(
+	tenantID,
+	gatewayID,
+	firmwareVersion,
+	firmwareURL,
+	firmwareSHA256,
+	requestedBy string,
+) (GatewayOTATask, error) {
+	gwID := strings.TrimSpace(gatewayID)
+	if gwID == "" {
+		return GatewayOTATask{}, ErrGatewayIDRequired
+	}
+	nextVersion := strings.TrimSpace(firmwareVersion)
+	if nextVersion == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareVersionRequired
+	}
+	nextURL := strings.TrimSpace(firmwareURL)
+	if nextURL == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
+	}
+	nextSHA256 := strings.ToLower(strings.TrimSpace(firmwareSHA256))
+	if nextSHA256 != "" && !isValidSHA256Hex(nextSHA256) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
+	}
+	taskID, err := otaTaskID()
+	if err != nil {
+		return GatewayOTATask{}, err
+	}
+
+	filterTenantID := strings.TrimSpace(tenantID)
+	now := time.Now().UTC()
+	nextRequestedBy := strings.TrimSpace(requestedBy)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	taskTenantID := ""
+	for i := range s.gateways {
+		if s.gateways[i].ID != gwID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return GatewayOTATask{}, ErrGatewayNotFound
+		}
+		taskTenantID = s.gateways[i].TenantID
+		s.gateways[i].LastSeenAt = now
+		break
+	}
+	if taskTenantID == "" {
+		return GatewayOTATask{}, ErrGatewayNotFound
+	}
+
+	task := GatewayOTATask{
+		ID:              taskID,
+		GatewayID:       gwID,
+		TenantID:        taskTenantID,
+		FirmwareVersion: nextVersion,
+		FirmwareURL:     nextURL,
+		FirmwareSHA256:  nextSHA256,
+		Status:          gatewayOTATaskStatusQueued,
+		RequestedBy:     nextRequestedBy,
+		UpdatedBy:       nextRequestedBy,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	s.otaTasks = append([]GatewayOTATask{task}, s.otaTasks...)
+	if err := s.persistLocked(); err != nil {
+		return GatewayOTATask{}, err
+	}
+	return task, nil
+}
+
+func (s *Service) ListOTATasks(tenantID, gatewayID string) ([]GatewayOTATask, error) {
+	gwID := strings.TrimSpace(gatewayID)
+	if gwID == "" {
+		return nil, ErrGatewayIDRequired
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	gatewayExists := false
+	for i := range s.gateways {
+		if s.gateways[i].ID != gwID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return nil, ErrGatewayNotFound
+		}
+		gatewayExists = true
+		break
+	}
+	if !gatewayExists {
+		return nil, ErrGatewayNotFound
+	}
+
+	items := make([]GatewayOTATask, 0, len(s.otaTasks))
+	for i := range s.otaTasks {
+		if s.otaTasks[i].GatewayID != gwID {
+			continue
+		}
+		items = append(items, s.otaTasks[i])
+	}
+	return items, nil
+}
+
+func (s *Service) UpdateOTATaskStatus(
+	tenantID,
+	gatewayID,
+	taskID,
+	status,
+	errorMessage,
+	updatedBy string,
+) (GatewayOTATask, error) {
+	gwID := strings.TrimSpace(gatewayID)
+	if gwID == "" {
+		return GatewayOTATask{}, ErrGatewayIDRequired
+	}
+	nextTaskID := strings.TrimSpace(taskID)
+	if nextTaskID == "" {
+		return GatewayOTATask{}, ErrGatewayOTATaskIDRequired
+	}
+	nextStatus, err := normalizeGatewayOTATaskStatus(status)
+	if err != nil {
+		return GatewayOTATask{}, err
+	}
+	nextErrorMessage := strings.TrimSpace(errorMessage)
+	if nextStatus != gatewayOTATaskStatusFailed {
+		nextErrorMessage = ""
+	}
+	nextUpdatedBy := strings.TrimSpace(updatedBy)
+	filterTenantID := strings.TrimSpace(tenantID)
+	now := time.Now().UTC()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	gatewayExists := false
+	for i := range s.gateways {
+		if s.gateways[i].ID != gwID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return GatewayOTATask{}, ErrGatewayNotFound
+		}
+		s.gateways[i].LastSeenAt = now
+		gatewayExists = true
+		break
+	}
+	if !gatewayExists {
+		return GatewayOTATask{}, ErrGatewayNotFound
+	}
+
+	idx := s.findOTATaskIndexLocked(nextTaskID, gwID)
+	if idx < 0 {
+		return GatewayOTATask{}, ErrGatewayOTATaskNotFound
+	}
+	if filterTenantID != "" && s.otaTasks[idx].TenantID != filterTenantID {
+		return GatewayOTATask{}, ErrGatewayOTATaskNotFound
+	}
+
+	s.otaTasks[idx].Status = nextStatus
+	s.otaTasks[idx].ErrorMessage = nextErrorMessage
+	if nextUpdatedBy != "" {
+		s.otaTasks[idx].UpdatedBy = nextUpdatedBy
+	}
+	s.otaTasks[idx].UpdatedAt = now
+
+	if err := s.persistLocked(); err != nil {
+		return GatewayOTATask{}, err
+	}
+	return s.otaTasks[idx], nil
+}
+
 func (s *Service) restoreFromStateStore() error {
 	if s.stateStore == nil {
 		return nil
@@ -1458,6 +1665,7 @@ func (s *Service) restoreFromStateStore() error {
 			ConfigStates:      cloneGatewayConfigStates(s.configStates),
 			EventCheckpoints:  cloneGatewayEventCheckpoints(s.eventCheckpoints),
 			QueueIngestTotals: cloneGatewayQueueIngestTotals(s.queueIngestTotals),
+			OTATasks:          cloneGatewayOTATasks(s.otaTasks),
 		})
 	}
 	shouldBackfillInventory := false
@@ -1472,6 +1680,7 @@ func (s *Service) restoreFromStateStore() error {
 	s.configStates = cloneGatewayConfigStates(snapshot.ConfigStates)
 	s.eventCheckpoints = cloneGatewayEventCheckpoints(snapshot.EventCheckpoints)
 	s.queueIngestTotals = cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals)
+	s.otaTasks = cloneGatewayOTATasks(snapshot.OTATasks)
 	s.mu.Unlock()
 
 	if shouldBackfillInventory {
@@ -1481,6 +1690,7 @@ func (s *Service) restoreFromStateStore() error {
 			ConfigStates:      cloneGatewayConfigStates(snapshot.ConfigStates),
 			EventCheckpoints:  cloneGatewayEventCheckpoints(snapshot.EventCheckpoints),
 			QueueIngestTotals: cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
+			OTATasks:          cloneGatewayOTATasks(snapshot.OTATasks),
 		})
 	}
 	return nil
@@ -1496,6 +1706,7 @@ func (s *Service) persistLocked() error {
 		ConfigStates:      cloneGatewayConfigStates(s.configStates),
 		EventCheckpoints:  cloneGatewayEventCheckpoints(s.eventCheckpoints),
 		QueueIngestTotals: cloneGatewayQueueIngestTotals(s.queueIngestTotals),
+		OTATasks:          cloneGatewayOTATasks(s.otaTasks),
 	})
 }
 
@@ -1571,6 +1782,17 @@ func cloneGatewayQueueIngestTotals(items []GatewayQueueIngestTotal) []GatewayQue
 		return nil
 	}
 	output := make([]GatewayQueueIngestTotal, 0, len(items))
+	for i := range items {
+		output = append(output, items[i])
+	}
+	return output
+}
+
+func cloneGatewayOTATasks(items []GatewayOTATask) []GatewayOTATask {
+	if len(items) == 0 {
+		return nil
+	}
+	output := make([]GatewayOTATask, 0, len(items))
 	for i := range items {
 		output = append(output, items[i])
 	}
@@ -1661,6 +1883,14 @@ func commandTaskID() (string, error) {
 		return "", err
 	}
 	return "task_" + hex.EncodeToString(raw), nil
+}
+
+func otaTaskID() (string, error) {
+	raw := make([]byte, 6)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return "ota_" + hex.EncodeToString(raw), nil
 }
 
 func gatewayDeviceID() (string, error) {
@@ -2078,6 +2308,45 @@ func (s *Service) findQueueIngestTotalIndexLocked(gatewayID, queue string) int {
 		}
 	}
 	return -1
+}
+
+func (s *Service) findOTATaskIndexLocked(taskID, gatewayID string) int {
+	nextTaskID := strings.TrimSpace(taskID)
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextTaskID == "" || nextGatewayID == "" {
+		return -1
+	}
+	for i := range s.otaTasks {
+		if s.otaTasks[i].ID == nextTaskID && s.otaTasks[i].GatewayID == nextGatewayID {
+			return i
+		}
+	}
+	return -1
+}
+
+func normalizeGatewayOTATaskStatus(status string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case gatewayOTATaskStatusQueued:
+		return gatewayOTATaskStatusQueued, nil
+	case gatewayOTATaskStatusDispatching:
+		return gatewayOTATaskStatusDispatching, nil
+	case gatewayOTATaskStatusSucceeded:
+		return gatewayOTATaskStatusSucceeded, nil
+	case gatewayOTATaskStatusFailed:
+		return gatewayOTATaskStatusFailed, nil
+	case gatewayOTATaskStatusCanceled:
+		return gatewayOTATaskStatusCanceled, nil
+	default:
+		return "", ErrGatewayOTATaskStatusInvalid
+	}
+}
+
+func isValidSHA256Hex(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func (s *Service) consumeGatewaySerialLocked(serialNumber, tenantID, gatewayID string) error {

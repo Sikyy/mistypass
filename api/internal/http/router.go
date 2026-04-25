@@ -4,13 +4,14 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/mistypass/cloud/api/internal/bus"
 	"github.com/mistypass/cloud/api/internal/config"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
@@ -30,15 +32,21 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
+	"github.com/mistypass/cloud/api/internal/modules/hris"
+	"github.com/mistypass/cloud/api/internal/modules/hris/talenta"
 	"github.com/mistypass/cloud/api/internal/modules/space"
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
+	"github.com/mistypass/cloud/api/internal/redistore"
 	"github.com/mistypass/cloud/api/internal/state"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type server struct {
 	cfg                           config.Config
 	stateStore                    state.Store
+	gatewayTokenStore             gatewayTokenStore
+	logger                        *slog.Logger
 	authService                   *auth.Service
 	tenantSvc                     *tenant.Service
 	spaceSvc                      *space.Service
@@ -49,6 +57,11 @@ type server struct {
 	auditSvc                      *audit.Service
 	walletSvc                     *wallet.Service
 	enterpriseSvc                 *enterprise.Service
+	hrisVaultSvc                  *hris.VaultService
+	hrisDLQSvc                    *hris.DLQService
+	hrisPullStateSvc              *hris.PullStateService
+	hrisNormalizerRegistry        *hris.Registry
+	hrisPullRegistry              *hris.PullRegistry
 	stateChangeReader             stateChangeReader
 	stateChangeReplayer           stateChangeReplayer
 	stateChangeCheckpointReader   stateChangeCheckpointReader
@@ -61,10 +74,45 @@ type server struct {
 	gatewayAuthzAckVersion        map[string]string
 	loginRateLimitMu              sync.Mutex
 	loginRateLimitBuckets         map[string]loginRateLimitBucket
+	apiRateLimitMu                sync.Mutex
+	apiRateLimitBuckets           map[string]loginRateLimitBucket
+	enterprisePublicRateLimitMu   sync.Mutex
+	enterprisePublicRateBuckets   map[string]loginRateLimitBucket
+	enterpriseWebhookRateLimitMu  sync.Mutex
+	enterpriseWebhookRateBuckets  map[string]loginRateLimitBucket
+	rateLimitStore                rateLimitStore
+	volatileStore                 *redistore.Store
+	workerLeaseStore              workerLeaseStore
+	workerQueueStore              workerQueueStore
+	hrisWebhookReceiptWorkerWake  chan struct{}
+	hrisWebhookDLQWorkerWake      chan struct{}
+	hrisWebhookReceiptWorkerQueue chan enterpriseHRISWebhookReceiptQueuedTask
+	hrisWebhookDLQWorkerQueue     chan enterpriseHRISWebhookDLQQueuedTask
+	messageBus                    bus.Publisher
+	externalAuthHTTPClient        *http.Client
+	hrisHTTPClient                *http.Client
+}
+
+type enterpriseHRISWebhookReceiptQueuedTask struct {
+	Receipt     enterprise.HRISWebhookReceipt
+	RecordDLQ   bool
+	ExecutionID string
+}
+
+type enterpriseHRISWebhookDLQQueuedTask struct {
+	TenantID    string
+	Entry       hris.DeadLetterEntry
+	AuditSource string
+	ExecutionID string
 }
 
 type stateChangeReader interface {
 	ListStateChanges(stateKey string, limit int) ([]state.StateChangeRecord, error)
+}
+
+type gatewayTokenStore interface {
+	UpsertGatewayDeviceToken(gatewayID, deviceToken string) error
+	VerifyGatewayDeviceToken(gatewayID, providedToken string) (exists bool, matched bool, err error)
 }
 
 type stateChangeReplayer interface {
@@ -77,6 +125,23 @@ type stateChangeCheckpointReader interface {
 
 type stateChangeCheckpointReplayer interface {
 	ReplayStateChangesFromCheckpoint(stateKey string, limit int) (state.ReplayFromCheckpointResult, error)
+}
+
+type rateLimitStore interface {
+	AllowRateLimit(scope, key string, now time.Time, window time.Duration, maxAttempts int) (bool, time.Duration, error)
+}
+
+type workerLeaseStore interface {
+	TryAcquireLease(key, token string, ttl time.Duration) (bool, error)
+	ReleaseLease(key, token string) error
+}
+
+type workerQueueStore interface {
+	EnqueueWorkerQueue(queueName, itemID string) error
+	ClaimWorkerQueueBatch(queueName string, batchSize int, visibilityTimeout time.Duration) ([]redistore.WorkerQueueClaim, error)
+	AckWorkerQueue(queueName, itemID, claimToken string) (bool, error)
+	RequeueWorkerQueue(queueName, itemID, claimToken string) (bool, error)
+	DescribeWorkerQueue(queueName string, itemIDs []string) (redistore.WorkerQueueTelemetry, error)
 }
 
 type loginRateLimitBucket struct {
@@ -98,6 +163,25 @@ const (
 	loginRateLimitWindow                       = time.Minute
 	loginRateLimitBucketTTL                    = 5 * time.Minute
 	loginRateLimitBucketMaxKeys                = 10000
+	apiRateLimitMaxRequests                    = 600
+	apiRateLimitWindow                         = time.Minute
+	apiRateLimitBucketTTL                      = 10 * time.Minute
+	apiRateLimitBucketMaxKeys                  = 20000
+	enterprisePublicRateLimitMaxRequests       = 60
+	enterprisePublicRateLimitWindow            = time.Minute
+	enterprisePublicRateLimitBucketTTL         = 10 * time.Minute
+	enterprisePublicRateLimitBucketMaxKeys     = 10000
+	enterpriseWebhookRateLimitMaxRequests      = 240
+	enterpriseWebhookRateLimitWindow           = time.Minute
+	enterpriseWebhookRateLimitBucketTTL        = 10 * time.Minute
+	enterpriseWebhookRateLimitBucketMaxKeys    = 10000
+	enterpriseSyncWorkerAlertAutoRetryLeaseKey = "enterprise_sync_worker_alert_auto_retry"
+	enterpriseHRISWebhookReceiptLeaseKey       = "enterprise_hris_webhook_receipt_worker"
+	enterpriseHRISWebhookDLQLeaseKey           = "enterprise_hris_webhook_dlq_worker"
+	enterpriseHRISPullLeaseKey                 = "enterprise_hris_pull_worker"
+	enterpriseHRISWebhookReceiptExecutionQueue = "enterprise_hris_webhook_receipt_execution"
+	enterpriseHRISWebhookDLQExecutionQueue     = "enterprise_hris_webhook_dlq_execution"
+	enterpriseHRISWebhookQueuedTaskBufferSize  = 128
 )
 
 func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) {
@@ -110,6 +194,15 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	auditSvc := audit.NewService()
 	walletSvc := wallet.NewService()
 	enterpriseSvc := enterprise.NewService()
+	hrisVaultMasterKey, err := resolveHRISVaultMasterKey(cfg.HRISVaultMasterKey)
+	if err != nil {
+		return nil, err
+	}
+	hrisVaultSvc := hris.NewVaultService(hrisVaultMasterKey)
+	hrisDLQSvc := hris.NewDLQService()
+	hrisPullStateSvc := hris.NewPullStateService()
+	hrisNormalizerRegistry := hris.NewRegistry(talenta.NewNormalizer())
+	hrisPullRegistry := hris.NewPullRegistry(talenta.NewPullAdapter())
 	var stateChangeReaderSvc stateChangeReader
 	var stateChangeReplayerSvc stateChangeReplayer
 	var stateChangeCheckpointReaderSvc stateChangeCheckpointReader
@@ -164,6 +257,18 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		if err != nil {
 			return nil, err
 		}
+		hrisVaultSvc, err = hris.NewVaultServiceWithStateStore(hrisVaultMasterKey, stateStore)
+		if err != nil {
+			return nil, err
+		}
+		hrisDLQSvc, err = hris.NewDLQServiceWithStateStore(stateStore)
+		if err != nil {
+			return nil, err
+		}
+		hrisPullStateSvc, err = hris.NewPullStateServiceWithStateStore(stateStore)
+		if err != nil {
+			return nil, err
+		}
 	}
 	walletSvc.SetJobAlertMockTransientFailCount(cfg.WalletAlertDispatchMockTransientFailCount)
 	if err := walletSvc.SetJobAlertEmailDeliveryOptions(wallet.JobAlertEmailDeliveryOptions{
@@ -186,6 +291,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	s := &server{
 		cfg:                           cfg,
 		stateStore:                    stateStore,
+		logger:                        slog.Default(),
 		authService:                   auth.NewService(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.EnableDemoUsers),
 		tenantSvc:                     tenantSvc,
 		spaceSvc:                      spaceSvc,
@@ -196,17 +302,72 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		auditSvc:                      auditSvc,
 		walletSvc:                     walletSvc,
 		enterpriseSvc:                 enterpriseSvc,
+		hrisVaultSvc:                  hrisVaultSvc,
+		hrisDLQSvc:                    hrisDLQSvc,
+		hrisPullStateSvc:              hrisPullStateSvc,
+		hrisNormalizerRegistry:        hrisNormalizerRegistry,
+		hrisPullRegistry:              hrisPullRegistry,
 		stateChangeReader:             stateChangeReaderSvc,
 		stateChangeReplayer:           stateChangeReplayerSvc,
 		stateChangeCheckpointReader:   stateChangeCheckpointReaderSvc,
 		stateChangeCheckpointReplayer: stateChangeCheckpointReplayerSvc,
-		gatewayDeviceTokens: map[string]string{
-			"gw_demo_001": "gw_demo_token_jkt",
-			"gw_demo_002": "gw_demo_token_factory",
-		},
-		gatewayBatchFailureSeen: map[string]struct{}{},
-		gatewayAuthzAckVersion:  map[string]string{},
-		loginRateLimitBuckets:   map[string]loginRateLimitBucket{},
+		gatewayDeviceTokens:           map[string]string{},
+		gatewayBatchFailureSeen:       map[string]struct{}{},
+		gatewayAuthzAckVersion:        map[string]string{},
+		loginRateLimitBuckets:         map[string]loginRateLimitBucket{},
+		apiRateLimitBuckets:           map[string]loginRateLimitBucket{},
+		enterprisePublicRateBuckets:   map[string]loginRateLimitBucket{},
+		enterpriseWebhookRateBuckets:  map[string]loginRateLimitBucket{},
+		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
+		hrisWebhookDLQWorkerWake:      make(chan struct{}, 1),
+		hrisWebhookReceiptWorkerQueue: make(chan enterpriseHRISWebhookReceiptQueuedTask, enterpriseHRISWebhookQueuedTaskBufferSize),
+		hrisWebhookDLQWorkerQueue:     make(chan enterpriseHRISWebhookDLQQueuedTask, enterpriseHRISWebhookQueuedTaskBufferSize),
+		externalAuthHTTPClient:        &http.Client{Timeout: cfg.ExternalAuthTimeout},
+		hrisHTTPClient:                &http.Client{Timeout: firstNonZeroDuration(cfg.ExternalAuthTimeout, 15*time.Second)},
+	}
+	s.authService.SetAdminMFARequired(cfg.AuthAdminMFARequired)
+	messageBus, err := bus.NewPublisher(cfg.NATSEnabled, cfg.NATSServerURL, cfg.NATSSubjectPrefix)
+	if err != nil {
+		return nil, err
+	}
+	s.messageBus = messageBus
+	if s.messageBus.Enabled() {
+		s.loggerOrDefault().Info(
+			"nats internal bus enabled",
+			"server_url", cfg.NATSServerURL,
+			"subject_prefix", cfg.NATSSubjectPrefix,
+		)
+	}
+	if authPersistence, ok := stateStore.(auth.Persistence); ok {
+		if err := s.authService.SetPersistence(authPersistence); err != nil {
+			return nil, err
+		}
+	}
+	if strings.TrimSpace(cfg.RedisAddr) != "" {
+		redisStore, err := redistore.New(redistore.Options{
+			Addr:         cfg.RedisAddr,
+			Password:     cfg.RedisPassword,
+			DB:           cfg.RedisDB,
+			KeyPrefix:    cfg.RedisKeyPrefix,
+			DialTimeout:  cfg.RedisDialTimeout,
+			ReadTimeout:  cfg.RedisReadTimeout,
+			WriteTimeout: cfg.RedisWriteTimeout,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := s.authService.SetVolatileStore(redisStore); err != nil {
+			_ = redisStore.Close()
+			return nil, err
+		}
+		s.rateLimitStore = redisStore
+		s.volatileStore = redisStore
+		s.workerLeaseStore = redisStore
+		s.workerQueueStore = redisStore
+		s.logger.Info("redis volatile store enabled", "addr", cfg.RedisAddr, "db", cfg.RedisDB)
+	}
+	if tokenStore, ok := stateStore.(gatewayTokenStore); ok {
+		s.gatewayTokenStore = tokenStore
 	}
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, err
@@ -218,20 +379,26 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.Timeout(15 * time.Second))
 	router.Use(s.withCORS)
+	router.Use(s.withTrace)
+	router.Use(s.withRequestLog)
 
 	router.Get("/healthz", s.healthz)
+	router.Handle("/metrics", promhttp.Handler())
 	router.Route("/api/v1", func(r chi.Router) {
+		r.Use(s.withGlobalAPIRateLimit)
 		r.With(s.withLoginRateLimit).Post("/auth/login", s.login)
+		r.With(s.withLoginRateLimit).Post("/auth/external/login", s.externalLogin)
 		r.Post("/auth/refresh", s.refresh)
 		r.With(s.withBearerToken).Post("/auth/logout", s.logout)
 		r.With(s.withBearerToken).Get("/me", s.me)
-		r.Post("/enterprise/tenant/resolve", s.resolveEnterpriseTenantByEmail)
-		r.Post("/enterprise/auth/start", s.enterpriseAuthStart)
-		r.Post("/enterprise/auth/exchange", s.enterpriseAuthExchange)
-		r.Post("/enterprise/auth/logout", s.enterpriseAuthLogout)
-		r.Get("/enterprise/auth/oidc/callback", s.enterpriseOIDCCallback)
-		r.Post("/enterprise/auth/saml/callback", s.enterpriseSAMLCallback)
-		r.Post("/enterprise/jit-provision-approvals/external-sync/callback", s.enterpriseJITApprovalExternalSyncCallback)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/tenant/resolve", s.resolveEnterpriseTenantByEmail)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/start", s.enterpriseAuthStart)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/exchange", s.enterpriseAuthExchange)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/logout", s.enterpriseAuthLogout)
+		r.With(s.withEnterpriseWebhookRateLimit).Post("/enterprise/hris-webhook/{connectorID}", s.receiveEnterpriseHRISWebhook)
+		r.With(s.withEnterprisePublicRateLimit).Get("/enterprise/auth/oidc/callback", s.enterpriseOIDCCallback)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/saml/callback", s.enterpriseSAMLCallback)
+		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/jit-provision-approvals/external-sync/callback", s.enterpriseJITApprovalExternalSyncCallback)
 
 		r.Route("/app", func(app chi.Router) {
 			app.With(s.withLoginRateLimit).Post("/auth/login", s.appLogin)
@@ -267,6 +434,10 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.Use(s.withBearerToken)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/auth/users/{userID}/building-scope", s.getAuthUserBuildingScope)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/auth/users/{userID}/building-scope", s.updateAuthUserBuildingScope)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/auth/mfa/admin/status", s.getAdminMFAStatus)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/setup", s.setupAdminMFA)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/enable", s.enableAdminMFA)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/disable", s.disableAdminMFA)
 
 			protected.With(s.requireRoles("super_admin")).Get("/tenants", s.listTenants)
 			protected.With(s.requireRoles("super_admin")).Post("/tenants", s.createTenant)
@@ -300,6 +471,10 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/{gatewayID}/devices/probe-legacy", s.probeGatewayLegacyDevices)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/{gatewayID}/config/publish", s.publishGatewayConfig)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/{gatewayID}/reboot", s.rebootGateway)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin", "operator")).Get("/gateways/{gatewayID}/mqtt/bootstrap", s.getGatewayMQTTBootstrap)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/{gatewayID}/ota/tasks", s.createGatewayOTATask)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/ota/tasks", s.listGatewayOTATasks)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/ota/tasks/{taskID}/status", s.updateGatewayOTATaskStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/events/checkpoint", s.listGatewayEventCheckpoints)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/access-policies", s.listAccessPolicies)
@@ -317,8 +492,10 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/access", s.listAccessEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/device", s.listDeviceEvents)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/stream", s.streamEvents)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms", s.listAlarms)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms/stream", s.streamAlarms)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Patch("/alarms/{alarmID}/status", s.updateAlarmStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/audit-logs", s.listAuditLogs)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/audit/webhook/config", s.getAuditWebhookConfig)
@@ -374,6 +551,21 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/domain-mappings", s.listEnterpriseDomainMappings)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/domain-mappings", s.createEnterpriseDomainMapping)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/enterprise/domain-mappings/{mappingID}/status", s.updateEnterpriseDomainMappingStatus)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-connectors", s.listEnterpriseHRISConnectors)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-connectors", s.createEnterpriseHRISConnector)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/enterprise/hris-connectors/{connectorID}", s.updateEnterpriseHRISConnector)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-secrets", s.listEnterpriseHRISSecrets)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-webhook-receipts", s.listEnterpriseHRISWebhookReceipts)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-webhook-receipts/{receiptID}/process", s.processEnterpriseHRISWebhookReceiptEntry)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-webhook-receipts/process-batch", s.processBatchEnterpriseHRISWebhookReceipts)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-pull-states", s.listEnterpriseHRISPullStates)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/enterprise/hris-secrets", s.upsertEnterpriseHRISSecret)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-webhook-dlq", s.listEnterpriseHRISWebhookDLQ)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-webhook-dlq/replay-batch", s.replayBatchEnterpriseHRISWebhookDLQ)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-webhook-dlq/{entryID}/replay", s.replayEnterpriseHRISWebhookDLQ)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-webhook-executions", s.listEnterpriseHRISWebhookExecutions)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/hris-webhook-executions/{executionID}", s.getEnterpriseHRISWebhookExecution)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/hris-webhook-executions/{executionID}/replay", s.replayEnterpriseHRISWebhookExecution)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/idp-config", s.getEnterpriseIDPConfig)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/enterprise/idp-config", s.upsertEnterpriseIDPConfig)
@@ -387,21 +579,92 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/employees/sync", s.syncEnterpriseEmployees)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/employees/sync/reconcile", s.reconcileEnterpriseEmployeeSync)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-requests", s.listEnterpriseSyncRequests)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-worker-alert-subscription", s.getEnterpriseSyncWorkerAlertSubscription)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-worker-alerts", s.listEnterpriseSyncWorkerAlerts)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-worker-alerts/summary", s.listEnterpriseSyncWorkerAlertSummary)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-worker-alerts/notifications/export-csv", s.exportEnterpriseSyncWorkerAlertNotificationsCSV)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-worker-alerts/notifications", s.listEnterpriseSyncWorkerAlertNotifications)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/notifications/auto-retry", s.autoRetryEnterpriseSyncWorkerAlertNotifications)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/notifications/restore-batch", s.restoreEnterpriseSyncWorkerAlertNotificationsBatch)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/dispatch", s.dispatchEnterpriseSyncWorkerAlerts)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/notifications/retry-batch", s.retryEnterpriseSyncWorkerAlertNotificationsBatch)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/notifications/suppress-batch", s.suppressEnterpriseSyncWorkerAlertNotificationsBatch)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-worker-alerts/notifications/{notificationID}/retry", s.retryEnterpriseSyncWorkerAlertNotification)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/enterprise/sync-worker-alert-subscription", s.upsertEnterpriseSyncWorkerAlertSubscription)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/sync-requests/reconcile-pending", s.reconcilePendingEnterpriseSyncRequests)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/sync-jobs", s.listEnterpriseSyncJobs)
 		})
 	})
 
 	s.startEnterpriseSyncReconcileWorker()
+	s.startEnterpriseSyncWorkerAlertAutoRetryWorker()
 	s.startEnterpriseJITApprovalExternalSyncWorker()
+	s.startEnterpriseHRISWebhookReceiptWorker()
+	s.startEnterpriseHRISWebhookDLQWorker()
+	s.startEnterpriseHRISPullWorker()
 
 	return router, nil
 }
 
 type gatewayBootstrapStateSnapshot struct {
 	DeviceTokens map[string]string `json:"device_tokens,omitempty"`
+}
+
+func (s *server) loggerOrDefault() *slog.Logger {
+	if s != nil && s.logger != nil {
+		return s.logger
+	}
+	return slog.Default()
+}
+
+func notifyWorkerWake(ch chan struct{}) bool {
+	if ch == nil {
+		return false
+	}
+	select {
+	case ch <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *server) notifyEnterpriseHRISWebhookReceiptWorker() bool {
+	if s == nil {
+		return false
+	}
+	return notifyWorkerWake(s.hrisWebhookReceiptWorkerWake)
+}
+
+func (s *server) notifyEnterpriseHRISWebhookDLQWorker() bool {
+	if s == nil {
+		return false
+	}
+	return notifyWorkerWake(s.hrisWebhookDLQWorkerWake)
+}
+
+func (s *server) enqueueEnterpriseHRISWebhookReceiptQueuedTask(task enterpriseHRISWebhookReceiptQueuedTask) bool {
+	if s == nil || !s.cfg.EnterpriseHRISWebhookReceiptWorkerEnabled || s.hrisWebhookReceiptWorkerQueue == nil {
+		return false
+	}
+	select {
+	case s.hrisWebhookReceiptWorkerQueue <- task:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *server) enqueueEnterpriseHRISWebhookDLQQueuedTask(task enterpriseHRISWebhookDLQQueuedTask) bool {
+	if s == nil || !s.cfg.EnterpriseHRISWebhookDLQWorkerEnabled || s.hrisWebhookDLQWorkerQueue == nil {
+		return false
+	}
+	select {
+	case s.hrisWebhookDLQWorkerQueue <- task:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *server) restoreGatewayBootstrapState() error {
@@ -412,6 +675,19 @@ func (s *server) restoreGatewayBootstrapState() error {
 	found, err := s.stateStore.Load(gatewayBootstrapStateKey, &snapshot)
 	if err != nil {
 		return err
+	}
+	if s.gatewayTokenStore != nil {
+		for gatewayID, token := range snapshot.DeviceTokens {
+			nextGatewayID := strings.TrimSpace(gatewayID)
+			nextToken := strings.TrimSpace(token)
+			if nextGatewayID == "" || nextToken == "" {
+				continue
+			}
+			if upsertErr := s.gatewayTokenStore.UpsertGatewayDeviceToken(nextGatewayID, nextToken); upsertErr != nil {
+				return upsertErr
+			}
+		}
+		return nil
 	}
 
 	s.gatewayTokenMu.Lock()
@@ -433,6 +709,9 @@ func (s *server) restoreGatewayBootstrapState() error {
 
 func (s *server) persistGatewayBootstrapStateLocked() error {
 	if s.stateStore == nil {
+		return nil
+	}
+	if s.gatewayTokenStore != nil {
 		return nil
 	}
 	return s.stateStore.Save(gatewayBootstrapStateKey, gatewayBootstrapStateSnapshot{
@@ -489,6 +768,60 @@ func (s *server) withLoginRateLimit(next http.Handler) http.Handler {
 	})
 }
 
+func (s *server) withGlobalAPIRateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP := requestClientIP(r)
+		if clientIP == "" {
+			clientIP = "unknown"
+		}
+
+		allowed, retryAfter := s.allowGlobalAPIAttempt(clientIP, time.Now().UTC())
+		if !allowed {
+			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+			writeError(w, http.StatusTooManyRequests, "too many api requests, retry later")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *server) withEnterprisePublicRateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP := requestClientIP(r)
+		if clientIP == "" {
+			clientIP = "unknown"
+		}
+
+		allowed, retryAfter := s.allowEnterprisePublicAttempt(clientIP, time.Now().UTC())
+		if !allowed {
+			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+			writeError(w, http.StatusTooManyRequests, "too many enterprise public requests, retry later")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *server) withEnterpriseWebhookRateLimit(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP := requestClientIP(r)
+		if clientIP == "" {
+			clientIP = "unknown"
+		}
+
+		allowed, retryAfter := s.allowEnterpriseWebhookAttempt(clientIP, time.Now().UTC())
+		if !allowed {
+			w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+			writeError(w, http.StatusTooManyRequests, "too many enterprise webhook requests, retry later")
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func requestClientIP(r *http.Request) string {
 	if r == nil {
 		return ""
@@ -523,6 +856,20 @@ func requestClientIP(r *http.Request) string {
 }
 
 func (s *server) allowLoginAttempt(key string, now time.Time) (bool, time.Duration) {
+	if s.rateLimitStore != nil {
+		allowed, retryAfter, err := s.rateLimitStore.AllowRateLimit(
+			"login",
+			key,
+			now,
+			loginRateLimitWindow,
+			loginRateLimitMaxAttempts,
+		)
+		if err == nil {
+			return allowed, retryAfter
+		}
+		s.warnRateLimitFallback("login", key, err)
+	}
+
 	s.loginRateLimitMu.Lock()
 	defer s.loginRateLimitMu.Unlock()
 
@@ -570,6 +917,206 @@ func (s *server) compactLoginRateBuckets(now time.Time) {
 			break
 		}
 	}
+}
+
+func (s *server) allowGlobalAPIAttempt(key string, now time.Time) (bool, time.Duration) {
+	if s.rateLimitStore != nil {
+		allowed, retryAfter, err := s.rateLimitStore.AllowRateLimit(
+			"global_api",
+			key,
+			now,
+			apiRateLimitWindow,
+			apiRateLimitMaxRequests,
+		)
+		if err == nil {
+			return allowed, retryAfter
+		}
+		s.warnRateLimitFallback("global_api", key, err)
+	}
+
+	s.apiRateLimitMu.Lock()
+	defer s.apiRateLimitMu.Unlock()
+
+	s.compactGlobalAPIRateBuckets(now)
+	bucket, found := s.apiRateLimitBuckets[key]
+	if !found || now.Sub(bucket.WindowStart) >= apiRateLimitWindow {
+		s.apiRateLimitBuckets[key] = loginRateLimitBucket{
+			WindowStart: now,
+			Attempts:    1,
+		}
+		return true, 0
+	}
+
+	if bucket.Attempts >= apiRateLimitMaxRequests {
+		retryAfter := apiRateLimitWindow - now.Sub(bucket.WindowStart)
+		if retryAfter < time.Second {
+			retryAfter = time.Second
+		}
+		return false, retryAfter
+	}
+
+	bucket.Attempts++
+	s.apiRateLimitBuckets[key] = bucket
+	return true, 0
+}
+
+func (s *server) allowEnterprisePublicAttempt(key string, now time.Time) (bool, time.Duration) {
+	if s.rateLimitStore != nil {
+		allowed, retryAfter, err := s.rateLimitStore.AllowRateLimit(
+			"enterprise_public",
+			key,
+			now,
+			enterprisePublicRateLimitWindow,
+			enterprisePublicRateLimitMaxRequests,
+		)
+		if err == nil {
+			return allowed, retryAfter
+		}
+		s.warnRateLimitFallback("enterprise_public", key, err)
+	}
+
+	s.enterprisePublicRateLimitMu.Lock()
+	defer s.enterprisePublicRateLimitMu.Unlock()
+
+	s.compactEnterprisePublicRateBuckets(now)
+	bucket, found := s.enterprisePublicRateBuckets[key]
+	if !found || now.Sub(bucket.WindowStart) >= enterprisePublicRateLimitWindow {
+		s.enterprisePublicRateBuckets[key] = loginRateLimitBucket{
+			WindowStart: now,
+			Attempts:    1,
+		}
+		return true, 0
+	}
+
+	if bucket.Attempts >= enterprisePublicRateLimitMaxRequests {
+		retryAfter := enterprisePublicRateLimitWindow - now.Sub(bucket.WindowStart)
+		if retryAfter < time.Second {
+			retryAfter = time.Second
+		}
+		return false, retryAfter
+	}
+
+	bucket.Attempts++
+	s.enterprisePublicRateBuckets[key] = bucket
+	return true, 0
+}
+
+func (s *server) allowEnterpriseWebhookAttempt(key string, now time.Time) (bool, time.Duration) {
+	if s.rateLimitStore != nil {
+		allowed, retryAfter, err := s.rateLimitStore.AllowRateLimit(
+			"enterprise_webhook",
+			key,
+			now,
+			enterpriseWebhookRateLimitWindow,
+			enterpriseWebhookRateLimitMaxRequests,
+		)
+		if err == nil {
+			return allowed, retryAfter
+		}
+		s.warnRateLimitFallback("enterprise_webhook", key, err)
+	}
+
+	s.enterpriseWebhookRateLimitMu.Lock()
+	defer s.enterpriseWebhookRateLimitMu.Unlock()
+
+	s.compactEnterpriseWebhookRateBuckets(now)
+	bucket, found := s.enterpriseWebhookRateBuckets[key]
+	if !found || now.Sub(bucket.WindowStart) >= enterpriseWebhookRateLimitWindow {
+		s.enterpriseWebhookRateBuckets[key] = loginRateLimitBucket{
+			WindowStart: now,
+			Attempts:    1,
+		}
+		return true, 0
+	}
+
+	if bucket.Attempts >= enterpriseWebhookRateLimitMaxRequests {
+		retryAfter := enterpriseWebhookRateLimitWindow - now.Sub(bucket.WindowStart)
+		if retryAfter < time.Second {
+			retryAfter = time.Second
+		}
+		return false, retryAfter
+	}
+
+	bucket.Attempts++
+	s.enterpriseWebhookRateBuckets[key] = bucket
+	return true, 0
+}
+
+func (s *server) compactGlobalAPIRateBuckets(now time.Time) {
+	if len(s.apiRateLimitBuckets) == 0 {
+		return
+	}
+
+	for key, bucket := range s.apiRateLimitBuckets {
+		if now.Sub(bucket.WindowStart) > apiRateLimitBucketTTL {
+			delete(s.apiRateLimitBuckets, key)
+		}
+	}
+
+	if len(s.apiRateLimitBuckets) <= apiRateLimitBucketMaxKeys {
+		return
+	}
+
+	for key := range s.apiRateLimitBuckets {
+		delete(s.apiRateLimitBuckets, key)
+		if len(s.apiRateLimitBuckets) <= apiRateLimitBucketMaxKeys/2 {
+			break
+		}
+	}
+}
+
+func (s *server) compactEnterprisePublicRateBuckets(now time.Time) {
+	if len(s.enterprisePublicRateBuckets) == 0 {
+		return
+	}
+
+	for key, bucket := range s.enterprisePublicRateBuckets {
+		if now.Sub(bucket.WindowStart) > enterprisePublicRateLimitBucketTTL {
+			delete(s.enterprisePublicRateBuckets, key)
+		}
+	}
+
+	if len(s.enterprisePublicRateBuckets) <= enterprisePublicRateLimitBucketMaxKeys {
+		return
+	}
+
+	for key := range s.enterprisePublicRateBuckets {
+		delete(s.enterprisePublicRateBuckets, key)
+		if len(s.enterprisePublicRateBuckets) <= enterprisePublicRateLimitBucketMaxKeys/2 {
+			break
+		}
+	}
+}
+
+func (s *server) compactEnterpriseWebhookRateBuckets(now time.Time) {
+	if len(s.enterpriseWebhookRateBuckets) == 0 {
+		return
+	}
+
+	for key, bucket := range s.enterpriseWebhookRateBuckets {
+		if now.Sub(bucket.WindowStart) > enterpriseWebhookRateLimitBucketTTL {
+			delete(s.enterpriseWebhookRateBuckets, key)
+		}
+	}
+
+	if len(s.enterpriseWebhookRateBuckets) <= enterpriseWebhookRateLimitBucketMaxKeys {
+		return
+	}
+
+	for key := range s.enterpriseWebhookRateBuckets {
+		delete(s.enterpriseWebhookRateBuckets, key)
+		if len(s.enterpriseWebhookRateBuckets) <= enterpriseWebhookRateLimitBucketMaxKeys/2 {
+			break
+		}
+	}
+}
+
+func (s *server) warnRateLimitFallback(scope, key string, err error) {
+	logger := s.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.Warn("redis rate limit fallback to in-memory buckets", "scope", scope, "key", key, "err", err)
 }
 
 func (s *server) withBearerToken(next http.Handler) http.Handler {
@@ -3333,19 +3880,33 @@ type enterpriseSyncWorkerAlertItem struct {
 	Actor                 string    `json:"actor"`
 	Role                  string    `json:"role"`
 	Action                string    `json:"action"`
+	WorkerAction          string    `json:"worker_action"`
+	WorkerKind            string    `json:"worker_kind"`
+	WorkerLabel           string    `json:"worker_label"`
 	Source                string    `json:"source"`
 	At                    time.Time `json:"at"`
 	Failed                int       `json:"failed"`
 	Threshold             int       `json:"threshold"`
 	Processed             int       `json:"processed"`
 	Applied               int       `json:"applied"`
+	ConsecutiveFailures   int       `json:"consecutive_failures,omitempty"`
+	FailureAgeSeconds     int       `json:"failure_age_seconds,omitempty"`
 	SkippedByAttemptLimit int       `json:"skipped_by_attempt_limit"`
 	SkippedByCooldown     int       `json:"skipped_by_cooldown"`
+	ConnectorID           string    `json:"connector_id,omitempty"`
+	Vendor                string    `json:"vendor,omitempty"`
+	EventType             string    `json:"event_type,omitempty"`
+	RequestID             string    `json:"request_id,omitempty"`
+	FailureStage          string    `json:"failure_stage,omitempty"`
+	Mode                  string    `json:"mode,omitempty"`
 	RawTarget             string    `json:"raw_target"`
 }
 
 type enterpriseSyncWorkerAlertSummaryItem struct {
 	TenantID                  string    `json:"tenant_id"`
+	WorkerAction              string    `json:"worker_action"`
+	WorkerKind                string    `json:"worker_kind"`
+	WorkerLabel               string    `json:"worker_label"`
 	Count                     int       `json:"count"`
 	FirstSeenAt               time.Time `json:"first_seen_at"`
 	LastSeenAt                time.Time `json:"last_seen_at"`
@@ -3353,6 +3914,8 @@ type enterpriseSyncWorkerAlertSummaryItem struct {
 	LastThreshold             int       `json:"last_threshold"`
 	LastProcessed             int       `json:"last_processed"`
 	LastApplied               int       `json:"last_applied"`
+	LastConsecutiveFailures   int       `json:"last_consecutive_failures,omitempty"`
+	LastFailureAgeSeconds     int       `json:"last_failure_age_seconds,omitempty"`
 	LastSkippedByAttemptLimit int       `json:"last_skipped_by_attempt_limit"`
 	LastSkippedByCooldown     int       `json:"last_skipped_by_cooldown"`
 }
@@ -3361,20 +3924,32 @@ func buildEnterpriseSyncWorkerAlerts(logs []audit.Log) []enterpriseSyncWorkerAle
 	items := make([]enterpriseSyncWorkerAlertItem, 0, len(logs))
 	for i := range logs {
 		metrics := parseEnterpriseSyncWorkerAlertMetrics(logs[i].Target)
+		action := strings.TrimSpace(logs[i].Action)
 		items = append(items, enterpriseSyncWorkerAlertItem{
 			ID:                    logs[i].ID,
 			TenantID:              logs[i].TenantID,
 			Actor:                 logs[i].Actor,
 			Role:                  logs[i].Role,
-			Action:                logs[i].Action,
+			Action:                action,
+			WorkerAction:          action,
+			WorkerKind:            enterpriseSyncWorkerAlertKind(action),
+			WorkerLabel:           enterpriseSyncWorkerAlertLabel(action),
 			Source:                logs[i].Source,
 			At:                    logs[i].At,
 			Failed:                metrics.Failed,
 			Threshold:             metrics.Threshold,
 			Processed:             metrics.Processed,
 			Applied:               metrics.Applied,
+			ConsecutiveFailures:   metrics.ConsecutiveFailures,
+			FailureAgeSeconds:     metrics.FailureAgeSeconds,
 			SkippedByAttemptLimit: metrics.SkippedByAttemptLimit,
 			SkippedByCooldown:     metrics.SkippedByCooldown,
+			ConnectorID:           metrics.ConnectorID,
+			Vendor:                metrics.Vendor,
+			EventType:             metrics.EventType,
+			RequestID:             metrics.RequestID,
+			FailureStage:          metrics.FailureStage,
+			Mode:                  metrics.Mode,
 			RawTarget:             strings.TrimSpace(logs[i].Target),
 		})
 	}
@@ -3388,12 +3963,17 @@ func buildEnterpriseSyncWorkerAlertSummary(logs []audit.Log) []enterpriseSyncWor
 		if tenantID == "" {
 			continue
 		}
-		entry, exists := summaries[tenantID]
+		action := strings.TrimSpace(logs[i].Action)
+		summaryKey := tenantID + "|" + action
+		entry, exists := summaries[summaryKey]
 		if !exists {
 			entry = enterpriseSyncWorkerAlertSummaryItem{
-				TenantID:    tenantID,
-				FirstSeenAt: logs[i].At,
-				LastSeenAt:  logs[i].At,
+				TenantID:     tenantID,
+				WorkerAction: action,
+				WorkerKind:   enterpriseSyncWorkerAlertKind(action),
+				WorkerLabel:  enterpriseSyncWorkerAlertLabel(action),
+				FirstSeenAt:  logs[i].At,
+				LastSeenAt:   logs[i].At,
 			}
 		}
 		entry.Count++
@@ -3407,10 +3987,12 @@ func buildEnterpriseSyncWorkerAlertSummary(logs []audit.Log) []enterpriseSyncWor
 			entry.LastThreshold = metrics.Threshold
 			entry.LastProcessed = metrics.Processed
 			entry.LastApplied = metrics.Applied
+			entry.LastConsecutiveFailures = metrics.ConsecutiveFailures
+			entry.LastFailureAgeSeconds = metrics.FailureAgeSeconds
 			entry.LastSkippedByAttemptLimit = metrics.SkippedByAttemptLimit
 			entry.LastSkippedByCooldown = metrics.SkippedByCooldown
 		}
-		summaries[tenantID] = entry
+		summaries[summaryKey] = entry
 	}
 
 	items := make([]enterpriseSyncWorkerAlertSummaryItem, 0, len(summaries))
@@ -3419,7 +4001,10 @@ func buildEnterpriseSyncWorkerAlertSummary(logs []audit.Log) []enterpriseSyncWor
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].LastSeenAt.Equal(items[j].LastSeenAt) {
-			return items[i].TenantID < items[j].TenantID
+			if items[i].TenantID != items[j].TenantID {
+				return items[i].TenantID < items[j].TenantID
+			}
+			return items[i].WorkerAction < items[j].WorkerAction
 		}
 		return items[i].LastSeenAt.After(items[j].LastSeenAt)
 	})
@@ -3431,8 +4016,16 @@ type enterpriseSyncWorkerAlertMetrics struct {
 	Threshold             int
 	Processed             int
 	Applied               int
+	ConsecutiveFailures   int
+	FailureAgeSeconds     int
 	SkippedByAttemptLimit int
 	SkippedByCooldown     int
+	ConnectorID           string
+	Vendor                string
+	EventType             string
+	RequestID             string
+	FailureStage          string
+	Mode                  string
 }
 
 func parseEnterpriseSyncWorkerAlertMetrics(rawTarget string) enterpriseSyncWorkerAlertMetrics {
@@ -3459,9 +4052,72 @@ func parseEnterpriseSyncWorkerAlertMetrics(rawTarget string) enterpriseSyncWorke
 		Failed:                parseIntOrZero(values["failed"]),
 		Threshold:             parseIntOrZero(values["threshold"]),
 		Processed:             parseIntOrZero(values["processed"]),
-		Applied:               parseIntOrZero(values["applied"]),
+		Applied:               parseEnterpriseSyncWorkerAlertMetricWithFallback(values, "applied", "replayed", "synced"),
+		ConsecutiveFailures:   parseIntOrZero(values["consecutive_failures"]),
+		FailureAgeSeconds:     parseIntOrZero(values["failure_age_seconds"]),
 		SkippedByAttemptLimit: parseIntOrZero(values["skipped_attempt_limit"]),
 		SkippedByCooldown:     parseIntOrZero(values["skipped_cooldown"]),
+		ConnectorID:           strings.TrimSpace(values["connector_id"]),
+		Vendor:                strings.TrimSpace(values["vendor"]),
+		EventType:             strings.TrimSpace(values["event_type"]),
+		RequestID:             strings.TrimSpace(values["request_id"]),
+		FailureStage:          strings.TrimSpace(values["failure_stage"]),
+		Mode:                  strings.TrimSpace(values["mode"]),
+	}
+}
+
+func parseEnterpriseSyncWorkerAlertMetricWithFallback(values map[string]string, keys ...string) int {
+	for i := range keys {
+		value, ok := values[keys[i]]
+		if !ok {
+			continue
+		}
+		return parseIntOrZero(value)
+	}
+	return 0
+}
+
+func enterpriseSyncWorkerAlertActions() []string {
+	return []string{
+		"enterprise_sync_reconcile_worker_alert",
+		"enterprise_hris_webhook_receipt_worker_alert",
+		"enterprise_hris_webhook_dlq_worker_alert",
+		"enterprise_hris_pull_worker_alert",
+		"enterprise_hris_webhook_processing_alert",
+	}
+}
+
+func enterpriseSyncWorkerAlertKind(action string) string {
+	switch strings.TrimSpace(action) {
+	case "enterprise_sync_reconcile_worker_alert":
+		return "sync_reconcile"
+	case "enterprise_hris_webhook_receipt_worker_alert":
+		return "hris_webhook_receipt_queue"
+	case "enterprise_hris_webhook_dlq_worker_alert":
+		return "hris_webhook_dlq"
+	case "enterprise_hris_pull_worker_alert":
+		return "hris_pull"
+	case "enterprise_hris_webhook_processing_alert":
+		return "hris_webhook_processing"
+	default:
+		return "unknown"
+	}
+}
+
+func enterpriseSyncWorkerAlertLabel(action string) string {
+	switch strings.TrimSpace(action) {
+	case "enterprise_sync_reconcile_worker_alert":
+		return "Enterprise Sync Reconcile"
+	case "enterprise_hris_webhook_receipt_worker_alert":
+		return "HRIS Webhook Receipt Queue"
+	case "enterprise_hris_webhook_dlq_worker_alert":
+		return "HRIS Webhook DLQ"
+	case "enterprise_hris_pull_worker_alert":
+		return "HRIS Pull Reconcile"
+	case "enterprise_hris_webhook_processing_alert":
+		return "HRIS Webhook Processing"
+	default:
+		return strings.TrimSpace(action)
 	}
 }
 
@@ -3578,15 +4234,15 @@ func (s *server) startEnterpriseSyncReconcileWorker() {
 	forceError := s.cfg.EnterpriseSyncReconcileWorkerForceError
 	forceErrorTenantID := strings.TrimSpace(s.cfg.EnterpriseSyncReconcileWorkerForceErrorTenantID)
 
-	log.Printf(
-		"enterprise sync reconcile worker enabled interval=%s batch_size=%d max_attempts=%d retry_cooldown=%s alert_threshold=%d force_error=%t force_error_tenant_id=%q",
-		interval,
-		batchSize,
-		maxAttempts,
-		retryCooldown,
-		alertFailureThreshold,
-		forceError,
-		forceErrorTenantID,
+	s.loggerOrDefault().Info(
+		"enterprise sync reconcile worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"retry_cooldown", retryCooldown,
+		"alert_threshold", alertFailureThreshold,
+		"force_error", forceError,
+		"force_error_tenant_id", forceErrorTenantID,
 	)
 
 	go func() {
@@ -3614,12 +4270,957 @@ func (s *server) startEnterpriseSyncReconcileWorker() {
 	}()
 }
 
+func (s *server) startEnterpriseSyncWorkerAlertAutoRetryWorker() {
+	if !s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerEnabled {
+		return
+	}
+	interval := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	batchSize := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize
+	if batchSize <= 0 {
+		batchSize = 20
+	}
+	maxAttempts := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+	baseBackoff := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff
+	if baseBackoff <= 0 {
+		baseBackoff = 5 * time.Minute
+	}
+	maxBackoff := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff
+	if maxBackoff <= 0 {
+		maxBackoff = time.Hour
+	}
+	if maxBackoff < baseBackoff {
+		maxBackoff = baseBackoff
+	}
+	lockTTL := s.cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL
+	if lockTTL <= 0 {
+		lockTTL = 10 * time.Minute
+	}
+
+	s.loggerOrDefault().Info(
+		"enterprise sync worker alert auto retry worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"base_backoff", baseBackoff,
+		"max_backoff", maxBackoff,
+		"lock_ttl", lockTTL,
+		"lease_enabled", s.workerLeaseStore != nil,
+	)
+	if s.workerLeaseStore == nil {
+		s.loggerOrDefault().Warn(
+			"enterprise sync worker alert auto retry worker running without redis lease; duplicate retries remain possible in multi-instance deployments",
+		)
+	}
+
+	go func() {
+		s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTickWithLease(
+			batchSize,
+			maxAttempts,
+			baseBackoff,
+			maxBackoff,
+			lockTTL,
+		)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTickWithLease(
+				batchSize,
+				maxAttempts,
+				baseBackoff,
+				maxBackoff,
+				lockTTL,
+			)
+		}
+	}()
+}
+
 type enterpriseJITApprovalExternalSyncWorkerResult struct {
 	Processed             int
 	Synced                int
 	Failed                int
 	SkippedByAttemptLimit int
 	SkippedByCooldown     int
+}
+
+type enterpriseSyncWorkerAlertAutoRetryWorkerResult struct {
+	Processed  int
+	Retried    int
+	Failed     int
+	Skipped    int
+	Suppressed int
+}
+
+type enterpriseHRISWebhookReceiptWorkerResult struct {
+	Processed             int
+	Synced                int
+	Skipped               int
+	Failed                int
+	SkippedByInFlight     int
+	SkippedByAttemptLimit int
+	SkippedByCooldown     int
+	LastConnectorID       string
+	LastVendor            string
+	LastRequestID         string
+	LastEventType         string
+}
+
+type enterpriseHRISWebhookDLQWorkerResult struct {
+	Processed             int
+	Replayed              int
+	Failed                int
+	SkippedByInFlight     int
+	SkippedByAttemptLimit int
+	SkippedByCooldown     int
+	LastConnectorID       string
+	LastVendor            string
+	LastRequestID         string
+	LastEventType         string
+	LastFailureStage      string
+}
+
+type enterpriseHRISPullWorkerResult struct {
+	Processed             int
+	Synced                int
+	Failed                int
+	ConsecutiveFailures   int
+	FailureAgeSeconds     int
+	SkippedByInFlight     int
+	SkippedByAttemptLimit int
+	SkippedByCooldown     int
+	LastConnectorID       string
+	LastVendor            string
+	LastMode              string
+}
+
+type enterpriseHRISWebhookQueuedExecution struct {
+	Execution  enterprise.HRISWebhookExecution
+	QueueName  string
+	QueueClaim *redistore.WorkerQueueClaim
+}
+
+func (s *server) listQueuedEnterpriseHRISWebhookExecutions(
+	kind string,
+	batchSize int,
+	processingTimeout time.Duration,
+	now time.Time,
+) []enterpriseHRISWebhookQueuedExecution {
+	if s == nil || s.enterpriseSvc == nil {
+		return nil
+	}
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	} else {
+		now = now.UTC()
+	}
+	items := make([]enterpriseHRISWebhookQueuedExecution, 0, batchSize)
+	seen := make(map[string]struct{}, batchSize)
+	if s.workerQueueStore != nil {
+		queueName := enterpriseHRISWebhookExecutionQueueName(kind)
+		if queueName != "" {
+			claims, err := s.workerQueueStore.ClaimWorkerQueueBatch(queueName, batchSize, processingTimeout)
+			if err != nil {
+				s.loggerOrDefault().Error(
+					"enterprise hris webhook execution queue claim failed",
+					"kind", kind,
+					"queue", queueName,
+					"batch_size", batchSize,
+					"visibility_timeout", processingTimeout,
+					"err", err,
+				)
+			} else {
+				for i := range claims {
+					item, ok := s.getQueuedEnterpriseHRISWebhookExecutionCandidate(kind, claims[i].ItemID)
+					if !ok {
+						s.acknowledgeEnterpriseHRISWebhookExecutionQueueClaim(
+							queueName,
+							kind,
+							claims[i],
+						)
+						continue
+					}
+					if _, exists := seen[item.ID]; exists {
+						s.acknowledgeEnterpriseHRISWebhookExecutionQueueClaim(
+							queueName,
+							kind,
+							claims[i],
+						)
+						continue
+					}
+					seen[item.ID] = struct{}{}
+					claim := claims[i]
+					items = append(items, enterpriseHRISWebhookQueuedExecution{
+						Execution:  item,
+						QueueName:  queueName,
+						QueueClaim: &claim,
+					})
+					if len(items) >= batchSize {
+						return items
+					}
+				}
+			}
+		}
+	}
+
+	fallbackItems := s.enterpriseSvc.ListIndexedClaimableHRISWebhookExecutions(
+		kind,
+		processingTimeout,
+		now,
+		batchSize,
+	)
+	fallbackItems = s.filterIndexedEnterpriseHRISWebhookExecutionFallbackItems(kind, fallbackItems)
+	for i := range fallbackItems {
+		if _, exists := seen[fallbackItems[i].ID]; exists {
+			continue
+		}
+		seen[fallbackItems[i].ID] = struct{}{}
+		items = append(items, enterpriseHRISWebhookQueuedExecution{Execution: fallbackItems[i]})
+		if len(items) >= batchSize {
+			break
+		}
+	}
+	return items
+}
+
+func (s *server) filterIndexedEnterpriseHRISWebhookExecutionFallbackItems(
+	kind string,
+	items []enterprise.HRISWebhookExecution,
+) []enterprise.HRISWebhookExecution {
+	if s == nil || s.workerQueueStore == nil || len(items) == 0 {
+		return items
+	}
+	queueName := enterpriseHRISWebhookExecutionQueueName(kind)
+	if queueName == "" {
+		return items
+	}
+
+	queuedIDs := make([]string, 0, len(items))
+	for i := range items {
+		if strings.TrimSpace(items[i].Status) != enterprise.HRISWebhookExecutionStatusQueued {
+			continue
+		}
+		queuedIDs = append(queuedIDs, items[i].ID)
+	}
+	if len(queuedIDs) == 0 {
+		return items
+	}
+
+	telemetry, err := s.workerQueueStore.DescribeWorkerQueue(queueName, queuedIDs)
+	if err != nil {
+		s.loggerOrDefault().Warn(
+			"describe indexed enterprise hris webhook execution fallback items failed",
+			"kind", kind,
+			"queue", queueName,
+			"err", err,
+		)
+		return items
+	}
+
+	filtered := make([]enterprise.HRISWebhookExecution, 0, len(items))
+	for i := range items {
+		item := items[i]
+		if strings.TrimSpace(item.Status) != enterprise.HRISWebhookExecutionStatusQueued {
+			filtered = append(filtered, item)
+			continue
+		}
+		state, ok := telemetry.Items[item.ID]
+		if !ok || strings.TrimSpace(state.State) == "" || strings.TrimSpace(state.State) == redistore.WorkerQueueStateMissing {
+			filtered = append(filtered, item)
+			continue
+		}
+	}
+	return filtered
+}
+
+func enterpriseHRISWebhookExecutionQueueName(kind string) string {
+	switch strings.TrimSpace(kind) {
+	case enterprise.HRISWebhookExecutionKindReceiptProcess:
+		return enterpriseHRISWebhookReceiptExecutionQueue
+	case enterprise.HRISWebhookExecutionKindDLQReplay:
+		return enterpriseHRISWebhookDLQExecutionQueue
+	default:
+		return ""
+	}
+}
+
+func (s *server) getQueuedEnterpriseHRISWebhookExecutionCandidate(
+	kind string,
+	executionID string,
+) (enterprise.HRISWebhookExecution, bool) {
+	item, ok := s.lookupQueuedEnterpriseHRISWebhookExecutionCandidate(kind, executionID)
+	if ok {
+		return item, true
+	}
+	if s == nil || s.enterpriseSvc == nil {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	if err := s.enterpriseSvc.RefreshCoreState(); err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook execution shared state refresh after external queue miss failed",
+			"kind", kind,
+			"execution_id", executionID,
+			"err", err,
+		)
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	return s.lookupQueuedEnterpriseHRISWebhookExecutionCandidate(kind, executionID)
+}
+
+func (s *server) lookupQueuedEnterpriseHRISWebhookExecutionCandidate(
+	kind string,
+	executionID string,
+) (enterprise.HRISWebhookExecution, bool) {
+	if s == nil || s.enterpriseSvc == nil {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	item, err := s.enterpriseSvc.GetHRISWebhookExecutionByID(executionID)
+	if err != nil {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	if strings.TrimSpace(item.Kind) != strings.TrimSpace(kind) {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	if strings.TrimSpace(item.ExecutionMode) != enterpriseExecutionModeQueued {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	switch strings.TrimSpace(item.Status) {
+	case enterprise.HRISWebhookExecutionStatusQueued, enterprise.HRISWebhookExecutionStatusRunning:
+	default:
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	if strings.TrimSpace(item.DispatchMode) != enterprise.HRISWebhookExecutionDispatchModeWorkerTick {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	if strings.TrimSpace(item.TargetID) == "" {
+		return enterprise.HRISWebhookExecution{}, false
+	}
+	return item, true
+}
+
+func (s *server) refreshEnterpriseHRISWebhookReceiptWorkerState() error {
+	if s == nil {
+		return nil
+	}
+	if s.enterpriseSvc != nil {
+		if err := s.enterpriseSvc.RefreshCoreState(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *server) refreshEnterpriseHRISWebhookDLQWorkerState() error {
+	if s == nil {
+		return nil
+	}
+	if s.enterpriseSvc != nil {
+		if err := s.enterpriseSvc.RefreshCoreState(); err != nil {
+			return err
+		}
+	}
+	if s.hrisDLQSvc != nil {
+		if err := s.hrisDLQSvc.RefreshState(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *server) refreshEnterpriseHRISWebhookExecutionTargetSharedState(
+	kind string,
+	tenantID string,
+	executionID string,
+	targetID string,
+) {
+	if s == nil {
+		return
+	}
+
+	var err error
+	switch strings.TrimSpace(kind) {
+	case enterprise.HRISWebhookExecutionKindReceiptProcess:
+		err = s.refreshEnterpriseHRISWebhookReceiptWorkerState()
+	case enterprise.HRISWebhookExecutionKindDLQReplay:
+		err = s.refreshEnterpriseHRISWebhookDLQWorkerState()
+	default:
+		return
+	}
+	if err != nil {
+		s.loggerOrDefault().Warn(
+			"enterprise hris webhook execution target shared state refresh failed",
+			"kind", kind,
+			"tenant_id", tenantID,
+			"execution_id", executionID,
+			"target_id", targetID,
+			"err", err,
+		)
+	}
+}
+
+func (s *server) refreshEnterpriseHRISPullWorkerState() error {
+	if s == nil {
+		return nil
+	}
+	if s.enterpriseSvc != nil {
+		if err := s.enterpriseSvc.RefreshCoreState(); err != nil {
+			return err
+		}
+	}
+	if s.hrisPullStateSvc != nil {
+		if err := s.hrisPullStateSvc.RefreshState(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *server) runQueuedEnterpriseHRISWebhookReceiptExecutions(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+) int {
+	if batchSize <= 0 || s == nil || s.enterpriseSvc == nil {
+		return 0
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	now := time.Now().UTC()
+	items := s.listQueuedEnterpriseHRISWebhookExecutions(
+		enterprise.HRISWebhookExecutionKindReceiptProcess,
+		batchSize,
+		processingTimeout,
+		now,
+	)
+	processed := 0
+	for i := range items {
+		queuedItem := items[i]
+		execution := queuedItem.Execution
+		originalExecutionStatus := strings.TrimSpace(execution.Status)
+		claimed, claimReason, err := s.enterpriseSvc.ClaimHRISWebhookExecution(
+			execution.TenantID,
+			execution.ID,
+			processingTimeout,
+			now,
+		)
+		if err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris webhook receipt queued execution claim failed",
+				"tenant_id", execution.TenantID,
+				"execution_id", execution.ID,
+				"receipt_id", execution.TargetID,
+				"err", err,
+			)
+			continue
+		}
+		if claimReason != "" {
+			s.handleQueuedEnterpriseHRISWebhookExecutionClaimSkip(queuedItem, claimed, claimReason)
+			continue
+		}
+		execution = claimed
+		s.refreshEnterpriseHRISWebhookExecutionTargetSharedState(
+			execution.Kind,
+			execution.TenantID,
+			execution.ID,
+			execution.TargetID,
+		)
+
+		receipt, err := s.enterpriseSvc.GetHRISWebhookReceipt(execution.TenantID, execution.TargetID)
+		if err != nil {
+			_, _ = s.enterpriseSvc.AcknowledgeHRISWebhookExecution(execution.TenantID, execution.ID, "", err)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+
+		requeued, err := s.requeueEnterpriseHRISWebhookReceiptExecutionForFreshTarget(
+			queuedItem,
+			execution,
+			receipt,
+			originalExecutionStatus,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			now,
+		)
+		if err != nil {
+			_, _ = s.enterpriseSvc.AcknowledgeHRISWebhookExecution(execution.TenantID, execution.ID, strings.TrimSpace(receipt.Status), err)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+		if requeued {
+			processed++
+			continue
+		}
+		switch strings.TrimSpace(receipt.Status) {
+		case "processed", "skipped":
+			s.completeHRISWebhookReceiptExecution(receipt, execution.ID, nil)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		case "failed", "dlq":
+			s.completeHRISWebhookReceiptExecution(
+				receipt,
+				execution.ID,
+				errors.New(firstNonEmptyString(receipt.LastError, receipt.Status)),
+			)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+
+		recordDLQ := receipt.AttemptCount >= maxAttempts
+		s.completeHRISWebhookReceiptExecution(
+			receipt,
+			execution.ID,
+			s.processEnterpriseHRISWebhookReceipt(nil, receipt, recordDLQ),
+		)
+		s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+		processed++
+	}
+	return processed
+}
+
+func (s *server) runQueuedEnterpriseHRISWebhookDLQExecutions(batchSize int) int {
+	return s.runQueuedEnterpriseHRISWebhookDLQExecutionsWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		1,
+		0,
+		0,
+		5*time.Minute,
+	)
+}
+
+func (s *server) runQueuedEnterpriseHRISWebhookDLQExecutionsWithRetryBackoffAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+) int {
+	if batchSize <= 0 || s == nil || s.enterpriseSvc == nil || s.hrisDLQSvc == nil {
+		return 0
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	now := time.Now().UTC()
+	items := s.listQueuedEnterpriseHRISWebhookExecutions(
+		enterprise.HRISWebhookExecutionKindDLQReplay,
+		batchSize,
+		processingTimeout,
+		now,
+	)
+	processed := 0
+	for i := range items {
+		queuedItem := items[i]
+		execution := queuedItem.Execution
+		originalExecutionStatus := strings.TrimSpace(execution.Status)
+		claimed, claimReason, err := s.enterpriseSvc.ClaimHRISWebhookExecution(
+			execution.TenantID,
+			execution.ID,
+			processingTimeout,
+			now,
+		)
+		if err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris webhook dlq queued execution claim failed",
+				"tenant_id", execution.TenantID,
+				"execution_id", execution.ID,
+				"entry_id", execution.TargetID,
+				"err", err,
+			)
+			continue
+		}
+		if claimReason != "" {
+			s.handleQueuedEnterpriseHRISWebhookExecutionClaimSkip(queuedItem, claimed, claimReason)
+			continue
+		}
+		execution = claimed
+		s.refreshEnterpriseHRISWebhookExecutionTargetSharedState(
+			execution.Kind,
+			execution.TenantID,
+			execution.ID,
+			execution.TargetID,
+		)
+
+		entry, err := s.hrisDLQSvc.GetEntry(execution.TargetID)
+		if err != nil {
+			_, _ = s.enterpriseSvc.AcknowledgeHRISWebhookExecution(execution.TenantID, execution.ID, "", err)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+
+		requeued, err := s.requeueEnterpriseHRISWebhookDLQExecutionForFreshTarget(
+			queuedItem,
+			execution,
+			entry,
+			originalExecutionStatus,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			now,
+		)
+		if err != nil {
+			_, _ = s.enterpriseSvc.AcknowledgeHRISWebhookExecution(execution.TenantID, execution.ID, strings.TrimSpace(entry.Status), err)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+		if requeued {
+			processed++
+			continue
+		}
+		switch strings.TrimSpace(entry.Status) {
+		case "resolved":
+			s.completeHRISWebhookDLQExecutionSuccess(execution.TenantID, entry, execution.ID)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		case "replaying":
+			// Continue below and let the current worker replay the claimed entry.
+		default:
+			s.completeHRISWebhookDLQExecution(
+				execution.TenantID,
+				entry,
+				execution.ID,
+				fmt.Errorf("queued dlq execution target is no longer replaying: %s", entry.Status),
+			)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+
+		updated, err := s.replayEnterpriseHRISWebhookDLQClaimedEntry(
+			nil,
+			execution.TenantID,
+			entry,
+			firstNonEmptyString(execution.AuditSource, "enterprise_sync_worker"),
+		)
+		if err != nil {
+			s.completeHRISWebhookDLQExecution(execution.TenantID, entry, execution.ID, err)
+			s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+			processed++
+			continue
+		}
+		s.completeHRISWebhookDLQExecutionSuccess(execution.TenantID, updated, execution.ID)
+		s.acknowledgeQueuedEnterpriseHRISWebhookExecution(queuedItem)
+		processed++
+	}
+	return processed
+}
+
+func (s *server) requeueEnterpriseHRISWebhookReceiptExecutionForFreshTarget(
+	item enterpriseHRISWebhookQueuedExecution,
+	execution enterprise.HRISWebhookExecution,
+	receipt enterprise.HRISWebhookReceipt,
+	originalExecutionStatus string,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	now time.Time,
+) (bool, error) {
+	if s == nil || s.enterpriseSvc == nil {
+		return false, nil
+	}
+	if originalExecutionStatus != enterprise.HRISWebhookExecutionStatusRunning {
+		return false, nil
+	}
+	runtime := describeHRISWebhookReceiptQueueState(
+		receipt,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		now,
+	)
+	if runtime.State != enterprise.HRISWebhookReceiptClaimReasonInFlight || runtime.ProcessingDeadlineAt == nil {
+		return false, nil
+	}
+	requeued, err := s.enterpriseSvc.RequeueHRISWebhookExecution(
+		execution.TenantID,
+		execution.ID,
+		strings.TrimSpace(receipt.Status),
+		*runtime.ProcessingDeadlineAt,
+		nil,
+	)
+	if err != nil {
+		return false, err
+	}
+	s.requeueQueuedEnterpriseHRISWebhookExecution(item, requeued)
+	return true, nil
+}
+
+func (s *server) reenqueueEnterpriseHRISWebhookExecution(
+	execution enterprise.HRISWebhookExecution,
+) {
+	if s == nil {
+		return
+	}
+	if strings.TrimSpace(execution.Status) != enterprise.HRISWebhookExecutionStatusQueued {
+		return
+	}
+	if strings.TrimSpace(execution.ExecutionMode) != enterpriseExecutionModeQueued {
+		return
+	}
+	if strings.TrimSpace(execution.DispatchMode) != enterprise.HRISWebhookExecutionDispatchModeWorkerTick {
+		return
+	}
+	queueName := enterpriseHRISWebhookExecutionQueueName(execution.Kind)
+	if queueName == "" {
+		return
+	}
+	s.enqueueEnterpriseHRISWebhookExecution(
+		queueName,
+		execution.ID,
+		execution.TenantID,
+		execution.Kind,
+	)
+}
+
+func (s *server) reenqueueEnterpriseHRISWebhookExecutionOnCooldown(
+	execution enterprise.HRISWebhookExecution,
+	claimReason string,
+) {
+	if s == nil || strings.TrimSpace(claimReason) != enterprise.HRISWebhookExecutionClaimReasonCooldown {
+		return
+	}
+	s.reenqueueEnterpriseHRISWebhookExecution(execution)
+}
+
+func (s *server) acknowledgeEnterpriseHRISWebhookExecutionQueueClaim(
+	queueName string,
+	kind string,
+	claim redistore.WorkerQueueClaim,
+) bool {
+	if s == nil || s.workerQueueStore == nil {
+		return false
+	}
+	nextQueueName := strings.TrimSpace(queueName)
+	nextExecutionID := strings.TrimSpace(claim.ItemID)
+	nextClaimToken := strings.TrimSpace(claim.ClaimToken)
+	if nextQueueName == "" || nextExecutionID == "" || nextClaimToken == "" {
+		return false
+	}
+	applied, err := s.workerQueueStore.AckWorkerQueue(nextQueueName, nextExecutionID, nextClaimToken)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook execution queue ack failed",
+			"kind", kind,
+			"queue", nextQueueName,
+			"execution_id", nextExecutionID,
+			"err", err,
+		)
+		return false
+	}
+	if applied {
+		return true
+	}
+	queueState, visibilityDeadlineAt := s.describeEnterpriseHRISWebhookExecutionQueueItem(nextQueueName, nextExecutionID)
+	s.loggerOrDefault().Info(
+		"enterprise hris webhook execution queue ack ignored stale claim",
+		"kind", kind,
+		"queue", nextQueueName,
+		"execution_id", nextExecutionID,
+		"queue_state", queueState,
+		"visibility_deadline_at", visibilityDeadlineAt,
+	)
+	return false
+}
+
+func (s *server) acknowledgeQueuedEnterpriseHRISWebhookExecution(
+	item enterpriseHRISWebhookQueuedExecution,
+) bool {
+	if item.QueueClaim == nil {
+		return false
+	}
+	return s.acknowledgeEnterpriseHRISWebhookExecutionQueueClaim(
+		item.QueueName,
+		item.Execution.Kind,
+		*item.QueueClaim,
+	)
+}
+
+func (s *server) requeueEnterpriseHRISWebhookExecutionQueueClaim(
+	queueName string,
+	kind string,
+	claim redistore.WorkerQueueClaim,
+) bool {
+	if s == nil || s.workerQueueStore == nil {
+		return false
+	}
+	nextQueueName := strings.TrimSpace(queueName)
+	nextExecutionID := strings.TrimSpace(claim.ItemID)
+	nextClaimToken := strings.TrimSpace(claim.ClaimToken)
+	if nextQueueName == "" || nextExecutionID == "" || nextClaimToken == "" {
+		return false
+	}
+	applied, err := s.workerQueueStore.RequeueWorkerQueue(nextQueueName, nextExecutionID, nextClaimToken)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook execution queue requeue failed",
+			"kind", kind,
+			"queue", nextQueueName,
+			"execution_id", nextExecutionID,
+			"err", err,
+		)
+		return false
+	}
+	if applied {
+		return true
+	}
+	queueState, visibilityDeadlineAt := s.describeEnterpriseHRISWebhookExecutionQueueItem(nextQueueName, nextExecutionID)
+	s.loggerOrDefault().Warn(
+		"enterprise hris webhook execution queue requeue missed active claim; falling back to enqueue",
+		"kind", kind,
+		"queue", nextQueueName,
+		"execution_id", nextExecutionID,
+		"queue_state", queueState,
+		"visibility_deadline_at", visibilityDeadlineAt,
+	)
+	return false
+}
+
+func (s *server) requeueQueuedEnterpriseHRISWebhookExecution(
+	item enterpriseHRISWebhookQueuedExecution,
+	execution enterprise.HRISWebhookExecution,
+) {
+	if item.QueueClaim != nil && s.requeueEnterpriseHRISWebhookExecutionQueueClaim(
+		item.QueueName,
+		firstNonEmptyString(item.Execution.Kind, execution.Kind),
+		*item.QueueClaim,
+	) {
+		return
+	}
+	s.reenqueueEnterpriseHRISWebhookExecution(execution)
+}
+
+func (s *server) handleQueuedEnterpriseHRISWebhookExecutionClaimSkip(
+	item enterpriseHRISWebhookQueuedExecution,
+	execution enterprise.HRISWebhookExecution,
+	claimReason string,
+) {
+	if strings.TrimSpace(claimReason) == enterprise.HRISWebhookExecutionClaimReasonCooldown {
+		s.requeueQueuedEnterpriseHRISWebhookExecution(item, execution)
+		return
+	}
+	s.acknowledgeQueuedEnterpriseHRISWebhookExecution(item)
+}
+
+func (s *server) describeEnterpriseHRISWebhookExecutionQueueItem(
+	queueName string,
+	executionID string,
+) (string, string) {
+	if s == nil || s.workerQueueStore == nil {
+		return "", ""
+	}
+	nextQueueName := strings.TrimSpace(queueName)
+	nextExecutionID := strings.TrimSpace(executionID)
+	if nextQueueName == "" || nextExecutionID == "" {
+		return "", ""
+	}
+	telemetry, err := s.workerQueueStore.DescribeWorkerQueue(nextQueueName, []string{nextExecutionID})
+	if err != nil {
+		s.loggerOrDefault().Warn(
+			"describe enterprise hris webhook execution queue item failed",
+			"queue", nextQueueName,
+			"execution_id", nextExecutionID,
+			"err", err,
+		)
+		return "", ""
+	}
+	item, ok := telemetry.Items[nextExecutionID]
+	if !ok {
+		return "", ""
+	}
+	visibilityDeadlineAt := ""
+	if item.VisibilityDeadlineAt != nil {
+		visibilityDeadlineAt = item.VisibilityDeadlineAt.UTC().Format(time.RFC3339)
+	}
+	return strings.TrimSpace(item.State), visibilityDeadlineAt
+}
+
+func (s *server) requeueEnterpriseHRISWebhookDLQExecutionForFreshTarget(
+	item enterpriseHRISWebhookQueuedExecution,
+	execution enterprise.HRISWebhookExecution,
+	entry hris.DeadLetterEntry,
+	originalExecutionStatus string,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	now time.Time,
+) (bool, error) {
+	if s == nil || s.enterpriseSvc == nil {
+		return false, nil
+	}
+	if originalExecutionStatus != enterprise.HRISWebhookExecutionStatusRunning {
+		return false, nil
+	}
+	runtime := describeHRISWebhookDLQReplayState(
+		entry,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		now,
+	)
+	if runtime.State != hris.DLQEntryClaimReasonInFlight || runtime.ProcessingDeadlineAt == nil {
+		return false, nil
+	}
+	requeued, err := s.enterpriseSvc.RequeueHRISWebhookExecution(
+		execution.TenantID,
+		execution.ID,
+		strings.TrimSpace(entry.Status),
+		*runtime.ProcessingDeadlineAt,
+		nil,
+	)
+	if err != nil {
+		return false, err
+	}
+	s.requeueQueuedEnterpriseHRISWebhookExecution(item, requeued)
+	return true, nil
 }
 
 func (s *server) startEnterpriseJITApprovalExternalSyncWorker() {
@@ -3649,15 +5250,15 @@ func (s *server) startEnterpriseJITApprovalExternalSyncWorker() {
 	forceError := s.cfg.EnterpriseJITApprovalExternalSyncWorkerForceError
 	forceErrorTenantID := strings.TrimSpace(s.cfg.EnterpriseJITApprovalExternalSyncWorkerForceErrorTenantID)
 
-	log.Printf(
-		"enterprise jit approval external sync worker enabled interval=%s batch_size=%d max_attempts=%d retry_cooldown=%s alert_threshold=%d force_error=%t force_error_tenant_id=%q",
-		interval,
-		batchSize,
-		maxAttempts,
-		retryCooldown,
-		alertFailureThreshold,
-		forceError,
-		forceErrorTenantID,
+	s.loggerOrDefault().Info(
+		"enterprise jit approval external sync worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"retry_cooldown", retryCooldown,
+		"alert_threshold", alertFailureThreshold,
+		"force_error", forceError,
+		"force_error_tenant_id", forceErrorTenantID,
 	)
 
 	go func() {
@@ -3680,6 +5281,295 @@ func (s *server) startEnterpriseJITApprovalExternalSyncWorker() {
 				alertFailureThreshold,
 				forceError,
 				forceErrorTenantID,
+			)
+		}
+	}()
+}
+
+func (s *server) startEnterpriseHRISWebhookReceiptWorker() {
+	if !s.cfg.EnterpriseHRISWebhookReceiptWorkerEnabled {
+		return
+	}
+	interval := s.cfg.EnterpriseHRISWebhookReceiptWorkerInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	batchSize := s.cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	maxAttempts := s.cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	retryCooldown := s.cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	retryMaxBackoff := s.cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	processingTimeout := s.cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	alertFailureThreshold := s.cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold
+	if alertFailureThreshold <= 0 {
+		alertFailureThreshold = 1
+	}
+	lockTTL := s.cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL
+	if lockTTL <= 0 {
+		lockTTL = 10 * time.Minute
+	}
+
+	s.loggerOrDefault().Info(
+		"enterprise hris webhook receipt worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"retry_cooldown", retryCooldown,
+		"retry_max_backoff", retryMaxBackoff,
+		"processing_timeout", processingTimeout,
+		"alert_threshold", alertFailureThreshold,
+		"lock_ttl", lockTTL,
+		"lease_enabled", s.workerLeaseStore != nil,
+	)
+	if s.workerLeaseStore == nil {
+		s.loggerOrDefault().Warn(
+			"enterprise hris webhook receipt worker running without redis lease; duplicate receipt processing remains possible in multi-instance deployments",
+		)
+	}
+
+	go func() {
+		s.runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			alertFailureThreshold,
+			lockTTL,
+		)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					retryMaxBackoff,
+					processingTimeout,
+					alertFailureThreshold,
+					lockTTL,
+				)
+			case <-s.hrisWebhookReceiptWorkerWake:
+				s.runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					retryMaxBackoff,
+					processingTimeout,
+					alertFailureThreshold,
+					lockTTL,
+				)
+			case task := <-s.hrisWebhookReceiptWorkerQueue:
+				s.processQueuedEnterpriseHRISWebhookReceipt(task.Receipt, task.RecordDLQ, task.ExecutionID)
+			}
+		}
+	}()
+}
+
+func (s *server) startEnterpriseHRISWebhookDLQWorker() {
+	if !s.cfg.EnterpriseHRISWebhookDLQWorkerEnabled {
+		return
+	}
+	interval := s.cfg.EnterpriseHRISWebhookDLQWorkerInterval
+	if interval <= 0 {
+		interval = 30 * time.Second
+	}
+	batchSize := s.cfg.EnterpriseHRISWebhookDLQWorkerBatchSize
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	maxAttempts := s.cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	retryCooldown := s.cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	retryMaxBackoff := s.cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	processingTimeout := s.cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	alertFailureThreshold := s.cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold
+	if alertFailureThreshold <= 0 {
+		alertFailureThreshold = 1
+	}
+	lockTTL := s.cfg.EnterpriseHRISWebhookDLQWorkerLockTTL
+	if lockTTL <= 0 {
+		lockTTL = 10 * time.Minute
+	}
+
+	s.loggerOrDefault().Info(
+		"enterprise hris webhook dlq worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"retry_cooldown", retryCooldown,
+		"retry_max_backoff", retryMaxBackoff,
+		"processing_timeout", processingTimeout,
+		"alert_threshold", alertFailureThreshold,
+		"lock_ttl", lockTTL,
+		"lease_enabled", s.workerLeaseStore != nil,
+	)
+	if s.workerLeaseStore == nil {
+		s.loggerOrDefault().Warn(
+			"enterprise hris webhook dlq worker running without redis lease; duplicate dlq replays remain possible in multi-instance deployments",
+		)
+	}
+
+	go func() {
+		s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			alertFailureThreshold,
+			lockTTL,
+		)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					retryMaxBackoff,
+					processingTimeout,
+					alertFailureThreshold,
+					lockTTL,
+				)
+			case <-s.hrisWebhookDLQWorkerWake:
+				s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					retryMaxBackoff,
+					processingTimeout,
+					alertFailureThreshold,
+					lockTTL,
+				)
+			case task := <-s.hrisWebhookDLQWorkerQueue:
+				s.replayQueuedEnterpriseHRISWebhookDLQEntry(task.TenantID, task.Entry, task.AuditSource, task.ExecutionID)
+			}
+		}
+	}()
+}
+
+func (s *server) startEnterpriseHRISPullWorker() {
+	if !s.cfg.EnterpriseHRISPullWorkerEnabled {
+		return
+	}
+	interval := s.cfg.EnterpriseHRISPullWorkerInterval
+	if interval <= 0 {
+		interval = time.Hour
+	}
+	batchSize := s.cfg.EnterpriseHRISPullWorkerBatchSize
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	maxAttempts := s.cfg.EnterpriseHRISPullWorkerMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	retryCooldown := s.cfg.EnterpriseHRISPullWorkerRetryCooldown
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	retryMaxBackoff := s.cfg.EnterpriseHRISPullWorkerRetryMaxBackoff
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	processingTimeout := s.cfg.EnterpriseHRISPullWorkerProcessingTimeout
+	if processingTimeout <= 0 {
+		processingTimeout = 30 * time.Minute
+	}
+	reconcileInterval := s.cfg.EnterpriseHRISPullWorkerReconcileInterval
+	if reconcileInterval <= 0 {
+		reconcileInterval = 24 * time.Hour
+	}
+	alertFailureThreshold := s.cfg.EnterpriseHRISPullWorkerAlertFailureThreshold
+	if alertFailureThreshold <= 0 {
+		alertFailureThreshold = 1
+	}
+	lockTTL := s.cfg.EnterpriseHRISPullWorkerLockTTL
+	if lockTTL <= 0 {
+		lockTTL = 10 * time.Minute
+	}
+
+	s.loggerOrDefault().Info(
+		"enterprise hris pull worker enabled",
+		"interval", interval,
+		"batch_size", batchSize,
+		"max_attempts", maxAttempts,
+		"retry_cooldown", retryCooldown,
+		"retry_max_backoff", retryMaxBackoff,
+		"processing_timeout", processingTimeout,
+		"reconcile_interval", reconcileInterval,
+		"alert_threshold", alertFailureThreshold,
+		"lock_ttl", lockTTL,
+		"lease_enabled", s.workerLeaseStore != nil,
+	)
+	if s.workerLeaseStore == nil {
+		s.loggerOrDefault().Warn(
+			"enterprise hris pull worker running without redis lease; duplicate pull ticks remain possible in multi-instance deployments",
+		)
+	}
+
+	go func() {
+		s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			reconcileInterval,
+			processingTimeout,
+			alertFailureThreshold,
+			lockTTL,
+		)
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+				batchSize,
+				maxAttempts,
+				retryCooldown,
+				retryMaxBackoff,
+				reconcileInterval,
+				processingTimeout,
+				alertFailureThreshold,
+				lockTTL,
 			)
 		}
 	}()
@@ -3747,11 +5637,11 @@ func (s *server) runEnterpriseJITApprovalExternalSyncWorkerTick(
 			if err != nil {
 				result.Failed++
 				result.Processed++
-				log.Printf(
-					"enterprise jit approval external sync worker tenant=%s approval_id=%s failed: %v",
-					tenantID,
-					item.ID,
-					err,
+				s.loggerOrDefault().Error(
+					"enterprise jit approval external sync worker failed",
+					"tenant_id", tenantID,
+					"approval_id", item.ID,
+					"err", err,
 				)
 				continue
 			}
@@ -3765,32 +5655,33 @@ func (s *server) runEnterpriseJITApprovalExternalSyncWorkerTick(
 
 		if result.Processed == 0 {
 			if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 {
-				log.Printf(
-					"enterprise jit approval external sync worker tenant=%s processed=0 skipped_attempt_limit=%d skipped_cooldown=%d",
-					tenantID,
-					result.SkippedByAttemptLimit,
-					result.SkippedByCooldown,
+				s.loggerOrDefault().Info(
+					"enterprise jit approval external sync worker skipped",
+					"tenant_id", tenantID,
+					"processed", 0,
+					"skipped_attempt_limit", result.SkippedByAttemptLimit,
+					"skipped_cooldown", result.SkippedByCooldown,
 				)
 			}
 			continue
 		}
 		if result.Failed >= alertFailureThreshold {
-			log.Printf(
-				"enterprise jit approval external sync worker alert tenant=%s failed=%d threshold=%d",
-				tenantID,
-				result.Failed,
-				alertFailureThreshold,
+			s.loggerOrDefault().Warn(
+				"enterprise jit approval external sync worker alert",
+				"tenant_id", tenantID,
+				"failed", result.Failed,
+				"threshold", alertFailureThreshold,
 			)
 			s.appendEnterpriseJITApprovalExternalSyncWorkerAlertAudit(tenantID, result, alertFailureThreshold)
 		}
-		log.Printf(
-			"enterprise jit approval external sync worker tenant=%s processed=%d synced=%d failed=%d skipped_attempt_limit=%d skipped_cooldown=%d",
-			tenantID,
-			result.Processed,
-			result.Synced,
-			result.Failed,
-			result.SkippedByAttemptLimit,
-			result.SkippedByCooldown,
+		s.loggerOrDefault().Info(
+			"enterprise jit approval external sync worker finished",
+			"tenant_id", tenantID,
+			"processed", result.Processed,
+			"synced", result.Synced,
+			"failed", result.Failed,
+			"skipped_attempt_limit", result.SkippedByAttemptLimit,
+			"skipped_cooldown", result.SkippedByCooldown,
 		)
 	}
 }
@@ -3872,43 +5763,1468 @@ func (s *server) runEnterpriseSyncReconcileWorkerTick(
 			},
 		)
 		if err != nil {
-			log.Printf(
-				"enterprise sync reconcile worker tenant=%s failed: %v",
-				tenantID,
-				err,
+			s.loggerOrDefault().Error(
+				"enterprise sync reconcile worker failed",
+				"tenant_id", tenantID,
+				"err", err,
 			)
 			continue
 		}
 		if result.Processed == 0 {
 			if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 {
-				log.Printf(
-					"enterprise sync reconcile worker tenant=%s processed=0 skipped_attempt_limit=%d skipped_cooldown=%d",
-					tenantID,
-					result.SkippedByAttemptLimit,
-					result.SkippedByCooldown,
+				s.loggerOrDefault().Info(
+					"enterprise sync reconcile worker skipped",
+					"tenant_id", tenantID,
+					"processed", 0,
+					"skipped_attempt_limit", result.SkippedByAttemptLimit,
+					"skipped_cooldown", result.SkippedByCooldown,
 				)
+				s.appendEnterpriseSyncWorkerAlertAudit(tenantID, result, alertFailureThreshold)
 			}
 			continue
 		}
 		if result.Failed >= alertFailureThreshold {
-			log.Printf(
-				"enterprise sync reconcile worker alert tenant=%s failed=%d threshold=%d",
-				tenantID,
-				result.Failed,
-				alertFailureThreshold,
+			s.loggerOrDefault().Warn(
+				"enterprise sync reconcile worker alert",
+				"tenant_id", tenantID,
+				"failed", result.Failed,
+				"threshold", alertFailureThreshold,
 			)
 			s.appendEnterpriseSyncWorkerAlertAudit(tenantID, result, alertFailureThreshold)
 		}
-		log.Printf(
-			"enterprise sync reconcile worker tenant=%s processed=%d applied=%d failed=%d skipped_attempt_limit=%d skipped_cooldown=%d",
-			tenantID,
-			result.Processed,
-			result.Applied,
-			result.Failed,
-			result.SkippedByAttemptLimit,
-			result.SkippedByCooldown,
+		s.loggerOrDefault().Info(
+			"enterprise sync reconcile worker finished",
+			"tenant_id", tenantID,
+			"processed", result.Processed,
+			"applied", result.Applied,
+			"failed", result.Failed,
+			"skipped_attempt_limit", result.SkippedByAttemptLimit,
+			"skipped_cooldown", result.SkippedByCooldown,
 		)
 	}
+}
+
+func (s *server) runEnterpriseSyncWorkerAlertAutoRetryWorkerTick(
+	batchSize int,
+	maxAttempts int,
+	baseBackoff time.Duration,
+	maxBackoff time.Duration,
+) {
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	if baseBackoff <= 0 {
+		baseBackoff = 5 * time.Minute
+	}
+	if maxBackoff <= 0 {
+		maxBackoff = time.Hour
+	}
+	if maxBackoff < baseBackoff {
+		maxBackoff = baseBackoff
+	}
+	if s.enterpriseSvc == nil || s.walletSvc == nil {
+		return
+	}
+
+	now := time.Now().UTC()
+	allNotifications := s.enterpriseSvc.ListSyncWorkerAlertNotificationsWithOptions(
+		enterprise.SyncWorkerAlertNotificationListOptions{
+			Limit: 0,
+		},
+	)
+	tenantIDs := pendingSyncWorkerAlertAutoRetryTenantIDs(allNotifications, now)
+	if len(tenantIDs) == 0 {
+		return
+	}
+
+	for i := range tenantIDs {
+		tenantID := tenantIDs[i]
+		result, err := s.enterpriseSvc.AutoRetrySyncWorkerAlertNotifications(enterprise.SyncWorkerAlertNotificationAutoRetryInput{
+			TenantID:    tenantID,
+			Limit:       batchSize,
+			MaxAttempts: maxAttempts,
+			BaseBackoff: baseBackoff,
+			MaxBackoff:  maxBackoff,
+			RetriedAt:   now,
+			Dispatch: func(input enterprise.SyncWorkerAlertDeliveryInput) enterprise.SyncWorkerAlertDeliveryResult {
+				delivery := s.walletSvc.DispatchAlert(wallet.AlertDeliveryInput{
+					TenantID:       input.TenantID,
+					Channels:       input.Channels,
+					ReceiverGroups: input.ReceiverGroups,
+					IdempotencyKey: input.IdempotencyKey,
+					EmailSubject:   input.EmailSubject,
+					EmailText:      input.EmailText,
+					WhatsAppText:   input.WhatsAppText,
+				})
+				return enterprise.SyncWorkerAlertDeliveryResult{
+					Status:         delivery.Status,
+					Reason:         delivery.Reason,
+					Provider:       delivery.Provider,
+					ProviderError:  delivery.ProviderError,
+					Retryable:      delivery.Retryable,
+					ChannelResults: delivery.ChannelResults,
+				}
+			},
+		})
+		if err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise sync worker alert auto retry worker failed",
+				"tenant_id", tenantID,
+				"err", err,
+			)
+			continue
+		}
+		if result.TotalNotifications == 0 {
+			continue
+		}
+		workerResult := enterpriseSyncWorkerAlertAutoRetryWorkerResult{
+			Processed:  result.TotalNotifications,
+			Retried:    result.Retried,
+			Failed:     result.Failed,
+			Skipped:    result.Skipped,
+			Suppressed: result.Suppressed,
+		}
+		s.loggerOrDefault().Info(
+			"enterprise sync worker alert auto retry worker finished",
+			"tenant_id", tenantID,
+			"processed", workerResult.Processed,
+			"retried", workerResult.Retried,
+			"failed", workerResult.Failed,
+			"skipped", workerResult.Skipped,
+			"suppressed", workerResult.Suppressed,
+		)
+		s.appendEnterpriseSyncWorkerAlertAutoRetryWorkerAudit(tenantID, workerResult)
+	}
+}
+
+func (s *server) runEnterpriseSyncWorkerAlertAutoRetryWorkerTickWithLease(
+	batchSize int,
+	maxAttempts int,
+	baseBackoff time.Duration,
+	maxBackoff time.Duration,
+	lockTTL time.Duration,
+) {
+	if s.workerLeaseStore == nil || lockTTL <= 0 {
+		s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTick(batchSize, maxAttempts, baseBackoff, maxBackoff)
+		return
+	}
+
+	token, err := randomHexID(16)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise sync worker alert auto retry worker lease token generation failed",
+			"err", err,
+		)
+		return
+	}
+	acquired, err := s.workerLeaseStore.TryAcquireLease(enterpriseSyncWorkerAlertAutoRetryLeaseKey, token, lockTTL)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise sync worker alert auto retry worker lease acquire failed",
+			"err", err,
+		)
+		return
+	}
+	if !acquired {
+		s.loggerOrDefault().Info(
+			"enterprise sync worker alert auto retry worker lease unavailable; skipping tick",
+			"lease_key", enterpriseSyncWorkerAlertAutoRetryLeaseKey,
+		)
+		return
+	}
+	defer func() {
+		if err := s.workerLeaseStore.ReleaseLease(enterpriseSyncWorkerAlertAutoRetryLeaseKey, token); err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise sync worker alert auto retry worker lease release failed",
+				"lease_key", enterpriseSyncWorkerAlertAutoRetryLeaseKey,
+				"err", err,
+			)
+		}
+	}()
+
+	s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTick(batchSize, maxAttempts, baseBackoff, maxBackoff)
+}
+
+func (s *server) runEnterpriseHRISWebhookReceiptWorkerTickWithLease(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	s.runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		processingTimeout,
+		alertFailureThreshold,
+		lockTTL,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	if s.workerLeaseStore == nil || lockTTL <= 0 {
+		s.runEnterpriseHRISWebhookReceiptWorkerTickWithRetryBackoff(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			alertFailureThreshold,
+		)
+		return
+	}
+
+	token, err := randomHexID(16)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook receipt worker lease token generation failed",
+			"err", err,
+		)
+		return
+	}
+	acquired, err := s.workerLeaseStore.TryAcquireLease(enterpriseHRISWebhookReceiptLeaseKey, token, lockTTL)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook receipt worker lease acquire failed",
+			"err", err,
+		)
+		return
+	}
+	if !acquired {
+		s.loggerOrDefault().Info(
+			"enterprise hris webhook receipt worker lease unavailable; skipping tick",
+			"lease_key", enterpriseHRISWebhookReceiptLeaseKey,
+		)
+		return
+	}
+	defer func() {
+		if err := s.workerLeaseStore.ReleaseLease(enterpriseHRISWebhookReceiptLeaseKey, token); err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris webhook receipt worker lease release failed",
+				"lease_key", enterpriseHRISWebhookReceiptLeaseKey,
+				"err", err,
+			)
+		}
+	}()
+
+	s.runEnterpriseHRISWebhookReceiptWorkerTickWithRetryBackoff(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookReceiptWorkerTick(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	s.runEnterpriseHRISWebhookReceiptWorkerTickWithRetryBackoff(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookReceiptWorkerTickWithRetryBackoff(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	if batchSize <= 0 {
+		batchSize = 1
+	}
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	if alertFailureThreshold <= 0 {
+		alertFailureThreshold = 1
+	}
+	if s.enterpriseSvc == nil {
+		return
+	}
+	if err := s.refreshEnterpriseHRISWebhookReceiptWorkerState(); err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook receipt worker state refresh failed",
+			"err", err,
+		)
+		return
+	}
+	processedQueuedExecutions := s.runQueuedEnterpriseHRISWebhookReceiptExecutions(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+	)
+	if processedQueuedExecutions >= batchSize {
+		return
+	}
+	batchSize -= processedQueuedExecutions
+	now := time.Now().UTC()
+	allReceipts := s.enterpriseSvc.ListDueHRISWebhookReceiptsWithBackoff(
+		"",
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		now,
+		0,
+	)
+	tenantIDs := pendingHRISWebhookReceiptTenantIDs(allReceipts)
+	if len(tenantIDs) == 0 {
+		return
+	}
+	receiptsByTenant := groupHRISWebhookReceiptsByTenant(allReceipts)
+
+	for i := range tenantIDs {
+		tenantID := tenantIDs[i]
+		items := receiptsByTenant[tenantID]
+		result := enterpriseHRISWebhookReceiptWorkerResult{}
+		for j := range items {
+			if result.Processed >= batchSize {
+				break
+			}
+			item := items[j]
+			status := strings.TrimSpace(item.Status)
+			if status != "received" && status != "failed" && status != "processing" {
+				continue
+			}
+
+			claimed, skipReason, err := s.enterpriseSvc.ClaimHRISWebhookReceiptForProcessingWithBackoff(
+				tenantID,
+				item.ID,
+				maxAttempts,
+				retryCooldown,
+				retryMaxBackoff,
+				processingTimeout,
+				now,
+			)
+			if err != nil {
+				s.loggerOrDefault().Error(
+					"enterprise hris webhook receipt worker claim failed",
+					"tenant_id", tenantID,
+					"receipt_id", item.ID,
+					"err", err,
+				)
+				continue
+			}
+			switch skipReason {
+			case "":
+			case enterprise.HRISWebhookReceiptClaimReasonAttemptLimit:
+				result.SkippedByAttemptLimit++
+				continue
+			case enterprise.HRISWebhookReceiptClaimReasonCooldown:
+				result.SkippedByCooldown++
+				continue
+			case enterprise.HRISWebhookReceiptClaimReasonInFlight:
+				result.SkippedByInFlight++
+				continue
+			default:
+				continue
+			}
+
+			recordDLQ := claimed.AttemptCount >= maxAttempts
+			if err := s.processEnterpriseHRISWebhookReceipt(nil, claimed, recordDLQ); err != nil {
+				result.Processed++
+				result.Failed++
+				result.LastConnectorID = strings.TrimSpace(claimed.ConnectorID)
+				result.LastVendor = strings.TrimSpace(claimed.Vendor)
+				result.LastRequestID = strings.TrimSpace(claimed.RequestID)
+				result.LastEventType = strings.TrimSpace(claimed.EventType)
+				s.loggerOrDefault().Error(
+					"enterprise hris webhook receipt worker failed",
+					"tenant_id", tenantID,
+					"receipt_id", claimed.ID,
+					"err", err,
+				)
+				continue
+			}
+
+			updated, err := s.enterpriseSvc.GetHRISWebhookReceipt(tenantID, claimed.ID)
+			if err == nil && strings.TrimSpace(updated.Status) == "skipped" {
+				result.Skipped++
+			} else {
+				result.Synced++
+			}
+			result.Processed++
+		}
+
+		if result.Processed == 0 {
+			if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 || result.SkippedByInFlight > 0 {
+				s.loggerOrDefault().Info(
+					"enterprise hris webhook receipt worker skipped",
+					"tenant_id", tenantID,
+					"processed", 0,
+					"skipped_in_flight", result.SkippedByInFlight,
+					"skipped_attempt_limit", result.SkippedByAttemptLimit,
+					"skipped_cooldown", result.SkippedByCooldown,
+				)
+				if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 {
+					s.appendEnterpriseHRISWebhookReceiptWorkerAlertAudit(tenantID, result, alertFailureThreshold)
+				}
+			}
+			continue
+		}
+		if result.Failed >= alertFailureThreshold {
+			s.loggerOrDefault().Warn(
+				"enterprise hris webhook receipt worker alert",
+				"tenant_id", tenantID,
+				"failed", result.Failed,
+				"threshold", alertFailureThreshold,
+			)
+			s.appendEnterpriseHRISWebhookReceiptWorkerAlertAudit(tenantID, result, alertFailureThreshold)
+		}
+		s.loggerOrDefault().Info(
+			"enterprise hris webhook receipt worker finished",
+			"tenant_id", tenantID,
+			"processed", result.Processed,
+			"synced", result.Synced,
+			"skipped", result.Skipped,
+			"failed", result.Failed,
+			"skipped_in_flight", result.SkippedByInFlight,
+			"skipped_attempt_limit", result.SkippedByAttemptLimit,
+			"skipped_cooldown", result.SkippedByCooldown,
+		)
+	}
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTickWithLease(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		0,
+		alertFailureThreshold,
+		lockTTL,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		processingTimeout,
+		alertFailureThreshold,
+		lockTTL,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	if s.workerLeaseStore == nil || lockTTL <= 0 {
+		s.runEnterpriseHRISWebhookDLQWorkerTickWithRetryBackoffAndProcessingTimeout(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			alertFailureThreshold,
+		)
+		return
+	}
+
+	token, err := randomHexID(16)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook dlq worker lease token generation failed",
+			"err", err,
+		)
+		return
+	}
+	acquired, err := s.workerLeaseStore.TryAcquireLease(enterpriseHRISWebhookDLQLeaseKey, token, lockTTL)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook dlq worker lease acquire failed",
+			"err", err,
+		)
+		return
+	}
+	if !acquired {
+		s.loggerOrDefault().Info(
+			"enterprise hris webhook dlq worker lease unavailable; skipping tick",
+			"lease_key", enterpriseHRISWebhookDLQLeaseKey,
+		)
+		return
+	}
+	defer func() {
+		if err := s.workerLeaseStore.ReleaseLease(enterpriseHRISWebhookDLQLeaseKey, token); err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris webhook dlq worker lease release failed",
+				"lease_key", enterpriseHRISWebhookDLQLeaseKey,
+				"err", err,
+			)
+		}
+	}()
+
+	s.runEnterpriseHRISWebhookDLQWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTick(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	alertFailureThreshold int,
+) {
+	s.runEnterpriseHRISWebhookDLQWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		0,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTickWithProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	s.runEnterpriseHRISWebhookDLQWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISWebhookDLQWorkerTickWithRetryBackoffAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	if s.hrisDLQSvc == nil {
+		return
+	}
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	if err := s.refreshEnterpriseHRISWebhookDLQWorkerState(); err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris webhook dlq worker state refresh failed",
+			"err", err,
+		)
+		return
+	}
+	processedQueuedExecutions := s.runQueuedEnterpriseHRISWebhookDLQExecutionsWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+	)
+	if processedQueuedExecutions >= batchSize {
+		return
+	}
+	batchSize -= processedQueuedExecutions
+	if processingTimeout <= 0 {
+		processingTimeout = 5 * time.Minute
+	}
+	now := time.Now().UTC()
+	allEntries := s.hrisDLQSvc.ListDueEntriesForReplayWithBackoff(
+		"",
+		"",
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		processingTimeout,
+		now,
+		0,
+	)
+	tenantIDs := pendingHRISWebhookDLQTenantIDs(allEntries, maxAttempts, retryCooldown, now)
+	if len(tenantIDs) == 0 {
+		return
+	}
+	entriesByTenant := groupHRISWebhookDLQEntriesByTenant(allEntries)
+
+	for i := range tenantIDs {
+		tenantID := tenantIDs[i]
+		items := entriesByTenant[tenantID]
+		result := enterpriseHRISWebhookDLQWorkerResult{}
+		for j := range items {
+			if result.Processed >= batchSize {
+				break
+			}
+			item := items[j]
+			status := strings.TrimSpace(item.Status)
+			if status != "dlq" && status != "replaying" {
+				continue
+			}
+			claimed, skipReason, err := s.hrisDLQSvc.ClaimEntryForReplayWithBackoff(
+				item.ID,
+				maxAttempts,
+				retryCooldown,
+				retryMaxBackoff,
+				processingTimeout,
+				now,
+			)
+			if err != nil {
+				s.loggerOrDefault().Error(
+					"enterprise hris webhook dlq worker claim failed",
+					"tenant_id", tenantID,
+					"entry_id", item.ID,
+					"err", err,
+				)
+				continue
+			}
+			switch skipReason {
+			case "":
+			case hris.DLQEntryClaimReasonAttemptLimit:
+				result.SkippedByAttemptLimit++
+				continue
+			case hris.DLQEntryClaimReasonCooldown:
+				result.SkippedByCooldown++
+				continue
+			case hris.DLQEntryClaimReasonInFlight:
+				result.SkippedByInFlight++
+				continue
+			default:
+				continue
+			}
+
+			if _, err := s.replayEnterpriseHRISWebhookDLQClaimedEntry(nil, tenantID, claimed, "enterprise_sync_worker"); err != nil {
+				result.Failed++
+				result.Processed++
+				result.LastConnectorID = strings.TrimSpace(claimed.ConnectorID)
+				result.LastVendor = strings.TrimSpace(claimed.Vendor)
+				result.LastRequestID = strings.TrimSpace(claimed.RequestID)
+				result.LastEventType = strings.TrimSpace(claimed.EventType)
+				result.LastFailureStage = strings.TrimSpace(claimed.FailureStage)
+				s.loggerOrDefault().Error(
+					"enterprise hris webhook dlq worker replay failed",
+					"tenant_id", tenantID,
+					"entry_id", claimed.ID,
+					"err", err,
+				)
+				continue
+			}
+			result.Replayed++
+			result.Processed++
+		}
+
+		if result.Processed == 0 {
+			if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 || result.SkippedByInFlight > 0 {
+				s.loggerOrDefault().Info(
+					"enterprise hris webhook dlq worker skipped",
+					"tenant_id", tenantID,
+					"processed", 0,
+					"skipped_in_flight", result.SkippedByInFlight,
+					"skipped_attempt_limit", result.SkippedByAttemptLimit,
+					"skipped_cooldown", result.SkippedByCooldown,
+				)
+				if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 {
+					s.appendEnterpriseHRISWebhookDLQWorkerAlertAudit(tenantID, result, alertFailureThreshold)
+				}
+			}
+			continue
+		}
+		if result.Failed >= alertFailureThreshold {
+			s.loggerOrDefault().Warn(
+				"enterprise hris webhook dlq worker alert",
+				"tenant_id", tenantID,
+				"failed", result.Failed,
+				"threshold", alertFailureThreshold,
+			)
+			s.appendEnterpriseHRISWebhookDLQWorkerAlertAudit(tenantID, result, alertFailureThreshold)
+		}
+		s.loggerOrDefault().Info(
+			"enterprise hris webhook dlq worker finished",
+			"tenant_id", tenantID,
+			"processed", result.Processed,
+			"replayed", result.Replayed,
+			"failed", result.Failed,
+			"skipped_in_flight", result.SkippedByInFlight,
+			"skipped_attempt_limit", result.SkippedByAttemptLimit,
+			"skipped_cooldown", result.SkippedByCooldown,
+		)
+	}
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTick(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	reconcileInterval time.Duration,
+	alertFailureThreshold int,
+) {
+	s.runEnterpriseHRISPullWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		reconcileInterval,
+		0,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTickWithLease(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	reconcileInterval time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		reconcileInterval,
+		0,
+		alertFailureThreshold,
+		lockTTL,
+	)
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTickWithLeaseAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	reconcileInterval time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		reconcileInterval,
+		processingTimeout,
+		alertFailureThreshold,
+		lockTTL,
+	)
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	reconcileInterval time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+	lockTTL time.Duration,
+) {
+	if s.workerLeaseStore == nil || lockTTL <= 0 {
+		s.runEnterpriseHRISPullWorkerTickWithRetryBackoffAndProcessingTimeout(
+			batchSize,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			reconcileInterval,
+			processingTimeout,
+			alertFailureThreshold,
+		)
+		return
+	}
+
+	token, err := randomHexID(16)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris pull worker lease token generation failed",
+			"err", err,
+		)
+		return
+	}
+	acquired, err := s.workerLeaseStore.TryAcquireLease(enterpriseHRISPullLeaseKey, token, lockTTL)
+	if err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris pull worker lease acquire failed",
+			"err", err,
+		)
+		return
+	}
+	if !acquired {
+		s.loggerOrDefault().Info(
+			"enterprise hris pull worker lease unavailable; skipping tick",
+			"lease_key", enterpriseHRISPullLeaseKey,
+		)
+		return
+	}
+	defer func() {
+		if err := s.workerLeaseStore.ReleaseLease(enterpriseHRISPullLeaseKey, token); err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris pull worker lease release failed",
+				"lease_key", enterpriseHRISPullLeaseKey,
+				"err", err,
+			)
+		}
+	}()
+
+	s.runEnterpriseHRISPullWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryMaxBackoff,
+		reconcileInterval,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTickWithProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	reconcileInterval time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	s.runEnterpriseHRISPullWorkerTickWithRetryBackoffAndProcessingTimeout(
+		batchSize,
+		maxAttempts,
+		retryCooldown,
+		retryCooldown,
+		reconcileInterval,
+		processingTimeout,
+		alertFailureThreshold,
+	)
+}
+
+func (s *server) runEnterpriseHRISPullWorkerTickWithRetryBackoffAndProcessingTimeout(
+	batchSize int,
+	maxAttempts int,
+	retryCooldown time.Duration,
+	retryMaxBackoff time.Duration,
+	reconcileInterval time.Duration,
+	processingTimeout time.Duration,
+	alertFailureThreshold int,
+) {
+	if s.enterpriseSvc == nil || s.hrisPullRegistry == nil || s.hrisPullStateSvc == nil {
+		return
+	}
+	if retryCooldown < 0 {
+		retryCooldown = 0
+	}
+	if retryCooldown <= 0 {
+		retryMaxBackoff = 0
+	} else if retryMaxBackoff < retryCooldown {
+		retryMaxBackoff = retryCooldown
+	}
+	if processingTimeout <= 0 {
+		processingTimeout = 30 * time.Minute
+	}
+	if err := s.refreshEnterpriseHRISPullWorkerState(); err != nil {
+		s.loggerOrDefault().Error(
+			"enterprise hris pull worker shared state refresh failed",
+			"err", err,
+		)
+		return
+	}
+
+	now := time.Now().UTC()
+	connectors := s.enterpriseSvc.ListHRISConnectors("")
+	if len(connectors) == 0 {
+		return
+	}
+	sort.Slice(connectors, func(i, j int) bool {
+		leftTenantID := strings.TrimSpace(connectors[i].TenantID)
+		rightTenantID := strings.TrimSpace(connectors[j].TenantID)
+		if leftTenantID != rightTenantID {
+			return leftTenantID < rightTenantID
+		}
+		leftVendor := strings.TrimSpace(connectors[i].Vendor)
+		rightVendor := strings.TrimSpace(connectors[j].Vendor)
+		if leftVendor != rightVendor {
+			return leftVendor < rightVendor
+		}
+		return strings.TrimSpace(connectors[i].ID) < strings.TrimSpace(connectors[j].ID)
+	})
+
+	stateMap := make(map[string]hris.ConnectorPullState)
+	for _, item := range s.hrisPullStateSvc.ListStates("") {
+		stateMap[strings.TrimSpace(item.ConnectorID)] = item
+	}
+
+	resultsByTenant := make(map[string]*enterpriseHRISPullWorkerResult)
+	processedCount := 0
+	for i := range connectors {
+		connector := connectors[i]
+		if !enterpriseHRISPullConnectorCandidate(connector) {
+			continue
+		}
+		adapter, ok := s.hrisPullRegistry.Get(connector.Vendor)
+		if !ok {
+			continue
+		}
+
+		tenantID := strings.TrimSpace(connector.TenantID)
+		if tenantID == "" {
+			continue
+		}
+		result := resultsByTenant[tenantID]
+		if result == nil {
+			result = &enterpriseHRISPullWorkerResult{}
+			resultsByTenant[tenantID] = result
+		}
+
+		state := stateMap[strings.TrimSpace(connector.ID)]
+		mode := enterpriseHRISPullMode(connector, state, now, reconcileInterval)
+		pullInput := hris.PullInput{
+			Connector:         connector,
+			LastSuccessAt:     state.LastSuccessAt,
+			LastFullSuccessAt: enterpriseHRISLastFullSuccessAt(connector, state),
+			Mode:              mode,
+			Now:               now,
+		}
+		if mode == "" {
+			continue
+		}
+
+		if processedCount >= batchSize {
+			break
+		}
+
+		claimedState, skipReason, err := s.hrisPullStateSvc.ClaimStateForPullWithBackoff(
+			tenantID,
+			connector.ID,
+			connector.Vendor,
+			mode,
+			maxAttempts,
+			retryCooldown,
+			retryMaxBackoff,
+			processingTimeout,
+			now,
+		)
+		if err != nil {
+			s.loggerOrDefault().Error(
+				"enterprise hris pull worker claim failed",
+				"tenant_id", tenantID,
+				"connector_id", connector.ID,
+				"err", err,
+			)
+			continue
+		}
+		switch skipReason {
+		case "":
+			state = claimedState
+		case hris.PullStateClaimReasonAttemptLimit:
+			result.SkippedByAttemptLimit++
+			updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, claimedState, mode, now)
+			continue
+		case hris.PullStateClaimReasonCooldown:
+			result.SkippedByCooldown++
+			updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, claimedState, mode, now)
+			continue
+		case hris.PullStateClaimReasonInFlight:
+			result.SkippedByInFlight++
+			updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, claimedState, mode, now)
+			continue
+		default:
+			continue
+		}
+
+		credentialValue := ""
+		if strings.TrimSpace(connector.CredentialRef) != "" {
+			if s.hrisVaultSvc == nil {
+				result.Processed++
+				result.Failed++
+				result.LastConnectorID = strings.TrimSpace(connector.ID)
+				result.LastVendor = strings.TrimSpace(connector.Vendor)
+				result.LastMode = strings.TrimSpace(mode)
+				processedCount++
+				updatedState, _ := s.hrisPullStateSvc.MarkFailed(tenantID, connector.ID, connector.Vendor, now, errors.New("hris credential vault unavailable"))
+				updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, updatedState, mode, now)
+				s.loggerOrDefault().Error(
+					"enterprise hris pull worker credential vault unavailable",
+					"tenant_id", tenantID,
+					"connector_id", connector.ID,
+				)
+				continue
+			}
+			resolvedCredential, err := s.hrisVaultSvc.ResolveSecretRef(connector.CredentialRef)
+			if err != nil {
+				result.Processed++
+				result.Failed++
+				result.LastConnectorID = strings.TrimSpace(connector.ID)
+				result.LastVendor = strings.TrimSpace(connector.Vendor)
+				result.LastMode = strings.TrimSpace(mode)
+				processedCount++
+				updatedState, _ := s.hrisPullStateSvc.MarkFailed(tenantID, connector.ID, connector.Vendor, now, err)
+				updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, updatedState, mode, now)
+				s.loggerOrDefault().Error(
+					"enterprise hris pull worker credential resolution failed",
+					"tenant_id", tenantID,
+					"connector_id", connector.ID,
+					"err", err,
+				)
+				continue
+			}
+			credentialValue = resolvedCredential.Value
+		}
+
+		pullInput.CredentialValue = credentialValue
+		if mode == hris.PullModeIncremental && !hris.SupportsIncrementalPull(adapter, pullInput) {
+			mode = hris.PullModeFull
+			pullInput.Mode = mode
+			claimedState, err := s.hrisPullStateSvc.MarkStarted(tenantID, connector.ID, connector.Vendor, mode, now)
+			if err != nil {
+				result.Processed++
+				result.Failed++
+				result.LastConnectorID = strings.TrimSpace(connector.ID)
+				result.LastVendor = strings.TrimSpace(connector.Vendor)
+				result.LastMode = strings.TrimSpace(mode)
+				processedCount++
+				s.loggerOrDefault().Error(
+					"enterprise hris pull worker fallback to full claim update failed",
+					"tenant_id", tenantID,
+					"connector_id", connector.ID,
+					"err", err,
+				)
+				continue
+			}
+			state = claimedState
+		}
+
+		if err := s.processEnterpriseHRISPullConnector(connector, credentialValue, state, mode, now); err != nil {
+			updatedState, _ := s.hrisPullStateSvc.MarkFailed(tenantID, connector.ID, connector.Vendor, now, err)
+			result.Processed++
+			result.Failed++
+			updateEnterpriseHRISPullWorkerStatefulMetrics(result, connector, updatedState, mode, now)
+			processedCount++
+			s.loggerOrDefault().Error(
+				"enterprise hris pull worker failed",
+				"tenant_id", tenantID,
+				"connector_id", connector.ID,
+				"vendor", connector.Vendor,
+				"err", err,
+			)
+			continue
+		}
+
+		result.Processed++
+		result.Synced++
+		processedCount++
+	}
+
+	for tenantID, result := range resultsByTenant {
+		if result.Processed == 0 {
+			if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 || result.SkippedByInFlight > 0 {
+				s.loggerOrDefault().Info(
+					"enterprise hris pull worker skipped",
+					"tenant_id", tenantID,
+					"processed", 0,
+					"skipped_in_flight", result.SkippedByInFlight,
+					"skipped_attempt_limit", result.SkippedByAttemptLimit,
+					"skipped_cooldown", result.SkippedByCooldown,
+				)
+				if result.SkippedByAttemptLimit > 0 || result.SkippedByCooldown > 0 {
+					s.appendEnterpriseHRISPullWorkerAlertAudit(tenantID, *result, alertFailureThreshold)
+				}
+			}
+			continue
+		}
+		if shouldAppendEnterpriseHRISPullWorkerAlertAudit(*result, alertFailureThreshold) {
+			s.loggerOrDefault().Warn(
+				"enterprise hris pull worker alert",
+				"tenant_id", tenantID,
+				"failed", result.Failed,
+				"threshold", alertFailureThreshold,
+				"consecutive_failures", result.ConsecutiveFailures,
+				"failure_age_seconds", result.FailureAgeSeconds,
+			)
+			s.appendEnterpriseHRISPullWorkerAlertAudit(tenantID, *result, alertFailureThreshold)
+		}
+		s.loggerOrDefault().Info(
+			"enterprise hris pull worker finished",
+			"tenant_id", tenantID,
+			"processed", result.Processed,
+			"synced", result.Synced,
+			"failed", result.Failed,
+			"skipped_in_flight", result.SkippedByInFlight,
+			"skipped_attempt_limit", result.SkippedByAttemptLimit,
+			"skipped_cooldown", result.SkippedByCooldown,
+		)
+	}
+}
+
+func (s *server) processEnterpriseHRISPullConnector(
+	connector enterprise.HRISConnector,
+	credentialValue string,
+	state hris.ConnectorPullState,
+	mode string,
+	now time.Time,
+) error {
+	if strings.TrimSpace(connector.CredentialRef) == "" {
+		return errors.New("hris connector credential_ref is required for pull sync")
+	}
+	if strings.TrimSpace(credentialValue) == "" {
+		return errors.New("hris connector credential value is required for pull sync")
+	}
+
+	timeout := firstNonZeroDuration(s.cfg.ExternalAuthTimeout, 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pullResult, err := s.hrisPullRegistry.Pull(ctx, hris.PullInput{
+		Connector:         connector,
+		CredentialValue:   credentialValue,
+		LastSuccessAt:     state.LastSuccessAt,
+		LastFullSuccessAt: enterpriseHRISLastFullSuccessAt(connector, state),
+		Mode:              mode,
+		HTTPClient:        s.hrisHTTPClient,
+		Now:               now,
+	})
+	if err != nil {
+		return err
+	}
+
+	source := strings.TrimSpace(pullResult.Source)
+	if source == "" {
+		source = hris.SyncSourceForVendor(connector.Vendor)
+	}
+	requestID := strings.TrimSpace(pullResult.RequestID)
+	if requestID == "" {
+		requestID = hris.NormalizeVendor(connector.Vendor) + ":" + strings.TrimSpace(connector.ID) + ":pull:" + now.UTC().Format("20060102t150405z")
+	}
+	pullMode := hris.NormalizePullMode(pullResult.Mode)
+	if pullMode == "" {
+		pullMode = hris.NormalizePullMode(mode)
+	}
+
+	inputs := buildEnterpriseHRISPullReconcileInputs(
+		s.enterpriseSvc.ListEmployees(connector.TenantID),
+		source,
+		pullResult.Employees,
+		pullMode == hris.PullModeFull,
+	)
+	if len(inputs) > 0 {
+		_, _, _, _, err = s.enterpriseSvc.SyncEmployeesWithAccessUpsertMetadata(
+			connector.TenantID,
+			source,
+			hris.SyncActor,
+			requestID,
+			connector.ID,
+			enterpriseHRISPullRawPayloadRef(requestID),
+			inputs,
+			func(items []enterprise.EnterpriseEmployee) (int, int, int, error) {
+				accessInputs := enterpriseEmployeesToAccessBatchInputs(items)
+				return s.accessSvc.UpsertUsersByEmail(connector.TenantID, accessInputs)
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	if _, err := s.enterpriseSvc.MarkHRISConnectorSynced(connector.TenantID, connector.ID, now); err != nil {
+		return err
+	}
+	if _, err := s.hrisPullStateSvc.MarkSucceeded(connector.TenantID, connector.ID, connector.Vendor, pullMode, requestID, now); err != nil {
+		return err
+	}
+	return nil
+}
+
+func enterpriseHRISPullConnectorCandidate(connector enterprise.HRISConnector) bool {
+	if strings.TrimSpace(connector.Status) != "active" {
+		return false
+	}
+	switch strings.TrimSpace(connector.SyncStrategy) {
+	case "pull", "hybrid", "":
+		return true
+	default:
+		return false
+	}
+}
+
+func enterpriseHRISPullMode(
+	connector enterprise.HRISConnector,
+	state hris.ConnectorPullState,
+	now time.Time,
+	reconcileInterval time.Duration,
+) string {
+	lastSuccessAt := enterpriseHRISLastSuccessAt(connector, state)
+	if lastSuccessAt == nil {
+		return hris.PullModeFull
+	}
+	if enterpriseHRISFullReconcileDue(connector, state, now, reconcileInterval) {
+		return hris.PullModeFull
+	}
+	return hris.PullModeIncremental
+}
+
+func enterpriseHRISLastSuccessAt(
+	connector enterprise.HRISConnector,
+	state hris.ConnectorPullState,
+) *time.Time {
+	lastSuccessAt := cloneTimePointerLocal(connector.LastSyncAt)
+	if state.LastSuccessAt != nil {
+		if lastSuccessAt == nil || state.LastSuccessAt.After(*lastSuccessAt) {
+			lastSuccessAt = cloneTimePointerLocal(state.LastSuccessAt)
+		}
+	}
+	return lastSuccessAt
+}
+
+func enterpriseHRISLastFullSuccessAt(
+	connector enterprise.HRISConnector,
+	state hris.ConnectorPullState,
+) *time.Time {
+	if state.LastFullSuccessAt != nil {
+		return cloneTimePointerLocal(state.LastFullSuccessAt)
+	}
+	if state.LastSuccessAt == nil && connector.LastSyncAt != nil {
+		return cloneTimePointerLocal(connector.LastSyncAt)
+	}
+	return nil
+}
+
+func enterpriseHRISFullReconcileDue(
+	connector enterprise.HRISConnector,
+	state hris.ConnectorPullState,
+	now time.Time,
+	reconcileInterval time.Duration,
+) bool {
+	lastFullSuccessAt := enterpriseHRISLastFullSuccessAt(connector, state)
+	if lastFullSuccessAt == nil {
+		return true
+	}
+	if reconcileInterval <= 0 {
+		reconcileInterval = 24 * time.Hour
+	}
+	return !lastFullSuccessAt.Add(reconcileInterval).After(now)
+}
+
+func buildEnterpriseHRISPullReconcileInputs(
+	existing []enterprise.EnterpriseEmployee,
+	source string,
+	pulled []enterprise.EmployeeSyncInput,
+	fullSnapshot bool,
+) []enterprise.EmployeeSyncInput {
+	output := make([]enterprise.EmployeeSyncInput, 0, len(pulled))
+	seenExternalIDs := make(map[string]struct{}, len(pulled))
+	seenEmails := make(map[string]struct{}, len(pulled))
+	for i := range pulled {
+		item := pulled[i]
+		if nextExternalID := strings.TrimSpace(item.ExternalID); nextExternalID != "" {
+			seenExternalIDs[nextExternalID] = struct{}{}
+		}
+		if nextEmail := strings.ToLower(strings.TrimSpace(item.Email)); nextEmail != "" {
+			seenEmails[nextEmail] = struct{}{}
+		}
+		output = append(output, item)
+	}
+	if !fullSnapshot {
+		return output
+	}
+
+	nextSource := strings.TrimSpace(source)
+	for i := range existing {
+		item := existing[i]
+		if strings.TrimSpace(item.Source) != nextSource {
+			continue
+		}
+		externalID := strings.TrimSpace(item.ExternalID)
+		if externalID != "" {
+			if _, ok := seenExternalIDs[externalID]; ok {
+				continue
+			}
+		} else {
+			email := strings.ToLower(strings.TrimSpace(item.Email))
+			if email == "" {
+				continue
+			}
+			if _, ok := seenEmails[email]; ok {
+				continue
+			}
+		}
+		if strings.TrimSpace(item.Status) == "inactive" && enterprise.EmploymentStatusBlocksSession(item.EmploymentStatus) {
+			continue
+		}
+
+		output = append(output, enterprise.EmployeeSyncInput{
+			ExternalID:        item.ExternalID,
+			EmployeeNumber:    item.EmployeeNumber,
+			Email:             item.Email,
+			FullName:          item.FullName,
+			Department:        item.Department,
+			JobTitle:          item.JobTitle,
+			Location:          item.Location,
+			Phone:             item.Phone,
+			ManagerExternalID: item.ManagerExternalID,
+			EmploymentStatus:  "inactive",
+			JoinDate:          item.JoinDate,
+			ResignDate:        firstNonEmptyString(item.ResignDate, time.Now().UTC().Format("2006-01-02")),
+			ShiftCode:         item.ShiftCode,
+			ScheduleWindow:    item.ScheduleWindow,
+			LeaveStatus:       item.LeaveStatus,
+			CostCenter:        item.CostCenter,
+			PhotoURL:          item.PhotoURL,
+			Status:            "inactive",
+		})
+	}
+	return output
+}
+
+func enterpriseHRISPullRawPayloadRef(requestID string) string {
+	nextRequestID := strings.TrimSpace(requestID)
+	if nextRequestID == "" {
+		return ""
+	}
+	return "hris_pull_run:" + nextRequestID
+}
+
+func cloneTimePointerLocal(input *time.Time) *time.Time {
+	if input == nil {
+		return nil
+	}
+	value := *input
+	return &value
+}
+
+func shouldAppendEnterpriseWorkerAlertAudit(
+	processed int,
+	failed int,
+	alertFailureThreshold int,
+	skippedByAttemptLimit int,
+	skippedByCooldown int,
+) bool {
+	if failed >= alertFailureThreshold {
+		return true
+	}
+	return processed == 0 && (skippedByAttemptLimit > 0 || skippedByCooldown > 0)
+}
+
+func enterpriseHRISPullFailureAgeSeconds(now time.Time, lastFailureAt *time.Time) int {
+	if lastFailureAt == nil {
+		return 0
+	}
+	if now.Before(*lastFailureAt) {
+		return 0
+	}
+	return int(now.Sub(*lastFailureAt).Seconds())
+}
+
+func updateEnterpriseHRISPullWorkerStatefulMetrics(
+	result *enterpriseHRISPullWorkerResult,
+	connector enterprise.HRISConnector,
+	state hris.ConnectorPullState,
+	mode string,
+	now time.Time,
+) {
+	if result == nil {
+		return
+	}
+	consecutiveFailures := state.ConsecutiveFailures
+	failureAgeSeconds := enterpriseHRISPullFailureAgeSeconds(now, state.LastFailureAt)
+	if consecutiveFailures <= 0 && failureAgeSeconds <= 0 {
+		return
+	}
+	if consecutiveFailures < result.ConsecutiveFailures {
+		return
+	}
+	if consecutiveFailures == result.ConsecutiveFailures && failureAgeSeconds <= result.FailureAgeSeconds {
+		return
+	}
+	result.ConsecutiveFailures = consecutiveFailures
+	result.FailureAgeSeconds = failureAgeSeconds
+	result.LastConnectorID = strings.TrimSpace(connector.ID)
+	result.LastVendor = strings.TrimSpace(connector.Vendor)
+	result.LastMode = strings.TrimSpace(mode)
+}
+
+func shouldAppendEnterpriseHRISPullWorkerAlertAudit(
+	result enterpriseHRISPullWorkerResult,
+	alertFailureThreshold int,
+) bool {
+	if shouldAppendEnterpriseWorkerAlertAudit(
+		result.Processed,
+		result.Failed,
+		alertFailureThreshold,
+		result.SkippedByAttemptLimit,
+		result.SkippedByCooldown,
+	) {
+		return true
+	}
+	threshold := alertFailureThreshold
+	if threshold <= 0 {
+		threshold = 1
+	}
+	return result.ConsecutiveFailures >= threshold
 }
 
 func (s *server) appendEnterpriseSyncWorkerAlertAudit(
@@ -3920,7 +7236,13 @@ func (s *server) appendEnterpriseSyncWorkerAlertAudit(
 	if nextTenantID == "" || s.auditSvc == nil {
 		return
 	}
-	if result.Failed < alertFailureThreshold {
+	if !shouldAppendEnterpriseWorkerAlertAudit(
+		result.Processed,
+		result.Failed,
+		alertFailureThreshold,
+		result.SkippedByAttemptLimit,
+		result.SkippedByCooldown,
+	) {
 		return
 	}
 	target := strings.TrimSpace(
@@ -3944,6 +7266,239 @@ func (s *server) appendEnterpriseSyncWorkerAlertAudit(
 	)
 }
 
+func (s *server) appendEnterpriseSyncWorkerAlertAutoRetryWorkerAudit(
+	tenantID string,
+	result enterpriseSyncWorkerAlertAutoRetryWorkerResult,
+) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" || s.auditSvc == nil {
+		return
+	}
+	target := strings.TrimSpace(
+		fmt.Sprintf(
+			"processed=%d retried=%d failed=%d skipped=%d suppressed=%d",
+			result.Processed,
+			result.Retried,
+			result.Failed,
+			result.Skipped,
+			result.Suppressed,
+		),
+	)
+	_, _ = s.auditSvc.Append(
+		nextTenantID,
+		"enterprise_sync_worker",
+		"system",
+		"enterprise_sync_worker_alert_auto_retry_worker_completed",
+		target,
+		"enterprise_sync_worker",
+	)
+}
+
+func (s *server) appendEnterpriseHRISWebhookReceiptWorkerAlertAudit(
+	tenantID string,
+	result enterpriseHRISWebhookReceiptWorkerResult,
+	alertFailureThreshold int,
+) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" || s.auditSvc == nil {
+		return
+	}
+	if !shouldAppendEnterpriseWorkerAlertAudit(
+		result.Processed,
+		result.Failed,
+		alertFailureThreshold,
+		result.SkippedByAttemptLimit,
+		result.SkippedByCooldown,
+	) {
+		return
+	}
+	targetParts := []string{
+		fmt.Sprintf("failed=%d", result.Failed),
+		fmt.Sprintf("threshold=%d", alertFailureThreshold),
+		fmt.Sprintf("processed=%d", result.Processed),
+		fmt.Sprintf("synced=%d", result.Synced),
+		fmt.Sprintf("skipped=%d", result.Skipped),
+		fmt.Sprintf("skipped_in_flight=%d", result.SkippedByInFlight),
+		fmt.Sprintf("skipped_attempt_limit=%d", result.SkippedByAttemptLimit),
+		fmt.Sprintf("skipped_cooldown=%d", result.SkippedByCooldown),
+	}
+	if nextConnectorID := strings.TrimSpace(result.LastConnectorID); nextConnectorID != "" {
+		targetParts = append(targetParts, "connector_id="+nextConnectorID)
+	}
+	if nextVendor := strings.TrimSpace(result.LastVendor); nextVendor != "" {
+		targetParts = append(targetParts, "vendor="+nextVendor)
+	}
+	if nextRequestID := strings.TrimSpace(result.LastRequestID); nextRequestID != "" {
+		targetParts = append(targetParts, "request_id="+nextRequestID)
+	}
+	if nextEventType := strings.TrimSpace(result.LastEventType); nextEventType != "" {
+		targetParts = append(targetParts, "event_type="+nextEventType)
+	}
+	target := strings.Join(targetParts, " ")
+	_, _ = s.auditSvc.Append(
+		nextTenantID,
+		"enterprise_sync_worker",
+		"system",
+		"enterprise_hris_webhook_receipt_worker_alert",
+		target,
+		"enterprise_sync_worker",
+	)
+}
+
+func (s *server) appendEnterpriseHRISWebhookDLQWorkerAlertAudit(
+	tenantID string,
+	result enterpriseHRISWebhookDLQWorkerResult,
+	alertFailureThreshold int,
+) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" || s.auditSvc == nil {
+		return
+	}
+	if !shouldAppendEnterpriseWorkerAlertAudit(
+		result.Processed,
+		result.Failed,
+		alertFailureThreshold,
+		result.SkippedByAttemptLimit,
+		result.SkippedByCooldown,
+	) {
+		return
+	}
+	targetParts := []string{
+		fmt.Sprintf("failed=%d", result.Failed),
+		fmt.Sprintf("threshold=%d", alertFailureThreshold),
+		fmt.Sprintf("processed=%d", result.Processed),
+		fmt.Sprintf("replayed=%d", result.Replayed),
+		fmt.Sprintf("skipped_in_flight=%d", result.SkippedByInFlight),
+		fmt.Sprintf("skipped_attempt_limit=%d", result.SkippedByAttemptLimit),
+		fmt.Sprintf("skipped_cooldown=%d", result.SkippedByCooldown),
+	}
+	if nextConnectorID := strings.TrimSpace(result.LastConnectorID); nextConnectorID != "" {
+		targetParts = append(targetParts, "connector_id="+nextConnectorID)
+	}
+	if nextVendor := strings.TrimSpace(result.LastVendor); nextVendor != "" {
+		targetParts = append(targetParts, "vendor="+nextVendor)
+	}
+	if nextRequestID := strings.TrimSpace(result.LastRequestID); nextRequestID != "" {
+		targetParts = append(targetParts, "request_id="+nextRequestID)
+	}
+	if nextEventType := strings.TrimSpace(result.LastEventType); nextEventType != "" {
+		targetParts = append(targetParts, "event_type="+nextEventType)
+	}
+	if nextFailureStage := strings.TrimSpace(result.LastFailureStage); nextFailureStage != "" {
+		targetParts = append(targetParts, "failure_stage="+nextFailureStage)
+	}
+	target := strings.Join(targetParts, " ")
+	_, _ = s.auditSvc.Append(
+		nextTenantID,
+		"enterprise_sync_worker",
+		"system",
+		"enterprise_hris_webhook_dlq_worker_alert",
+		target,
+		"enterprise_sync_worker",
+	)
+}
+
+func (s *server) appendEnterpriseHRISPullWorkerAlertAudit(
+	tenantID string,
+	result enterpriseHRISPullWorkerResult,
+	alertFailureThreshold int,
+) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" || s.auditSvc == nil {
+		return
+	}
+	if !shouldAppendEnterpriseHRISPullWorkerAlertAudit(result, alertFailureThreshold) {
+		return
+	}
+	targetParts := []string{
+		fmt.Sprintf("failed=%d", result.Failed),
+		fmt.Sprintf("threshold=%d", alertFailureThreshold),
+		fmt.Sprintf("processed=%d", result.Processed),
+		fmt.Sprintf("synced=%d", result.Synced),
+		fmt.Sprintf("consecutive_failures=%d", result.ConsecutiveFailures),
+		fmt.Sprintf("failure_age_seconds=%d", result.FailureAgeSeconds),
+		fmt.Sprintf("skipped_in_flight=%d", result.SkippedByInFlight),
+		fmt.Sprintf("skipped_attempt_limit=%d", result.SkippedByAttemptLimit),
+		fmt.Sprintf("skipped_cooldown=%d", result.SkippedByCooldown),
+	}
+	if nextConnectorID := strings.TrimSpace(result.LastConnectorID); nextConnectorID != "" {
+		targetParts = append(targetParts, "connector_id="+nextConnectorID)
+	}
+	if nextVendor := strings.TrimSpace(result.LastVendor); nextVendor != "" {
+		targetParts = append(targetParts, "vendor="+nextVendor)
+	}
+	if nextMode := strings.TrimSpace(result.LastMode); nextMode != "" {
+		targetParts = append(targetParts, "mode="+nextMode)
+	}
+	target := strings.Join(targetParts, " ")
+	_, _ = s.auditSvc.Append(
+		nextTenantID,
+		"enterprise_sync_worker",
+		"system",
+		"enterprise_hris_pull_worker_alert",
+		target,
+		"enterprise_sync_worker",
+	)
+}
+
+func (s *server) appendEnterpriseHRISWebhookProcessingAlertAudit(
+	tenantID string,
+	connectorID string,
+	vendor string,
+	eventType string,
+	requestID string,
+	failureStage string,
+) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" || s.auditSvc == nil {
+		return
+	}
+	target := strings.TrimSpace(
+		fmt.Sprintf(
+			"failed=1 threshold=1 processed=1 applied=0 connector_id=%s vendor=%s event_type=%s request_id=%s failure_stage=%s",
+			strings.TrimSpace(connectorID),
+			strings.TrimSpace(vendor),
+			strings.TrimSpace(eventType),
+			strings.TrimSpace(requestID),
+			strings.TrimSpace(failureStage),
+		),
+	)
+	_, _ = s.auditSvc.Append(
+		nextTenantID,
+		"enterprise_sync_worker",
+		"system",
+		"enterprise_hris_webhook_processing_alert",
+		target,
+		"enterprise_sync_worker",
+	)
+}
+
+func pendingSyncWorkerAlertAutoRetryTenantIDs(
+	items []enterprise.SyncWorkerAlertNotification,
+	now time.Time,
+) []string {
+	set := make(map[string]struct{})
+	for i := range items {
+		if items[i].Status != "failed" || !items[i].Retryable || items[i].NextRetryAt == nil {
+			continue
+		}
+		if items[i].NextRetryAt.After(now) {
+			continue
+		}
+		tenantID := strings.TrimSpace(items[i].TenantID)
+		if tenantID == "" {
+			continue
+		}
+		set[tenantID] = struct{}{}
+	}
+	tenantIDs := make([]string, 0, len(set))
+	for tenantID := range set {
+		tenantIDs = append(tenantIDs, tenantID)
+	}
+	sort.Strings(tenantIDs)
+	return tenantIDs
+}
+
 func pendingSyncRequestTenantIDs(records []enterprise.SyncRequestRecord) []string {
 	set := make(map[string]struct{})
 	for i := range records {
@@ -3963,6 +7518,81 @@ func pendingSyncRequestTenantIDs(records []enterprise.SyncRequestRecord) []strin
 	}
 	sort.Strings(items)
 	return items
+}
+
+func pendingHRISWebhookReceiptTenantIDs(items []enterprise.HRISWebhookReceipt) []string {
+	set := make(map[string]struct{})
+	for i := range items {
+		status := strings.TrimSpace(items[i].Status)
+		if status != "received" && status != "failed" && status != "processing" {
+			continue
+		}
+		nextTenantID := strings.TrimSpace(items[i].TenantID)
+		if nextTenantID == "" {
+			continue
+		}
+		set[nextTenantID] = struct{}{}
+	}
+
+	output := make([]string, 0, len(set))
+	for tenantID := range set {
+		output = append(output, tenantID)
+	}
+	sort.Strings(output)
+	return output
+}
+
+func groupHRISWebhookReceiptsByTenant(items []enterprise.HRISWebhookReceipt) map[string][]enterprise.HRISWebhookReceipt {
+	grouped := make(map[string][]enterprise.HRISWebhookReceipt)
+	for i := range items {
+		tenantID := strings.TrimSpace(items[i].TenantID)
+		if tenantID == "" {
+			continue
+		}
+		grouped[tenantID] = append(grouped[tenantID], items[i])
+	}
+	return grouped
+}
+
+func pendingHRISWebhookDLQTenantIDs(
+	entries []hris.DeadLetterEntry,
+	_ int,
+	_ time.Duration,
+	_ time.Time,
+) []string {
+	set := make(map[string]struct{})
+	for i := range entries {
+		status := strings.TrimSpace(entries[i].Status)
+		if status != "dlq" && status != "replaying" {
+			continue
+		}
+		// Keep cooldown/attempt-limit and in-flight replaying entries in scope so skip-only ticks
+		// can still emit the expected worker logs/audit.
+		nextTenantID := strings.TrimSpace(entries[i].TenantID)
+		if nextTenantID == "" {
+			continue
+		}
+		set[nextTenantID] = struct{}{}
+	}
+
+	items := make([]string, 0, len(set))
+	for tenantID := range set {
+		items = append(items, tenantID)
+	}
+	sort.Strings(items)
+	return items
+}
+
+func groupHRISWebhookDLQEntriesByTenant(entries []hris.DeadLetterEntry) map[string][]hris.DeadLetterEntry {
+	grouped := make(map[string][]hris.DeadLetterEntry)
+	for i := range entries {
+		tenantID := strings.TrimSpace(entries[i].TenantID)
+		if tenantID == "" {
+			continue
+		}
+		grouped[tenantID] = append(grouped[tenantID], entries[i])
+	}
+	return grouped
 }
 
 func pendingJITApprovalExternalSyncTenantIDs(
@@ -4022,6 +7652,25 @@ func authenticatedUser(r *http.Request) (auth.User, bool) {
 	value := r.Context().Value(authUserContextKey)
 	user, ok := value.(auth.User)
 	return user, ok
+}
+
+func firstNonEmptyString(items ...string) string {
+	for i := range items {
+		next := strings.TrimSpace(items[i])
+		if next != "" {
+			return next
+		}
+	}
+	return ""
+}
+
+func firstNonZeroDuration(items ...time.Duration) time.Duration {
+	for i := range items {
+		if items[i] > 0 {
+			return items[i]
+		}
+	}
+	return 0
 }
 
 func (s *server) requireRoles(roles ...string) func(http.Handler) http.Handler {
@@ -4319,16 +7968,18 @@ func (s *server) appendAuditLog(r *http.Request, tenantID, action, target, sourc
 
 	actor := "system"
 	role := "system"
-	if user, ok := authenticatedUser(r); ok {
-		if strings.TrimSpace(user.Email) != "" {
-			actor = strings.TrimSpace(user.Email)
-		}
-		if strings.TrimSpace(user.Role) != "" {
-			role = strings.TrimSpace(user.Role)
+	if r != nil {
+		if user, ok := authenticatedUser(r); ok {
+			if strings.TrimSpace(user.Email) != "" {
+				actor = strings.TrimSpace(user.Email)
+			}
+			if strings.TrimSpace(user.Role) != "" {
+				role = strings.TrimSpace(user.Role)
+			}
 		}
 	}
 
-	_, _ = s.auditSvc.Append(
+	record, err := s.auditSvc.Append(
 		nextTenantID,
 		actor,
 		role,
@@ -4336,6 +7987,44 @@ func (s *server) appendAuditLog(r *http.Request, tenantID, action, target, sourc
 		strings.TrimSpace(target),
 		strings.TrimSpace(source),
 	)
+	if err != nil {
+		return
+	}
+	ctx := context.Background()
+	if r != nil {
+		ctx = r.Context()
+	}
+	s.publishInternalEvent(
+		ctx,
+		"audit.log.appended",
+		map[string]any{
+			"tenant_id": nextTenantID,
+			"log":       record,
+		},
+		map[string]string{
+			"tenant_id": nextTenantID,
+			"action":    strings.TrimSpace(action),
+			"source":    strings.TrimSpace(source),
+		},
+	)
+}
+
+func (s *server) publishInternalEvent(
+	ctx context.Context,
+	subject string,
+	payload any,
+	headers map[string]string,
+) {
+	if s.messageBus == nil {
+		return
+	}
+	if err := s.messageBus.PublishJSON(ctx, subject, payload, headers); err != nil {
+		s.loggerOrDefault().Warn(
+			"publish internal event failed",
+			"subject", strings.TrimSpace(subject),
+			"err", err,
+		)
+	}
 }
 
 func (s *server) findGatewayByTenant(tenantID, gatewayID string) (gateway.Gateway, bool) {
@@ -4359,6 +8048,16 @@ func (s *server) setGatewayDeviceToken(gatewayID, deviceToken string) {
 	if nextGatewayID == "" || nextDeviceToken == "" {
 		return
 	}
+	if s.gatewayTokenStore != nil {
+		if err := s.gatewayTokenStore.UpsertGatewayDeviceToken(nextGatewayID, nextDeviceToken); err != nil {
+			s.loggerOrDefault().Error(
+				"gateway bootstrap token persist failed",
+				"gateway_id", nextGatewayID,
+				"err", err,
+			)
+		}
+		return
+	}
 	s.gatewayTokenMu.Lock()
 	defer s.gatewayTokenMu.Unlock()
 	if s.gatewayDeviceTokens == nil {
@@ -4366,7 +8065,11 @@ func (s *server) setGatewayDeviceToken(gatewayID, deviceToken string) {
 	}
 	s.gatewayDeviceTokens[nextGatewayID] = nextDeviceToken
 	if err := s.persistGatewayBootstrapStateLocked(); err != nil {
-		log.Printf("gateway bootstrap token persist failed: gateway=%s err=%v", nextGatewayID, err)
+		s.loggerOrDefault().Error(
+			"gateway bootstrap token persist failed",
+			"gateway_id", nextGatewayID,
+			"err", err,
+		)
 	}
 }
 
@@ -4408,6 +8111,22 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusUnauthorized, "missing device token")
 		return false
 	}
+	if s.gatewayTokenStore != nil {
+		exists, matched, err := s.gatewayTokenStore.VerifyGatewayDeviceToken(strings.TrimSpace(gatewayID), provided)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "device token verification failed")
+			return false
+		}
+		if !exists {
+			writeError(w, http.StatusUnauthorized, "device not registered")
+			return false
+		}
+		if !matched {
+			writeError(w, http.StatusUnauthorized, "invalid device token")
+			return false
+		}
+		return true
+	}
 
 	nextGatewayID := strings.TrimSpace(gatewayID)
 	s.gatewayTokenMu.RLock()
@@ -4425,12 +8144,45 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 	return true
 }
 
+func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.Request) bool {
+	expected := strings.TrimSpace(s.cfg.GatewayBootstrapToken)
+	if expected == "" {
+		writeError(w, http.StatusServiceUnavailable, "gateway bootstrap token is not configured")
+		return false
+	}
+
+	provided := strings.TrimSpace(r.Header.Get("X-Bootstrap-Token"))
+	if provided == "" {
+		if token, err := bearerToken(r.Header.Get("Authorization")); err == nil {
+			provided = token
+		}
+	}
+	if provided == "" {
+		writeError(w, http.StatusUnauthorized, "missing gateway bootstrap token")
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		writeError(w, http.StatusUnauthorized, "invalid gateway bootstrap token")
+		return false
+	}
+
+	return true
+}
+
 func randomHexID(byteLen int) (string, error) {
 	buf := make([]byte, byteLen)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
+}
+
+func resolveHRISVaultMasterKey(raw string) (string, error) {
+	next := strings.TrimSpace(raw)
+	if next != "" {
+		return next, nil
+	}
+	return randomHexID(32)
 }
 
 func parseSerialInventoryCSV(content string) ([]gateway.SerialInventoryImportItem, error) {

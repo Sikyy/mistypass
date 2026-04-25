@@ -1,0 +1,5 @@
+# One regex per line.
+# Any matching file path will be excluded from web-admin/src CJK scanning.
+# Example:
+# ^web-admin/src/some/file\\.tsx$
+

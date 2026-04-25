@@ -1,4 +1,5 @@
 import { policyStatusLabel, scopeSummary } from "@/components/access/access-page-utils"
+import i18n from "@/lib/i18n"
 import type { AccessPolicy, Area, Building, Door, EnterpriseEmployee, UserGroup } from "@/lib/api"
 
 type GroupLedgerRow = {
@@ -14,6 +15,13 @@ export type PolicyLedgerRow = {
   membersLabel: string
   statusLabel: string
   statusVariant: "outline" | "secondary"
+}
+
+function t(key: string, defaultValue: string, options?: Record<string, unknown>) {
+  return i18n.t(key, {
+    defaultValue,
+    ...options,
+  })
 }
 
 export function buildGroupLedgerRows({
@@ -35,8 +43,14 @@ export function buildGroupLedgerRows({
 
 export function deriveGroupLedgerEmptyState(employeeCount: number) {
   return employeeCount === 0
-    ? "还没有用户组。建议先接入员工目录，再建立面向岗位或部门的基础用户组。"
-    : "还没有用户组。可直接用左侧表单创建首个用户组，作为策略与发放对象。"
+    ? t(
+        "accessPage.components.ledgerViewModel.groupEmpty.withoutEmployees",
+        "No user groups yet. Connect employee directory first, then create baseline groups by role or department."
+      )
+    : t(
+        "accessPage.components.ledgerViewModel.groupEmpty.withEmployees",
+        "No user groups yet. Create the first group with the form on the left for policy and issuance targets."
+      )
 }
 
 export function buildPolicyLedgerRows({
@@ -150,13 +164,25 @@ export function derivePolicyLedgerEmptyState({
   topologyReady: boolean
 }) {
   if (policyLedgerQueryActive) {
-    return "当前筛选条件下没有匹配策略，可调整关键词后重试。"
+    return t(
+      "accessPage.components.ledgerViewModel.policyEmpty.filtered",
+      "No matching policy under current filters. Adjust keywords and try again."
+    )
   }
   if (!directoryReady) {
-    return "还没有策略。建议先整理员工与用户组，再回到这里建立访问规则。"
+    return t(
+      "accessPage.components.ledgerViewModel.policyEmpty.directoryNotReady",
+      "No policy yet. Prepare employees and groups first, then come back to define access rules."
+    )
   }
   if (!topologyReady) {
-    return "还没有策略。请先补齐楼宇、区域和门点，再创建精确到门点的访问规则。"
+    return t(
+      "accessPage.components.ledgerViewModel.policyEmpty.topologyNotReady",
+      "No policy yet. Complete building/area/door topology before creating precise door-level rules."
+    )
   }
-  return "还没有策略。可直接用左侧表单创建首条策略。"
+  return t(
+    "accessPage.components.ledgerViewModel.policyEmpty.default",
+    "No policy yet. Create the first policy with the form on the left."
+  )
 }

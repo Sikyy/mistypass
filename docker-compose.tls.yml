@@ -1,0 +1,21 @@
+services:
+  caddy:
+    image: caddy:2.10
+    container_name: mistypass-caddy
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      MISTYPASS_DOMAIN: ${MISTYPASS_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - mistypass_caddy_data:/data
+      - mistypass_caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  mistypass_caddy_data:
+  mistypass_caddy_config:

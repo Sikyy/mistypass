@@ -1,4 +1,5 @@
 import { enterpriseFlowSegmentLabel, enterpriseFlowSegmentStatusLabel } from "@/components/access/access-page-utils"
+import i18n from "@/lib/i18n"
 import type { EnterpriseEmployee } from "@/lib/api"
 
 import type { AccessSection } from "./access-sections-tabs"
@@ -25,12 +26,15 @@ export type EnterpriseFlowContext = {
   targetEmail: string
   targetID: string
   targetName: string
+  workerAction: string
   workerAlertFailed: string
+  workerAlertLabelHint: string
   workerAlertLastSeen: string
   workerAlertLevel: string
   workerAlertTenantID: string
   workerAlertThreshold: string
   workerFilterHint: string
+  workerKind: string
   workerQueryHint: string
   workerReviewStageHint: string
   workerReviewStatusHint: string
@@ -44,11 +48,21 @@ type EnterpriseFlowContextLabelFields = Pick<
   | "remediationHint"
   | "syncJobID"
   | "syncSource"
+  | "workerAction"
   | "workerAlertFailed"
+  | "workerAlertLabelHint"
   | "workerAlertLevel"
   | "workerAlertTenantID"
   | "workerAlertThreshold"
+  | "workerKind"
 >
+
+function t(key: string, defaultValue: string, options?: Record<string, unknown>) {
+  return i18n.t(key, {
+    defaultValue,
+    ...options,
+  })
+}
 
 function queryValue(query: URLSearchParams, key: string) {
   return query.get(key)?.trim() || ""
@@ -134,12 +148,15 @@ export function parseEnterpriseFlowContext(search: string): EnterpriseFlowContex
     targetEmail: queryValue(query, "target_email"),
     targetID: queryValue(query, "target_id"),
     targetName: queryValue(query, "target_name"),
+    workerAction: queryValue(query, "worker_action"),
     workerAlertFailed: queryValue(query, "worker_alert_failed"),
+    workerAlertLabelHint: queryValue(query, "worker_alert_label"),
     workerAlertLastSeen: queryValue(query, "worker_alert_last_seen"),
     workerAlertLevel: queryValue(query, "worker_alert_level"),
     workerAlertTenantID: queryValue(query, "worker_alert_tenant_id"),
     workerAlertThreshold: queryValue(query, "worker_alert_threshold"),
     workerFilterHint: queryValue(query, "worker_filter_hint"),
+    workerKind: queryValue(query, "worker_kind"),
     workerQueryHint: queryValue(query, "worker_query_hint"),
     workerReviewStageHint: queryValue(query, "worker_review_stage_hint"),
     workerReviewStatusHint: queryValue(query, "worker_review_status_hint"),
@@ -150,7 +167,10 @@ export function buildEnterpriseSyncRecordLabel(context: EnterpriseFlowContextLab
   if (!context.syncJobID) {
     return ""
   }
-  return `${context.syncSource || "同步"} 任务 ${context.syncJobID}`
+  return t("accessPage.components.enterpriseFlow.syncRecordLabel", "{{source}} task {{jobID}}", {
+    source: context.syncSource || t("accessPage.components.enterpriseFlow.syncSourceDefault", "Sync"),
+    jobID: context.syncJobID,
+  })
 }
 
 export function buildEnterpriseStagePresetKey({
@@ -164,7 +184,9 @@ export function buildEnterpriseStagePresetKey({
 }
 
 export function buildEnterpriseFlowSummary(message: string) {
-  return `来源：企业页。${message}`
+  return t("accessPage.components.enterpriseFlow.flowSummary", "Source: Enterprise page. {{message}}", {
+    message,
+  })
 }
 
 export function resolveEnterpriseAccessStageRoute(stage: string): { section: AccessSection; pathname: string } | null {
@@ -200,9 +222,27 @@ export function buildEnterpriseSyncGroupDraft({
 }) {
   return {
     description: syncJobID
-      ? `来源同步任务 ${syncJobID}${syncStatus ? `（状态：${syncStatus}）` : ""}`
-      : "来源企业页同步异常复核",
-    name: `${syncSource.toUpperCase()} 同步复核`,
+      ? t(
+          "accessPage.components.enterpriseFlow.syncGroupDraft.descriptionWithJob",
+          "From sync task {{syncJobID}}{{statusSuffix}}",
+          {
+            syncJobID,
+            statusSuffix: syncStatus
+              ? t(
+                  "accessPage.components.enterpriseFlow.syncGroupDraft.statusSuffix",
+                  " (status: {{syncStatus}})",
+                  { syncStatus }
+                )
+              : "",
+          }
+        )
+      : t(
+          "accessPage.components.enterpriseFlow.syncGroupDraft.descriptionFallback",
+          "From enterprise sync exception review"
+        ),
+    name: t("accessPage.components.enterpriseFlow.syncGroupDraft.name", "{{syncSource}} sync review", {
+      syncSource: syncSource.toUpperCase(),
+    }),
   }
 }
 
@@ -217,12 +257,30 @@ export function buildEnterpriseWorkerGroupDraft({
   workerAlertLastSeen: string
   workerAlertTenantID: string
 }) {
-  const workerTenantLabel = workerAlertTenantID || selectedTenantID || "当前租户"
+  const workerTenantLabel =
+    workerAlertTenantID ||
+    selectedTenantID ||
+    t("accessPage.components.enterpriseFlow.worker.currentTenantLabel", "Current tenant")
   return {
-    description: `来源 worker 告警${workerAlertLabel ? `（${workerAlertLabel}）` : ""}${
-      workerAlertLastSeen ? `，last_seen ${workerAlertLastSeen}` : ""
-    }`,
-    name: `${workerTenantLabel} Worker 告警复核`,
+    description: t(
+      "accessPage.components.enterpriseFlow.worker.groupDraftDescription",
+      "From worker alert{{alertSuffix}}{{lastSeenSuffix}}",
+      {
+        alertSuffix: workerAlertLabel
+          ? t("accessPage.components.enterpriseFlow.worker.alertSuffix", " ({{workerAlertLabel}})", {
+              workerAlertLabel,
+            })
+          : "",
+        lastSeenSuffix: workerAlertLastSeen
+          ? t("accessPage.components.enterpriseFlow.worker.lastSeenSuffix", ", last_seen {{workerAlertLastSeen}}", {
+              workerAlertLastSeen,
+            })
+          : "",
+      }
+    ),
+    name: t("accessPage.components.enterpriseFlow.worker.groupDraftName", "{{workerTenantLabel}} worker alert review", {
+      workerTenantLabel,
+    }),
   }
 }
 
@@ -233,8 +291,13 @@ export function buildEnterpriseWorkerPolicyDraftName({
   selectedTenantID: string
   workerAlertTenantID: string
 }) {
-  const workerTenantLabel = workerAlertTenantID || selectedTenantID || "当前租户"
-  return `${workerTenantLabel} Worker 告警策略复核`
+  const workerTenantLabel =
+    workerAlertTenantID ||
+    selectedTenantID ||
+    t("accessPage.components.enterpriseFlow.worker.currentTenantLabel", "Current tenant")
+  return t("accessPage.components.enterpriseFlow.worker.policyDraftName", "{{workerTenantLabel}} worker alert policy review", {
+    workerTenantLabel,
+  })
 }
 
 export function buildEnterpriseWorkerAlertLabel({
@@ -247,12 +310,46 @@ export function buildEnterpriseWorkerAlertLabel({
   if (!context.workerAlertLevel) {
     return ""
   }
-  const tenantLabel = context.workerAlertTenantID || selectedTenantID || "当前租户"
+  const tenantLabel =
+    context.workerAlertTenantID ||
+    selectedTenantID ||
+    t("accessPage.components.enterpriseFlow.worker.currentTenantLabel", "Current tenant")
   const thresholdLabel =
     context.workerAlertFailed && context.workerAlertThreshold
-      ? `（failed ${context.workerAlertFailed} / threshold ${context.workerAlertThreshold}）`
+      ? t(
+          "accessPage.components.enterpriseFlow.worker.alertThresholdSuffix",
+          " (failed {{failed}} / threshold {{threshold}})",
+          {
+            failed: context.workerAlertFailed,
+            threshold: context.workerAlertThreshold,
+          }
+        )
       : ""
-  return `${tenantLabel} worker ${context.workerAlertLevel} 告警${thresholdLabel}`
+  const workerScopeLabel =
+    context.workerAlertLabelHint ||
+    context.workerAction ||
+    context.workerKind
+  if (workerScopeLabel) {
+    return t(
+      "accessPage.components.enterpriseFlow.worker.alertLabelScoped",
+      "{{tenantLabel}} {{workerScopeLabel}} {{level}} alert{{thresholdLabel}}",
+      {
+        tenantLabel,
+        workerScopeLabel,
+        level: context.workerAlertLevel,
+        thresholdLabel,
+      }
+    )
+  }
+  return t(
+    "accessPage.components.enterpriseFlow.worker.alertLabel",
+    "{{tenantLabel}} worker {{level}} alert{{thresholdLabel}}",
+    {
+      tenantLabel,
+      level: context.workerAlertLevel,
+      thresholdLabel,
+    }
+  )
 }
 
 export function deriveEnterpriseRemediationLabel({
@@ -278,9 +375,9 @@ export function deriveEnterpriseHintedMemberLabel({
 }
 
 export function buildEnterpriseSummaryTail({
-  syncLabelPrefix = "同步记录：",
+  syncLabelPrefix = t("accessPage.components.enterpriseFlow.summaryTail.syncLabelPrefix", "Sync record: "),
   syncRecordLabel,
-  workerLabelPrefix = "worker 告警：",
+  workerLabelPrefix = t("accessPage.components.enterpriseFlow.summaryTail.workerLabelPrefix", "Worker alert: "),
   workerAlertLabel,
 }: {
   syncLabelPrefix?: string
@@ -288,8 +385,18 @@ export function buildEnterpriseSummaryTail({
   workerLabelPrefix?: string
   workerAlertLabel: string
 }) {
-  const syncTail = syncRecordLabel ? `（${syncLabelPrefix}${syncRecordLabel}）` : ""
-  const workerTail = workerAlertLabel ? `（${workerLabelPrefix}${workerAlertLabel}）` : ""
+  const syncTail = syncRecordLabel
+    ? t("accessPage.components.enterpriseFlow.summaryTail.syncTail", " ({{syncLabelPrefix}}{{syncRecordLabel}})", {
+        syncLabelPrefix,
+        syncRecordLabel,
+      })
+    : ""
+  const workerTail = workerAlertLabel
+    ? t("accessPage.components.enterpriseFlow.summaryTail.workerTail", " ({{workerLabelPrefix}}{{workerAlertLabel}})", {
+        workerLabelPrefix,
+        workerAlertLabel,
+      })
+    : ""
   return `${syncTail}${workerTail}`
 }
 
@@ -391,7 +498,14 @@ export function hasWorkerAlertFlowHints(context: EnterpriseFlowContext | null) {
   if (!context) {
     return false
   }
-  const hint = context.workerAlertLevel || context.workerAlertTenantID || context.workerFilterHint || context.workerQueryHint
+  const hint =
+    context.workerAction ||
+    context.workerAlertLabelHint ||
+    context.workerAlertLevel ||
+    context.workerAlertTenantID ||
+    context.workerFilterHint ||
+    context.workerKind ||
+    context.workerQueryHint
   return hint.trim().length > 0
 }
 
@@ -426,11 +540,14 @@ export function buildEnterpriseSyncWorkerReviewLink({
 
   setOrDelete(query, "worker_filter_hint", normalizeWorkerFilterHint(context))
   setOrDelete(query, "worker_query_hint", context.workerQueryHint.trim() || context.workerAlertTenantID.trim())
+  setOrDelete(query, "worker_action", context.workerAction)
   setOrDelete(query, "worker_alert_level", context.workerAlertLevel)
+  setOrDelete(query, "worker_alert_label", context.workerAlertLabelHint)
   setOrDelete(query, "worker_alert_tenant_id", context.workerAlertTenantID)
   setOrDelete(query, "worker_alert_last_seen", context.workerAlertLastSeen)
   setOrDelete(query, "worker_alert_failed", context.workerAlertFailed)
   setOrDelete(query, "worker_alert_threshold", context.workerAlertThreshold)
+  setOrDelete(query, "worker_kind", context.workerKind)
 
   const nextQuery = query.toString()
   return nextQuery ? `/enterprise?${nextQuery}#sync` : "/enterprise#sync"
@@ -488,6 +605,15 @@ export function applyEnterpriseWalletContext({
   }
   if (context.workerAlertThreshold) {
     query.set("worker_alert_threshold", context.workerAlertThreshold)
+  }
+  if (context.workerAction) {
+    query.set("worker_action", context.workerAction)
+  }
+  if (context.workerAlertLabelHint) {
+    query.set("worker_alert_label", context.workerAlertLabelHint)
+  }
+  if (context.workerKind) {
+    query.set("worker_kind", context.workerKind)
   }
   if (context.workerFilterHint) {
     query.set("worker_filter_hint", context.workerFilterHint)

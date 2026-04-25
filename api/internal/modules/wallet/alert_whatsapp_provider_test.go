@@ -38,7 +38,7 @@ func TestMetaWhatsAppSenderSend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new meta sender failed: %v", err)
 	}
-	err = sender.Send(context.Background(), AlertWhatsAppSendInput{
+	result, err := sender.Send(context.Background(), AlertWhatsAppSendInput{
 		TenantID: "tenant_demo_jakarta",
 		To:       []string{"+62811111111", "+62822222222"},
 		Text:     "wallet alert",
@@ -54,6 +54,9 @@ func TestMetaWhatsAppSenderSend(t *testing.T) {
 	}
 	if capturedPath != "/112233445566/messages" {
 		t.Fatalf("unexpected request path: %s", capturedPath)
+	}
+	if result.ProviderDeliveryStatus != "accepted" {
+		t.Fatalf("expected accepted send status, got %+v", result)
 	}
 }
 
@@ -73,7 +76,7 @@ func TestMetaWhatsAppSenderSendRetryableFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new meta sender failed: %v", err)
 	}
-	err = sender.Send(context.Background(), AlertWhatsAppSendInput{
+	_, err = sender.Send(context.Background(), AlertWhatsAppSendInput{
 		TenantID: "tenant_demo_jakarta",
 		To:       []string{"+62811111111"},
 		Text:     "wallet alert",
@@ -87,5 +90,74 @@ func TestMetaWhatsAppSenderSendRetryableFailure(t *testing.T) {
 	}
 	if !httpErr.Retryable() {
 		t.Fatalf("expected retryable http error, got %+v", httpErr)
+	}
+}
+
+func TestMetaWhatsAppSenderSendIncludesIdempotencyKeyHeader(t *testing.T) {
+	const expectedKey = "wallet-whatsapp-idem-001"
+
+	var capturedIdempotencyKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedIdempotencyKey = r.Header.Get("Idempotency-Key")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	sender, err := newMetaWhatsAppSender(
+		server.URL,
+		"wa_test_token",
+		"112233445566",
+		3*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("new meta sender failed: %v", err)
+	}
+
+	input := AlertWhatsAppSendInput{
+		TenantID:       "tenant_demo_jakarta",
+		To:             []string{"+62811111111"},
+		IdempotencyKey: expectedKey,
+		Text:           "wallet alert",
+	}
+
+	result, err := sender.Send(context.Background(), input)
+	if err != nil {
+		t.Fatalf("meta sender send failed: %v", err)
+	}
+	if capturedIdempotencyKey != expectedKey {
+		t.Fatalf("expected Idempotency-Key header %q, got %q", expectedKey, capturedIdempotencyKey)
+	}
+	if result.ProviderDeliveryStatus != "accepted" {
+		t.Fatalf("expected accepted send status, got %+v", result)
+	}
+}
+
+func TestMetaWhatsAppSenderSendReturnsProviderDeliveryID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"messages":[{"id":"wamid.123"}]}`))
+	}))
+	defer server.Close()
+
+	sender, err := newMetaWhatsAppSender(
+		server.URL,
+		"wa_test_token",
+		"112233445566",
+		3*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("new meta sender failed: %v", err)
+	}
+
+	result, err := sender.Send(context.Background(), AlertWhatsAppSendInput{
+		TenantID: "tenant_demo_jakarta",
+		To:       []string{"+62811111111"},
+		Text:     "wallet alert",
+	})
+	if err != nil {
+		t.Fatalf("meta sender send failed: %v", err)
+	}
+	if result.ProviderDeliveryID != "wamid.123" {
+		t.Fatalf("expected provider delivery id wamid.123, got %+v", result)
 	}
 }

@@ -3,11 +3,13 @@ package state
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strings"
 	"time"
@@ -15,14 +17,17 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
+	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
 	"github.com/mistypass/cloud/api/internal/modules/space"
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
+	"github.com/mistypass/cloud/api/internal/state/sqlcgen"
 
 	"github.com/lib/pq"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const (
@@ -30,6 +35,10 @@ const (
 	defaultQueryTimeout = 5 * time.Second
 	defaultReplayLimit  = 100
 	maxReplayLimit      = 500
+	defaultMaxOpenConns = 25
+	defaultMaxIdleConns = 10
+	defaultConnMaxIdle  = 5 * time.Minute
+	defaultConnLifetime = 30 * time.Minute
 
 	changeTypeSnapshotSaved = "snapshot_saved"
 
@@ -60,33 +69,35 @@ var projectionKeys = []string{
 }
 
 var allowedProjectionDeleteTables = map[string]struct{}{
-	"mistypass_tenants":                    {},
-	"mistypass_buildings":                  {},
-	"mistypass_floors":                     {},
-	"mistypass_areas":                      {},
-	"mistypass_doors":                      {},
-	"mistypass_door_groups":                {},
-	"mistypass_access_users":               {},
-	"mistypass_access_user_groups":         {},
-	"mistypass_access_policies":            {},
-	"mistypass_temporary_access":           {},
-	"mistypass_visitor_passes":             {},
-	"mistypass_gateways":                   {},
-	"mistypass_gateway_devices":            {},
-	"mistypass_gateway_serial_inventory":   {},
-	"mistypass_enterprise_domain_mappings": {},
-	"mistypass_enterprise_idp_configs":     {},
-	"mistypass_enterprise_employees":       {},
-	"mistypass_enterprise_sync_jobs":       {},
-	"mistypass_access_events":              {},
-	"mistypass_device_events":              {},
-	"mistypass_alarms":                     {},
-	"mistypass_audit_logs":                 {},
-	"mistypass_wallet_configs":             {},
-	"mistypass_wallet_templates":           {},
-	"mistypass_wallet_passes":              {},
-	"mistypass_wallet_jobs":                {},
-	"mistypass_wallet_audit_logs":          {},
+	"mistypass_tenants":                          {},
+	"mistypass_buildings":                        {},
+	"mistypass_floors":                           {},
+	"mistypass_areas":                            {},
+	"mistypass_doors":                            {},
+	"mistypass_door_groups":                      {},
+	"mistypass_access_users":                     {},
+	"mistypass_access_user_groups":               {},
+	"mistypass_access_policies":                  {},
+	"mistypass_temporary_access":                 {},
+	"mistypass_visitor_passes":                   {},
+	"mistypass_gateways":                         {},
+	"mistypass_gateway_devices":                  {},
+	"mistypass_gateway_serial_inventory":         {},
+	"mistypass_enterprise_domain_mappings":       {},
+	"mistypass_enterprise_hris_connectors":       {},
+	"mistypass_enterprise_hris_webhook_receipts": {},
+	"mistypass_enterprise_idp_configs":           {},
+	"mistypass_enterprise_employees":             {},
+	"mistypass_enterprise_sync_jobs":             {},
+	"mistypass_access_events":                    {},
+	"mistypass_device_events":                    {},
+	"mistypass_alarms":                           {},
+	"mistypass_audit_logs":                       {},
+	"mistypass_wallet_configs":                   {},
+	"mistypass_wallet_templates":                 {},
+	"mistypass_wallet_passes":                    {},
+	"mistypass_wallet_jobs":                      {},
+	"mistypass_wallet_audit_logs":                {},
 }
 
 type tenantStateSnapshot struct {
@@ -115,10 +126,13 @@ type gatewayStateSnapshot struct {
 }
 
 type enterpriseStateSnapshot struct {
-	DomainMappings []enterprise.DomainMapping      `json:"domain_mappings"`
-	IDPConfigs     map[string]enterprise.IDPConfig `json:"idp_configs"`
-	Employees      []enterprise.EnterpriseEmployee `json:"employees"`
-	SyncJobs       []enterprise.SyncJob            `json:"sync_jobs"`
+	DomainMappings        []enterprise.DomainMapping        `json:"domain_mappings"`
+	HRISConnectors        []enterprise.HRISConnector        `json:"hris_connectors,omitempty"`
+	HRISWebhookReceipts   []enterprise.HRISWebhookReceipt   `json:"hris_webhook_receipts,omitempty"`
+	HRISWebhookExecutions []enterprise.HRISWebhookExecution `json:"hris_webhook_executions,omitempty"`
+	IDPConfigs            map[string]enterprise.IDPConfig   `json:"idp_configs"`
+	Employees             []enterprise.EnterpriseEmployee   `json:"employees"`
+	SyncJobs              []enterprise.SyncJob              `json:"sync_jobs"`
 }
 
 type eventStateSnapshot struct {
@@ -144,6 +158,7 @@ type walletStateSnapshot struct {
 
 type PostgresStore struct {
 	db                *sql.DB
+	queries           *sqlcgen.Queries
 	projectionApplier func(ctx context.Context, key string, payload []byte) error
 }
 
@@ -180,6 +195,10 @@ func NewPostgresStore(databaseURL string) (*PostgresStore, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(defaultMaxOpenConns)
+	db.SetMaxIdleConns(defaultMaxIdleConns)
+	db.SetConnMaxIdleTime(defaultConnMaxIdle)
+	db.SetConnMaxLifetime(defaultConnLifetime)
 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
@@ -188,7 +207,10 @@ func NewPostgresStore(databaseURL string) (*PostgresStore, error) {
 		return nil, err
 	}
 
-	store := &PostgresStore{db: db}
+	store := &PostgresStore{
+		db:      db,
+		queries: sqlcgen.New(db),
+	}
 	store.projectionApplier = store.applyProjection
 	return store, nil
 }
@@ -198,6 +220,329 @@ func (s *PostgresStore) Close() error {
 		return nil
 	}
 	return s.db.Close()
+}
+
+func (s *PostgresStore) UpsertAuthUser(user auth.User, passwordHash []byte) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextUser, ok := normalizeAuthUser(user)
+	if !ok {
+		return errors.New("auth user id/email/role are required")
+	}
+	buildingIDsJSON, err := json.Marshal(nextUser.BuildingIDs)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	return s.queries.UpsertAuthUser(ctx, sqlcgen.UpsertAuthUserParams{
+		ID:           nextUser.ID,
+		Email:        nextUser.Email,
+		Role:         nextUser.Role,
+		TenantID:     nextUser.TenantID,
+		BuildingIds:  buildingIDsJSON,
+		PasswordHash: cloneBytes(passwordHash),
+	})
+}
+
+func (s *PostgresStore) FindAuthUserByEmail(email string) (auth.User, []byte, bool, error) {
+	if s == nil || s.db == nil {
+		return auth.User{}, nil, false, errors.New("postgres store is not initialized")
+	}
+	nextEmail := normalizeAuthEmail(email)
+	if nextEmail == "" {
+		return auth.User{}, nil, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	row, err := s.queries.GetAuthUserByEmail(ctx, nextEmail)
+	if errors.Is(err, sql.ErrNoRows) {
+		return auth.User{}, nil, false, nil
+	}
+	if err != nil {
+		return auth.User{}, nil, false, err
+	}
+	user := auth.User{
+		ID:       row.ID,
+		Email:    row.Email,
+		Role:     row.Role,
+		TenantID: row.TenantID,
+	}
+	buildingIDsRaw := []byte(row.BuildingIds)
+	user.BuildingIDs, err = decodeAuthBuildingIDs(buildingIDsRaw)
+	if err != nil {
+		return auth.User{}, nil, false, err
+	}
+	normalizedUser, ok := normalizeAuthUser(user)
+	if !ok {
+		return auth.User{}, nil, false, nil
+	}
+	return normalizedUser, cloneBytes(row.PasswordHash), true, nil
+}
+
+func (s *PostgresStore) FindAuthUserByID(userID string) (auth.User, []byte, bool, error) {
+	if s == nil || s.db == nil {
+		return auth.User{}, nil, false, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return auth.User{}, nil, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	row, err := s.queries.GetAuthUserByID(ctx, nextUserID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return auth.User{}, nil, false, nil
+	}
+	if err != nil {
+		return auth.User{}, nil, false, err
+	}
+	user := auth.User{
+		ID:       row.ID,
+		Email:    row.Email,
+		Role:     row.Role,
+		TenantID: row.TenantID,
+	}
+	buildingIDsRaw := []byte(row.BuildingIds)
+	user.BuildingIDs, err = decodeAuthBuildingIDs(buildingIDsRaw)
+	if err != nil {
+		return auth.User{}, nil, false, err
+	}
+	normalizedUser, ok := normalizeAuthUser(user)
+	if !ok {
+		return auth.User{}, nil, false, nil
+	}
+	return normalizedUser, cloneBytes(row.PasswordHash), true, nil
+}
+
+func (s *PostgresStore) UpsertAuthRefreshSession(sessionID, userID string, expiresAt time.Time) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextSessionID := strings.TrimSpace(sessionID)
+	nextUserID := strings.TrimSpace(userID)
+	nextExpiresAt := expiresAt.UTC()
+	if nextSessionID == "" || nextUserID == "" || nextExpiresAt.IsZero() {
+		return errors.New("refresh session id/user id/expires_at are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	return s.queries.UpsertAuthRefreshSession(ctx, sqlcgen.UpsertAuthRefreshSessionParams{
+		SessionID: nextSessionID,
+		UserID:    nextUserID,
+		ExpiresAt: nextExpiresAt,
+	})
+}
+
+func (s *PostgresStore) FindAuthRefreshSession(sessionID string) (string, time.Time, bool, error) {
+	if s == nil || s.db == nil {
+		return "", time.Time{}, false, errors.New("postgres store is not initialized")
+	}
+	nextSessionID := strings.TrimSpace(sessionID)
+	if nextSessionID == "" {
+		return "", time.Time{}, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	row, err := s.queries.GetAuthRefreshSession(ctx, nextSessionID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", time.Time{}, false, nil
+	}
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	return strings.TrimSpace(row.UserID), row.ExpiresAt.UTC(), true, nil
+}
+
+func (s *PostgresStore) DeleteAuthRefreshSession(sessionID string) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextSessionID := strings.TrimSpace(sessionID)
+	if nextSessionID == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	return s.queries.DeleteAuthRefreshSession(ctx, nextSessionID)
+}
+
+func (s *PostgresStore) DeleteAuthRefreshSessionsByUserID(userID string) (int, error) {
+	if s == nil || s.db == nil {
+		return 0, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return 0, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	affected, err := s.queries.DeleteAuthRefreshSessionsByUserID(ctx, nextUserID)
+	if err != nil {
+		return 0, err
+	}
+	return int(affected), nil
+}
+
+func (s *PostgresStore) UpsertAuthRevokedAccessToken(tokenID string, expiresAt time.Time) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextTokenID := strings.TrimSpace(tokenID)
+	nextExpiresAt := expiresAt.UTC()
+	if nextTokenID == "" || nextExpiresAt.IsZero() {
+		return errors.New("revoked access token id/expires_at are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	return s.queries.UpsertAuthRevokedAccessToken(ctx, sqlcgen.UpsertAuthRevokedAccessTokenParams{
+		TokenID:   nextTokenID,
+		ExpiresAt: nextExpiresAt,
+	})
+}
+
+func (s *PostgresStore) IsAuthAccessTokenRevoked(tokenID string, now time.Time) (bool, error) {
+	if s == nil || s.db == nil {
+		return false, errors.New("postgres store is not initialized")
+	}
+	nextTokenID := strings.TrimSpace(tokenID)
+	if nextTokenID == "" {
+		return false, nil
+	}
+	nextNow := now.UTC()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	expiresAt, err := s.queries.GetAuthRevokedAccessTokenExpiresAt(ctx, nextTokenID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if !expiresAt.After(nextNow) {
+		_ = s.queries.DeleteExpiredAuthRevokedAccessToken(ctx, sqlcgen.DeleteExpiredAuthRevokedAccessTokenParams{
+			TokenID:   nextTokenID,
+			ExpiresAt: nextNow,
+		})
+		return false, nil
+	}
+	return true, nil
+}
+
+func (s *PostgresStore) UpsertAuthAdminMFAState(userID string, state auth.AdminMFAPersistenceState) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return errors.New("auth admin mfa user_id is required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	_, err := s.db.ExecContext(
+		ctx,
+		`insert into mistypass_auth_admin_mfa_states (user_id, secret, pending_secret, enabled, updated_at, created_at)
+values ($1, $2, $3, $4, $5, now())
+on conflict (user_id) do update
+set secret = excluded.secret,
+    pending_secret = excluded.pending_secret,
+    enabled = excluded.enabled,
+    updated_at = excluded.updated_at`,
+		nextUserID,
+		strings.TrimSpace(state.Secret),
+		strings.TrimSpace(state.PendingSecret),
+		state.Enabled,
+		state.UpdatedAt.UTC(),
+	)
+	return err
+}
+
+func (s *PostgresStore) FindAuthAdminMFAState(userID string) (auth.AdminMFAPersistenceState, bool, error) {
+	if s == nil || s.db == nil {
+		return auth.AdminMFAPersistenceState{}, false, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return auth.AdminMFAPersistenceState{}, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	row := s.db.QueryRowContext(
+		ctx,
+		`select secret, pending_secret, enabled, updated_at
+from mistypass_auth_admin_mfa_states
+where user_id = $1`,
+		nextUserID,
+	)
+	var state auth.AdminMFAPersistenceState
+	err := row.Scan(&state.Secret, &state.PendingSecret, &state.Enabled, &state.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return auth.AdminMFAPersistenceState{}, false, nil
+	}
+	if err != nil {
+		return auth.AdminMFAPersistenceState{}, false, err
+	}
+	state.Secret = strings.TrimSpace(state.Secret)
+	state.PendingSecret = strings.TrimSpace(state.PendingSecret)
+	state.UpdatedAt = state.UpdatedAt.UTC()
+	return state, true, nil
+}
+
+func (s *PostgresStore) UpsertGatewayDeviceToken(gatewayID, deviceToken string) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	nextToken := strings.TrimSpace(deviceToken)
+	if nextGatewayID == "" || nextToken == "" {
+		return errors.New("gateway_id and device_token are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	return s.queries.UpsertGatewayDeviceToken(ctx, sqlcgen.UpsertGatewayDeviceTokenParams{
+		GatewayID: nextGatewayID,
+		TokenHash: gatewayDeviceTokenHash(nextToken),
+	})
+}
+
+func (s *PostgresStore) VerifyGatewayDeviceToken(gatewayID, providedToken string) (bool, bool, error) {
+	if s == nil || s.db == nil {
+		return false, false, errors.New("postgres store is not initialized")
+	}
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	nextProvidedToken := strings.TrimSpace(providedToken)
+	if nextGatewayID == "" || nextProvidedToken == "" {
+		return false, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	storedHash, err := s.queries.GetGatewayDeviceTokenHash(ctx, nextGatewayID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	computed := gatewayDeviceTokenHash(nextProvidedToken)
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(storedHash)), []byte(computed)) == 1 {
+		return true, true, nil
+	}
+	return true, false, nil
 }
 
 func (s *PostgresStore) EnsureSchema() error {
@@ -477,6 +822,55 @@ create unique index if not exists mistypass_gateway_serial_inventory_serial_idx 
 create index if not exists mistypass_gateway_serial_inventory_tenant_idx on mistypass_gateway_serial_inventory(tenant_id);
 create index if not exists mistypass_gateway_serial_inventory_status_idx on mistypass_gateway_serial_inventory(status);
 
+create table if not exists mistypass_gateway_device_tokens (
+  gateway_id text primary key,
+  token_hash text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_gateway_device_tokens_updated_idx on mistypass_gateway_device_tokens(updated_at desc);
+
+create table if not exists mistypass_auth_users (
+  id text primary key,
+  email text not null,
+  role text not null,
+  tenant_id text not null default '',
+  building_ids jsonb not null default '[]'::jsonb,
+  password_hash bytea,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists mistypass_auth_users_email_idx on mistypass_auth_users(lower(email));
+create index if not exists mistypass_auth_users_updated_idx on mistypass_auth_users(updated_at desc);
+
+create table if not exists mistypass_auth_refresh_sessions (
+  session_id text primary key,
+  user_id text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_auth_refresh_sessions_user_idx on mistypass_auth_refresh_sessions(user_id);
+create index if not exists mistypass_auth_refresh_sessions_expires_idx on mistypass_auth_refresh_sessions(expires_at);
+
+create table if not exists mistypass_auth_revoked_access_tokens (
+  token_id text primary key,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_auth_revoked_access_tokens_expires_idx on mistypass_auth_revoked_access_tokens(expires_at);
+
+create table if not exists mistypass_auth_admin_mfa_states (
+  user_id text primary key,
+  secret text not null default '',
+  pending_secret text not null default '',
+  enabled boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_auth_admin_mfa_states_updated_idx on mistypass_auth_admin_mfa_states(updated_at desc);
+
 create table if not exists mistypass_enterprise_domain_mappings (
   id text primary key,
   tenant_id text not null,
@@ -488,6 +882,49 @@ create table if not exists mistypass_enterprise_domain_mappings (
   synced_at timestamptz not null default now()
 );
 create index if not exists mistypass_enterprise_domain_tenant_idx on mistypass_enterprise_domain_mappings(tenant_id);
+
+create table if not exists mistypass_enterprise_hris_connectors (
+  id text primary key,
+  tenant_id text not null,
+  vendor text not null,
+  status text not null,
+  sync_strategy text not null,
+  credential_ref text,
+  webhook_secret_ref text,
+  last_sync_at timestamptz,
+  updated_by text,
+  created_at timestamptz not null,
+  updated_at timestamptz not null,
+  raw jsonb not null,
+  synced_at timestamptz not null default now()
+);
+create index if not exists mistypass_enterprise_hris_connectors_tenant_idx on mistypass_enterprise_hris_connectors(tenant_id);
+create unique index if not exists mistypass_enterprise_hris_connectors_tenant_vendor_uidx on mistypass_enterprise_hris_connectors(tenant_id, vendor);
+
+create table if not exists mistypass_enterprise_hris_webhook_receipts (
+  id text primary key,
+  tenant_id text not null,
+  connector_id text not null,
+  vendor text not null,
+  event_type text,
+  request_id text,
+  content_type text,
+  headers jsonb,
+  raw_payload text not null default '',
+  source_ip text,
+  status text not null,
+  attempt_count integer not null default 0,
+  last_error text,
+  received_at timestamptz not null,
+  last_attempt_at timestamptz,
+  processed_at timestamptz,
+  raw jsonb not null,
+  synced_at timestamptz not null default now()
+);
+alter table if exists mistypass_enterprise_hris_webhook_receipts add column if not exists attempt_count integer not null default 0;
+alter table if exists mistypass_enterprise_hris_webhook_receipts add column if not exists last_attempt_at timestamptz;
+create index if not exists mistypass_enterprise_hris_webhook_receipts_tenant_idx on mistypass_enterprise_hris_webhook_receipts(tenant_id);
+create index if not exists mistypass_enterprise_hris_webhook_receipts_connector_idx on mistypass_enterprise_hris_webhook_receipts(connector_id, received_at desc);
 
 create table if not exists mistypass_enterprise_idp_configs (
   id text primary key,
@@ -546,7 +983,7 @@ create table if not exists mistypass_enterprise_sync_jobs (
 create index if not exists mistypass_enterprise_sync_jobs_tenant_idx on mistypass_enterprise_sync_jobs(tenant_id);
 
 create table if not exists mistypass_access_events (
-  id text primary key,
+  id text not null,
   tenant_id text not null,
   building_id text,
   area_id text,
@@ -557,12 +994,16 @@ create table if not exists mistypass_access_events (
   result text,
   at timestamptz not null,
   raw jsonb not null,
-  synced_at timestamptz not null default now()
+  synced_at timestamptz not null default now(),
+  primary key (id, at)
 );
+create unique index if not exists mistypass_access_events_id_at_uidx on mistypass_access_events(id, at);
+create index if not exists mistypass_access_events_id_idx on mistypass_access_events(id);
 create index if not exists mistypass_access_events_tenant_idx on mistypass_access_events(tenant_id);
+create index if not exists mistypass_access_events_at_idx on mistypass_access_events(at desc);
 
 create table if not exists mistypass_device_events (
-  id text primary key,
+  id text not null,
   tenant_id text not null,
   building_id text,
   event_type text,
@@ -571,9 +1012,13 @@ create table if not exists mistypass_device_events (
   result text,
   at timestamptz not null,
   raw jsonb not null,
-  synced_at timestamptz not null default now()
+  synced_at timestamptz not null default now(),
+  primary key (id, at)
 );
+create unique index if not exists mistypass_device_events_id_at_uidx on mistypass_device_events(id, at);
+create index if not exists mistypass_device_events_id_idx on mistypass_device_events(id);
 create index if not exists mistypass_device_events_tenant_idx on mistypass_device_events(tenant_id);
+create index if not exists mistypass_device_events_at_idx on mistypass_device_events(at desc);
 
 create table if not exists mistypass_alarms (
   id text primary key,
@@ -699,6 +1144,72 @@ create index if not exists mistypass_wallet_audit_logs_tenant_idx on mistypass_w
 	return err
 }
 
+func gatewayDeviceTokenHash(deviceToken string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(deviceToken)))
+	return hex.EncodeToString(sum[:])
+}
+
+func normalizeAuthUser(user auth.User) (auth.User, bool) {
+	nextUser := auth.User{
+		ID:          strings.TrimSpace(user.ID),
+		Email:       normalizeAuthEmail(user.Email),
+		Role:        strings.ToLower(strings.TrimSpace(user.Role)),
+		TenantID:    strings.TrimSpace(user.TenantID),
+		BuildingIDs: normalizeAuthIDs(user.BuildingIDs),
+	}
+	if nextUser.ID == "" || nextUser.Email == "" || nextUser.Role == "" {
+		return auth.User{}, false
+	}
+	return nextUser, true
+}
+
+func normalizeAuthEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func normalizeAuthIDs(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for i := range values {
+		value := strings.TrimSpace(values[i])
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	if len(result) == 0 {
+		return []string{}
+	}
+	return result
+}
+
+func decodeAuthBuildingIDs(raw []byte) ([]string, error) {
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return []string{}, nil
+	}
+	values := []string{}
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, err
+	}
+	return normalizeAuthIDs(values), nil
+}
+
+func cloneBytes(src []byte) []byte {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
+}
+
 func (s *PostgresStore) syncProjectionTables(ctx context.Context) error {
 	for _, key := range projectionKeys {
 		payload, found, err := s.loadRawPayload(ctx, key)
@@ -716,8 +1227,7 @@ func (s *PostgresStore) syncProjectionTables(ctx context.Context) error {
 }
 
 func (s *PostgresStore) loadRawPayload(ctx context.Context, key string) ([]byte, bool, error) {
-	var raw []byte
-	err := s.db.QueryRowContext(ctx, `select payload from mistypass where state_key = $1`, key).Scan(&raw)
+	raw, err := s.queries.GetStatePayload(ctx, key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -738,12 +1248,7 @@ func (s *PostgresStore) Load(key string, dst any) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 
-	var raw []byte
-	err := s.db.QueryRowContext(
-		ctx,
-		`select payload from mistypass where state_key = $1`,
-		key,
-	).Scan(&raw)
+	raw, err := s.queries.GetStatePayload(ctx, key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -784,7 +1289,14 @@ func (s *PostgresStore) Save(key string, value any) error {
 	}
 	defer func() {
 		if tx != nil {
-			_ = tx.Rollback()
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				slog.Default().Error(
+					"state tx rollback failed",
+					"op", "save",
+					"key", nextKey,
+					"err", err,
+				)
+			}
 		}
 	}()
 
@@ -806,17 +1318,10 @@ func (s *PostgresStore) Save(key string, value any) error {
 		}
 	}
 
-	_, err = tx.ExecContext(
-		ctx,
-		`insert into mistypass (state_key, payload, updated_at)
-values ($1, $2::jsonb, now())
-on conflict (state_key) do update
-set payload = excluded.payload,
-    updated_at = now()`,
-		nextKey,
-		string(payload),
-	)
-	if err != nil {
+	if err := s.queries.WithTx(tx).UpsertStatePayload(ctx, sqlcgen.UpsertStatePayloadParams{
+		StateKey: nextKey,
+		Payload:  payload,
+	}); err != nil {
 		return fmt.Errorf("save state %q: %w", nextKey, err)
 	}
 
@@ -844,13 +1349,122 @@ set payload = excluded.payload,
 	return nil
 }
 
+func (s *PostgresStore) CompareAndSwap(key string, expectedExists bool, expected any, next any) (bool, error) {
+	if s == nil || s.db == nil {
+		return false, errors.New("postgres store is not initialized")
+	}
+
+	nextKey := strings.TrimSpace(key)
+	if nextKey == "" {
+		return false, ErrStateKeyRequired
+	}
+
+	var expectedPayload []byte
+	var err error
+	if expectedExists {
+		expectedPayload, err = json.Marshal(expected)
+		if err != nil {
+			return false, fmt.Errorf("encode expected state %q: %w", nextKey, err)
+		}
+	}
+
+	nextPayload, err := json.Marshal(next)
+	if err != nil {
+		return false, fmt.Errorf("encode next state %q: %w", nextKey, err)
+	}
+	payloadHash := statePayloadHash(nextPayload)
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		if tx != nil {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				slog.Default().Error(
+					"state tx rollback failed",
+					"op", "compare_and_swap",
+					"key", nextKey,
+					"err", err,
+				)
+			}
+		}
+	}()
+
+	currentPayload, found, err := s.loadCurrentPayloadForUpdate(ctx, tx, nextKey)
+	if err != nil {
+		return false, fmt.Errorf("load state %q: %w", nextKey, err)
+	}
+	if found != expectedExists {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			return false, err
+		}
+		tx = nil
+		return false, nil
+	}
+	if expectedExists {
+		sameExpected, err := jsonPayloadEqual(currentPayload, expectedPayload)
+		if err != nil {
+			return false, fmt.Errorf("compare expected state payload %q: %w", nextKey, err)
+		}
+		if !sameExpected {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				return false, err
+			}
+			tx = nil
+			return false, nil
+		}
+	}
+	if found {
+		sameNext, err := jsonPayloadEqual(currentPayload, nextPayload)
+		if err != nil {
+			return false, fmt.Errorf("compare next state payload %q: %w", nextKey, err)
+		}
+		if sameNext {
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				return false, err
+			}
+			tx = nil
+			return true, nil
+		}
+	}
+
+	if err := s.queries.WithTx(tx).UpsertStatePayload(ctx, sqlcgen.UpsertStatePayloadParams{
+		StateKey: nextKey,
+		Payload:  nextPayload,
+	}); err != nil {
+		return false, fmt.Errorf("save state %q: %w", nextKey, err)
+	}
+
+	changeID, err := s.appendStateChangeTx(ctx, tx, nextKey, payloadHash, nextPayload)
+	if err != nil {
+		return false, fmt.Errorf("append state change %q: %w", nextKey, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	tx = nil
+
+	checkpointLastID := int64(0)
+	for batch := 0; batch < 4; batch++ {
+		replayResult, replayErr := s.ReplayStateChangesFromCheckpoint(nextKey, maxReplayLimit)
+		if replayErr != nil {
+			return false, fmt.Errorf("project state %q change_id=%d via replay: %w", nextKey, changeID, replayErr)
+		}
+		checkpointLastID = replayResult.LastChangeID
+		if checkpointLastID >= changeID || replayResult.Applied == 0 {
+			break
+		}
+	}
+	return true, nil
+}
+
 func (s *PostgresStore) loadCurrentPayloadForUpdate(ctx context.Context, tx *sql.Tx, key string) ([]byte, bool, error) {
-	var raw []byte
-	err := tx.QueryRowContext(
-		ctx,
-		`select payload from mistypass where state_key = $1 for update`,
-		key,
-	).Scan(&raw)
+	raw, err := s.queries.WithTx(tx).GetStatePayloadForUpdate(ctx, key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -903,6 +1517,229 @@ func deleteProjectionRowsNotInIDs(ctx context.Context, tx *sql.Tx, table string,
 	return err
 }
 
+type projectionDeleteSet struct {
+	table string
+	ids   []string
+}
+
+type projectionArgsBuilder[T any] func(item T) (id string, args []any, err error)
+
+func upsertProjectionRows[T any](
+	ctx context.Context,
+	tx *sql.Tx,
+	items []T,
+	query string,
+	build projectionArgsBuilder[T],
+) ([]string, error) {
+	ids := make([]string, 0, len(items))
+	for i := range items {
+		id, args, err := build(items[i])
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+			return nil, err
+		}
+	}
+	return ids, nil
+}
+
+func deleteProjectionRows(ctx context.Context, tx *sql.Tx, sets ...projectionDeleteSet) error {
+	for i := range sets {
+		if err := deleteProjectionRowsNotInIDs(ctx, tx, sets[i].table, sets[i].ids); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func marshalProjectionJSON(value any) (string, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+func marshalProjectionNullableJSON(value any) (string, error) {
+	if value == nil {
+		return "null", nil
+	}
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface:
+		if rv.IsNil() {
+			return "null", nil
+		}
+	}
+	return marshalProjectionJSON(value)
+}
+
+func sqlText(value string) sql.NullString {
+	return sql.NullString{
+		String: value,
+		Valid:  true,
+	}
+}
+
+func sqlRawJSON(value string) pqtype.NullRawMessage {
+	return pqtype.NullRawMessage{
+		RawMessage: []byte(value),
+		Valid:      true,
+	}
+}
+
+func sqlTime(value *time.Time) sql.NullTime {
+	if value == nil {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{
+		Time:  *value,
+		Valid: true,
+	}
+}
+
+func sqlInt32(value int) sql.NullInt32 {
+	return sql.NullInt32{
+		Int32: int32(value),
+		Valid: true,
+	}
+}
+
+func upsertProjectionEnterpriseHRISConnectorTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	item enterprise.HRISConnector,
+) error {
+	raw, err := marshalProjectionJSON(item)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`insert into mistypass_enterprise_hris_connectors (
+			id,
+			tenant_id,
+			vendor,
+			status,
+			sync_strategy,
+			credential_ref,
+			webhook_secret_ref,
+			last_sync_at,
+			updated_by,
+			created_at,
+			updated_at,
+			raw,
+			synced_at
+		)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+		on conflict (id) do update
+		set tenant_id = excluded.tenant_id,
+		    vendor = excluded.vendor,
+		    status = excluded.status,
+		    sync_strategy = excluded.sync_strategy,
+		    credential_ref = excluded.credential_ref,
+		    webhook_secret_ref = excluded.webhook_secret_ref,
+		    last_sync_at = excluded.last_sync_at,
+		    updated_by = excluded.updated_by,
+		    created_at = excluded.created_at,
+		    updated_at = excluded.updated_at,
+		    raw = excluded.raw,
+		    synced_at = now()`,
+		item.ID,
+		item.TenantID,
+		item.Vendor,
+		item.Status,
+		item.SyncStrategy,
+		sqlText(item.CredentialRef),
+		sqlText(item.WebhookSecretRef),
+		sqlTime(item.LastSyncAt),
+		sqlText(item.UpdatedBy),
+		item.CreatedAt,
+		item.UpdatedAt,
+		[]byte(raw),
+	)
+	return err
+}
+
+func upsertProjectionEnterpriseHRISWebhookReceiptTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	item enterprise.HRISWebhookReceipt,
+) error {
+	raw, err := marshalProjectionJSON(item)
+	if err != nil {
+		return err
+	}
+	headers, err := marshalProjectionNullableJSON(item.Headers)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		`insert into mistypass_enterprise_hris_webhook_receipts (
+			id,
+			tenant_id,
+			connector_id,
+			vendor,
+			event_type,
+			request_id,
+			content_type,
+			headers,
+			raw_payload,
+			source_ip,
+			status,
+			attempt_count,
+			last_error,
+			received_at,
+			last_attempt_at,
+			processed_at,
+			raw,
+			synced_at
+		)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+		on conflict (id) do update
+		set tenant_id = excluded.tenant_id,
+		    connector_id = excluded.connector_id,
+		    vendor = excluded.vendor,
+		    event_type = excluded.event_type,
+		    request_id = excluded.request_id,
+		    content_type = excluded.content_type,
+		    headers = excluded.headers,
+		    raw_payload = excluded.raw_payload,
+		    source_ip = excluded.source_ip,
+		    status = excluded.status,
+		    attempt_count = excluded.attempt_count,
+		    last_error = excluded.last_error,
+		    received_at = excluded.received_at,
+		    last_attempt_at = excluded.last_attempt_at,
+		    processed_at = excluded.processed_at,
+		    raw = excluded.raw,
+		    synced_at = now()`,
+		item.ID,
+		item.TenantID,
+		item.ConnectorID,
+		item.Vendor,
+		sqlText(item.EventType),
+		sqlText(item.RequestID),
+		sqlText(item.ContentType),
+		sqlRawJSON(headers),
+		item.RawPayload,
+		sqlText(item.SourceIP),
+		item.Status,
+		item.AttemptCount,
+		sqlText(item.LastError),
+		item.ReceivedAt,
+		sqlTime(item.LastAttemptAt),
+		sqlTime(item.ProcessedAt),
+		[]byte(raw),
+	)
+	return err
+}
+
 func (s *PostgresStore) applyProjection(ctx context.Context, key string, payload []byte) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -910,9 +1747,17 @@ func (s *PostgresStore) applyProjection(ctx context.Context, key string, payload
 	}
 	defer func() {
 		if tx != nil {
-			_ = tx.Rollback()
+			if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+				slog.Default().Error(
+					"state tx rollback failed",
+					"op", "apply_projection",
+					"key", key,
+					"err", err,
+				)
+			}
 		}
 	}()
+	qtx := s.queries.WithTx(tx)
 
 	switch key {
 	case stateKeyTenant:
@@ -922,34 +1767,28 @@ func (s *PostgresStore) applyProjection(ctx context.Context, key string, payload
 		}
 		tenantIDs := make([]string, 0, len(snapshot.Tenants))
 		for i := range snapshot.Tenants {
-			tenantIDs = append(tenantIDs, snapshot.Tenants[i].ID)
-			raw, err := json.Marshal(snapshot.Tenants[i])
+			next := snapshot.Tenants[i]
+			tenantIDs = append(tenantIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_tenants (id, name, tenant_type, hq_region, status, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7::jsonb,now())
-on conflict (id) do update
-set name = excluded.name,
-    tenant_type = excluded.tenant_type,
-    hq_region = excluded.hq_region,
-    status = excluded.status,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Tenants[i].ID,
-				snapshot.Tenants[i].Name,
-				snapshot.Tenants[i].Type,
-				snapshot.Tenants[i].HQRegion,
-				snapshot.Tenants[i].Status,
-				snapshot.Tenants[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionTenant(ctx, sqlcgen.UpsertProjectionTenantParams{
+				ID:         next.ID,
+				Name:       next.Name,
+				TenantType: next.Type,
+				HqRegion:   next.HQRegion,
+				Status:     next.Status,
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_tenants", tenantIDs); err != nil {
+		if err := deleteProjectionRows(ctx, tx, projectionDeleteSet{
+			table: "mistypass_tenants",
+			ids:   tenantIDs,
+		}); err != nil {
 			return err
 		}
 	case stateKeySpace:
@@ -963,166 +1802,115 @@ set name = excluded.name,
 		doorIDs := make([]string, 0, len(snapshot.Doors))
 		doorGroupIDs := make([]string, 0, len(snapshot.DoorGroups))
 		for i := range snapshot.Buildings {
-			buildingIDs = append(buildingIDs, snapshot.Buildings[i].ID)
-			raw, err := json.Marshal(snapshot.Buildings[i])
+			next := snapshot.Buildings[i]
+			buildingIDs = append(buildingIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_buildings (id, tenant_id, name, address, region, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    name = excluded.name,
-    address = excluded.address,
-    region = excluded.region,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Buildings[i].ID,
-				snapshot.Buildings[i].TenantID,
-				snapshot.Buildings[i].Name,
-				snapshot.Buildings[i].Address,
-				snapshot.Buildings[i].Region,
-				snapshot.Buildings[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionBuilding(ctx, sqlcgen.UpsertProjectionBuildingParams{
+				ID:        next.ID,
+				TenantID:  next.TenantID,
+				Name:      next.Name,
+				Address:   sqlText(next.Address),
+				Region:    sqlText(next.Region),
+				CreatedAt: next.CreatedAt,
+				Raw:       []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.Floors {
-			floorIDs = append(floorIDs, snapshot.Floors[i].ID)
-			raw, err := json.Marshal(snapshot.Floors[i])
+			next := snapshot.Floors[i]
+			floorIDs = append(floorIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_floors (id, tenant_id, building_id, name, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    name = excluded.name,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Floors[i].ID,
-				snapshot.Floors[i].TenantID,
-				snapshot.Floors[i].BuildingID,
-				snapshot.Floors[i].Name,
-				snapshot.Floors[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionFloor(ctx, sqlcgen.UpsertProjectionFloorParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: next.BuildingID,
+				Name:       next.Name,
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.Areas {
-			areaIDs = append(areaIDs, snapshot.Areas[i].ID)
-			raw, err := json.Marshal(snapshot.Areas[i])
+			next := snapshot.Areas[i]
+			areaIDs = append(areaIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_areas (id, tenant_id, building_id, floor_id, name, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    floor_id = excluded.floor_id,
-    name = excluded.name,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Areas[i].ID,
-				snapshot.Areas[i].TenantID,
-				snapshot.Areas[i].BuildingID,
-				snapshot.Areas[i].FloorID,
-				snapshot.Areas[i].Name,
-				snapshot.Areas[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionArea(ctx, sqlcgen.UpsertProjectionAreaParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: next.BuildingID,
+				FloorID:    next.FloorID,
+				Name:       next.Name,
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.Doors {
-			doorIDs = append(doorIDs, snapshot.Doors[i].ID)
-			raw, err := json.Marshal(snapshot.Doors[i])
+			next := snapshot.Doors[i]
+			doorIDs = append(doorIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_doors (id, tenant_id, building_id, floor_id, area_id, name, gateway_id, kind, status, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    floor_id = excluded.floor_id,
-    area_id = excluded.area_id,
-    name = excluded.name,
-    gateway_id = excluded.gateway_id,
-    kind = excluded.kind,
-    status = excluded.status,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Doors[i].ID,
-				snapshot.Doors[i].TenantID,
-				snapshot.Doors[i].BuildingID,
-				snapshot.Doors[i].FloorID,
-				snapshot.Doors[i].AreaID,
-				snapshot.Doors[i].Name,
-				snapshot.Doors[i].GatewayID,
-				snapshot.Doors[i].Kind,
-				snapshot.Doors[i].Status,
-				snapshot.Doors[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionDoor(ctx, sqlcgen.UpsertProjectionDoorParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: next.BuildingID,
+				FloorID:    next.FloorID,
+				AreaID:     next.AreaID,
+				Name:       next.Name,
+				GatewayID:  sqlText(next.GatewayID),
+				Kind:       next.Kind,
+				Status:     next.Status,
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.DoorGroups {
-			doorGroupIDs = append(doorGroupIDs, snapshot.DoorGroups[i].ID)
-			raw, err := json.Marshal(snapshot.DoorGroups[i])
+			next := snapshot.DoorGroups[i]
+			doorGroupIDs = append(doorGroupIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			doorIDs, err := json.Marshal(snapshot.DoorGroups[i].DoorIDs)
+			doorIDs, err := marshalProjectionJSON(next.DoorIDs)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_door_groups (id, tenant_id, name, door_ids, created_at, raw, synced_at)
-values ($1,$2,$3,$4::jsonb,$5,$6::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    name = excluded.name,
-    door_ids = excluded.door_ids,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.DoorGroups[i].ID,
-				snapshot.DoorGroups[i].TenantID,
-				snapshot.DoorGroups[i].Name,
-				string(doorIDs),
-				snapshot.DoorGroups[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionDoorGroup(ctx, sqlcgen.UpsertProjectionDoorGroupParams{
+				ID:        next.ID,
+				TenantID:  next.TenantID,
+				Name:      next.Name,
+				DoorIds:   sqlRawJSON(doorIDs),
+				CreatedAt: next.CreatedAt,
+				Raw:       []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_buildings", buildingIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_floors", floorIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_areas", areaIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_doors", doorIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_door_groups", doorGroupIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_buildings", ids: buildingIDs},
+			projectionDeleteSet{table: "mistypass_floors", ids: floorIDs},
+			projectionDeleteSet{table: "mistypass_areas", ids: areaIDs},
+			projectionDeleteSet{table: "mistypass_doors", ids: doorIDs},
+			projectionDeleteSet{table: "mistypass_door_groups", ids: doorGroupIDs},
+		); err != nil {
 			return err
 		}
 	case stateKeyAccess:
@@ -1136,208 +1924,138 @@ set tenant_id = excluded.tenant_id,
 		temporaryAccessIDs := make([]string, 0, len(snapshot.TemporaryAccess))
 		visitorPassIDs := make([]string, 0, len(snapshot.VisitorPasses))
 		for i := range snapshot.Users {
-			userIDs = append(userIDs, snapshot.Users[i].ID)
-			raw, err := json.Marshal(snapshot.Users[i])
+			next := snapshot.Users[i]
+			userIDs = append(userIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			groupIDs, err := json.Marshal(snapshot.Users[i].GroupIDs)
+			groupIDs, err := marshalProjectionJSON(next.GroupIDs)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_access_users (id, tenant_id, building_id, name, email, role, status, group_ids, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    name = excluded.name,
-    email = excluded.email,
-    role = excluded.role,
-    status = excluded.status,
-    group_ids = excluded.group_ids,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Users[i].ID,
-				snapshot.Users[i].TenantID,
-				snapshot.Users[i].BuildingID,
-				snapshot.Users[i].Name,
-				snapshot.Users[i].Email,
-				snapshot.Users[i].Role,
-				snapshot.Users[i].Status,
-				string(groupIDs),
-				snapshot.Users[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAccessUser(ctx, sqlcgen.UpsertProjectionAccessUserParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: sqlText(next.BuildingID),
+				Name:       next.Name,
+				Email:      next.Email,
+				Role:       next.Role,
+				Status:     next.Status,
+				GroupIds:   sqlRawJSON(groupIDs),
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.UserGroups {
-			userGroupIDs = append(userGroupIDs, snapshot.UserGroups[i].ID)
-			raw, err := json.Marshal(snapshot.UserGroups[i])
+			next := snapshot.UserGroups[i]
+			userGroupIDs = append(userGroupIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			members, err := json.Marshal(snapshot.UserGroups[i].Members)
+			members, err := marshalProjectionJSON(next.Members)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_access_user_groups (id, tenant_id, building_id, name, description, members, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    name = excluded.name,
-    description = excluded.description,
-    members = excluded.members,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.UserGroups[i].ID,
-				snapshot.UserGroups[i].TenantID,
-				snapshot.UserGroups[i].BuildingID,
-				snapshot.UserGroups[i].Name,
-				snapshot.UserGroups[i].Description,
-				string(members),
-				snapshot.UserGroups[i].CreatedAt,
-				snapshot.UserGroups[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAccessUserGroup(ctx, sqlcgen.UpsertProjectionAccessUserGroupParams{
+				ID:          next.ID,
+				TenantID:    next.TenantID,
+				BuildingID:  sqlText(next.BuildingID),
+				Name:        next.Name,
+				Description: sqlText(next.Description),
+				Members:     sqlRawJSON(members),
+				CreatedAt:   next.CreatedAt,
+				UpdatedAt:   next.UpdatedAt,
+				Raw:         []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.Policies {
-			policyIDs = append(policyIDs, snapshot.Policies[i].ID)
-			raw, err := json.Marshal(snapshot.Policies[i])
+			next := snapshot.Policies[i]
+			policyIDs = append(policyIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_access_policies (id, tenant_id, name, scope_type, building_id, area_id, door_id, schedule, members, status, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    name = excluded.name,
-    scope_type = excluded.scope_type,
-    building_id = excluded.building_id,
-    area_id = excluded.area_id,
-    door_id = excluded.door_id,
-    schedule = excluded.schedule,
-    members = excluded.members,
-    status = excluded.status,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Policies[i].ID,
-				snapshot.Policies[i].TenantID,
-				snapshot.Policies[i].Name,
-				snapshot.Policies[i].ScopeType,
-				snapshot.Policies[i].BuildingID,
-				snapshot.Policies[i].AreaID,
-				snapshot.Policies[i].DoorID,
-				snapshot.Policies[i].Schedule,
-				snapshot.Policies[i].Members,
-				snapshot.Policies[i].Status,
-				snapshot.Policies[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAccessPolicy(ctx, sqlcgen.UpsertProjectionAccessPolicyParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				Name:       next.Name,
+				ScopeType:  next.ScopeType,
+				BuildingID: sqlText(next.BuildingID),
+				AreaID:     sqlText(next.AreaID),
+				DoorID:     sqlText(next.DoorID),
+				Schedule:   sqlText(next.Schedule),
+				Members:    int32(next.Members),
+				Status:     next.Status,
+				UpdatedAt:  next.UpdatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.TemporaryAccess {
-			temporaryAccessIDs = append(temporaryAccessIDs, snapshot.TemporaryAccess[i].ID)
-			raw, err := json.Marshal(snapshot.TemporaryAccess[i])
+			next := snapshot.TemporaryAccess[i]
+			temporaryAccessIDs = append(temporaryAccessIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_temporary_access (id, tenant_id, scope_type, building_id, area_id, door_id, delivery_method, grantee_name, grantee_email, grantee_phone, valid_until, authorized_by_email, authorized_by_role, authorized_at, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    scope_type = excluded.scope_type,
-    building_id = excluded.building_id,
-    area_id = excluded.area_id,
-    door_id = excluded.door_id,
-    delivery_method = excluded.delivery_method,
-    grantee_name = excluded.grantee_name,
-    grantee_email = excluded.grantee_email,
-    grantee_phone = excluded.grantee_phone,
-    valid_until = excluded.valid_until,
-    authorized_by_email = excluded.authorized_by_email,
-    authorized_by_role = excluded.authorized_by_role,
-    authorized_at = excluded.authorized_at,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.TemporaryAccess[i].ID,
-				snapshot.TemporaryAccess[i].TenantID,
-				snapshot.TemporaryAccess[i].ScopeType,
-				snapshot.TemporaryAccess[i].BuildingID,
-				snapshot.TemporaryAccess[i].AreaID,
-				snapshot.TemporaryAccess[i].DoorID,
-				snapshot.TemporaryAccess[i].DeliveryMethod,
-				snapshot.TemporaryAccess[i].GranteeName,
-				snapshot.TemporaryAccess[i].GranteeEmail,
-				snapshot.TemporaryAccess[i].GranteePhone,
-				snapshot.TemporaryAccess[i].ValidUntil,
-				snapshot.TemporaryAccess[i].AuthorizedByEmail,
-				snapshot.TemporaryAccess[i].AuthorizedByRole,
-				snapshot.TemporaryAccess[i].AuthorizedAt,
-				snapshot.TemporaryAccess[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionTemporaryAccess(ctx, sqlcgen.UpsertProjectionTemporaryAccessParams{
+				ID:                next.ID,
+				TenantID:          next.TenantID,
+				ScopeType:         next.ScopeType,
+				BuildingID:        sqlText(next.BuildingID),
+				AreaID:            sqlText(next.AreaID),
+				DoorID:            sqlText(next.DoorID),
+				DeliveryMethod:    next.DeliveryMethod,
+				GranteeName:       next.GranteeName,
+				GranteeEmail:      next.GranteeEmail,
+				GranteePhone:      next.GranteePhone,
+				ValidUntil:        next.ValidUntil,
+				AuthorizedByEmail: sqlText(next.AuthorizedByEmail),
+				AuthorizedByRole:  sqlText(next.AuthorizedByRole),
+				AuthorizedAt:      next.AuthorizedAt,
+				CreatedAt:         next.CreatedAt,
+				Raw:               []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.VisitorPasses {
-			visitorPassIDs = append(visitorPassIDs, snapshot.VisitorPasses[i].ID)
-			raw, err := json.Marshal(snapshot.VisitorPasses[i])
+			next := snapshot.VisitorPasses[i]
+			visitorPassIDs = append(visitorPassIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_visitor_passes (id, tenant_id, building_id, host, visitor, delivery_method, expires_at, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    host = excluded.host,
-    visitor = excluded.visitor,
-    delivery_method = excluded.delivery_method,
-    expires_at = excluded.expires_at,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.VisitorPasses[i].ID,
-				snapshot.VisitorPasses[i].TenantID,
-				snapshot.VisitorPasses[i].BuildingID,
-				snapshot.VisitorPasses[i].Host,
-				snapshot.VisitorPasses[i].Visitor,
-				snapshot.VisitorPasses[i].DeliveryMethod,
-				snapshot.VisitorPasses[i].ExpiresAt,
-				snapshot.VisitorPasses[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionVisitorPass(ctx, sqlcgen.UpsertProjectionVisitorPassParams{
+				ID:             next.ID,
+				TenantID:       next.TenantID,
+				BuildingID:     sqlText(next.BuildingID),
+				Host:           next.Host,
+				Visitor:        next.Visitor,
+				DeliveryMethod: next.DeliveryMethod,
+				ExpiresAt:      next.ExpiresAt,
+				CreatedAt:      next.CreatedAt,
+				Raw:            []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_access_users", userIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_access_user_groups", userGroupIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_access_policies", policyIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_temporary_access", temporaryAccessIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_visitor_passes", visitorPassIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_access_users", ids: userIDs},
+			projectionDeleteSet{table: "mistypass_access_user_groups", ids: userGroupIDs},
+			projectionDeleteSet{table: "mistypass_access_policies", ids: policyIDs},
+			projectionDeleteSet{table: "mistypass_temporary_access", ids: temporaryAccessIDs},
+			projectionDeleteSet{table: "mistypass_visitor_passes", ids: visitorPassIDs},
+		); err != nil {
 			return err
 		}
 	case stateKeyGateway:
@@ -1362,84 +2080,48 @@ set tenant_id = excluded.tenant_id,
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_gateways (id, tenant_id, serial_number, building_id, device_capacity, status, last_seen_at, devices, bound_door_ids, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    serial_number = excluded.serial_number,
-    building_id = excluded.building_id,
-    device_capacity = excluded.device_capacity,
-    status = excluded.status,
-    last_seen_at = excluded.last_seen_at,
-    devices = excluded.devices,
-    bound_door_ids = excluded.bound_door_ids,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Gateways[i].ID,
-				snapshot.Gateways[i].TenantID,
-				snapshot.Gateways[i].SerialNumber,
-				snapshot.Gateways[i].BuildingID,
-				snapshot.Gateways[i].DeviceCapacity,
-				snapshot.Gateways[i].Status,
-				snapshot.Gateways[i].LastSeenAt,
-				string(devices),
-				string(boundDoorIDs),
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionGateway(ctx, sqlcgen.UpsertProjectionGatewayParams{
+				ID:             snapshot.Gateways[i].ID,
+				TenantID:       snapshot.Gateways[i].TenantID,
+				SerialNumber:   snapshot.Gateways[i].SerialNumber,
+				BuildingID:     sqlText(snapshot.Gateways[i].BuildingID),
+				DeviceCapacity: int32(snapshot.Gateways[i].DeviceCapacity),
+				Status:         snapshot.Gateways[i].Status,
+				LastSeenAt:     snapshot.Gateways[i].LastSeenAt,
+				Devices:        sqlRawJSON(string(devices)),
+				BoundDoorIds:   sqlRawJSON(string(boundDoorIDs)),
+				Raw:            []byte(raw),
+			}); err != nil {
 				return err
 			}
 			for d := range snapshot.Gateways[i].Devices {
 				deviceIDs = append(deviceIDs, snapshot.Gateways[i].Devices[d].ID)
-				deviceRaw, err := json.Marshal(snapshot.Gateways[i].Devices[d])
+				deviceRaw, err := marshalProjectionJSON(snapshot.Gateways[i].Devices[d])
 				if err != nil {
 					return err
 				}
-				rs485Config := "null"
-				if snapshot.Gateways[i].Devices[d].RS485Config != nil {
-					rs485Raw, err := json.Marshal(snapshot.Gateways[i].Devices[d].RS485Config)
-					if err != nil {
-						return err
-					}
-					rs485Config = string(rs485Raw)
+				rs485Config, err := marshalProjectionNullableJSON(snapshot.Gateways[i].Devices[d].RS485Config)
+				if err != nil {
+					return err
 				}
-				rs485Health := "null"
-				if snapshot.Gateways[i].Devices[d].RS485Health != nil {
-					rs485HealthRaw, err := json.Marshal(snapshot.Gateways[i].Devices[d].RS485Health)
-					if err != nil {
-						return err
-					}
-					rs485Health = string(rs485HealthRaw)
+				rs485Health, err := marshalProjectionNullableJSON(snapshot.Gateways[i].Devices[d].RS485Health)
+				if err != nil {
+					return err
 				}
-				if _, err := tx.ExecContext(ctx, `
-		insert into mistypass_gateway_devices (id, gateway_id, tenant_id, serial_number, kind, source, protocol, rs485_config, rs485_health, status, last_seen_at, raw, synced_at)
-		values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11,$12::jsonb,now())
-		on conflict (id) do update
-		set gateway_id = excluded.gateway_id,
-		    tenant_id = excluded.tenant_id,
-		    serial_number = excluded.serial_number,
-		    kind = excluded.kind,
-		    source = excluded.source,
-		    protocol = excluded.protocol,
-		    rs485_config = excluded.rs485_config,
-		    rs485_health = excluded.rs485_health,
-		    status = excluded.status,
-		    last_seen_at = excluded.last_seen_at,
-		    raw = excluded.raw,
-		    synced_at = now()`,
-					snapshot.Gateways[i].Devices[d].ID,
-					snapshot.Gateways[i].ID,
-					snapshot.Gateways[i].TenantID,
-					snapshot.Gateways[i].Devices[d].SerialNumber,
-					snapshot.Gateways[i].Devices[d].Kind,
-					snapshot.Gateways[i].Devices[d].Source,
-					snapshot.Gateways[i].Devices[d].Protocol,
-					rs485Config,
-					rs485Health,
-					snapshot.Gateways[i].Devices[d].Status,
-					snapshot.Gateways[i].Devices[d].LastSeenAt,
-					string(deviceRaw),
-				); err != nil {
+				if err := qtx.UpsertProjectionGatewayDevice(ctx, sqlcgen.UpsertProjectionGatewayDeviceParams{
+					ID:           snapshot.Gateways[i].Devices[d].ID,
+					GatewayID:    snapshot.Gateways[i].ID,
+					TenantID:     snapshot.Gateways[i].TenantID,
+					SerialNumber: snapshot.Gateways[i].Devices[d].SerialNumber,
+					Kind:         snapshot.Gateways[i].Devices[d].Kind,
+					Source:       snapshot.Gateways[i].Devices[d].Source,
+					Protocol:     sqlText(snapshot.Gateways[i].Devices[d].Protocol),
+					Rs485Config:  sqlRawJSON(rs485Config),
+					Rs485Health:  sqlRawJSON(rs485Health),
+					Status:       snapshot.Gateways[i].Devices[d].Status,
+					LastSeenAt:   snapshot.Gateways[i].Devices[d].LastSeenAt,
+					Raw:          []byte(deviceRaw),
+				}); err != nil {
 					return err
 				}
 			}
@@ -1450,47 +2132,30 @@ set tenant_id = excluded.tenant_id,
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_gateway_serial_inventory (
-	id, tenant_id, serial_number, product_type, status, batch_code, source, consumed_gateway_id, consumed_at, created_at, updated_at, raw, synced_at
-)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    serial_number = excluded.serial_number,
-    product_type = excluded.product_type,
-    status = excluded.status,
-    batch_code = excluded.batch_code,
-    source = excluded.source,
-    consumed_gateway_id = excluded.consumed_gateway_id,
-    consumed_at = excluded.consumed_at,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.SerialInventory[i].ID,
-				snapshot.SerialInventory[i].TenantID,
-				snapshot.SerialInventory[i].SerialNumber,
-				snapshot.SerialInventory[i].ProductType,
-				snapshot.SerialInventory[i].Status,
-				snapshot.SerialInventory[i].BatchCode,
-				snapshot.SerialInventory[i].Source,
-				snapshot.SerialInventory[i].ConsumedGatewayID,
-				snapshot.SerialInventory[i].ConsumedAt,
-				snapshot.SerialInventory[i].CreatedAt,
-				snapshot.SerialInventory[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionGatewaySerialInventory(ctx, sqlcgen.UpsertProjectionGatewaySerialInventoryParams{
+				ID:                snapshot.SerialInventory[i].ID,
+				TenantID:          snapshot.SerialInventory[i].TenantID,
+				SerialNumber:      snapshot.SerialInventory[i].SerialNumber,
+				ProductType:       snapshot.SerialInventory[i].ProductType,
+				Status:            snapshot.SerialInventory[i].Status,
+				BatchCode:         sqlText(snapshot.SerialInventory[i].BatchCode),
+				Source:            sqlText(snapshot.SerialInventory[i].Source),
+				ConsumedGatewayID: sqlText(snapshot.SerialInventory[i].ConsumedGatewayID),
+				ConsumedAt:        sqlTime(snapshot.SerialInventory[i].ConsumedAt),
+				CreatedAt:         snapshot.SerialInventory[i].CreatedAt,
+				UpdatedAt:         snapshot.SerialInventory[i].UpdatedAt,
+				Raw:               []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_gateways", gatewayIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_gateway_devices", deviceIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_gateway_serial_inventory", serialInventoryIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_gateways", ids: gatewayIDs},
+			projectionDeleteSet{table: "mistypass_gateway_devices", ids: deviceIDs},
+			projectionDeleteSet{table: "mistypass_gateway_serial_inventory", ids: serialInventoryIDs},
+		); err != nil {
 			return err
 		}
 	case stateKeyEnterprise:
@@ -1499,177 +2164,137 @@ set tenant_id = excluded.tenant_id,
 			return err
 		}
 		domainMappingIDs := make([]string, 0, len(snapshot.DomainMappings))
+		hrisConnectorIDs := make([]string, 0, len(snapshot.HRISConnectors))
+		hrisWebhookReceiptIDs := make([]string, 0, len(snapshot.HRISWebhookReceipts))
 		idpConfigIDs := make([]string, 0, len(snapshot.IDPConfigs))
 		employeeIDs := make([]string, 0, len(snapshot.Employees))
 		syncJobIDs := make([]string, 0, len(snapshot.SyncJobs))
 		for i := range snapshot.DomainMappings {
-			domainMappingIDs = append(domainMappingIDs, snapshot.DomainMappings[i].ID)
-			raw, err := json.Marshal(snapshot.DomainMappings[i])
+			next := snapshot.DomainMappings[i]
+			domainMappingIDs = append(domainMappingIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_enterprise_domain_mappings (id, tenant_id, domain, status, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    domain = excluded.domain,
-    status = excluded.status,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.DomainMappings[i].ID,
-				snapshot.DomainMappings[i].TenantID,
-				snapshot.DomainMappings[i].Domain,
-				snapshot.DomainMappings[i].Status,
-				snapshot.DomainMappings[i].CreatedAt,
-				snapshot.DomainMappings[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionEnterpriseDomainMapping(ctx, sqlcgen.UpsertProjectionEnterpriseDomainMappingParams{
+				ID:        next.ID,
+				TenantID:  next.TenantID,
+				Domain:    next.Domain,
+				Status:    next.Status,
+				CreatedAt: next.CreatedAt,
+				UpdatedAt: next.UpdatedAt,
+				Raw:       []byte(raw),
+			}); err != nil {
+				return err
+			}
+		}
+		for i := range snapshot.HRISConnectors {
+			next := snapshot.HRISConnectors[i]
+			hrisConnectorIDs = append(hrisConnectorIDs, next.ID)
+			if err := upsertProjectionEnterpriseHRISConnectorTx(ctx, tx, next); err != nil {
+				return err
+			}
+		}
+		for i := range snapshot.HRISWebhookReceipts {
+			next := snapshot.HRISWebhookReceipts[i]
+			hrisWebhookReceiptIDs = append(hrisWebhookReceiptIDs, next.ID)
+			if err := upsertProjectionEnterpriseHRISWebhookReceiptTx(ctx, tx, next); err != nil {
 				return err
 			}
 		}
 		for _, config := range snapshot.IDPConfigs {
 			idpConfigIDs = append(idpConfigIDs, config.ID)
-			raw, err := json.Marshal(config)
+			raw, err := marshalProjectionJSON(config)
 			if err != nil {
 				return err
 			}
-			scopes, err := json.Marshal(config.Scopes)
+			scopes, err := marshalProjectionJSON(config.Scopes)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_enterprise_idp_configs (id, tenant_id, provider, issuer_url, client_id, status, sync_mode, scopes, updated_by, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11,$12::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    provider = excluded.provider,
-    issuer_url = excluded.issuer_url,
-    client_id = excluded.client_id,
-    status = excluded.status,
-    sync_mode = excluded.sync_mode,
-    scopes = excluded.scopes,
-    updated_by = excluded.updated_by,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				config.ID,
-				config.TenantID,
-				config.Provider,
-				config.IssuerURL,
-				config.ClientID,
-				config.Status,
-				config.SyncMode,
-				string(scopes),
-				config.UpdatedBy,
-				config.CreatedAt,
-				config.UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionEnterpriseIDPConfig(ctx, sqlcgen.UpsertProjectionEnterpriseIDPConfigParams{
+				ID:        config.ID,
+				TenantID:  config.TenantID,
+				Provider:  config.Provider,
+				IssuerUrl: config.IssuerURL,
+				ClientID:  config.ClientID,
+				Status:    config.Status,
+				SyncMode:  config.SyncMode,
+				Scopes:    sqlRawJSON(scopes),
+				UpdatedBy: sqlText(config.UpdatedBy),
+				CreatedAt: config.CreatedAt,
+				UpdatedAt: config.UpdatedAt,
+				Raw:       []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.Employees {
-			employeeIDs = append(employeeIDs, snapshot.Employees[i].ID)
-			raw, err := json.Marshal(snapshot.Employees[i])
+			next := snapshot.Employees[i]
+			employeeIDs = append(employeeIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			groupIDs, err := json.Marshal(snapshot.Employees[i].GroupIDs)
+			groupIDs, err := marshalProjectionJSON(next.GroupIDs)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_enterprise_employees (id, tenant_id, external_id, email, full_name, department, job_title, location, access_role, building_id, group_ids, status, source, last_synced_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13,$14,$15::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    external_id = excluded.external_id,
-    email = excluded.email,
-    full_name = excluded.full_name,
-    department = excluded.department,
-    job_title = excluded.job_title,
-    location = excluded.location,
-    access_role = excluded.access_role,
-    building_id = excluded.building_id,
-    group_ids = excluded.group_ids,
-    status = excluded.status,
-    source = excluded.source,
-    last_synced_at = excluded.last_synced_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Employees[i].ID,
-				snapshot.Employees[i].TenantID,
-				snapshot.Employees[i].ExternalID,
-				snapshot.Employees[i].Email,
-				snapshot.Employees[i].FullName,
-				snapshot.Employees[i].Department,
-				snapshot.Employees[i].JobTitle,
-				snapshot.Employees[i].Location,
-				snapshot.Employees[i].AccessRole,
-				snapshot.Employees[i].BuildingID,
-				string(groupIDs),
-				snapshot.Employees[i].Status,
-				snapshot.Employees[i].Source,
-				snapshot.Employees[i].LastSyncedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionEnterpriseEmployee(ctx, sqlcgen.UpsertProjectionEnterpriseEmployeeParams{
+				ID:           next.ID,
+				TenantID:     next.TenantID,
+				ExternalID:   sqlText(next.ExternalID),
+				Email:        next.Email,
+				FullName:     next.FullName,
+				Department:   sqlText(next.Department),
+				JobTitle:     sqlText(next.JobTitle),
+				Location:     sqlText(next.Location),
+				AccessRole:   sqlText(next.AccessRole),
+				BuildingID:   sqlText(next.BuildingID),
+				GroupIds:     sqlRawJSON(groupIDs),
+				Status:       sqlText(next.Status),
+				Source:       sqlText(next.Source),
+				LastSyncedAt: next.LastSyncedAt,
+				Raw:          []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
 		for i := range snapshot.SyncJobs {
-			syncJobIDs = append(syncJobIDs, snapshot.SyncJobs[i].ID)
-			raw, err := json.Marshal(snapshot.SyncJobs[i])
+			next := snapshot.SyncJobs[i]
+			syncJobIDs = append(syncJobIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_enterprise_sync_jobs (id, tenant_id, source, status, total, created, updated, deactivated, rejected, actor, started_at, ended_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    source = excluded.source,
-    status = excluded.status,
-    total = excluded.total,
-    created = excluded.created,
-    updated = excluded.updated,
-    deactivated = excluded.deactivated,
-    rejected = excluded.rejected,
-    actor = excluded.actor,
-    started_at = excluded.started_at,
-    ended_at = excluded.ended_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.SyncJobs[i].ID,
-				snapshot.SyncJobs[i].TenantID,
-				snapshot.SyncJobs[i].Source,
-				snapshot.SyncJobs[i].Status,
-				snapshot.SyncJobs[i].Total,
-				snapshot.SyncJobs[i].Created,
-				snapshot.SyncJobs[i].Updated,
-				snapshot.SyncJobs[i].Deactivated,
-				snapshot.SyncJobs[i].Rejected,
-				snapshot.SyncJobs[i].Actor,
-				snapshot.SyncJobs[i].StartedAt,
-				snapshot.SyncJobs[i].EndedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionEnterpriseSyncJob(ctx, sqlcgen.UpsertProjectionEnterpriseSyncJobParams{
+				ID:          next.ID,
+				TenantID:    next.TenantID,
+				Source:      sqlText(next.Source),
+				Status:      sqlText(next.Status),
+				Total:       sqlInt32(next.Total),
+				Created:     sqlInt32(next.Created),
+				Updated:     sqlInt32(next.Updated),
+				Deactivated: sqlInt32(next.Deactivated),
+				Rejected:    sqlInt32(next.Rejected),
+				Actor:       sqlText(next.Actor),
+				StartedAt:   next.StartedAt,
+				EndedAt:     next.EndedAt,
+				Raw:         []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_enterprise_domain_mappings", domainMappingIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_enterprise_idp_configs", idpConfigIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_enterprise_employees", employeeIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_enterprise_sync_jobs", syncJobIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_enterprise_domain_mappings", ids: domainMappingIDs},
+			projectionDeleteSet{table: "mistypass_enterprise_hris_connectors", ids: hrisConnectorIDs},
+			projectionDeleteSet{table: "mistypass_enterprise_hris_webhook_receipts", ids: hrisWebhookReceiptIDs},
+			projectionDeleteSet{table: "mistypass_enterprise_idp_configs", ids: idpConfigIDs},
+			projectionDeleteSet{table: "mistypass_enterprise_employees", ids: employeeIDs},
+			projectionDeleteSet{table: "mistypass_enterprise_sync_jobs", ids: syncJobIDs},
+		); err != nil {
 			return err
 		}
 	case stateKeyEvent:
@@ -1678,79 +2303,57 @@ set tenant_id = excluded.tenant_id,
 			return err
 		}
 		accessEventIDs := make([]string, 0, len(snapshot.AccessEvents))
-		deviceEventIDs := make([]string, 0, len(snapshot.DeviceEvents))
 		for i := range snapshot.AccessEvents {
-			accessEventIDs = append(accessEventIDs, snapshot.AccessEvents[i].ID)
-			raw, err := json.Marshal(snapshot.AccessEvents[i])
+			next := snapshot.AccessEvents[i]
+			accessEventIDs = append(accessEventIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_access_events (id, tenant_id, building_id, area_id, event_type, actor, door_id, gateway_id, result, at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    area_id = excluded.area_id,
-    event_type = excluded.event_type,
-    actor = excluded.actor,
-    door_id = excluded.door_id,
-    gateway_id = excluded.gateway_id,
-    result = excluded.result,
-    at = excluded.at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.AccessEvents[i].ID,
-				snapshot.AccessEvents[i].TenantID,
-				snapshot.AccessEvents[i].BuildingID,
-				snapshot.AccessEvents[i].AreaID,
-				snapshot.AccessEvents[i].Type,
-				snapshot.AccessEvents[i].Actor,
-				snapshot.AccessEvents[i].DoorID,
-				snapshot.AccessEvents[i].GatewayID,
-				snapshot.AccessEvents[i].Result,
-				snapshot.AccessEvents[i].At,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAccessEvent(ctx, sqlcgen.UpsertProjectionAccessEventParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: sqlText(next.BuildingID),
+				AreaID:     sqlText(next.AreaID),
+				EventType:  sqlText(next.Type),
+				Actor:      sqlText(next.Actor),
+				DoorID:     sqlText(next.DoorID),
+				GatewayID:  sqlText(next.GatewayID),
+				Result:     sqlText(next.Result),
+				At:         next.At,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
+		deviceEventIDs := make([]string, 0, len(snapshot.DeviceEvents))
 		for i := range snapshot.DeviceEvents {
-			deviceEventIDs = append(deviceEventIDs, snapshot.DeviceEvents[i].ID)
-			raw, err := json.Marshal(snapshot.DeviceEvents[i])
+			next := snapshot.DeviceEvents[i]
+			deviceEventIDs = append(deviceEventIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_device_events (id, tenant_id, building_id, event_type, gateway_id, detail, result, at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    event_type = excluded.event_type,
-    gateway_id = excluded.gateway_id,
-    detail = excluded.detail,
-    result = excluded.result,
-    at = excluded.at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.DeviceEvents[i].ID,
-				snapshot.DeviceEvents[i].TenantID,
-				snapshot.DeviceEvents[i].BuildingID,
-				snapshot.DeviceEvents[i].Type,
-				snapshot.DeviceEvents[i].GatewayID,
-				snapshot.DeviceEvents[i].Detail,
-				snapshot.DeviceEvents[i].Result,
-				snapshot.DeviceEvents[i].At,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionDeviceEvent(ctx, sqlcgen.UpsertProjectionDeviceEventParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: sqlText(next.BuildingID),
+				EventType:  sqlText(next.Type),
+				GatewayID:  sqlText(next.GatewayID),
+				Detail:     sqlText(next.Detail),
+				Result:     sqlText(next.Result),
+				At:         next.At,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_access_events", accessEventIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_device_events", deviceEventIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_access_events", ids: accessEventIDs},
+			projectionDeleteSet{table: "mistypass_device_events", ids: deviceEventIDs},
+		); err != nil {
 			return err
 		}
 	case stateKeyAlarm:
@@ -1760,42 +2363,32 @@ set tenant_id = excluded.tenant_id,
 		}
 		alarmIDs := make([]string, 0, len(snapshot.Alarms))
 		for i := range snapshot.Alarms {
-			alarmIDs = append(alarmIDs, snapshot.Alarms[i].ID)
-			raw, err := json.Marshal(snapshot.Alarms[i])
+			next := snapshot.Alarms[i]
+			alarmIDs = append(alarmIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_alarms (id, tenant_id, building_id, area_id, door_id, alarm_type, severity, location, status, created_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    building_id = excluded.building_id,
-    area_id = excluded.area_id,
-    door_id = excluded.door_id,
-    alarm_type = excluded.alarm_type,
-    severity = excluded.severity,
-    location = excluded.location,
-    status = excluded.status,
-    created_at = excluded.created_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Alarms[i].ID,
-				snapshot.Alarms[i].TenantID,
-				snapshot.Alarms[i].BuildingID,
-				snapshot.Alarms[i].AreaID,
-				snapshot.Alarms[i].DoorID,
-				snapshot.Alarms[i].Type,
-				snapshot.Alarms[i].Severity,
-				snapshot.Alarms[i].Location,
-				snapshot.Alarms[i].Status,
-				snapshot.Alarms[i].CreatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAlarm(ctx, sqlcgen.UpsertProjectionAlarmParams{
+				ID:         next.ID,
+				TenantID:   next.TenantID,
+				BuildingID: sqlText(next.BuildingID),
+				AreaID:     sqlText(next.AreaID),
+				DoorID:     sqlText(next.DoorID),
+				AlarmType:  sqlText(next.Type),
+				Severity:   sqlText(next.Severity),
+				Location:   sqlText(next.Location),
+				Status:     sqlText(next.Status),
+				CreatedAt:  next.CreatedAt,
+				Raw:        []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_alarms", alarmIDs); err != nil {
+		if err := deleteProjectionRows(ctx, tx, projectionDeleteSet{
+			table: "mistypass_alarms",
+			ids:   alarmIDs,
+		}); err != nil {
 			return err
 		}
 	case stateKeyAudit:
@@ -1805,38 +2398,30 @@ set tenant_id = excluded.tenant_id,
 		}
 		auditLogIDs := make([]string, 0, len(snapshot.Logs))
 		for i := range snapshot.Logs {
-			auditLogIDs = append(auditLogIDs, snapshot.Logs[i].ID)
-			raw, err := json.Marshal(snapshot.Logs[i])
+			next := snapshot.Logs[i]
+			auditLogIDs = append(auditLogIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_audit_logs (id, tenant_id, actor, role, action, target, source, at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    actor = excluded.actor,
-    role = excluded.role,
-    action = excluded.action,
-    target = excluded.target,
-    source = excluded.source,
-    at = excluded.at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Logs[i].ID,
-				snapshot.Logs[i].TenantID,
-				snapshot.Logs[i].Actor,
-				snapshot.Logs[i].Role,
-				snapshot.Logs[i].Action,
-				snapshot.Logs[i].Target,
-				snapshot.Logs[i].Source,
-				snapshot.Logs[i].At,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionAuditLog(ctx, sqlcgen.UpsertProjectionAuditLogParams{
+				ID:       next.ID,
+				TenantID: next.TenantID,
+				Actor:    sqlText(next.Actor),
+				Role:     sqlText(next.Role),
+				Action:   sqlText(next.Action),
+				Target:   sqlText(next.Target),
+				Source:   sqlText(next.Source),
+				At:       next.At,
+				Raw:      []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_audit_logs", auditLogIDs); err != nil {
+		if err := deleteProjectionRows(ctx, tx, projectionDeleteSet{
+			table: "mistypass_audit_logs",
+			ids:   auditLogIDs,
+		}); err != nil {
 			return err
 		}
 	case stateKeyWallet:
@@ -1845,223 +2430,151 @@ set tenant_id = excluded.tenant_id,
 			return err
 		}
 		configIDs := make([]string, 0, 1)
-		templateIDs := make([]string, 0, len(snapshot.Templates))
-		passIDs := make([]string, 0, len(snapshot.Passes))
-		jobIDs := make([]string, 0, len(snapshot.Jobs))
-		auditLogIDs := make([]string, 0, len(snapshot.AuditLogs))
+		var (
+			templateIDs []string
+			passIDs     []string
+			jobIDs      []string
+			auditLogIDs []string
+		)
 		if snapshot.Config != nil {
 			configIDs = append(configIDs, snapshot.Config.ID)
-			raw, err := json.Marshal(snapshot.Config)
+			raw, err := marshalProjectionJSON(snapshot.Config)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_wallet_configs (id, tenant_id, provider, issuer_id, service_account_email, key_ref, status, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    provider = excluded.provider,
-    issuer_id = excluded.issuer_id,
-    service_account_email = excluded.service_account_email,
-    key_ref = excluded.key_ref,
-    status = excluded.status,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Config.ID,
-				snapshot.Config.TenantID,
-				snapshot.Config.Provider,
-				snapshot.Config.IssuerID,
-				snapshot.Config.ServiceAccountEmail,
-				snapshot.Config.KeyRef,
-				snapshot.Config.Status,
-				snapshot.Config.CreatedAt,
-				snapshot.Config.UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionWalletConfig(ctx, sqlcgen.UpsertProjectionWalletConfigParams{
+				ID:                  snapshot.Config.ID,
+				TenantID:            snapshot.Config.TenantID,
+				Provider:            snapshot.Config.Provider,
+				IssuerID:            snapshot.Config.IssuerID,
+				ServiceAccountEmail: snapshot.Config.ServiceAccountEmail,
+				KeyRef:              snapshot.Config.KeyRef,
+				Status:              snapshot.Config.Status,
+				CreatedAt:           snapshot.Config.CreatedAt,
+				UpdatedAt:           snapshot.Config.UpdatedAt,
+				Raw:                 []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
+		templateIDs = make([]string, 0, len(snapshot.Templates))
 		for i := range snapshot.Templates {
-			templateIDs = append(templateIDs, snapshot.Templates[i].ID)
-			raw, err := json.Marshal(snapshot.Templates[i])
+			next := snapshot.Templates[i]
+			templateIDs = append(templateIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			styleConfig, err := json.Marshal(snapshot.Templates[i].StyleConfig)
+			styleConfig, err := marshalProjectionJSON(next.StyleConfig)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_wallet_templates (id, tenant_id, provider, pass_type, class_id, name, status, style_config, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9,$10,$11::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    provider = excluded.provider,
-    pass_type = excluded.pass_type,
-    class_id = excluded.class_id,
-    name = excluded.name,
-    status = excluded.status,
-    style_config = excluded.style_config,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Templates[i].ID,
-				snapshot.Templates[i].TenantID,
-				snapshot.Templates[i].Provider,
-				snapshot.Templates[i].PassType,
-				snapshot.Templates[i].ClassID,
-				snapshot.Templates[i].Name,
-				snapshot.Templates[i].Status,
-				string(styleConfig),
-				snapshot.Templates[i].CreatedAt,
-				snapshot.Templates[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionWalletTemplate(ctx, sqlcgen.UpsertProjectionWalletTemplateParams{
+				ID:          next.ID,
+				TenantID:    next.TenantID,
+				Provider:    next.Provider,
+				PassType:    next.PassType,
+				ClassID:     next.ClassID,
+				Name:        next.Name,
+				Status:      next.Status,
+				StyleConfig: sqlRawJSON(styleConfig),
+				CreatedAt:   next.CreatedAt,
+				UpdatedAt:   next.UpdatedAt,
+				Raw:         []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
+		passIDs = make([]string, 0, len(snapshot.Passes))
 		for i := range snapshot.Passes {
-			passIDs = append(passIDs, snapshot.Passes[i].ID)
-			raw, err := json.Marshal(snapshot.Passes[i])
+			next := snapshot.Passes[i]
+			passIDs = append(passIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_wallet_passes (id, tenant_id, provider, template_id, target_type, target_id, object_id, status, save_link, expires_at, issued_at, activated_at, revoked_at, created_by, updated_by, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    provider = excluded.provider,
-    template_id = excluded.template_id,
-    target_type = excluded.target_type,
-    target_id = excluded.target_id,
-    object_id = excluded.object_id,
-    status = excluded.status,
-    save_link = excluded.save_link,
-    expires_at = excluded.expires_at,
-    issued_at = excluded.issued_at,
-    activated_at = excluded.activated_at,
-    revoked_at = excluded.revoked_at,
-    created_by = excluded.created_by,
-    updated_by = excluded.updated_by,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Passes[i].ID,
-				snapshot.Passes[i].TenantID,
-				snapshot.Passes[i].Provider,
-				snapshot.Passes[i].TemplateID,
-				snapshot.Passes[i].TargetType,
-				snapshot.Passes[i].TargetID,
-				snapshot.Passes[i].ObjectID,
-				snapshot.Passes[i].Status,
-				snapshot.Passes[i].SaveLink,
-				snapshot.Passes[i].ExpiresAt,
-				snapshot.Passes[i].IssuedAt,
-				snapshot.Passes[i].ActivatedAt,
-				snapshot.Passes[i].RevokedAt,
-				snapshot.Passes[i].CreatedBy,
-				snapshot.Passes[i].UpdatedBy,
-				snapshot.Passes[i].CreatedAt,
-				snapshot.Passes[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionWalletPass(ctx, sqlcgen.UpsertProjectionWalletPassParams{
+				ID:          next.ID,
+				TenantID:    next.TenantID,
+				Provider:    next.Provider,
+				TemplateID:  next.TemplateID,
+				TargetType:  next.TargetType,
+				TargetID:    next.TargetID,
+				ObjectID:    next.ObjectID,
+				Status:      next.Status,
+				SaveLink:    next.SaveLink,
+				ExpiresAt:   sqlText(next.ExpiresAt),
+				IssuedAt:    next.IssuedAt,
+				ActivatedAt: sqlTime(next.ActivatedAt),
+				RevokedAt:   sqlTime(next.RevokedAt),
+				CreatedBy:   sqlText(next.CreatedBy),
+				UpdatedBy:   sqlText(next.UpdatedBy),
+				CreatedAt:   next.CreatedAt,
+				UpdatedAt:   next.UpdatedAt,
+				Raw:         []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
+		jobIDs = make([]string, 0, len(snapshot.Jobs))
 		for i := range snapshot.Jobs {
-			jobIDs = append(jobIDs, snapshot.Jobs[i].ID)
-			raw, err := json.Marshal(snapshot.Jobs[i])
+			next := snapshot.Jobs[i]
+			jobIDs = append(jobIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_wallet_jobs (id, tenant_id, provider, batch_id, template_id, target_type, target_id, expires_at, pass_id, status, retry_count, error_code, error_message, created_at, updated_at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    provider = excluded.provider,
-    batch_id = excluded.batch_id,
-    template_id = excluded.template_id,
-    target_type = excluded.target_type,
-    target_id = excluded.target_id,
-    expires_at = excluded.expires_at,
-    pass_id = excluded.pass_id,
-    status = excluded.status,
-    retry_count = excluded.retry_count,
-    error_code = excluded.error_code,
-    error_message = excluded.error_message,
-    created_at = excluded.created_at,
-    updated_at = excluded.updated_at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.Jobs[i].ID,
-				snapshot.Jobs[i].TenantID,
-				snapshot.Jobs[i].Provider,
-				snapshot.Jobs[i].BatchID,
-				snapshot.Jobs[i].TemplateID,
-				snapshot.Jobs[i].TargetType,
-				snapshot.Jobs[i].TargetID,
-				snapshot.Jobs[i].ExpiresAt,
-				snapshot.Jobs[i].PassID,
-				snapshot.Jobs[i].Status,
-				snapshot.Jobs[i].RetryCount,
-				snapshot.Jobs[i].ErrorCode,
-				snapshot.Jobs[i].ErrorMessage,
-				snapshot.Jobs[i].CreatedAt,
-				snapshot.Jobs[i].UpdatedAt,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionWalletJob(ctx, sqlcgen.UpsertProjectionWalletJobParams{
+				ID:           next.ID,
+				TenantID:     next.TenantID,
+				Provider:     sqlText(next.Provider),
+				BatchID:      sqlText(next.BatchID),
+				TemplateID:   sqlText(next.TemplateID),
+				TargetType:   sqlText(next.TargetType),
+				TargetID:     sqlText(next.TargetID),
+				ExpiresAt:    sqlText(next.ExpiresAt),
+				PassID:       sqlText(next.PassID),
+				Status:       sqlText(next.Status),
+				RetryCount:   sqlInt32(next.RetryCount),
+				ErrorCode:    sqlText(next.ErrorCode),
+				ErrorMessage: sqlText(next.ErrorMessage),
+				CreatedAt:    next.CreatedAt,
+				UpdatedAt:    next.UpdatedAt,
+				Raw:          []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
+		auditLogIDs = make([]string, 0, len(snapshot.AuditLogs))
 		for i := range snapshot.AuditLogs {
-			auditLogIDs = append(auditLogIDs, snapshot.AuditLogs[i].ID)
-			raw, err := json.Marshal(snapshot.AuditLogs[i])
+			next := snapshot.AuditLogs[i]
+			auditLogIDs = append(auditLogIDs, next.ID)
+			raw, err := marshalProjectionJSON(next)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.ExecContext(ctx, `
-insert into mistypass_wallet_audit_logs (id, tenant_id, action, actor, target_id, result, at, raw, synced_at)
-values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,now())
-on conflict (id) do update
-set tenant_id = excluded.tenant_id,
-    action = excluded.action,
-    actor = excluded.actor,
-    target_id = excluded.target_id,
-    result = excluded.result,
-    at = excluded.at,
-    raw = excluded.raw,
-    synced_at = now()`,
-				snapshot.AuditLogs[i].ID,
-				snapshot.AuditLogs[i].TenantID,
-				snapshot.AuditLogs[i].Action,
-				snapshot.AuditLogs[i].Actor,
-				snapshot.AuditLogs[i].TargetID,
-				snapshot.AuditLogs[i].Result,
-				snapshot.AuditLogs[i].At,
-				string(raw),
-			); err != nil {
+			if err := qtx.UpsertProjectionWalletAuditLog(ctx, sqlcgen.UpsertProjectionWalletAuditLogParams{
+				ID:       next.ID,
+				TenantID: next.TenantID,
+				Action:   sqlText(next.Action),
+				Actor:    sqlText(next.Actor),
+				TargetID: sqlText(next.TargetID),
+				Result:   sqlText(next.Result),
+				At:       next.At,
+				Raw:      []byte(raw),
+			}); err != nil {
 				return err
 			}
 		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_wallet_configs", configIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_wallet_templates", templateIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_wallet_passes", passIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_wallet_jobs", jobIDs); err != nil {
-			return err
-		}
-		if err := deleteProjectionRowsNotInIDs(ctx, tx, "mistypass_wallet_audit_logs", auditLogIDs); err != nil {
+		if err := deleteProjectionRows(
+			ctx,
+			tx,
+			projectionDeleteSet{table: "mistypass_wallet_configs", ids: configIDs},
+			projectionDeleteSet{table: "mistypass_wallet_templates", ids: templateIDs},
+			projectionDeleteSet{table: "mistypass_wallet_passes", ids: passIDs},
+			projectionDeleteSet{table: "mistypass_wallet_jobs", ids: jobIDs},
+			projectionDeleteSet{table: "mistypass_wallet_audit_logs", ids: auditLogIDs},
+		); err != nil {
 			return err
 		}
 	default:
@@ -2087,17 +2600,12 @@ func (s *PostgresStore) appendStateChangeTx(
 	if nextKey == "" || nextHash == "" || len(payload) == 0 {
 		return 0, nil
 	}
-	var changeID int64
-	err := tx.QueryRowContext(
-		ctx,
-		`insert into mistypass_change_log (state_key, change_type, payload_hash, payload, created_at)
-	values ($1,$2,$3,$4::jsonb,now())
-	returning id`,
-		nextKey,
-		changeTypeSnapshotSaved,
-		nextHash,
-		string(payload),
-	).Scan(&changeID)
+	changeID, err := s.queries.WithTx(tx).InsertStateChange(ctx, sqlcgen.InsertStateChangeParams{
+		StateKey:    nextKey,
+		ChangeType:  changeTypeSnapshotSaved,
+		PayloadHash: nextHash,
+		Payload:     payload,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -2114,53 +2622,33 @@ func (s *PostgresStore) ListStateChanges(stateKey string, limit int) ([]StateCha
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 
-	var rows *sql.Rows
-	var err error
+	var (
+		records []sqlcgen.MistypassChangeLog
+		err     error
+	)
 	if nextKey == "" {
-		rows, err = s.db.QueryContext(
-			ctx,
-			`select id, state_key, change_type, payload_hash, payload, created_at
-from mistypass_change_log
-order by id desc
-limit $1`,
-			nextLimit,
-		)
+		records, err = s.queries.ListStateChangesAll(ctx, int32(nextLimit))
 	} else {
-		rows, err = s.db.QueryContext(
-			ctx,
-			`select id, state_key, change_type, payload_hash, payload, created_at
-from mistypass_change_log
-where state_key = $1
-order by id desc
-limit $2`,
-			nextKey,
-			nextLimit,
-		)
+		records, err = s.queries.ListStateChangesByKey(ctx, sqlcgen.ListStateChangesByKeyParams{
+			StateKey: nextKey,
+			Limit:    int32(nextLimit),
+		})
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	items := make([]StateChangeRecord, 0, nextLimit)
-	for rows.Next() {
-		var record StateChangeRecord
-		var payload []byte
-		if err := rows.Scan(
-			&record.ID,
-			&record.StateKey,
-			&record.ChangeType,
-			&record.PayloadHash,
-			&payload,
-			&record.CreatedAt,
-		); err != nil {
-			return nil, err
+	items := make([]StateChangeRecord, 0, len(records))
+	for i := range records {
+		record := StateChangeRecord{
+			ID:          records[i].ID,
+			StateKey:    records[i].StateKey,
+			ChangeType:  records[i].ChangeType,
+			PayloadHash: records[i].PayloadHash,
+			Payload:     append([]byte(nil), records[i].Payload...),
+			CreatedAt:   records[i].CreatedAt,
 		}
-		record.Payload = append([]byte(nil), payload...)
 		items = append(items, record)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 	return items, nil
 }
@@ -2182,37 +2670,22 @@ func (s *PostgresStore) ReplayStateChanges(stateKey string, fromID int64, limit 
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 
-	rows, err := s.db.QueryContext(
-		ctx,
-		`select id, payload
-from mistypass_change_log
-where state_key = $1 and id > $2
-order by id asc
-limit $3`,
-		nextKey,
-		nextFromID,
-		nextLimit,
-	)
+	rows, err := s.queries.ListReplayPayloadsByKeyFromID(ctx, sqlcgen.ListReplayPayloadsByKeyFromIDParams{
+		StateKey: nextKey,
+		ID:       nextFromID,
+		Limit:    int32(nextLimit),
+	})
 	if err != nil {
 		return ReplayStateChangesResult{}, err
 	}
-	defer rows.Close()
 
 	result := ReplayStateChangesResult{}
-	for rows.Next() {
-		var changeID int64
-		var payload []byte
-		if err := rows.Scan(&changeID, &payload); err != nil {
-			return ReplayStateChangesResult{}, err
-		}
-		if err := s.projectStatePayload(ctx, nextKey, payload); err != nil {
-			return ReplayStateChangesResult{}, fmt.Errorf("replay projection failed at change_id=%d: %w", changeID, err)
+	for i := range rows {
+		if err := s.projectStatePayload(ctx, nextKey, rows[i].Payload); err != nil {
+			return ReplayStateChangesResult{}, fmt.Errorf("replay projection failed at change_id=%d: %w", rows[i].ID, err)
 		}
 		result.Applied++
-		result.LastChangeID = changeID
-	}
-	if err := rows.Err(); err != nil {
-		return ReplayStateChangesResult{}, err
+		result.LastChangeID = rows[i].ID
 	}
 	return result, nil
 }
@@ -2228,44 +2701,29 @@ func (s *PostgresStore) ListReplayCheckpoints(stateKey string, limit int) ([]Rep
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 
-	var rows *sql.Rows
-	var err error
+	var (
+		rows []sqlcgen.MistypassChangeReplayCheckpoint
+		err  error
+	)
 	if nextKey == "" {
-		rows, err = s.db.QueryContext(
-			ctx,
-			`select state_key, last_change_id, updated_at
-from mistypass_change_replay_checkpoints
-order by updated_at desc, state_key asc
-limit $1`,
-			nextLimit,
-		)
+		rows, err = s.queries.ListReplayCheckpointsAll(ctx, int32(nextLimit))
 	} else {
-		rows, err = s.db.QueryContext(
-			ctx,
-			`select state_key, last_change_id, updated_at
-from mistypass_change_replay_checkpoints
-where state_key = $1
-order by updated_at desc
-limit $2`,
-			nextKey,
-			nextLimit,
-		)
+		rows, err = s.queries.ListReplayCheckpointsByKey(ctx, sqlcgen.ListReplayCheckpointsByKeyParams{
+			StateKey: nextKey,
+			Limit:    int32(nextLimit),
+		})
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	items := make([]ReplayCheckpoint, 0, nextLimit)
-	for rows.Next() {
-		var item ReplayCheckpoint
-		if err := rows.Scan(&item.StateKey, &item.LastChangeID, &item.UpdatedAt); err != nil {
-			return nil, err
-		}
-		items = append(items, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	items := make([]ReplayCheckpoint, 0, len(rows))
+	for i := range rows {
+		items = append(items, ReplayCheckpoint{
+			StateKey:     rows[i].StateKey,
+			LastChangeID: rows[i].LastChangeID,
+			UpdatedAt:    rows[i].UpdatedAt,
+		})
 	}
 	return items, nil
 }
@@ -2318,21 +2776,18 @@ func (s *PostgresStore) ReplayStateChangesFromCheckpoint(stateKey string, limit 
 }
 
 func (s *PostgresStore) getReplayCheckpoint(ctx context.Context, stateKey string) (ReplayCheckpoint, bool, error) {
-	var item ReplayCheckpoint
-	err := s.db.QueryRowContext(
-		ctx,
-		`select state_key, last_change_id, updated_at
-from mistypass_change_replay_checkpoints
-where state_key = $1`,
-		stateKey,
-	).Scan(&item.StateKey, &item.LastChangeID, &item.UpdatedAt)
+	row, err := s.queries.GetReplayCheckpointByKey(ctx, stateKey)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ReplayCheckpoint{}, false, nil
 		}
 		return ReplayCheckpoint{}, false, err
 	}
-	return item, true, nil
+	return ReplayCheckpoint{
+		StateKey:     row.StateKey,
+		LastChangeID: row.LastChangeID,
+		UpdatedAt:    row.UpdatedAt,
+	}, true, nil
 }
 
 func (s *PostgresStore) upsertReplayCheckpoint(ctx context.Context, stateKey string, lastChangeID int64) (ReplayCheckpoint, error) {
@@ -2341,22 +2796,18 @@ func (s *PostgresStore) upsertReplayCheckpoint(ctx context.Context, stateKey str
 		nextLastChangeID = 0
 	}
 
-	var item ReplayCheckpoint
-	err := s.db.QueryRowContext(
-		ctx,
-		`insert into mistypass_change_replay_checkpoints (state_key, last_change_id, updated_at)
-values ($1, $2, now())
-on conflict (state_key) do update
-set last_change_id = greatest(mistypass_change_replay_checkpoints.last_change_id, excluded.last_change_id),
-    updated_at = now()
-returning state_key, last_change_id, updated_at`,
-		stateKey,
-		nextLastChangeID,
-	).Scan(&item.StateKey, &item.LastChangeID, &item.UpdatedAt)
+	row, err := s.queries.UpsertReplayCheckpoint(ctx, sqlcgen.UpsertReplayCheckpointParams{
+		StateKey:     stateKey,
+		LastChangeID: nextLastChangeID,
+	})
 	if err != nil {
 		return ReplayCheckpoint{}, err
 	}
-	return item, nil
+	return ReplayCheckpoint{
+		StateKey:     row.StateKey,
+		LastChangeID: row.LastChangeID,
+		UpdatedAt:    row.UpdatedAt,
+	}, nil
 }
 
 func normalizeReplayLimit(limit int) int {

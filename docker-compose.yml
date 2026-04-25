@@ -1,0 +1,127 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: mistypass-api:dev
+    container_name: mistypass-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: development
+      ENABLE_DEMO_USERS: "${ENABLE_DEMO_USERS:-false}"
+      PORT: "8080"
+      CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:5173}"
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}@pgbouncer:5432/mistypass?sslmode=disable"
+      DATABASE_AUTO_MIGRATE: "true"
+      GATEWAY_BOOTSTRAP_TOKEN: "${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev-bootstrap-local-only-20260424}"
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}"
+      REDIS_DB: "0"
+      REDIS_KEY_PREFIX: mistypass
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: mistypass-postgres
+    environment:
+      POSTGRES_DB: mistypass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}"
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - mistypass_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mistypass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: mistypass-pgbouncer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_USER: postgres
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: mistypass
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "300"
+      DEFAULT_POOL_SIZE: "30"
+    ports:
+      - "127.0.0.1:6432:5432"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    container_name: mistypass-redis
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}",
+      ]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - mistypass_redis_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "--no-auth-warning",
+          "-a",
+          "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}",
+          "ping",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  emqx:
+    image: emqx/emqx:5.10.1
+    container_name: mistypass-emqx
+    environment:
+      EMQX_DASHBOARD__DEFAULT_USERNAME: "${EMQX_DASHBOARD_USERNAME:-admin}"
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "${EMQX_DASHBOARD_PASSWORD:-mistypass-dev-emqx-local-only-20260424}"
+    ports:
+      - "127.0.0.1:1883:1883"
+      - "127.0.0.1:8083:8083"
+      - "127.0.0.1:8084:8084"
+      - "127.0.0.1:18083:18083"
+    volumes:
+      - mistypass_emqx_data:/opt/emqx/data
+      - mistypass_emqx_log:/opt/emqx/log
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.10-alpine
+    container_name: mistypass-nats
+    command: ["-js"]
+    ports:
+      - "127.0.0.1:4222:4222"
+      - "127.0.0.1:8222:8222"
+    restart: unless-stopped
+
+volumes:
+  mistypass_postgres_data:
+  mistypass_redis_data:
+  mistypass_emqx_data:
+  mistypass_emqx_log:

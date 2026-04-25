@@ -1,5 +1,7 @@
 const ACCESS_TOKEN_KEY = "mistypass_admin_access_token"
 const REFRESH_TOKEN_KEY = "mistypass_admin_refresh_token"
+const LEGACY_ACCESS_TOKEN_KEY = ACCESS_TOKEN_KEY
+const LEGACY_REFRESH_TOKEN_KEY = REFRESH_TOKEN_KEY
 
 export const AUTH_SESSION_EVENT = "mistypass:auth-session-changed"
 
@@ -11,12 +13,96 @@ export type AuthSessionChangeDetail = {
   reason: AuthSessionChangeReason
 }
 
+let inMemoryAccessToken: string | null = null
+let inMemoryRefreshToken: string | null = null
+let accessTokenHydrated = false
+let refreshTokenHydrated = false
+
+function readSessionStorage(key: string): string | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+  try {
+    return window.sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeSessionStorage(key: string, value: string): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(key, value)
+  } catch {
+    // Ignore storage failures and keep memory-only fallback.
+  }
+}
+
+function removeSessionStorage(key: string): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  try {
+    window.sessionStorage.removeItem(key)
+  } catch {
+    // Best effort cleanup.
+  }
+}
+
+function readLegacyLocalStorage(key: string): string | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function removeLegacyLocalStorage(key: string): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // Best effort cleanup.
+  }
+}
+
+function migrateLegacyToken(currentKey: string, legacyKey: string): string | null {
+  const sessionValue = readSessionStorage(currentKey)
+  if (sessionValue && sessionValue.trim() !== "") {
+    return sessionValue
+  }
+
+  const legacyValue = readLegacyLocalStorage(legacyKey)
+  if (legacyValue && legacyValue.trim() !== "") {
+    writeSessionStorage(currentKey, legacyValue)
+    removeLegacyLocalStorage(legacyKey)
+    return legacyValue
+  }
+
+  return null
+}
+
 export function getToken(): string | null {
-  return localStorage.getItem(ACCESS_TOKEN_KEY)
+  if (!accessTokenHydrated) {
+    inMemoryAccessToken = migrateLegacyToken(ACCESS_TOKEN_KEY, LEGACY_ACCESS_TOKEN_KEY)
+    accessTokenHydrated = true
+  }
+  return inMemoryAccessToken
 }
 
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
+  if (!refreshTokenHydrated) {
+    inMemoryRefreshToken = migrateLegacyToken(REFRESH_TOKEN_KEY, LEGACY_REFRESH_TOKEN_KEY)
+    refreshTokenHydrated = true
+  }
+  return inMemoryRefreshToken
 }
 
 function dispatchAuthSessionChange(reason: AuthSessionChangeReason): void {
@@ -39,19 +125,34 @@ export function saveSession(
   refreshToken: string,
   reason: Exclude<AuthSessionChangeReason, "logout"> = "login"
 ): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  inMemoryAccessToken = accessToken
+  inMemoryRefreshToken = refreshToken
+  accessTokenHydrated = true
+  refreshTokenHydrated = true
+  writeSessionStorage(ACCESS_TOKEN_KEY, accessToken)
+  writeSessionStorage(REFRESH_TOKEN_KEY, refreshToken)
+  removeLegacyLocalStorage(LEGACY_ACCESS_TOKEN_KEY)
+  removeLegacyLocalStorage(LEGACY_REFRESH_TOKEN_KEY)
   dispatchAuthSessionChange(reason)
 }
 
 export function clearSession(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  inMemoryAccessToken = null
+  inMemoryRefreshToken = null
+  accessTokenHydrated = true
+  refreshTokenHydrated = true
+  removeSessionStorage(ACCESS_TOKEN_KEY)
+  removeSessionStorage(REFRESH_TOKEN_KEY)
+  removeLegacyLocalStorage(LEGACY_ACCESS_TOKEN_KEY)
+  removeLegacyLocalStorage(LEGACY_REFRESH_TOKEN_KEY)
   dispatchAuthSessionChange("logout")
 }
 
 export function saveToken(token: string): void {
-  localStorage.setItem(ACCESS_TOKEN_KEY, token)
+  inMemoryAccessToken = token
+  accessTokenHydrated = true
+  writeSessionStorage(ACCESS_TOKEN_KEY, token)
+  removeLegacyLocalStorage(LEGACY_ACCESS_TOKEN_KEY)
 }
 
 export function clearToken(): void {

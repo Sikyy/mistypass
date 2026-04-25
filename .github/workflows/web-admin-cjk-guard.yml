@@ -1,0 +1,34 @@
+name: Web Admin CJK Guard
+
+on:
+  pull_request:
+    paths:
+      - "web-admin/src/**"
+      - "web-admin/cjk-whitelist.txt"
+      - "scripts/check-hardcoded-cjk.mjs"
+      - ".github/workflows/web-admin-cjk-guard.yml"
+  push:
+    paths:
+      - "web-admin/src/**"
+      - "web-admin/cjk-whitelist.txt"
+      - "scripts/check-hardcoded-cjk.mjs"
+      - ".github/workflows/web-admin-cjk-guard.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  cjk-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Scan Hardcoded CJK In web-admin/src
+        run: node scripts/check-hardcoded-cjk.mjs web-admin/src web-admin/cjk-whitelist.txt
+

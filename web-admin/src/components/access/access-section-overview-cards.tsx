@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +29,8 @@ export function AccessSectionOverviewCards({
   showDirectoryImportAction,
   enterpriseHomeLink,
 }: AccessSectionOverviewCardsProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {sections.map((section) => (
@@ -48,11 +51,15 @@ export function AccessSectionOverviewCards({
                 size="sm"
                 onClick={() => onGoToSection(section.value)}
               >
-                {activeSection === section.value ? "当前域" : "进入此域"}
+                {activeSection === section.value
+                  ? t("accessPage.components.sectionOverview.currentSection", { defaultValue: "Current section" })
+                  : t("accessPage.components.sectionOverview.enterSection", { defaultValue: "Enter section" })}
               </Button>
               {section.value === "directory" && showDirectoryImportAction ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link to={enterpriseHomeLink}>去企业页导入员工</Link>
+                  <Link to={enterpriseHomeLink}>
+                    {t("accessPage.components.sectionOverview.goImportEmployees", { defaultValue: "Import employees in Enterprise" })}
+                  </Link>
                 </Button>
               ) : null}
             </div>

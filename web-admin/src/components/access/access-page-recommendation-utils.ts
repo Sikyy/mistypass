@@ -1,3 +1,5 @@
+import i18n from "@/lib/i18n"
+
 import type { AccessSection } from "./access-sections-tabs"
 
 export type AccessSectionOverviewItem = {
@@ -13,6 +15,13 @@ export type AccessRecommendedAction = {
   description: string
   to: string
   label: string
+}
+
+function t(key: string, defaultValue: string, options?: Record<string, unknown>) {
+  return i18n.t(key, {
+    defaultValue,
+    ...options,
+  })
 }
 
 export function buildAccessSectionsOverview({
@@ -37,27 +46,76 @@ export function buildAccessSectionsOverview({
   return [
     {
       value: "directory",
-      title: "员工与用户组",
-      description: "先接员工目录，再把员工归到用户组，后续策略和发放都依赖这里。",
-      metric: loading ? "--" : `${activeEmployeeCount} 名在职员工 / ${groupCount} 个用户组`,
+      title: t("accessPage.components.recommendation.sections.directory.title", "Employees & user groups"),
+      description: t(
+        "accessPage.components.recommendation.sections.directory.description",
+        "Connect employee directory first, then map people into groups for downstream policy and issuance."
+      ),
+      metric: loading
+        ? "--"
+        : t(
+            "accessPage.components.recommendation.sections.directory.metric",
+            "{{activeEmployeeCount}} active employees / {{groupCount}} groups",
+            {
+              activeEmployeeCount,
+              groupCount,
+            }
+          ),
       helper:
         employeeCount > 0
-          ? "目录已接通，可直接维护用户组成员。"
-          : "员工库为空时，先去企业页接 HRIS、SCIM、CSV 或手动导入。",
+          ? t(
+              "accessPage.components.recommendation.sections.directory.helperConnected",
+              "Directory is connected. You can maintain group members directly."
+            )
+          : t(
+              "accessPage.components.recommendation.sections.directory.helperEmpty",
+              "Employee directory is empty. Connect HRIS, SCIM, CSV, or manual import in Enterprise first."
+            ),
     },
     {
       value: "policies",
-      title: "权限策略",
-      description: "把访问权限落到楼宇、区域、门点，并为不同用户组准备策略模板。",
-      metric: loading ? "--" : `${policyCount} 条策略`,
-      helper: "策略是权限的规则层，不再和员工导入、临时授权混在一起。",
+      title: t("accessPage.components.recommendation.sections.policies.title", "Access policies"),
+      description: t(
+        "accessPage.components.recommendation.sections.policies.description",
+        "Apply permissions to building/area/door scopes and prepare policy templates for different groups."
+      ),
+      metric: loading
+        ? "--"
+        : t("accessPage.components.recommendation.sections.policies.metric", "{{policyCount}} policies", {
+            policyCount,
+          }),
+      helper: t(
+        "accessPage.components.recommendation.sections.policies.helper",
+        "Policies are the rule layer and should stay separate from imports and temporary grants."
+      ),
     },
     {
       value: "grants",
-      title: "临时与访客授权",
-      description: "处理短期授权、访客通行和邮件二维码 / MistyPass 的临时发放。",
-      metric: loading ? "--" : `${grantCount} 条授权 / ${visitorGrantCount} 条访客授权`,
-      helper: expiredGrantCount > 0 ? `有 ${expiredGrantCount} 条授权已到期，建议优先复核。` : "当前授权时效正常。",
+      title: t("accessPage.components.recommendation.sections.grants.title", "Temporary & visitor grants"),
+      description: t(
+        "accessPage.components.recommendation.sections.grants.description",
+        "Handle short-term grants, visitor access, and temporary email-QR / MistyPass issuance."
+      ),
+      metric: loading
+        ? "--"
+        : t(
+            "accessPage.components.recommendation.sections.grants.metric",
+            "{{grantCount}} grants / {{visitorGrantCount}} visitor grants",
+            {
+              grantCount,
+              visitorGrantCount,
+            }
+          ),
+      helper:
+        expiredGrantCount > 0
+          ? t(
+              "accessPage.components.recommendation.sections.grants.helperExpired",
+              "{{expiredGrantCount}} grants have expired. Review first.",
+              {
+                expiredGrantCount,
+              }
+            )
+          : t("accessPage.components.recommendation.sections.grants.helperNormal", "Grant validity is normal."),
     },
   ]
 }
@@ -85,40 +143,55 @@ export function deriveNextRecommendedAction({
 }): AccessRecommendedAction {
   if (employeeCount === 0) {
     return {
-      title: "先接入员工目录",
-      description: "员工库还没接通，用户组、策略和长期发放都会缺上游数据。",
+      title: t("accessPage.components.recommendation.actions.importDirectory.title", "Connect employee directory first"),
+      description: t(
+        "accessPage.components.recommendation.actions.importDirectory.description",
+        "Without employee directory, groups, policies, and long-term issuance will all miss upstream data."
+      ),
       to: enterpriseSyncLink,
-      label: "去导入员工",
+      label: t("accessPage.components.recommendation.actions.importDirectory.label", "Import employees"),
     }
   }
   if (groupCount === 0) {
     return {
-      title: "先整理用户组",
-      description: "当前已有员工目录，但还没有稳定的用户组承接策略和发放对象。",
+      title: t("accessPage.components.recommendation.actions.organizeGroups.title", "Organize user groups first"),
+      description: t(
+        "accessPage.components.recommendation.actions.organizeGroups.description",
+        "Employee directory exists, but stable groups are still missing for policy and issuance targets."
+      ),
       to: directorySectionLink,
-      label: "去员工与用户组",
+      label: t("accessPage.components.recommendation.actions.organizeGroups.label", "Go to employees & groups"),
     }
   }
   if (!topologyReady) {
     return {
-      title: "补齐空间拓扑",
-      description: "策略要精确落到楼宇、区域和门点，当前拓扑还不完整。",
+      title: t("accessPage.components.recommendation.actions.fixTopology.title", "Complete space topology"),
+      description: t(
+        "accessPage.components.recommendation.actions.fixTopology.description",
+        "Policies require precise building/area/door topology, and current topology is incomplete."
+      ),
       to: spacesLink,
-      label: "去空间拓扑",
+      label: t("accessPage.components.recommendation.actions.fixTopology.label", "Go to topology"),
     }
   }
   if (!policyReady) {
     return {
-      title: "建立首批权限策略",
-      description: "用户组和拓扑已具备，可以开始落楼宇、区域、门点的访问规则。",
+      title: t("accessPage.components.recommendation.actions.seedPolicies.title", "Create first access policies"),
+      description: t(
+        "accessPage.components.recommendation.actions.seedPolicies.description",
+        "Groups and topology are ready; start defining building/area/door access rules."
+      ),
       to: policiesSectionLink,
-      label: "去权限策略",
+      label: t("accessPage.components.recommendation.actions.seedPolicies.label", "Go to policies"),
     }
   }
   return {
-    title: "进入凭证发放",
-    description: "目录、用户组和权限策略都已具备，可以去发放中心完成长期员工发放与状态维护。",
+    title: t("accessPage.components.recommendation.actions.goIssuance.title", "Move to pass issuance"),
+    description: t(
+      "accessPage.components.recommendation.actions.goIssuance.description",
+      "Directory, groups, and policies are ready; continue long-term issuance and status operations in issuance center."
+    ),
     to: walletEmployeeLink,
-    label: "去凭证发放",
+    label: t("accessPage.components.recommendation.actions.goIssuance.label", "Go to pass issuance"),
   }
 }

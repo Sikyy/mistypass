@@ -1,6 +1,9 @@
 package event
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestIngestAccessEventIdempotency(t *testing.T) {
 	svc := NewService()
@@ -138,5 +141,64 @@ func TestCountEventsByGateway(t *testing.T) {
 	accessCount, deviceCount := svc.CountEventsByGateway("tenant_demo_jakarta", "gw_demo_001")
 	if accessCount < 1 || deviceCount < 1 {
 		t.Fatalf("expected at least one access/device event, got access=%d device=%d", accessCount, deviceCount)
+	}
+}
+
+func TestSubscribeChangesNotifiesOnMutation(t *testing.T) {
+	svc := NewService()
+	changeCh, unsubscribe := svc.SubscribeChanges()
+	defer unsubscribe()
+
+	if _, _, err := svc.IngestAccessEvent(IngestAccessEventInput{
+		ID:        "gwea-subscribe-1",
+		TenantID:  "tenant_demo_jakarta",
+		Type:      "access_granted",
+		GatewayID: "gw_demo_001",
+	}); err != nil {
+		t.Fatalf("ingest access event error: %v", err)
+	}
+
+	select {
+	case <-changeCh:
+	case <-time.After(time.Second):
+		t.Fatalf("expected access event mutation to notify subscribers")
+	}
+}
+
+func TestSubscribeChangesSkipsDeduplicatedMutation(t *testing.T) {
+	svc := NewService()
+	changeCh, unsubscribe := svc.SubscribeChanges()
+	defer unsubscribe()
+
+	if _, _, err := svc.IngestDeviceEvent(IngestDeviceEventInput{
+		ID:        "gwed-subscribe-1",
+		TenantID:  "tenant_demo_jakarta",
+		Type:      "gateway_event",
+		GatewayID: "gw_demo_001",
+	}); err != nil {
+		t.Fatalf("ingest device event error: %v", err)
+	}
+
+	select {
+	case <-changeCh:
+	case <-time.After(time.Second):
+		t.Fatalf("expected initial device event mutation to notify subscribers")
+	}
+
+	if _, deduped, err := svc.IngestDeviceEvent(IngestDeviceEventInput{
+		ID:        "gwed-subscribe-1",
+		TenantID:  "tenant_demo_jakarta",
+		Type:      "gateway_event",
+		GatewayID: "gw_demo_001",
+	}); err != nil {
+		t.Fatalf("ingest duplicate device event error: %v", err)
+	} else if !deduped {
+		t.Fatalf("expected second device event to be deduplicated")
+	}
+
+	select {
+	case <-changeCh:
+		t.Fatalf("expected deduplicated device event not to notify subscribers")
+	case <-time.After(100 * time.Millisecond):
 	}
 }

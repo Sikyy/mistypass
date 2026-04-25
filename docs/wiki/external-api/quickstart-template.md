@@ -33,8 +33,9 @@ curl -X GET "$API_BASE_URL/api/v1/tenants" \
 ## 4. Step 3: 跑通一个业务流程（示例：网关注册）
 
 1. 导入序列号库存
-2. `POST /api/v1/gateway/register`
-3. 记录返回的 `gateway_id` 与 `device_token`
+2. 准备平台发放的 `GATEWAY_BOOTSTRAP_TOKEN`
+3. 带 `X-Bootstrap-Token` 调用 `POST /api/v1/gateway/register`
+4. 记录返回的 `gateway_id` 与 `device_token`
 
 ## 5. 常见错误
 

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -20,22 +22,29 @@ type AccessRoleTemplateTableProps = {
 }
 
 export function AccessRoleTemplateTable({ items }: AccessRoleTemplateTableProps) {
+  const { t } = useTranslation()
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">岗位自动分组与权限模板</CardTitle>
+        <CardTitle className="text-base">
+          {t("accessPage.components.roleTemplateTable.title", { defaultValue: "Role-based group and permission templates" })}
+        </CardTitle>
         <CardDescription>
-          企业员工同步时会按岗位 / 部门自动映射用户组与权限预设，普通办公区由默认组覆盖，避免逐人分配。
+          {t("accessPage.components.roleTemplateTable.description", {
+            defaultValue:
+              "During employee sync, user groups and permission presets are mapped by role/department automatically; default office coverage avoids per-person assignment.",
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>岗位关键字</TableHead>
-              <TableHead>默认用户组</TableHead>
-              <TableHead>访问角色</TableHead>
-              <TableHead>权限预设</TableHead>
+              <TableHead>{t("accessPage.components.roleTemplateTable.columns.positionKeywords", { defaultValue: "Role keywords" })}</TableHead>
+              <TableHead>{t("accessPage.components.roleTemplateTable.columns.defaultGroup", { defaultValue: "Default group" })}</TableHead>
+              <TableHead>{t("accessPage.components.roleTemplateTable.columns.accessRole", { defaultValue: "Access role" })}</TableHead>
+              <TableHead>{t("accessPage.components.roleTemplateTable.columns.permissionPreset", { defaultValue: "Permission preset" })}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

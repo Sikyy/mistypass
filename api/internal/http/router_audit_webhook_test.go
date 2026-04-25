@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/mistypass/cloud/api/internal/modules/audit"
@@ -18,11 +19,12 @@ func TestAuditWebhookConfigUpsertAndGet(t *testing.T) {
 	}
 
 	upsertBody, _ := json.Marshal(map[string]any{
-		"tenant_id":  "tenant_demo_jakarta",
-		"enabled":    true,
-		"endpoint":   "https://example.com/hooks/audit",
-		"actions":    []string{"gateway_reboot", "tenant_update"},
-		"updated_by": "qa",
+		"tenant_id":      "tenant_demo_jakarta",
+		"enabled":        true,
+		"endpoint":       "https://example.com/hooks/audit",
+		"actions":        []string{"gateway_reboot", "tenant_update"},
+		"signing_secret": "audit-signing-secret",
+		"updated_by":     "qa",
 	})
 	upsertReq := httptest.NewRequest(http.MethodPut, "/api/v1/audit/webhook/config", bytes.NewReader(upsertBody))
 	upsertReq.Header.Set("Content-Type", "application/json")
@@ -55,6 +57,9 @@ func TestAuditWebhookConfigUpsertAndGet(t *testing.T) {
 	if config.Endpoint != "https://example.com/hooks/audit" {
 		t.Fatalf("unexpected endpoint: %s", config.Endpoint)
 	}
+	if strings.Contains(getRec.Body.String(), "signing_secret") {
+		t.Fatalf("expected signing_secret to be omitted from response")
+	}
 }
 
 func TestDispatchAuditWebhookSuccess(t *testing.T) {
@@ -72,6 +77,7 @@ func TestDispatchAuditWebhookSuccess(t *testing.T) {
 		true,
 		webhookServer.URL,
 		nil,
+		"",
 		"qa",
 	)
 	if err != nil {
@@ -118,6 +124,7 @@ func TestDispatchAuditWebhookDisabled(t *testing.T) {
 		false,
 		"https://example.com/hooks/audit",
 		nil,
+		"",
 		"qa",
 	)
 	if err != nil {

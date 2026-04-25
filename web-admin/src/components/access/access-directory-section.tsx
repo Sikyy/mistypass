@@ -1,5 +1,5 @@
-import { type FormEvent } from "react"
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { AccessDomainBanner } from "@/components/access/access-domain-banner"
 import { AccessGroupForm } from "@/components/access/access-group-form"
@@ -50,7 +50,7 @@ type AccessDirectorySectionProps = {
   onEditGroup: (group: UserGroup) => void
   onMemberQueryChange: (value: string) => void
   onNameChange: (value: string) => void
-  onSubmitGroup: (event: FormEvent<HTMLFormElement>) => void
+  onSubmitGroup: (payload: { name: string; description: string }) => void
   onToggleMember: (employeeID: string) => void
   roleTemplateItems: AccessDirectoryRoleTemplate[]
   selectedMemberIDs: string[]
@@ -78,18 +78,25 @@ export function AccessDirectorySection({
   showStarterPanel,
   starterItems,
 }: AccessDirectorySectionProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-4">
       <AccessDomainBanner
-        title="员工与用户组"
-        description="这个域只负责整理组织对象。员工目录来自企业同步，用户组负责承接策略与发放对象，不再在这里混入范围策略和访客授权。"
+        title={t("accessPage.components.directorySection.bannerTitle", { defaultValue: "Employees & user groups" })}
+        description={t("accessPage.components.directorySection.bannerDescription", {
+          defaultValue:
+            "This section focuses on organization objects only. Employee directory comes from enterprise sync; groups carry policy and issuance targets.",
+        })}
         actions={
           <>
             <Button asChild size="sm" variant="outline">
-              <Link to="/enterprise#sync">去企业同步</Link>
+              <Link to="/enterprise#sync">{t("accessPage.components.directorySection.goEnterpriseSync", { defaultValue: "Go to enterprise sync" })}</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link to="/access/policies">下一步去权限策略</Link>
+              <Link to="/access/policies">
+                {t("accessPage.components.directorySection.goPoliciesNext", { defaultValue: "Next: access policies" })}
+              </Link>
             </Button>
           </>
         }
@@ -117,8 +124,12 @@ export function AccessDirectorySection({
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">用户组列表</CardTitle>
-              <CardDescription>编辑后可立即用于权限策略、访客授权和批量发放对象选择。</CardDescription>
+              <CardTitle className="text-base">{t("accessPage.components.directorySection.groupListTitle", { defaultValue: "User group list" })}</CardTitle>
+              <CardDescription>
+                {t("accessPage.components.directorySection.groupListDescription", {
+                  defaultValue: "Groups can be used immediately for policies, visitor grants, and batch issuance targeting.",
+                })}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <AccessGroupLedgerTable rows={groupLedgerRows} emptyState={groupLedgerEmptyState} onEdit={onEditGroup} />

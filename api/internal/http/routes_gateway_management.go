@@ -748,3 +748,269 @@ func (s *server) rebootGateway(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusAccepted, ack)
 }
+
+func (s *server) getGatewayMQTTBootstrap(w http.ResponseWriter, r *http.Request) {
+	gatewayID := chi.URLParam(r, "gatewayID")
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	if !s.cfg.MQTTEnabled {
+		writeError(w, http.StatusServiceUnavailable, "mqtt integration is not enabled")
+		return
+	}
+
+	gw, exists := s.findGatewayByTenant(tenantID, gatewayID)
+	if !exists {
+		writeError(w, http.StatusNotFound, "gateway not found")
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, gw.BuildingID) {
+		return
+	}
+
+	topicPrefix := strings.Trim(strings.TrimSpace(s.cfg.MQTTTopicPrefix), "/")
+	if topicPrefix == "" {
+		topicPrefix = "mistypass"
+	}
+	tenantTopicSegment := mqttTopicSegment(gw.TenantID)
+	gatewayTopicSegment := mqttTopicSegment(gw.ID)
+	baseTopic := fmt.Sprintf("%s/tenants/%s/gateways/%s", topicPrefix, tenantTopicSegment, gatewayTopicSegment)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"enabled":      true,
+		"tenant_id":    gw.TenantID,
+		"gateway_id":   gw.ID,
+		"broker_url":   s.cfg.MQTTBrokerURL,
+		"client_id":    fmt.Sprintf("gw-%s", gatewayTopicSegment),
+		"username":     gw.ID,
+		"auth_mode":    "gateway_device_token",
+		"topic_prefix": topicPrefix,
+		"topics": map[string]any{
+			"subscribe": map[string]string{
+				"config":  baseTopic + "/commands/config",
+				"reboot":  baseTopic + "/commands/reboot",
+				"control": baseTopic + "/commands/control",
+			},
+			"publish": map[string]string{
+				"heartbeat":  baseTopic + "/events/heartbeat",
+				"access":     baseTopic + "/events/access",
+				"device":     baseTopic + "/events/device",
+				"checkpoint": baseTopic + "/events/checkpoint",
+				"status":     baseTopic + "/status",
+			},
+		},
+		"qos": map[string]int{
+			"commands": 1,
+			"events":   1,
+			"status":   0,
+		},
+	})
+}
+
+func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
+	gatewayID := chi.URLParam(r, "gatewayID")
+	var request struct {
+		TenantID        string `json:"tenant_id"`
+		FirmwareVersion string `json:"firmware_version"`
+		FirmwareURL     string `json:"firmware_url"`
+		FirmwareSHA256  string `json:"firmware_sha256"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	gw, exists := s.findGatewayByTenant(tenantID, gatewayID)
+	if !exists {
+		writeError(w, http.StatusNotFound, "gateway not found")
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, gw.BuildingID) {
+		return
+	}
+
+	task, err := s.gatewaySvc.CreateOTATask(
+		tenantID,
+		gatewayID,
+		request.FirmwareVersion,
+		request.FirmwareURL,
+		request.FirmwareSHA256,
+		requestActor(r),
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, gateway.ErrGatewayNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		case errors.Is(err, gateway.ErrGatewayIDRequired),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareVersionRequired),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareURLRequired),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Invalid):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, task)
+	s.appendAuditLog(
+		r,
+		task.TenantID,
+		"gateway_ota_task_created",
+		fmt.Sprintf("gateway=%s,task=%s,firmware=%s,status=%s", task.GatewayID, task.ID, task.FirmwareVersion, task.Status),
+		"gateway_ota",
+	)
+}
+
+func (s *server) listGatewayOTATasks(w http.ResponseWriter, r *http.Request) {
+	gatewayID := chi.URLParam(r, "gatewayID")
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	gw, exists := s.findGatewayByTenant(tenantID, gatewayID)
+	if !exists {
+		writeError(w, http.StatusNotFound, "gateway not found")
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, gw.BuildingID) {
+		return
+	}
+
+	items, err := s.gatewaySvc.ListOTATasks(tenantID, gatewayID)
+	if err != nil {
+		switch {
+		case errors.Is(err, gateway.ErrGatewayNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		case errors.Is(err, gateway.ErrGatewayIDRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+func (s *server) updateGatewayOTATaskStatus(w http.ResponseWriter, r *http.Request) {
+	gatewayID := chi.URLParam(r, "gatewayID")
+	taskID := chi.URLParam(r, "taskID")
+	var request struct {
+		TenantID     string `json:"tenant_id"`
+		Status       string `json:"status"`
+		ErrorMessage string `json:"error_message"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	gw, exists := s.findGatewayByTenant(tenantID, gatewayID)
+	if !exists {
+		writeError(w, http.StatusNotFound, "gateway not found")
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, gw.BuildingID) {
+		return
+	}
+
+	item, err := s.gatewaySvc.UpdateOTATaskStatus(
+		tenantID,
+		gatewayID,
+		taskID,
+		request.Status,
+		request.ErrorMessage,
+		requestActor(r),
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, gateway.ErrGatewayNotFound),
+			errors.Is(err, gateway.ErrGatewayOTATaskNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		case errors.Is(err, gateway.ErrGatewayIDRequired),
+			errors.Is(err, gateway.ErrGatewayOTATaskIDRequired),
+			errors.Is(err, gateway.ErrGatewayOTATaskStatusInvalid):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, item)
+	s.appendAuditLog(
+		r,
+		item.TenantID,
+		"gateway_ota_task_status_updated",
+		fmt.Sprintf("gateway=%s,task=%s,status=%s,error=%s", item.GatewayID, item.ID, item.Status, strings.TrimSpace(item.ErrorMessage)),
+		"gateway_ota",
+	)
+}
+
+func requestActor(r *http.Request) string {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		return "system"
+	}
+	if nextEmail := strings.TrimSpace(user.Email); nextEmail != "" {
+		return nextEmail
+	}
+	if nextUserID := strings.TrimSpace(user.ID); nextUserID != "" {
+		return nextUserID
+	}
+	return "system"
+}
+
+func mqttTopicSegment(raw string) string {
+	next := strings.ToLower(strings.TrimSpace(raw))
+	if next == "" {
+		return "unknown"
+	}
+	var b strings.Builder
+	b.Grow(len(next))
+	lastDash := false
+	for _, ch := range next {
+		if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' {
+			b.WriteRune(ch)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	result := strings.Trim(b.String(), "-")
+	if result == "" {
+		return "unknown"
+	}
+	return result
+}

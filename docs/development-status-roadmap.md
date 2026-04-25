@@ -262,13 +262,13 @@
 
 已完成子项：
 
-- [x] 输出迁移说明文档：`docs/architecture/encore-migration-playbook.md`（收益/风险/排期/回滚策略）。
+- [x] 输出迁移说明文档：`docs/archive/encore-migration-playbook.md`（收益/风险/排期/回滚策略，已归档）。
 - [x] 完成 Wallet 告警编排“可迁移边界”代码拆分：`api/internal/modules/wallet/alertdispatch`。
 - [x] 迁移决策口径冻结：仅 `Encore.go` 渐进接入新 control-plane，不做全量重构。
 - [x] 首批试点与禁迁边界冻结：首批聚焦 `Webhook/SCIM-HRIS/运营异步任务`，不先迁 `gateway/checkpoint-replay/enterprise-auth-callback` 主链路。
 - [x] 落地审计事件 Webhook fan-out PoC（Go 主干内边界版本）：`/audit/webhook/config|deliveries|dispatch` + 模块化投递记录能力（便于后续映射 Encore service）。
 - [x] 新增审计事件 Webhook fan-out 回归脚本并接入 CI smoke：`docs/testing/curl-audit-webhook-fanout.zsh` + `.github/workflows/api-smoke.yml`。
-- [x] 新增 R9 统一评估基线文档：`docs/architecture/encore-poc-evaluation-baseline.md`（开发效率/可观测性/运维复杂度评分口径 + DoR/DoD）。
+- [x] 新增 R9 统一评估基线文档：`docs/archive/encore-poc-evaluation-baseline.md`（开发效率/可观测性/运维复杂度评分口径 + DoR/DoD，已归档）。
 - [x] 对外 API 文档第三批（control-plane 边界收敛）：新增 Enterprise 审批回写与 sync worker 告警专题（guide/reference）+ Wallet DLQ 治理专题（guide/reference）。
 - [x] 对外 API 文档第四批（资源级 reference 收口）：新增 Enterprise `sync-requests/reconcile`、Wallet `metrics/trend`、`alert-subscription` 参考页，补齐高频运营接口的参数与错误码语义。
 - [x] 对外 API 文档第五批（基础资源收口）：新增 `Auth Session/Me`、`Tenant/Space Core`、`Access Core` 参考页，补齐角色矩阵、字段枚举与 scope 错误语义。
@@ -281,8 +281,8 @@
 未完成子项：
 
 - [ ] 外部资质完成后，按相同回归口径对比 Meta 真通道 PoC 与主服务行为一致性。
-- [ ] 形成 Encore PoC 的开发效率/可观测性/运维复杂度对比结论。
-- [ ] 输出 `继续 service-by-service 迁移` 或 `保持现框架` 的决策报告。
+- [x] 形成 Encore PoC 的开发效率/可观测性/运维复杂度对比结论。（决策已冻结：保持 Go+Chi）
+- [x] 输出决策报告：`docs/architecture/encore-decision-report-2026-04-19.md`（结论：保持现框架，暂停迁移）。
 
 ## 3. Cloud / Edge 硬边界（冻结）
 

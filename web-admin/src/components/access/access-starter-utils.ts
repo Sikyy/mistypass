@@ -8,6 +8,7 @@ import {
   type DeliveryMethod,
   type ScopeType,
 } from "@/components/access/access-page-utils"
+import i18n from "@/lib/i18n"
 import type { AccessPolicy, Area, Building, Door, UserGroup } from "@/lib/api"
 
 export type PolicyStarter = {
@@ -37,6 +38,13 @@ export type GrantStarter = {
   passType: string
   validUntil: string
   reviewNote: string
+}
+
+function t(key: string, defaultValue: string, options?: Record<string, unknown>) {
+  return i18n.t(key, {
+    defaultValue,
+    ...options,
+  })
 }
 
 function resolveTopologySeed(buildings: Building[], areas: Area[], doors: Door[]) {
@@ -128,14 +136,27 @@ export function buildPolicyStarters({
         doorByID
       )
       const reviewNote = hasIncompleteTopology(scopeType, targetBuildingID, targetAreaID, targetDoorID)
-        ? "当前楼宇拓扑还不完整，先生成了保守草稿；保存前建议先回到空间页补齐楼宇、区域和门点。"
-        : `建议范围：${scopedSummary}`
+        ? t(
+            "accessPage.components.starters.policy.reviewNoteTopologyIncomplete",
+            "Topology is incomplete. A conservative draft is generated first; complete building/area/door topology before saving."
+          )
+        : t("accessPage.components.starters.policy.reviewNoteRecommendedScope", "Suggested scope: {{scopedSummary}}", {
+            scopedSummary,
+          })
 
       return {
         id: group.id,
         groupName: group.name,
         title: template.defaultGroup,
-        description: `${group.name} 已具备 ${memberCount} 名成员，可直接先套一条 ${scopedSummary} 策略草稿。`,
+        description: t(
+          "accessPage.components.starters.policy.description",
+          "{{groupName}} has {{memberCount}} members. You can seed a {{scopedSummary}} policy draft now.",
+          {
+            groupName: group.name,
+            memberCount,
+            scopedSummary,
+          }
+        ),
         name: starterName,
         scopeType,
         buildingID: targetBuildingID,
@@ -176,16 +197,24 @@ export function buildGrantStarters({
 
   const buildReviewNote = (scopeType: ScopeType, buildingID: string, areaID: string, doorID: string) => {
     if (hasIncompleteTopology(scopeType, buildingID, areaID, doorID)) {
-      return "当前楼宇拓扑还不完整，先用了保守范围；正式授权前建议先去空间页补齐楼宇、区域和门点。"
+      return t(
+        "accessPage.components.starters.grant.reviewNoteTopologyIncomplete",
+        "Topology is incomplete. A conservative scope is used first; complete building/area/door topology before formal granting."
+      )
     }
-    return `建议范围：${scopeSummaryByID(scopeType, buildingID, areaID, doorID, buildingByID, areaByID, doorByID)}`
+    return t("accessPage.components.starters.grant.reviewNoteRecommendedScope", "Suggested scope: {{scope}}", {
+      scope: scopeSummaryByID(scopeType, buildingID, areaID, doorID, buildingByID, areaByID, doorByID),
+    })
   }
 
   const presets: Array<Omit<GrantStarter, "reviewNote">> = [
     {
       id: "visitor_reception",
-      title: "来访宾客",
-      description: "适合前台来访、客户接待和短时访客，优先用二维码或邮件快速发送。",
+      title: t("accessPage.components.starters.grant.presets.visitorReception.title", "Visitor reception"),
+      description: t(
+        "accessPage.components.starters.grant.presets.visitorReception.description",
+        "Best for front-desk visitors, customer reception, and short visits; prefer QR or email for quick delivery."
+      ),
       scopeType: visitorScopeType,
       buildingID: visitorScopeType === "all" ? "" : firstBuilding?.id ?? "",
       areaID: visitorScopeType === "area" || visitorScopeType === "door" ? firstArea?.id ?? "" : "",
@@ -196,8 +225,11 @@ export function buildGrantStarters({
     },
     {
       id: "contractor_maintenance",
-      title: "施工 / 维护",
-      description: "适合当天维修、保洁、施工进场，建议范围控制在区域级并保留时效。",
+      title: t("accessPage.components.starters.grant.presets.contractorMaintenance.title", "Contractor / maintenance"),
+      description: t(
+        "accessPage.components.starters.grant.presets.contractorMaintenance.description",
+        "Best for daily maintenance/cleaning/construction entry; keep area-level scope with clear expiration."
+      ),
       scopeType: contractorScopeType,
       buildingID: contractorScopeType === "all" ? "" : firstBuilding?.id ?? "",
       areaID: contractorScopeType === "area" ? firstArea?.id ?? "" : "",
@@ -208,8 +240,11 @@ export function buildGrantStarters({
     },
     {
       id: "candidate_interview",
-      title: "面试来访",
-      description: "适合面试、候选人参访和短期办公楼访问，默认楼宇级范围即可。",
+      title: t("accessPage.components.starters.grant.presets.candidateInterview.title", "Interview visit"),
+      description: t(
+        "accessPage.components.starters.grant.presets.candidateInterview.description",
+        "Best for interviews, candidate visits, and short office access; building-level scope is usually enough."
+      ),
       scopeType: interviewScopeType,
       buildingID: interviewScopeType === "all" ? "" : firstBuilding?.id ?? "",
       areaID: "",
@@ -220,8 +255,11 @@ export function buildGrantStarters({
     },
     {
       id: "temporary_employee",
-      title: "临时员工补录",
-      description: "适合短期派驻、试运行人员和临时员工，后续可转去凭证发放做长期承接。",
+      title: t("accessPage.components.starters.grant.presets.temporaryEmployee.title", "Temporary employee"),
+      description: t(
+        "accessPage.components.starters.grant.presets.temporaryEmployee.description",
+        "Best for short-term assignments, trial operators, and temporary staff; later hand over to pass issuance for long-term flow."
+      ),
       scopeType: temporaryEmployeeScopeType,
       buildingID: firstBuilding?.id ?? "",
       areaID: "",

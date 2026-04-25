@@ -1,0 +1,66 @@
+-- name: UpsertProjectionEnterpriseDomainMapping :exec
+insert into mistypass_enterprise_domain_mappings (id, tenant_id, domain, status, created_at, updated_at, raw, synced_at)
+values ($1, $2, $3, $4, $5, $6, $7, now())
+on conflict (id) do update
+set tenant_id = excluded.tenant_id,
+    domain = excluded.domain,
+    status = excluded.status,
+    created_at = excluded.created_at,
+    updated_at = excluded.updated_at,
+    raw = excluded.raw,
+    synced_at = now();
+
+-- name: UpsertProjectionEnterpriseIDPConfig :exec
+insert into mistypass_enterprise_idp_configs (id, tenant_id, provider, issuer_url, client_id, status, sync_mode, scopes, updated_by, created_at, updated_at, raw, synced_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+on conflict (id) do update
+set tenant_id = excluded.tenant_id,
+    provider = excluded.provider,
+    issuer_url = excluded.issuer_url,
+    client_id = excluded.client_id,
+    status = excluded.status,
+    sync_mode = excluded.sync_mode,
+    scopes = excluded.scopes,
+    updated_by = excluded.updated_by,
+    created_at = excluded.created_at,
+    updated_at = excluded.updated_at,
+    raw = excluded.raw,
+    synced_at = now();
+
+-- name: UpsertProjectionEnterpriseEmployee :exec
+insert into mistypass_enterprise_employees (id, tenant_id, external_id, email, full_name, department, job_title, location, access_role, building_id, group_ids, status, source, last_synced_at, raw, synced_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
+on conflict (id) do update
+set tenant_id = excluded.tenant_id,
+    external_id = excluded.external_id,
+    email = excluded.email,
+    full_name = excluded.full_name,
+    department = excluded.department,
+    job_title = excluded.job_title,
+    location = excluded.location,
+    access_role = excluded.access_role,
+    building_id = excluded.building_id,
+    group_ids = excluded.group_ids,
+    status = excluded.status,
+    source = excluded.source,
+    last_synced_at = excluded.last_synced_at,
+    raw = excluded.raw,
+    synced_at = now();
+
+-- name: UpsertProjectionEnterpriseSyncJob :exec
+insert into mistypass_enterprise_sync_jobs (id, tenant_id, source, status, total, created, updated, deactivated, rejected, actor, started_at, ended_at, raw, synced_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
+on conflict (id) do update
+set tenant_id = excluded.tenant_id,
+    source = excluded.source,
+    status = excluded.status,
+    total = excluded.total,
+    created = excluded.created,
+    updated = excluded.updated,
+    deactivated = excluded.deactivated,
+    rejected = excluded.rejected,
+    actor = excluded.actor,
+    started_at = excluded.started_at,
+    ended_at = excluded.ended_at,
+    raw = excluded.raw,
+    synced_at = now();

@@ -11,6 +11,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/audit"
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
+	"github.com/mistypass/cloud/api/internal/modules/hris"
 	"github.com/mistypass/cloud/api/internal/modules/space"
 )
 
@@ -118,6 +119,119 @@ func TestPendingJITApprovalExternalSyncTenantIDs(t *testing.T) {
 	}
 }
 
+func TestPendingHRISWebhookDLQTenantIDs(t *testing.T) {
+	now := time.Now().UTC()
+	cooldown := 30 * time.Second
+	items := []hris.DeadLetterEntry{
+		{
+			ID:        "hdlq_1",
+			TenantID:  "tenant_b",
+			Status:    "dlq",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:           "hdlq_2",
+			TenantID:     "tenant_a",
+			Status:       "dlq",
+			ReplayCount:  1,
+			LastReplayAt: ptrTime(now.Add(-1 * time.Minute)),
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		},
+		{
+			ID:           "hdlq_3",
+			TenantID:     "tenant_c",
+			Status:       "dlq",
+			ReplayCount:  5,
+			LastReplayAt: ptrTime(now.Add(-1 * time.Minute)),
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		},
+		{
+			ID:           "hdlq_4",
+			TenantID:     "tenant_d",
+			Status:       "dlq",
+			ReplayCount:  1,
+			LastReplayAt: ptrTime(now.Add(-10 * time.Second)),
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		},
+		{
+			ID:        "hdlq_5",
+			TenantID:  "tenant_e",
+			Status:    "replaying",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		{
+			ID:        "hdlq_6",
+			TenantID:  "tenant_e",
+			Status:    "resolved",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	got := pendingHRISWebhookDLQTenantIDs(items, 5, cooldown, now)
+	if len(got) != 5 {
+		t.Fatalf("expected 5 tenant ids, got %d (%v)", len(got), got)
+	}
+	if got[0] != "tenant_a" || got[1] != "tenant_b" || got[2] != "tenant_c" || got[3] != "tenant_d" || got[4] != "tenant_e" {
+		t.Fatalf("unexpected tenant ids order/content: %v", got)
+	}
+}
+
+func TestPendingHRISWebhookReceiptTenantIDs(t *testing.T) {
+	now := time.Now().UTC()
+	items := []enterprise.HRISWebhookReceipt{
+		{
+			ID:         "whr_1",
+			TenantID:   "tenant_b",
+			Status:     "received",
+			ReceivedAt: now,
+		},
+		{
+			ID:         "whr_2",
+			TenantID:   "tenant_a",
+			Status:     "received",
+			ReceivedAt: now,
+		},
+		{
+			ID:         "whr_3",
+			TenantID:   "tenant_b",
+			Status:     "received",
+			ReceivedAt: now,
+		},
+		{
+			ID:         "whr_4",
+			TenantID:   "tenant_c",
+			Status:     "failed",
+			ReceivedAt: now,
+		},
+		{
+			ID:         "whr_5",
+			TenantID:   "tenant_d",
+			Status:     "processing",
+			ReceivedAt: now,
+		},
+		{
+			ID:         "whr_6",
+			TenantID:   "",
+			Status:     "received",
+			ReceivedAt: now,
+		},
+	}
+
+	got := pendingHRISWebhookReceiptTenantIDs(items)
+	if len(got) != 4 {
+		t.Fatalf("expected 4 tenant ids, got %d (%v)", len(got), got)
+	}
+	if got[0] != "tenant_a" || got[1] != "tenant_b" || got[2] != "tenant_c" || got[3] != "tenant_d" {
+		t.Fatalf("unexpected tenant ids order/content: %v", got)
+	}
+}
+
 func TestAppendEnterpriseSyncWorkerAlertAudit(t *testing.T) {
 	auditSvc := audit.NewService()
 	s := &server{
@@ -208,9 +322,154 @@ func TestAppendEnterpriseJITApprovalExternalSyncWorkerAlertAudit(t *testing.T) {
 	}
 }
 
+func TestAppendEnterpriseHRISWebhookDLQWorkerAlertAudit(t *testing.T) {
+	auditSvc := audit.NewService()
+	s := &server{
+		auditSvc: auditSvc,
+	}
+
+	before := len(auditSvc.List("tenant_demo_jakarta"))
+	result := enterpriseHRISWebhookDLQWorkerResult{
+		Processed:             4,
+		Replayed:              1,
+		Failed:                3,
+		SkippedByInFlight:     2,
+		SkippedByAttemptLimit: 2,
+		SkippedByCooldown:     1,
+	}
+
+	s.appendEnterpriseHRISWebhookDLQWorkerAlertAudit("tenant_demo_jakarta", result, 3)
+
+	afterItems := auditSvc.List("tenant_demo_jakarta")
+	if len(afterItems) != before+1 {
+		t.Fatalf("expected one new audit item, before=%d after=%d", before, len(afterItems))
+	}
+	latest := afterItems[0]
+	if latest.Action != "enterprise_hris_webhook_dlq_worker_alert" {
+		t.Fatalf("unexpected action: %s", latest.Action)
+	}
+	if !strings.Contains(latest.Target, "failed=3") ||
+		!strings.Contains(latest.Target, "threshold=3") ||
+		!strings.Contains(latest.Target, "skipped_in_flight=2") {
+		t.Fatalf("unexpected alert target payload: %s", latest.Target)
+	}
+}
+
+func TestAppendEnterpriseHRISWebhookReceiptWorkerAlertAudit(t *testing.T) {
+	auditSvc := audit.NewService()
+	s := &server{
+		auditSvc: auditSvc,
+	}
+
+	before := len(auditSvc.List("tenant_demo_jakarta"))
+	result := enterpriseHRISWebhookReceiptWorkerResult{
+		Processed:             4,
+		Synced:                1,
+		Skipped:               1,
+		Failed:                3,
+		SkippedByAttemptLimit: 2,
+		SkippedByCooldown:     1,
+		LastConnectorID:       "connector-talenta-001",
+		LastVendor:            "talenta",
+		LastRequestID:         "mekari-webhook-001",
+		LastEventType:         "talenta.employee.detail.created",
+	}
+
+	s.appendEnterpriseHRISWebhookReceiptWorkerAlertAudit("tenant_demo_jakarta", result, 3)
+
+	afterItems := auditSvc.List("tenant_demo_jakarta")
+	if len(afterItems) != before+1 {
+		t.Fatalf("expected one new audit item, before=%d after=%d", before, len(afterItems))
+	}
+	latest := afterItems[0]
+	if latest.Action != "enterprise_hris_webhook_receipt_worker_alert" {
+		t.Fatalf("unexpected action: %s", latest.Action)
+	}
+	if !strings.Contains(latest.Target, "skipped_attempt_limit=2") || !strings.Contains(latest.Target, "skipped_cooldown=1") {
+		t.Fatalf("unexpected retry metrics in alert target payload: %s", latest.Target)
+	}
+	if !strings.Contains(latest.Target, "connector_id=connector-talenta-001") || !strings.Contains(latest.Target, "event_type=talenta.employee.detail.created") {
+		t.Fatalf("unexpected connector metadata in alert target payload: %s", latest.Target)
+	}
+}
+
+func TestAppendEnterpriseHRISPullWorkerAlertAudit(t *testing.T) {
+	auditSvc := audit.NewService()
+	s := &server{
+		auditSvc: auditSvc,
+	}
+
+	before := len(auditSvc.List("tenant_demo_jakarta"))
+	result := enterpriseHRISPullWorkerResult{
+		Processed:             4,
+		Synced:                1,
+		Failed:                3,
+		ConsecutiveFailures:   5,
+		FailureAgeSeconds:     7200,
+		SkippedByInFlight:     2,
+		SkippedByAttemptLimit: 2,
+		SkippedByCooldown:     1,
+	}
+
+	s.appendEnterpriseHRISPullWorkerAlertAudit("tenant_demo_jakarta", result, 3)
+
+	afterItems := auditSvc.List("tenant_demo_jakarta")
+	if len(afterItems) != before+1 {
+		t.Fatalf("expected one new audit item, before=%d after=%d", before, len(afterItems))
+	}
+	latest := afterItems[0]
+	if latest.Action != "enterprise_hris_pull_worker_alert" {
+		t.Fatalf("unexpected action: %s", latest.Action)
+	}
+	if !strings.Contains(latest.Target, "failed=3") ||
+		!strings.Contains(latest.Target, "threshold=3") ||
+		!strings.Contains(latest.Target, "skipped_in_flight=2") ||
+		!strings.Contains(latest.Target, "consecutive_failures=5") ||
+		!strings.Contains(latest.Target, "failure_age_seconds=7200") {
+		t.Fatalf("unexpected alert target payload: %s", latest.Target)
+	}
+}
+
+func TestAppendEnterpriseHRISWebhookProcessingAlertAudit(t *testing.T) {
+	auditSvc := audit.NewService()
+	s := &server{
+		auditSvc: auditSvc,
+	}
+
+	before := len(auditSvc.List("tenant_demo_jakarta"))
+	s.appendEnterpriseHRISWebhookProcessingAlertAudit(
+		"tenant_demo_jakarta",
+		"connector-talenta-001",
+		"talenta",
+		"talenta.attendance.scheduler.changeschedule",
+		"mekari-webhook-001",
+		"merge",
+	)
+
+	afterItems := auditSvc.List("tenant_demo_jakarta")
+	if len(afterItems) != before+1 {
+		t.Fatalf("expected one new audit item, before=%d after=%d", before, len(afterItems))
+	}
+	latest := afterItems[0]
+	if latest.Action != "enterprise_hris_webhook_processing_alert" {
+		t.Fatalf("unexpected action: %s", latest.Action)
+	}
+	if latest.Actor != "enterprise_sync_worker" {
+		t.Fatalf("unexpected actor: %s", latest.Actor)
+	}
+	if latest.Source != "enterprise_sync_worker" {
+		t.Fatalf("unexpected source: %s", latest.Source)
+	}
+	if !strings.Contains(latest.Target, "failed=1") ||
+		!strings.Contains(latest.Target, "threshold=1") ||
+		!strings.Contains(latest.Target, "failure_stage=merge") {
+		t.Fatalf("unexpected alert target payload: %s", latest.Target)
+	}
+}
+
 func TestParseEnterpriseSyncWorkerAlertMetrics(t *testing.T) {
 	metrics := parseEnterpriseSyncWorkerAlertMetrics(
-		"failed=4 threshold=3 processed=5 applied=1 skipped_attempt_limit=2 skipped_cooldown=1",
+		"failed=4 threshold=3 processed=5 applied=1 consecutive_failures=4 failure_age_seconds=1800 skipped_attempt_limit=2 skipped_cooldown=1",
 	)
 	if metrics.Failed != 4 {
 		t.Fatalf("failed mismatch: got %d", metrics.Failed)
@@ -224,11 +483,24 @@ func TestParseEnterpriseSyncWorkerAlertMetrics(t *testing.T) {
 	if metrics.Applied != 1 {
 		t.Fatalf("applied mismatch: got %d", metrics.Applied)
 	}
+	if metrics.ConsecutiveFailures != 4 {
+		t.Fatalf("consecutive_failures mismatch: got %d", metrics.ConsecutiveFailures)
+	}
+	if metrics.FailureAgeSeconds != 1800 {
+		t.Fatalf("failure_age_seconds mismatch: got %d", metrics.FailureAgeSeconds)
+	}
 	if metrics.SkippedByAttemptLimit != 2 {
 		t.Fatalf("skipped_by_attempt_limit mismatch: got %d", metrics.SkippedByAttemptLimit)
 	}
 	if metrics.SkippedByCooldown != 1 {
 		t.Fatalf("skipped_by_cooldown mismatch: got %d", metrics.SkippedByCooldown)
+	}
+
+	metrics = parseEnterpriseSyncWorkerAlertMetrics(
+		"failed=2 threshold=1 processed=3 synced=2 skipped_attempt_limit=0 skipped_cooldown=0",
+	)
+	if metrics.Applied != 2 {
+		t.Fatalf("expected synced fallback to populate applied metric, got %d", metrics.Applied)
 	}
 }
 
@@ -268,6 +540,12 @@ func TestBuildEnterpriseSyncWorkerAlerts(t *testing.T) {
 	if items[0].Failed != 1 || items[0].Threshold != 1 || items[0].Processed != 2 || items[0].Applied != 1 {
 		t.Fatalf("metric mismatch: %+v", items[0])
 	}
+	if items[0].WorkerKind != "sync_reconcile" {
+		t.Fatalf("unexpected worker kind: %s", items[0].WorkerKind)
+	}
+	if items[0].WorkerLabel != "Enterprise Sync Reconcile" {
+		t.Fatalf("unexpected worker label: %s", items[0].WorkerLabel)
+	}
 	if items[0].RawTarget == "" {
 		t.Fatalf("expected raw_target to be set")
 	}
@@ -278,25 +556,34 @@ func TestBuildEnterpriseSyncWorkerAlertSummary(t *testing.T) {
 	items := buildEnterpriseSyncWorkerAlertSummary([]audit.Log{
 		{
 			TenantID: "tenant_b",
+			Action:   "enterprise_sync_reconcile_worker_alert",
 			Target:   "failed=1 threshold=1 processed=2 applied=0 skipped_attempt_limit=0 skipped_cooldown=0",
 			At:       now.Add(-2 * time.Minute),
 		},
 		{
 			TenantID: "tenant_a",
-			Target:   "failed=2 threshold=1 processed=3 applied=0 skipped_attempt_limit=1 skipped_cooldown=0",
+			Action:   "enterprise_hris_pull_worker_alert",
+			Target:   "failed=2 threshold=1 processed=3 applied=0 consecutive_failures=4 failure_age_seconds=3600 skipped_attempt_limit=1 skipped_cooldown=0",
 			At:       now.Add(-time.Minute),
 		},
 		{
 			TenantID: "tenant_b",
+			Action:   "enterprise_sync_reconcile_worker_alert",
 			Target:   "failed=3 threshold=2 processed=4 applied=1 skipped_attempt_limit=0 skipped_cooldown=1",
 			At:       now,
 		},
+		{
+			TenantID: "tenant_b",
+			Action:   "enterprise_hris_webhook_dlq_worker_alert",
+			Target:   "failed=1 threshold=1 processed=1 replayed=1 skipped_attempt_limit=0 skipped_cooldown=0",
+			At:       now.Add(-30 * time.Second),
+		},
 	})
-	if len(items) != 2 {
-		t.Fatalf("expected two summary items, got %d", len(items))
+	if len(items) != 3 {
+		t.Fatalf("expected three summary items, got %d", len(items))
 	}
-	if items[0].TenantID != "tenant_b" {
-		t.Fatalf("expected tenant_b first by last_seen desc, got %s", items[0].TenantID)
+	if items[0].TenantID != "tenant_b" || items[0].WorkerAction != "enterprise_sync_reconcile_worker_alert" {
+		t.Fatalf("expected tenant_b sync reconcile first by last_seen desc, got %+v", items[0])
 	}
 	if items[0].Count != 2 {
 		t.Fatalf("tenant_b count mismatch: %d", items[0].Count)
@@ -310,8 +597,115 @@ func TestBuildEnterpriseSyncWorkerAlertSummary(t *testing.T) {
 	if !items[0].LastSeenAt.Equal(now) {
 		t.Fatalf("tenant_b last_seen mismatch: %s", items[0].LastSeenAt)
 	}
-	if items[1].TenantID != "tenant_a" || items[1].Count != 1 {
-		t.Fatalf("tenant_a summary mismatch: %+v", items[1])
+	if items[1].TenantID != "tenant_b" || items[1].WorkerAction != "enterprise_hris_webhook_dlq_worker_alert" || items[1].LastApplied != 1 {
+		t.Fatalf("tenant_b dlq summary mismatch: %+v", items[1])
+	}
+	if items[2].TenantID != "tenant_a" || items[2].WorkerAction != "enterprise_hris_pull_worker_alert" || items[2].Count != 1 {
+		t.Fatalf("tenant_a pull summary mismatch: %+v", items[2])
+	}
+	if items[2].LastConsecutiveFailures != 4 || items[2].LastFailureAgeSeconds != 3600 {
+		t.Fatalf("tenant_a pull stateful metrics mismatch: %+v", items[2])
+	}
+}
+
+func TestBuildEnterpriseSyncWorkerAlertDispatchAlertsUsesGranularFingerprintBuckets(t *testing.T) {
+	now := time.Now().UTC()
+	items := []enterpriseSyncWorkerAlertItem{
+		{
+			TenantID:     "tenant_demo_jakarta",
+			WorkerAction: "enterprise_hris_webhook_processing_alert",
+			WorkerKind:   "hris_webhook",
+			WorkerLabel:  "HRIS Webhook Processing",
+			ConnectorID:  "connector-talenta-a",
+			Vendor:       "talenta",
+			FailureStage: "merge",
+			EventType:    "talenta.employee.updated",
+			Failed:       2,
+			Threshold:    2,
+			Processed:    3,
+			Applied:      1,
+			At:           now,
+		},
+		{
+			TenantID:     "tenant_demo_jakarta",
+			WorkerAction: "enterprise_hris_webhook_processing_alert",
+			WorkerKind:   "hris_webhook",
+			WorkerLabel:  "HRIS Webhook Processing",
+			ConnectorID:  "connector-talenta-a",
+			Vendor:       "talenta",
+			FailureStage: "merge",
+			EventType:    "talenta.employee.updated",
+			Failed:       1,
+			Threshold:    2,
+			Processed:    2,
+			Applied:      1,
+			At:           now.Add(-1 * time.Minute),
+		},
+		{
+			TenantID:     "tenant_demo_jakarta",
+			WorkerAction: "enterprise_hris_webhook_processing_alert",
+			WorkerKind:   "hris_webhook",
+			WorkerLabel:  "HRIS Webhook Processing",
+			ConnectorID:  "connector-talenta-b",
+			Vendor:       "talenta",
+			FailureStage: "persist",
+			EventType:    "talenta.employee.updated",
+			Failed:       1,
+			Threshold:    2,
+			Processed:    1,
+			Applied:      0,
+			At:           now.Add(-30 * time.Second),
+		},
+	}
+
+	dispatchAlerts := buildEnterpriseSyncWorkerAlertDispatchAlerts(items, 2, []string{"enterprise_hris_webhook_processing_alert"})
+	if len(dispatchAlerts) != 1 {
+		t.Fatalf("expected only one granular dispatch alert above threshold, got %d (%+v)", len(dispatchAlerts), dispatchAlerts)
+	}
+	if dispatchAlerts[0].ConnectorID != "connector-talenta-a" || dispatchAlerts[0].FailureStage != "merge" {
+		t.Fatalf("expected dispatch alert to preserve granular connector/stage, got %+v", dispatchAlerts[0])
+	}
+	if dispatchAlerts[0].Count != 2 {
+		t.Fatalf("expected granular bucket count=2, got %+v", dispatchAlerts[0])
+	}
+}
+
+func TestListEnterpriseSyncWorkerAlertLogs(t *testing.T) {
+	auditSvc := audit.NewService()
+	s := &server{
+		auditSvc: auditSvc,
+	}
+
+	if _, err := auditSvc.Append("tenant_demo_jakarta", "enterprise_sync_worker", "system", "enterprise_sync_reconcile_worker_alert", "failed=1 threshold=1 processed=2 applied=1", "enterprise_sync_worker"); err != nil {
+		t.Fatalf("append sync reconcile alert: %v", err)
+	}
+	if _, err := auditSvc.Append("tenant_demo_jakarta", "enterprise_sync_worker", "system", "enterprise_hris_webhook_dlq_worker_alert", "failed=2 threshold=1 processed=2 replayed=1", "enterprise_sync_worker"); err != nil {
+		t.Fatalf("append hris dlq alert: %v", err)
+	}
+	if _, err := auditSvc.Append("tenant_demo_jakarta", "enterprise_sync_worker", "system", "enterprise_hris_pull_worker_alert", "failed=3 threshold=1 processed=3 synced=1", "enterprise_sync_worker"); err != nil {
+		t.Fatalf("append hris pull alert: %v", err)
+	}
+	if _, err := auditSvc.Append("tenant_demo_jakarta", "enterprise_sync_worker", "system", "enterprise_hris_webhook_processing_alert", "failed=1 threshold=1 processed=1 applied=0 failure_stage=merge", "enterprise_sync_worker"); err != nil {
+		t.Fatalf("append hris webhook processing alert: %v", err)
+	}
+
+	items := s.listEnterpriseSyncWorkerAlertLogs("tenant_demo_jakarta")
+	if len(items) < 4 {
+		t.Fatalf("expected at least four worker alert logs, got %d", len(items))
+	}
+
+	seen := map[string]bool{}
+	for i := range items {
+		switch items[i].Action {
+		case "enterprise_sync_reconcile_worker_alert", "enterprise_hris_webhook_dlq_worker_alert", "enterprise_hris_pull_worker_alert", "enterprise_hris_webhook_processing_alert":
+			seen[items[i].Action] = true
+		}
+	}
+	if !seen["enterprise_sync_reconcile_worker_alert"] ||
+		!seen["enterprise_hris_webhook_dlq_worker_alert"] ||
+		!seen["enterprise_hris_pull_worker_alert"] ||
+		!seen["enterprise_hris_webhook_processing_alert"] {
+		t.Fatalf("expected combined worker alert actions, got %+v", seen)
 	}
 }
 

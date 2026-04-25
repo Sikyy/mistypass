@@ -9,8 +9,8 @@ func TestFromEnvDemoUsersDefaultByAppEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("ENABLE_DEMO_USERS", "")
 	cfg := FromEnv()
-	if !cfg.EnableDemoUsers {
-		t.Fatalf("expected demo users enabled by default in development env")
+	if cfg.EnableDemoUsers {
+		t.Fatalf("expected demo users disabled by default in development env")
 	}
 
 	t.Setenv("APP_ENV", "production")
@@ -33,6 +33,8 @@ func TestFromEnvDemoUsersCanBeOverridden(t *testing.T) {
 func TestConfigValidateRequiresJWTSecretInProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "")
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
 	cfg := FromEnv()
 	if err := cfg.Validate(); err == nil {
 		t.Fatalf("expected validate to fail when JWT_SECRET is empty in production")
@@ -42,6 +44,42 @@ func TestConfigValidateRequiresJWTSecretInProduction(t *testing.T) {
 	cfg = FromEnv()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("expected validate to pass with JWT_SECRET in production: %v", err)
+	}
+}
+
+func TestConfigValidateRequiresHRISVaultMasterKeyInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "")
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when HRIS_VAULT_MASTER_KEY is empty in production")
+	}
+
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected validate to pass with HRIS_VAULT_MASTER_KEY in production: %v", err)
+	}
+}
+
+func TestConfigValidateRequiresGatewayBootstrapTokenInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when GATEWAY_BOOTSTRAP_TOKEN is empty in production")
+	}
+
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected validate to pass with GATEWAY_BOOTSTRAP_TOKEN in production: %v", err)
 	}
 }
 
@@ -262,6 +300,125 @@ func TestFromEnvWalletInvalidValuesFallback(t *testing.T) {
 	}
 }
 
+func TestFromEnvMQTTDefaults(t *testing.T) {
+	t.Setenv("MQTT_ENABLED", "")
+	t.Setenv("MQTT_BROKER_URL", "")
+	t.Setenv("MQTT_TOPIC_PREFIX", "")
+
+	cfg := FromEnv()
+	if cfg.MQTTEnabled {
+		t.Fatalf("expected mqtt disabled by default")
+	}
+	if cfg.MQTTBrokerURL != "tcp://localhost:1883" {
+		t.Fatalf("unexpected mqtt broker default: %q", cfg.MQTTBrokerURL)
+	}
+	if cfg.MQTTTopicPrefix != "mistypass" {
+		t.Fatalf("unexpected mqtt topic prefix default: %q", cfg.MQTTTopicPrefix)
+	}
+}
+
+func TestConfigValidateMQTT(t *testing.T) {
+	t.Setenv("MQTT_ENABLED", "true")
+	t.Setenv("MQTT_BROKER_URL", "tcp://emqx:1883")
+	t.Setenv("MQTT_TOPIC_PREFIX", "mistypass")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected mqtt validate success, got %v", err)
+	}
+
+	t.Setenv("MQTT_BROKER_URL", "://invalid")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected mqtt validate failure for invalid URL")
+	}
+}
+
+func TestFromEnvNATSDefaults(t *testing.T) {
+	t.Setenv("NATS_ENABLED", "")
+	t.Setenv("NATS_SERVER_URL", "")
+	t.Setenv("NATS_SUBJECT_PREFIX", "")
+
+	cfg := FromEnv()
+	if cfg.NATSEnabled {
+		t.Fatalf("expected nats disabled by default")
+	}
+	if cfg.NATSServerURL != "nats://localhost:4222" {
+		t.Fatalf("unexpected nats server default: %q", cfg.NATSServerURL)
+	}
+	if cfg.NATSSubjectPrefix != "mistypass" {
+		t.Fatalf("unexpected nats subject prefix default: %q", cfg.NATSSubjectPrefix)
+	}
+}
+
+func TestConfigValidateNATS(t *testing.T) {
+	t.Setenv("NATS_ENABLED", "true")
+	t.Setenv("NATS_SERVER_URL", "nats://nats:4222")
+	t.Setenv("NATS_SUBJECT_PREFIX", "mistypass")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected nats validate success, got %v", err)
+	}
+
+	t.Setenv("NATS_SERVER_URL", "://invalid")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected nats validate failure for invalid URL")
+	}
+}
+
+func TestFromEnvAuthAndExternalAuthDefaults(t *testing.T) {
+	t.Setenv("AUTH_ADMIN_MFA_REQUIRED", "")
+	t.Setenv("EXTERNAL_AUTH_ENABLED", "")
+	t.Setenv("EXTERNAL_AUTH_PROVIDER", "")
+	t.Setenv("EXTERNAL_AUTH_USERINFO_URL", "")
+	t.Setenv("EXTERNAL_AUTH_TIMEOUT", "")
+	t.Setenv("EXTERNAL_AUTH_DEFAULT_ROLE", "")
+
+	cfg := FromEnv()
+	if cfg.AuthAdminMFARequired {
+		t.Fatalf("expected auth admin mfa disabled by default")
+	}
+	if cfg.ExternalAuthEnabled {
+		t.Fatalf("expected external auth disabled by default")
+	}
+	if cfg.ExternalAuthProvider != "generic_oidc" {
+		t.Fatalf("unexpected external auth provider default: %q", cfg.ExternalAuthProvider)
+	}
+	if cfg.ExternalAuthTimeout != 8*time.Second {
+		t.Fatalf("unexpected external auth timeout default: %s", cfg.ExternalAuthTimeout)
+	}
+	if cfg.ExternalAuthDefaultRole != "resident" {
+		t.Fatalf("unexpected external auth default role: %q", cfg.ExternalAuthDefaultRole)
+	}
+}
+
+func TestConfigValidateExternalAuth(t *testing.T) {
+	t.Setenv("EXTERNAL_AUTH_ENABLED", "true")
+	t.Setenv("EXTERNAL_AUTH_PROVIDER", "casdoor")
+	t.Setenv("EXTERNAL_AUTH_USERINFO_URL", "https://auth.example.com/api/userinfo")
+	t.Setenv("EXTERNAL_AUTH_DEFAULT_ROLE", "tenant_admin")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected external auth validate success, got %v", err)
+	}
+
+	t.Setenv("EXTERNAL_AUTH_PROVIDER", "invalid")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected external auth provider validate failure")
+	}
+
+	t.Setenv("EXTERNAL_AUTH_PROVIDER", "casdoor")
+	t.Setenv("EXTERNAL_AUTH_USERINFO_URL", "://invalid")
+	cfg = FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected external auth userinfo url validate failure")
+	}
+}
+
 func TestFromEnvWalletAlertProviderBackwardCompatibility(t *testing.T) {
 	t.Setenv("WALLET_ALERT_EMAIL_PROVIDER", "spaceemail")
 	t.Setenv("WALLET_ALERT_SPACEEMAIL_ENDPOINT", "https://legacy.spaceemail.example/send")
@@ -294,6 +451,70 @@ func TestFromEnvEnterpriseJITProvisionApprovalRequired(t *testing.T) {
 	cfg = FromEnv()
 	if !cfg.EnterpriseJITProvisionApprovalRequired {
 		t.Fatalf("expected enterprise jit approval flag override to be true")
+	}
+}
+
+func TestFromEnvEnterpriseSyncWorkerAlertAutoRetryWorkerDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_ENABLED", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_INTERVAL", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BATCH_SIZE", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_ATTEMPTS", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BASE_BACKOFF", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_BACKOFF", "")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_LOCK_TTL", "")
+
+	cfg := FromEnv()
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerEnabled {
+		t.Fatalf("expected sync worker alert auto retry worker default disabled")
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval != 30*time.Second {
+		t.Fatalf("unexpected auto retry worker interval: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize != 20 {
+		t.Fatalf("unexpected auto retry worker batch size: %d", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts != 3 {
+		t.Fatalf("unexpected auto retry worker max attempts: %d", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff != 5*time.Minute {
+		t.Fatalf("unexpected auto retry worker base backoff: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff != time.Hour {
+		t.Fatalf("unexpected auto retry worker max backoff: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("unexpected auto retry worker lock ttl: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_ENABLED", "true")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_INTERVAL", "45s")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BATCH_SIZE", "7")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_ATTEMPTS", "5")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BASE_BACKOFF", "90s")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_BACKOFF", "15m")
+	t.Setenv("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_LOCK_TTL", "12m")
+
+	cfg = FromEnv()
+	if !cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerEnabled {
+		t.Fatalf("expected sync worker alert auto retry worker enabled override")
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval != 45*time.Second {
+		t.Fatalf("unexpected auto retry worker interval override: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize != 7 {
+		t.Fatalf("unexpected auto retry worker batch size override: %d", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts != 5 {
+		t.Fatalf("unexpected auto retry worker max attempts override: %d", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff != 90*time.Second {
+		t.Fatalf("unexpected auto retry worker base backoff override: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff != 15*time.Minute {
+		t.Fatalf("unexpected auto retry worker max backoff override: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff)
+	}
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL != 12*time.Minute {
+		t.Fatalf("unexpected auto retry worker lock ttl override: %s", cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL)
 	}
 }
 
@@ -368,5 +589,498 @@ func TestFromEnvEnterpriseJITApprovalExternalSyncWorkerDefaultsAndOverrides(t *t
 	}
 	if cfg.EnterpriseJITApprovalExternalSyncCallbackToken != "cb-token" {
 		t.Fatalf("unexpected callback token override: %s", cfg.EnterpriseJITApprovalExternalSyncCallbackToken)
+	}
+}
+
+func TestFromEnvEnterpriseHRISWebhookDLQWorkerDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ENABLED", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_INTERVAL", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_BATCH_SIZE", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_MAX_ATTEMPTS", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_COOLDOWN", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_MAX_BACKOFF", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_PROCESSING_TIMEOUT", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ALERT_FAILURE_THRESHOLD", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_LOCK_TTL", "")
+
+	cfg := FromEnv()
+	if cfg.EnterpriseHRISWebhookDLQWorkerEnabled {
+		t.Fatalf("expected hris webhook dlq worker default disabled")
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerInterval != 30*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker interval: %s", cfg.EnterpriseHRISWebhookDLQWorkerInterval)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerBatchSize != 20 {
+		t.Fatalf("unexpected hris webhook dlq worker batch size: %d", cfg.EnterpriseHRISWebhookDLQWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts != 5 {
+		t.Fatalf("unexpected hris webhook dlq worker max attempts: %d", cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown != 30*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker cooldown: %s", cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff != 30*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker max backoff: %s", cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout != 5*time.Minute {
+		t.Fatalf("unexpected hris webhook dlq worker processing timeout: %s", cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold != 3 {
+		t.Fatalf("unexpected hris webhook dlq worker alert threshold: %d", cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("unexpected hris webhook dlq worker lock ttl: %s", cfg.EnterpriseHRISWebhookDLQWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ENABLED", "true")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_INTERVAL", "45s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_BATCH_SIZE", "7")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_MAX_ATTEMPTS", "8")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_COOLDOWN", "90s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_MAX_BACKOFF", "4m")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_PROCESSING_TIMEOUT", "75s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ALERT_FAILURE_THRESHOLD", "2")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_LOCK_TTL", "12m")
+
+	cfg = FromEnv()
+	if !cfg.EnterpriseHRISWebhookDLQWorkerEnabled {
+		t.Fatalf("expected hris webhook dlq worker enabled override")
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerInterval != 45*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker interval override: %s", cfg.EnterpriseHRISWebhookDLQWorkerInterval)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerBatchSize != 7 {
+		t.Fatalf("unexpected hris webhook dlq worker batch size override: %d", cfg.EnterpriseHRISWebhookDLQWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts != 8 {
+		t.Fatalf("unexpected hris webhook dlq worker max attempts override: %d", cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown != 90*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker cooldown override: %s", cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff != 4*time.Minute {
+		t.Fatalf("unexpected hris webhook dlq worker max backoff override: %s", cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout != 75*time.Second {
+		t.Fatalf("unexpected hris webhook dlq worker processing timeout override: %s", cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold != 2 {
+		t.Fatalf("unexpected hris webhook dlq worker alert threshold override: %d", cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISWebhookDLQWorkerLockTTL != 12*time.Minute {
+		t.Fatalf("unexpected hris webhook dlq worker lock ttl override: %s", cfg.EnterpriseHRISWebhookDLQWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_MAX_BACKOFF", "30s")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff != 90*time.Second {
+		t.Fatalf("expected hris webhook dlq worker max backoff to clamp to cooldown, got %s", cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_LOCK_TTL", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookDLQWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("expected sub-second hris webhook dlq worker lock ttl to fall back to default, got %s", cfg.EnterpriseHRISWebhookDLQWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_PROCESSING_TIMEOUT", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout != 5*time.Minute {
+		t.Fatalf("expected sub-second hris webhook dlq worker processing timeout to fall back to default, got %s", cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout)
+	}
+}
+
+func TestFromEnvEnterpriseHRISWebhookReceiptWorkerDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ENABLED", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_INTERVAL", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_BATCH_SIZE", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_MAX_ATTEMPTS", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_COOLDOWN", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_MAX_BACKOFF", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_PROCESSING_TIMEOUT", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ALERT_FAILURE_THRESHOLD", "")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_LOCK_TTL", "")
+
+	cfg := FromEnv()
+	if cfg.EnterpriseHRISWebhookReceiptWorkerEnabled {
+		t.Fatalf("expected hris webhook receipt worker default disabled")
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerInterval != 30*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker interval: %s", cfg.EnterpriseHRISWebhookReceiptWorkerInterval)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize != 20 {
+		t.Fatalf("unexpected hris webhook receipt worker batch size: %d", cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts != 5 {
+		t.Fatalf("unexpected hris webhook receipt worker max attempts: %d", cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown != 30*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker cooldown: %s", cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff != 30*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker max backoff: %s", cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout != 5*time.Minute {
+		t.Fatalf("unexpected hris webhook receipt worker processing timeout: %s", cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold != 3 {
+		t.Fatalf("unexpected hris webhook receipt worker alert threshold: %d", cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("unexpected hris webhook receipt worker lock ttl: %s", cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ENABLED", "true")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_INTERVAL", "15s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_BATCH_SIZE", "5")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_MAX_ATTEMPTS", "4")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_COOLDOWN", "45s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_MAX_BACKOFF", "3m")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_PROCESSING_TIMEOUT", "90s")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ALERT_FAILURE_THRESHOLD", "2")
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_LOCK_TTL", "11m")
+
+	cfg = FromEnv()
+	if !cfg.EnterpriseHRISWebhookReceiptWorkerEnabled {
+		t.Fatalf("expected hris webhook receipt worker enabled override")
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerInterval != 15*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker interval override: %s", cfg.EnterpriseHRISWebhookReceiptWorkerInterval)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize != 5 {
+		t.Fatalf("unexpected hris webhook receipt worker batch size override: %d", cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts != 4 {
+		t.Fatalf("unexpected hris webhook receipt worker max attempts override: %d", cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown != 45*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker cooldown override: %s", cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff != 3*time.Minute {
+		t.Fatalf("unexpected hris webhook receipt worker max backoff override: %s", cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout != 90*time.Second {
+		t.Fatalf("unexpected hris webhook receipt worker processing timeout override: %s", cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold != 2 {
+		t.Fatalf("unexpected hris webhook receipt worker alert threshold override: %d", cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL != 11*time.Minute {
+		t.Fatalf("unexpected hris webhook receipt worker lock ttl override: %s", cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_MAX_BACKOFF", "30s")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff != 45*time.Second {
+		t.Fatalf("expected hris webhook receipt worker max backoff to clamp to cooldown, got %s", cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_LOCK_TTL", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("expected sub-second hris webhook receipt worker lock ttl to fall back to default, got %s", cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_PROCESSING_TIMEOUT", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout != 5*time.Minute {
+		t.Fatalf("expected sub-second hris webhook receipt worker processing timeout to fall back to default, got %s", cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout)
+	}
+}
+
+func TestFromEnvEnterpriseHRISPullWorkerDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_ENABLED", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_INTERVAL", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_BATCH_SIZE", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_MAX_ATTEMPTS", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RETRY_COOLDOWN", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RETRY_MAX_BACKOFF", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_PROCESSING_TIMEOUT", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RECONCILE_INTERVAL", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_ALERT_FAILURE_THRESHOLD", "")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_LOCK_TTL", "")
+
+	cfg := FromEnv()
+	if cfg.EnterpriseHRISPullWorkerEnabled {
+		t.Fatalf("expected hris pull worker default disabled")
+	}
+	if cfg.EnterpriseHRISPullWorkerInterval != time.Hour {
+		t.Fatalf("unexpected hris pull worker interval: %s", cfg.EnterpriseHRISPullWorkerInterval)
+	}
+	if cfg.EnterpriseHRISPullWorkerBatchSize != 10 {
+		t.Fatalf("unexpected hris pull worker batch size: %d", cfg.EnterpriseHRISPullWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISPullWorkerMaxAttempts != 5 {
+		t.Fatalf("unexpected hris pull worker max attempts: %d", cfg.EnterpriseHRISPullWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISPullWorkerRetryCooldown != 30*time.Minute {
+		t.Fatalf("unexpected hris pull worker retry cooldown: %s", cfg.EnterpriseHRISPullWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISPullWorkerRetryMaxBackoff != 30*time.Minute {
+		t.Fatalf("unexpected hris pull worker retry max backoff: %s", cfg.EnterpriseHRISPullWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISPullWorkerProcessingTimeout != 30*time.Minute {
+		t.Fatalf("unexpected hris pull worker processing timeout: %s", cfg.EnterpriseHRISPullWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISPullWorkerReconcileInterval != 24*time.Hour {
+		t.Fatalf("unexpected hris pull worker reconcile interval: %s", cfg.EnterpriseHRISPullWorkerReconcileInterval)
+	}
+	if cfg.EnterpriseHRISPullWorkerAlertFailureThreshold != 3 {
+		t.Fatalf("unexpected hris pull worker alert threshold: %d", cfg.EnterpriseHRISPullWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISPullWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("unexpected hris pull worker lock ttl: %s", cfg.EnterpriseHRISPullWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_ENABLED", "true")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_INTERVAL", "2h")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_BATCH_SIZE", "4")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_MAX_ATTEMPTS", "8")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RETRY_COOLDOWN", "45m")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RETRY_MAX_BACKOFF", "3h")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_PROCESSING_TIMEOUT", "75m")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RECONCILE_INTERVAL", "12h")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_ALERT_FAILURE_THRESHOLD", "2")
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_LOCK_TTL", "14m")
+
+	cfg = FromEnv()
+	if !cfg.EnterpriseHRISPullWorkerEnabled {
+		t.Fatalf("expected hris pull worker enabled override")
+	}
+	if cfg.EnterpriseHRISPullWorkerInterval != 2*time.Hour {
+		t.Fatalf("unexpected hris pull worker interval override: %s", cfg.EnterpriseHRISPullWorkerInterval)
+	}
+	if cfg.EnterpriseHRISPullWorkerBatchSize != 4 {
+		t.Fatalf("unexpected hris pull worker batch size override: %d", cfg.EnterpriseHRISPullWorkerBatchSize)
+	}
+	if cfg.EnterpriseHRISPullWorkerMaxAttempts != 8 {
+		t.Fatalf("unexpected hris pull worker max attempts override: %d", cfg.EnterpriseHRISPullWorkerMaxAttempts)
+	}
+	if cfg.EnterpriseHRISPullWorkerRetryCooldown != 45*time.Minute {
+		t.Fatalf("unexpected hris pull worker retry cooldown override: %s", cfg.EnterpriseHRISPullWorkerRetryCooldown)
+	}
+	if cfg.EnterpriseHRISPullWorkerRetryMaxBackoff != 3*time.Hour {
+		t.Fatalf("unexpected hris pull worker retry max backoff override: %s", cfg.EnterpriseHRISPullWorkerRetryMaxBackoff)
+	}
+	if cfg.EnterpriseHRISPullWorkerProcessingTimeout != 75*time.Minute {
+		t.Fatalf("unexpected hris pull worker processing timeout override: %s", cfg.EnterpriseHRISPullWorkerProcessingTimeout)
+	}
+	if cfg.EnterpriseHRISPullWorkerReconcileInterval != 12*time.Hour {
+		t.Fatalf("unexpected hris pull worker reconcile interval override: %s", cfg.EnterpriseHRISPullWorkerReconcileInterval)
+	}
+	if cfg.EnterpriseHRISPullWorkerAlertFailureThreshold != 2 {
+		t.Fatalf("unexpected hris pull worker alert threshold override: %d", cfg.EnterpriseHRISPullWorkerAlertFailureThreshold)
+	}
+	if cfg.EnterpriseHRISPullWorkerLockTTL != 14*time.Minute {
+		t.Fatalf("unexpected hris pull worker lock ttl override: %s", cfg.EnterpriseHRISPullWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_RETRY_MAX_BACKOFF", "30m")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISPullWorkerRetryMaxBackoff != 45*time.Minute {
+		t.Fatalf("expected hris pull worker retry max backoff to clamp to cooldown, got %s", cfg.EnterpriseHRISPullWorkerRetryMaxBackoff)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_LOCK_TTL", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISPullWorkerLockTTL != 10*time.Minute {
+		t.Fatalf("expected sub-second hris pull worker lock ttl to fall back to default, got %s", cfg.EnterpriseHRISPullWorkerLockTTL)
+	}
+
+	t.Setenv("ENTERPRISE_HRIS_PULL_WORKER_PROCESSING_TIMEOUT", "500ms")
+
+	cfg = FromEnv()
+	if cfg.EnterpriseHRISPullWorkerProcessingTimeout != 30*time.Minute {
+		t.Fatalf("expected sub-second hris pull worker processing timeout to fall back to default, got %s", cfg.EnterpriseHRISPullWorkerProcessingTimeout)
+	}
+}
+
+func TestFromEnvOTelDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("OTEL_ENABLED", "")
+	t.Setenv("OTEL_SERVICE_NAME", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "")
+	t.Setenv("OTEL_TRACE_SAMPLE_RATIO", "")
+	t.Setenv("OTEL_EXPORT_TIMEOUT", "")
+
+	cfg := FromEnv()
+	if cfg.OTelEnabled {
+		t.Fatalf("default OTel enabled mismatch: got true")
+	}
+	if cfg.OTelServiceName != "mistypass-api" {
+		t.Fatalf("default OTel service name mismatch: got %s", cfg.OTelServiceName)
+	}
+	if cfg.OTelExporterOTLPEndpoint != "" {
+		t.Fatalf("default OTel endpoint mismatch: got %s", cfg.OTelExporterOTLPEndpoint)
+	}
+	if cfg.OTelExporterOTLPInsecure {
+		t.Fatalf("default OTel insecure mismatch: got true")
+	}
+	if cfg.OTelTraceSampleRatio != 1.0 {
+		t.Fatalf("default OTel sample ratio mismatch: got %f", cfg.OTelTraceSampleRatio)
+	}
+	if cfg.OTelExportTimeout != 5*time.Second {
+		t.Fatalf("default OTel export timeout mismatch: got %s", cfg.OTelExportTimeout)
+	}
+
+	t.Setenv("OTEL_ENABLED", "true")
+	t.Setenv("OTEL_SERVICE_NAME", "mistypass-api-test")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+	t.Setenv("OTEL_TRACE_SAMPLE_RATIO", "0.25")
+	t.Setenv("OTEL_EXPORT_TIMEOUT", "7s")
+	cfg = FromEnv()
+	if !cfg.OTelEnabled {
+		t.Fatalf("override OTel enabled mismatch: got false")
+	}
+	if cfg.OTelServiceName != "mistypass-api-test" {
+		t.Fatalf("override OTel service name mismatch: got %s", cfg.OTelServiceName)
+	}
+	if cfg.OTelExporterOTLPEndpoint != "localhost:4317" {
+		t.Fatalf("override OTel endpoint mismatch: got %s", cfg.OTelExporterOTLPEndpoint)
+	}
+	if !cfg.OTelExporterOTLPInsecure {
+		t.Fatalf("override OTel insecure mismatch: got false")
+	}
+	if cfg.OTelTraceSampleRatio != 0.25 {
+		t.Fatalf("override OTel sample ratio mismatch: got %f", cfg.OTelTraceSampleRatio)
+	}
+	if cfg.OTelExportTimeout != 7*time.Second {
+		t.Fatalf("override OTel export timeout mismatch: got %s", cfg.OTelExportTimeout)
+	}
+}
+
+func TestConfigValidateOTel(t *testing.T) {
+	cfg := Config{
+		AppEnv:                   "development",
+		OTelEnabled:              true,
+		OTelExporterOTLPEndpoint: "",
+		OTelTraceSampleRatio:     1.0,
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when OTEL enabled without endpoint")
+	}
+
+	cfg.OTelExporterOTLPEndpoint = "localhost:4317"
+	cfg.OTelTraceSampleRatio = 2
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when sample ratio out of range")
+	}
+
+	cfg.OTelTraceSampleRatio = 0.5
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected validate to pass with valid OTel config: %v", err)
+	}
+}
+
+func TestFromEnvRedisDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("REDIS_ADDR", "")
+	t.Setenv("REDIS_PASSWORD", "")
+	t.Setenv("REDIS_DB", "")
+	t.Setenv("REDIS_KEY_PREFIX", "")
+	t.Setenv("REDIS_DIAL_TIMEOUT", "")
+	t.Setenv("REDIS_READ_TIMEOUT", "")
+	t.Setenv("REDIS_WRITE_TIMEOUT", "")
+
+	cfg := FromEnv()
+	if cfg.RedisAddr != "" {
+		t.Fatalf("default redis addr mismatch: got %q", cfg.RedisAddr)
+	}
+	if cfg.RedisPassword != "" {
+		t.Fatalf("default redis password mismatch: got %q", cfg.RedisPassword)
+	}
+	if cfg.RedisDB != 0 {
+		t.Fatalf("default redis db mismatch: got %d", cfg.RedisDB)
+	}
+	if cfg.RedisKeyPrefix != "mistypass" {
+		t.Fatalf("default redis key prefix mismatch: got %q", cfg.RedisKeyPrefix)
+	}
+	if cfg.RedisDialTimeout != 3*time.Second {
+		t.Fatalf("default redis dial timeout mismatch: got %s", cfg.RedisDialTimeout)
+	}
+	if cfg.RedisReadTimeout != 3*time.Second {
+		t.Fatalf("default redis read timeout mismatch: got %s", cfg.RedisReadTimeout)
+	}
+	if cfg.RedisWriteTimeout != 3*time.Second {
+		t.Fatalf("default redis write timeout mismatch: got %s", cfg.RedisWriteTimeout)
+	}
+
+	t.Setenv("REDIS_ADDR", "127.0.0.1:6379")
+	t.Setenv("REDIS_PASSWORD", "redis-pass")
+	t.Setenv("REDIS_DB", "2")
+	t.Setenv("REDIS_KEY_PREFIX", "mistypass-dev")
+	t.Setenv("REDIS_DIAL_TIMEOUT", "4s")
+	t.Setenv("REDIS_READ_TIMEOUT", "5s")
+	t.Setenv("REDIS_WRITE_TIMEOUT", "6s")
+
+	cfg = FromEnv()
+	if cfg.RedisAddr != "127.0.0.1:6379" {
+		t.Fatalf("override redis addr mismatch: got %q", cfg.RedisAddr)
+	}
+	if cfg.RedisPassword != "redis-pass" {
+		t.Fatalf("override redis password mismatch: got %q", cfg.RedisPassword)
+	}
+	if cfg.RedisDB != 2 {
+		t.Fatalf("override redis db mismatch: got %d", cfg.RedisDB)
+	}
+	if cfg.RedisKeyPrefix != "mistypass-dev" {
+		t.Fatalf("override redis key prefix mismatch: got %q", cfg.RedisKeyPrefix)
+	}
+	if cfg.RedisDialTimeout != 4*time.Second {
+		t.Fatalf("override redis dial timeout mismatch: got %s", cfg.RedisDialTimeout)
+	}
+	if cfg.RedisReadTimeout != 5*time.Second {
+		t.Fatalf("override redis read timeout mismatch: got %s", cfg.RedisReadTimeout)
+	}
+	if cfg.RedisWriteTimeout != 6*time.Second {
+		t.Fatalf("override redis write timeout mismatch: got %s", cfg.RedisWriteTimeout)
+	}
+}
+
+func TestFromEnvHRISVaultMasterKey(t *testing.T) {
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "")
+
+	cfg := FromEnv()
+	if cfg.HRISVaultMasterKey != "" {
+		t.Fatalf("default hris vault master key mismatch: got %q", cfg.HRISVaultMasterKey)
+	}
+
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	cfg = FromEnv()
+	if cfg.HRISVaultMasterKey != "vault-master-key-001" {
+		t.Fatalf("override hris vault master key mismatch: got %q", cfg.HRISVaultMasterKey)
+	}
+}
+
+func TestFromEnvRedisInvalidValuesFallback(t *testing.T) {
+	t.Setenv("REDIS_DB", "-1")
+	t.Setenv("REDIS_KEY_PREFIX", "")
+	t.Setenv("REDIS_DIAL_TIMEOUT", "500ms")
+	t.Setenv("REDIS_READ_TIMEOUT", "500ms")
+	t.Setenv("REDIS_WRITE_TIMEOUT", "500ms")
+
+	cfg := FromEnv()
+	if cfg.RedisDB != 0 {
+		t.Fatalf("invalid redis db should fallback to 0: got %d", cfg.RedisDB)
+	}
+	if cfg.RedisKeyPrefix != "mistypass" {
+		t.Fatalf("invalid redis key prefix should fallback: got %q", cfg.RedisKeyPrefix)
+	}
+	if cfg.RedisDialTimeout != 3*time.Second {
+		t.Fatalf("invalid redis dial timeout should fallback: got %s", cfg.RedisDialTimeout)
+	}
+	if cfg.RedisReadTimeout != 3*time.Second {
+		t.Fatalf("invalid redis read timeout should fallback: got %s", cfg.RedisReadTimeout)
+	}
+	if cfg.RedisWriteTimeout != 3*time.Second {
+		t.Fatalf("invalid redis write timeout should fallback: got %s", cfg.RedisWriteTimeout)
 	}
 }

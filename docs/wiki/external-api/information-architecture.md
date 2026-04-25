@@ -72,6 +72,10 @@
   - `docs/wiki/external-api/reference-enterprise-tenant-domain.md`
   - `docs/wiki/external-api/reference-enterprise-idp-config.md`
   - `docs/wiki/external-api/reference-enterprise-employees-sync-jobs.md`
+  - `docs/wiki/external-api/reference-enterprise-hris-secrets.md`
+  - `docs/wiki/external-api/reference-enterprise-hris-webhooks.md`
+  - `docs/wiki/external-api/reference-enterprise-hris-webhook-dlq.md`
+  - `docs/wiki/external-api/reference-enterprise-hris-pull-states.md`
   - `docs/wiki/external-api/reference-enterprise-jit-approval-external-sync.md`
   - `docs/wiki/external-api/reference-enterprise-sync-requests-reconcile.md`
   - `docs/wiki/external-api/reference-enterprise-sync-worker-alerts.md`

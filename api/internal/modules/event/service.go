@@ -83,6 +83,8 @@ type Service struct {
 	accessEvents []AccessEvent
 	deviceEvents []DeviceEvent
 	stateStore   StateStore
+	subscribers  map[uint64]chan struct{}
+	nextSubID    uint64
 }
 
 func NewService() *Service {
@@ -138,6 +140,7 @@ func NewService() *Service {
 				At:         now.Add(-12 * time.Minute),
 			},
 		},
+		subscribers: make(map[uint64]chan struct{}),
 	}
 }
 
@@ -210,6 +213,28 @@ func (s *Service) CountEventsByGateway(tenantID, gatewayID string) (int, int) {
 	return accessCount, deviceCount
 }
 
+func (s *Service) SubscribeChanges() (<-chan struct{}, func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	subID := s.nextSubID
+	s.nextSubID++
+	ch := make(chan struct{}, 1)
+	s.subscribers[subID] = ch
+
+	return ch, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		target, exists := s.subscribers[subID]
+		if !exists {
+			return
+		}
+		delete(s.subscribers, subID)
+		close(target)
+	}
+}
+
 func (s *Service) IngestAccessEvent(input IngestAccessEventInput) (AccessEvent, bool, error) {
 	next := IngestAccessEventInput{
 		ID:             strings.TrimSpace(input.ID),
@@ -274,6 +299,7 @@ func (s *Service) IngestAccessEvent(input IngestAccessEventInput) (AccessEvent, 
 	if err := s.persistLocked(); err != nil {
 		return AccessEvent{}, false, err
 	}
+	s.notifySubscribersLocked()
 	return record, false, nil
 }
 
@@ -337,6 +363,7 @@ func (s *Service) IngestDeviceEvent(input IngestDeviceEventInput) (DeviceEvent, 
 	if err := s.persistLocked(); err != nil {
 		return DeviceEvent{}, false, err
 	}
+	s.notifySubscribersLocked()
 	return record, false, nil
 }
 
@@ -372,6 +399,15 @@ func (s *Service) persistLocked() error {
 		AccessEvents: cloneAccessEvents(s.accessEvents),
 		DeviceEvents: cloneDeviceEvents(s.deviceEvents),
 	})
+}
+
+func (s *Service) notifySubscribersLocked() {
+	for _, subscriber := range s.subscribers {
+		select {
+		case subscriber <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func cloneAccessEvents(items []AccessEvent) []AccessEvent {

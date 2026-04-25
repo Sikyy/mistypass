@@ -277,13 +277,15 @@ type JobAlertEmailDeliveryOptions struct {
 }
 
 type JobAlertChannelResult struct {
-	Channel       string   `json:"channel"`
-	Status        string   `json:"status"`
-	Reason        string   `json:"reason,omitempty"`
-	Provider      string   `json:"provider,omitempty"`
-	ProviderError string   `json:"provider_error,omitempty"`
-	Retryable     bool     `json:"retryable"`
-	Receivers     []string `json:"receivers,omitempty"`
+	Channel                string   `json:"channel"`
+	Status                 string   `json:"status"`
+	Reason                 string   `json:"reason,omitempty"`
+	Provider               string   `json:"provider,omitempty"`
+	ProviderError          string   `json:"provider_error,omitempty"`
+	ProviderDeliveryID     string   `json:"provider_delivery_id,omitempty"`
+	ProviderDeliveryStatus string   `json:"provider_delivery_status,omitempty"`
+	Retryable              bool     `json:"retryable"`
+	Receivers              []string `json:"receivers,omitempty"`
 }
 
 type JobAlertNotification struct {
@@ -2651,13 +2653,14 @@ func (s *Service) dispatchJobAlertEmailChannelLocked(record JobAlertNotification
 			}
 		}
 		subject, text := buildJobAlertEmailMessage(record)
-		err := s.jobAlertEmailSender.Send(
+		sendResult, err := s.jobAlertEmailSender.Send(
 			context.Background(),
 			AlertEmailSendInput{
-				TenantID: record.TenantID,
-				To:       recipients,
-				Subject:  subject,
-				Text:     text,
+				TenantID:       record.TenantID,
+				To:             recipients,
+				IdempotencyKey: record.IdempotencyKey,
+				Subject:        subject,
+				Text:           text,
 			},
 		)
 		if err != nil {
@@ -2677,11 +2680,13 @@ func (s *Service) dispatchJobAlertEmailChannelLocked(record JobAlertNotification
 			}
 		}
 		return JobAlertChannelResult{
-			Channel:   "email",
-			Status:    "sent",
-			Provider:  nextProvider,
-			Retryable: false,
-			Receivers: recipients,
+			Channel:                "email",
+			Status:                 "sent",
+			Provider:               nextProvider,
+			ProviderDeliveryID:     strings.TrimSpace(sendResult.ProviderDeliveryID),
+			ProviderDeliveryStatus: strings.TrimSpace(sendResult.ProviderDeliveryStatus),
+			Retryable:              false,
+			Receivers:              recipients,
 		}
 	}
 
@@ -2736,12 +2741,13 @@ func (s *Service) dispatchJobAlertWhatsAppChannelLocked(record JobAlertNotificat
 				Receivers:     receivers,
 			}
 		}
-		err := s.jobAlertWhatsAppSender.Send(
+		sendResult, err := s.jobAlertWhatsAppSender.Send(
 			context.Background(),
 			AlertWhatsAppSendInput{
-				TenantID: record.TenantID,
-				To:       receivers,
-				Text:     buildJobAlertWhatsAppMessage(record),
+				TenantID:       record.TenantID,
+				To:             receivers,
+				IdempotencyKey: record.IdempotencyKey,
+				Text:           buildJobAlertWhatsAppMessage(record),
 			},
 		)
 		if err != nil {
@@ -2761,11 +2767,13 @@ func (s *Service) dispatchJobAlertWhatsAppChannelLocked(record JobAlertNotificat
 			}
 		}
 		return JobAlertChannelResult{
-			Channel:   "whatsapp",
-			Status:    "sent",
-			Provider:  "mock",
-			Retryable: false,
-			Receivers: receivers,
+			Channel:                "whatsapp",
+			Status:                 "sent",
+			Provider:               "mock",
+			ProviderDeliveryID:     strings.TrimSpace(sendResult.ProviderDeliveryID),
+			ProviderDeliveryStatus: strings.TrimSpace(sendResult.ProviderDeliveryStatus),
+			Retryable:              false,
+			Receivers:              receivers,
 		}
 	}
 
@@ -2781,12 +2789,13 @@ func (s *Service) dispatchJobAlertWhatsAppChannelLocked(record JobAlertNotificat
 				Receivers:     receivers,
 			}
 		}
-		err := s.jobAlertWhatsAppSender.Send(
+		sendResult, err := s.jobAlertWhatsAppSender.Send(
 			context.Background(),
 			AlertWhatsAppSendInput{
-				TenantID: record.TenantID,
-				To:       receivers,
-				Text:     buildJobAlertWhatsAppMessage(record),
+				TenantID:       record.TenantID,
+				To:             receivers,
+				IdempotencyKey: record.IdempotencyKey,
+				Text:           buildJobAlertWhatsAppMessage(record),
 			},
 		)
 		if err != nil {
@@ -2806,11 +2815,13 @@ func (s *Service) dispatchJobAlertWhatsAppChannelLocked(record JobAlertNotificat
 			}
 		}
 		return JobAlertChannelResult{
-			Channel:   "whatsapp",
-			Status:    "sent",
-			Provider:  "meta",
-			Retryable: false,
-			Receivers: receivers,
+			Channel:                "whatsapp",
+			Status:                 "sent",
+			Provider:               "meta",
+			ProviderDeliveryID:     strings.TrimSpace(sendResult.ProviderDeliveryID),
+			ProviderDeliveryStatus: strings.TrimSpace(sendResult.ProviderDeliveryStatus),
+			Retryable:              false,
+			Receivers:              receivers,
 		}
 	}
 

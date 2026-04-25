@@ -1,5 +1,5 @@
-import { type FormEvent } from "react"
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { AccessDomainBanner } from "@/components/access/access-domain-banner"
 import { AccessPolicyForm } from "@/components/access/access-policy-form"
@@ -67,7 +67,16 @@ type AccessPoliciesSectionProps = {
   onScheduleChange: (value: string) => void
   onScopeTypeChange: (value: "all" | "building" | "area" | "door") => void
   onStatusChange: (value: "active" | "inactive" | "draft") => void
-  onSubmitPolicy: (event: FormEvent<HTMLFormElement>) => void
+  onSubmitPolicy: (payload: {
+    name: string
+    scopeType: "all" | "building" | "area" | "door"
+    status: "active" | "inactive" | "draft"
+    buildingID: string
+    areaID: string
+    doorID: string
+    schedule: string
+    members: string
+  }) => void
   schedule: string
   spacesLink: string
   scopeSummaryLabel: string
@@ -123,18 +132,25 @@ export function AccessPoliciesSection({
   onClearLedgerQuery,
   onLedgerQueryChange,
 }: AccessPoliciesSectionProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="space-y-4">
       <AccessDomainBanner
-        title="权限策略"
-        description="先确认楼宇拓扑和用户组都已具备，再把规则落到楼宇、区域和门点。策略负责定义“谁能进哪里、在什么时间能进”。"
+        title={t("accessPage.components.policiesSection.bannerTitle", { defaultValue: "Access policies" })}
+        description={t("accessPage.components.policiesSection.bannerDescription", {
+          defaultValue:
+            "Ensure topology and groups are ready first, then apply rules to building/area/door scopes to define who can access what and when.",
+        })}
         actions={
           <>
             <Button asChild size="sm" variant="outline">
-              <Link to={spacesLink}>去空间拓扑</Link>
+              <Link to={spacesLink}>{t("accessPage.components.policiesSection.goTopology", { defaultValue: "Go to topology" })}</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link to={grantsLink}>下一步去临时授权</Link>
+              <Link to={grantsLink}>
+                {t("accessPage.components.policiesSection.goGrantsNext", { defaultValue: "Next: temporary grants" })}
+              </Link>
             </Button>
           </>
         }
@@ -143,12 +159,19 @@ export function AccessPoliciesSection({
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <CardTitle className="text-base">快速生成策略草稿</CardTitle>
-            <CardDescription>直接从已有用户组套入建议范围和时间计划，把目录准备尽快推进到首批策略落地。</CardDescription>
+            <CardTitle className="text-base">
+              {t("accessPage.components.policiesSection.quickDraftTitle", { defaultValue: "Quick-generate policy drafts" })}
+            </CardTitle>
+            <CardDescription>
+              {t("accessPage.components.policiesSection.quickDraftDescription", {
+                defaultValue:
+                  "Reuse existing user groups with suggested scope/schedule to move from directory readiness to first policy rollout quickly.",
+              })}
+            </CardDescription>
           </div>
           {!topologyReady ? (
             <Button asChild size="sm" variant="outline">
-              <Link to={spacesLink}>先补空间拓扑</Link>
+              <Link to={spacesLink}>{t("accessPage.components.policiesSection.completeTopologyFirst", { defaultValue: "Complete topology first" })}</Link>
             </Button>
           ) : null}
         </CardHeader>
@@ -190,15 +213,21 @@ export function AccessPoliciesSection({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">策略列表</CardTitle>
-            <CardDescription>支持按同对象线索快速定位策略，再直接编辑。</CardDescription>
+            <CardTitle className="text-base">{t("accessPage.components.policiesSection.policyListTitle", { defaultValue: "Policy list" })}</CardTitle>
+            <CardDescription>
+              {t("accessPage.components.policiesSection.policyListDescription", {
+                defaultValue: "Locate policies quickly by shared target hints, then edit directly.",
+              })}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex flex-col gap-2 md:flex-row md:items-center">
               <Input
                 value={ledgerQuery}
                 onChange={(event) => onLedgerQueryChange(event.target.value)}
-                placeholder="按策略名称、范围或成员数搜索"
+                placeholder={t("accessPage.components.policiesSection.searchPlaceholder", {
+                  defaultValue: "Search by policy name, scope, or member count",
+                })}
               />
               {ledgerFilteredCount > 0 ? (
                 <Button
@@ -207,7 +236,12 @@ export function AccessPoliciesSection({
                   onClick={onBatchSetDraft}
                   disabled={batchActionPending.length > 0}
                 >
-                  {batchActionPending === "draft" ? "批量更新中..." : `批量设为草稿（${ledgerFilteredCount}）`}
+                  {batchActionPending === "draft"
+                    ? t("accessPage.components.policiesSection.batchUpdating", { defaultValue: "Batch updating..." })
+                    : t("accessPage.components.policiesSection.batchSetDraft", {
+                        defaultValue: "Batch set to draft ({{count}})",
+                        count: ledgerFilteredCount,
+                      })}
                 </Button>
               ) : null}
               {ledgerFilteredCount > 0 ? (
@@ -217,26 +251,40 @@ export function AccessPoliciesSection({
                   onClick={onBatchSetActive}
                   disabled={batchActionPending.length > 0}
                 >
-                  {batchActionPending === "active" ? "批量更新中..." : `批量设为启用（${ledgerFilteredCount}）`}
+                  {batchActionPending === "active"
+                    ? t("accessPage.components.policiesSection.batchUpdating", { defaultValue: "Batch updating..." })
+                    : t("accessPage.components.policiesSection.batchSetActive", {
+                        defaultValue: "Batch set to active ({{count}})",
+                        count: ledgerFilteredCount,
+                      })}
                 </Button>
               ) : null}
               {hasLedgerQuery ? (
                 <Button size="sm" variant="outline" onClick={onClearLedgerQuery}>
-                  清空筛选
+                  {t("accessPage.components.policiesSection.clearFilters", { defaultValue: "Clear filters" })}
                 </Button>
               ) : null}
             </div>
             <p className="mp-kpi-note">
               {hasLedgerQuery
-                ? `当前筛选命中 ${ledgerFilteredCount} / ${ledgerTotalCount} 条策略。`
-                : `当前共 ${ledgerTotalCount} 条策略。`}
+                ? t("accessPage.components.policiesSection.filteredCount", {
+                    defaultValue: "Filtered {{filtered}} / {{total}} policies.",
+                    filtered: ledgerFilteredCount,
+                    total: ledgerTotalCount,
+                  })
+                : t("accessPage.components.policiesSection.totalCount", {
+                    defaultValue: "Total {{total}} policies.",
+                    total: ledgerTotalCount,
+                  })}
             </p>
             {batchFlowHint.trim() ? (
               <div className="rounded-lg border bg-muted/10 px-3 py-2">
                 <p className="mp-kpi-note">{batchFlowHint}</p>
                 <div className="mt-2">
                   <Button asChild size="sm" variant="outline">
-                    <Link to={issuanceLink}>去凭证发放继续处理</Link>
+                    <Link to={issuanceLink}>
+                      {t("accessPage.components.policiesSection.goIssuanceContinue", { defaultValue: "Continue in pass issuance" })}
+                    </Link>
                   </Button>
                 </div>
               </div>

@@ -1,6 +1,8 @@
 import type { ErrorInfo, ReactNode } from "react"
 import { Component } from "react"
 
+import i18n from "@/lib/i18n"
+
 type AppErrorBoundaryProps = {
   children: ReactNode
 }
@@ -34,16 +36,21 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-6 text-center">
-          <h1 className="text-xl font-semibold">页面出现异常</h1>
+          <h1 className="text-xl font-semibold">
+            {i18n.t("appErrorBoundary.title", { defaultValue: "Something went wrong" })}
+          </h1>
           <p className="max-w-md text-sm text-muted-foreground">
-            当前页面发生了未处理错误。请刷新后重试，如果问题持续请联系平台管理员。
+            {i18n.t("appErrorBoundary.description", {
+              defaultValue:
+                "An unhandled error occurred on this page. Refresh and try again. If the issue persists, contact your platform administrator.",
+            })}
           </p>
           <button
             type="button"
             onClick={() => this.reload()}
             className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent"
           >
-            刷新页面
+            {i18n.t("appErrorBoundary.reload", { defaultValue: "Reload page" })}
           </button>
         </div>
       )

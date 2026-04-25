@@ -515,6 +515,11 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
       return
     }
 
+    if (path === "/api/v1/enterprise/sync-requests" && method === "GET") {
+      await fulfillJson(route, { items: [] })
+      return
+    }
+
     if (path === "/api/v1/enterprise/jit-provision-approvals" && method === "GET") {
       await fulfillJson(route, { items: scenario.approvals })
       return
@@ -632,6 +637,31 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
 
     if (path === "/api/v1/enterprise/sync-worker-alerts/summary" && method === "GET") {
       await fulfillJson(route, { items: scenario.workerAlerts })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/sync-worker-alerts" && method === "GET") {
+      await fulfillJson(route, { items: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/sync-worker-alerts/notifications" && method === "GET") {
+      await fulfillJson(route, { items: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/hris-webhook-receipts" && method === "GET") {
+      await fulfillJson(route, { items: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/hris-webhook-dlq" && method === "GET") {
+      await fulfillJson(route, { items: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/hris-pull-states" && method === "GET") {
+      await fulfillJson(route, { items: [] })
       return
     }
 
@@ -874,6 +904,7 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
 
 async function login(page: Page) {
   await page.goto("/login")
+  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill(viewer.email)
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
@@ -902,7 +933,7 @@ test("enterprise idp outcome should go to alerts when approvals are pending", as
   const outcomeCard = page.getByTestId("enterprise-idp-outcome")
   await expect(outcomeCard).toBeVisible()
 
-  const outcomeAction = outcomeCard.getByRole("button", { name: "去审批与异常" })
+  const outcomeAction = outcomeCard.getByTestId("enterprise-idp-outcome-action")
   await expect(outcomeAction).toBeVisible()
   await outcomeAction.click()
 

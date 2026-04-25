@@ -14,13 +14,19 @@ import (
 
 type alertWhatsAppSender interface {
 	Provider() string
-	Send(ctx context.Context, input AlertWhatsAppSendInput) error
+	Send(ctx context.Context, input AlertWhatsAppSendInput) (AlertWhatsAppSendResult, error)
 }
 
 type AlertWhatsAppSendInput struct {
-	TenantID string
-	To       []string
-	Text     string
+	TenantID       string
+	To             []string
+	IdempotencyKey string
+	Text           string
+}
+
+type AlertWhatsAppSendResult struct {
+	ProviderDeliveryID     string
+	ProviderDeliveryStatus string
 }
 
 const (
@@ -37,8 +43,10 @@ func (s *whatsAppMockSender) Provider() string {
 	return "mock_whatsapp"
 }
 
-func (s *whatsAppMockSender) Send(_ context.Context, _ AlertWhatsAppSendInput) error {
-	return nil
+func (s *whatsAppMockSender) Send(_ context.Context, _ AlertWhatsAppSendInput) (AlertWhatsAppSendResult, error) {
+	return AlertWhatsAppSendResult{
+		ProviderDeliveryStatus: "accepted",
+	}, nil
 }
 
 type metaWhatsAppSender struct {
@@ -81,16 +89,17 @@ func (s *metaWhatsAppSender) Provider() string {
 	return "meta"
 }
 
-func (s *metaWhatsAppSender) Send(ctx context.Context, input AlertWhatsAppSendInput) error {
+func (s *metaWhatsAppSender) Send(ctx context.Context, input AlertWhatsAppSendInput) (AlertWhatsAppSendResult, error) {
 	nextTo := dedupStrings(input.To)
 	if len(nextTo) == 0 {
-		return errors.New("meta whatsapp requires at least one receiver")
+		return AlertWhatsAppSendResult{}, errors.New("meta whatsapp requires at least one receiver")
 	}
 	nextText := strings.TrimSpace(input.Text)
 	if nextText == "" {
-		return errors.New("meta whatsapp text is required")
+		return AlertWhatsAppSendResult{}, errors.New("meta whatsapp text is required")
 	}
 
+	var providerDeliveryID string
 	for i := range nextTo {
 		payload := map[string]any{
 			"messaging_product": "whatsapp",
@@ -103,7 +112,7 @@ func (s *metaWhatsAppSender) Send(ctx context.Context, input AlertWhatsAppSendIn
 		}
 		body, err := json.Marshal(payload)
 		if err != nil {
-			return err
+			return AlertWhatsAppSendResult{}, err
 		}
 
 		req, err := http.NewRequestWithContext(
@@ -113,26 +122,42 @@ func (s *metaWhatsAppSender) Send(ctx context.Context, input AlertWhatsAppSendIn
 			bytes.NewReader(body),
 		)
 		if err != nil {
-			return err
+			return AlertWhatsAppSendResult{}, err
 		}
 		req.Header.Set("Authorization", "Bearer "+s.apiKey)
 		req.Header.Set("Content-Type", "application/json")
+		if idempotencyKey := strings.TrimSpace(input.IdempotencyKey); idempotencyKey != "" {
+			req.Header.Set("Idempotency-Key", idempotencyKey)
+		}
 
 		resp, err := s.client.Do(req)
 		if err != nil {
-			return err
+			return AlertWhatsAppSendResult{}, err
 		}
 		if resp.StatusCode < 200 || resp.StatusCode > 299 {
 			readBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 			resp.Body.Close()
-			return AlertEmailHTTPError{
+			return AlertWhatsAppSendResult{}, AlertEmailHTTPError{
 				StatusCode: resp.StatusCode,
 				Body:       strings.TrimSpace(string(readBody)),
 			}
 		}
+		readBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		resp.Body.Close()
+		var response struct {
+			Messages []struct {
+				ID string `json:"id"`
+			} `json:"messages"`
+		}
+		_ = json.Unmarshal(readBody, &response)
+		if providerDeliveryID == "" && len(response.Messages) > 0 {
+			providerDeliveryID = strings.TrimSpace(response.Messages[0].ID)
+		}
 	}
-	return nil
+	return AlertWhatsAppSendResult{
+		ProviderDeliveryID:     providerDeliveryID,
+		ProviderDeliveryStatus: "accepted",
+	}, nil
 }
 
 func dedupStrings(items []string) []string {

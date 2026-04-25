@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -E \"\\\\.\\(go|ts|tsx\\)$\")"
+      "Bash(grep -E \"\\\\.\\(go|ts|tsx\\)$\")",
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(node -e ':*)"
     ]
   }
 }

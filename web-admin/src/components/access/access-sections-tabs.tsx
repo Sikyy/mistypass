@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { AccessDirectorySection } from "@/components/access/access-directory-section"
 import { AccessGrantsSection } from "@/components/access/access-grants-section"
 import { AccessPoliciesSection } from "@/components/access/access-policies-section"
@@ -20,12 +22,20 @@ export function AccessSectionsTabs({
   policiesProps,
   grantsProps,
 }: AccessSectionsTabsProps) {
+  const { t } = useTranslation()
+
   return (
     <Tabs value={activeSection} onValueChange={(value) => onSectionChange(value as AccessSection)} className="space-y-4">
       <TabsList className="grid w-full max-w-2xl grid-cols-3">
-        <TabsTrigger value="directory">员工与用户组</TabsTrigger>
-        <TabsTrigger value="policies">权限策略</TabsTrigger>
-        <TabsTrigger value="grants">临时与访客授权</TabsTrigger>
+        <TabsTrigger value="directory">
+          {t("accessPage.components.sectionsTabs.directory", { defaultValue: "Employees & groups" })}
+        </TabsTrigger>
+        <TabsTrigger value="policies">
+          {t("accessPage.components.sectionsTabs.policies", { defaultValue: "Access policies" })}
+        </TabsTrigger>
+        <TabsTrigger value="grants">
+          {t("accessPage.components.sectionsTabs.grants", { defaultValue: "Temporary & visitor grants" })}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="directory" className="space-y-4">

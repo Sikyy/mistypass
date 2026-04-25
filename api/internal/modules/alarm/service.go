@@ -35,9 +35,11 @@ type stateSnapshot struct {
 }
 
 type Service struct {
-	mu         sync.RWMutex
-	alarms     []Alarm
-	stateStore StateStore
+	mu          sync.RWMutex
+	alarms      []Alarm
+	stateStore  StateStore
+	subscribers map[uint64]chan struct{}
+	nextSubID   uint64
 }
 
 func NewService() *Service {
@@ -81,6 +83,7 @@ func NewService() *Service {
 				CreatedAt:  now.Add(-110 * time.Minute),
 			},
 		},
+		subscribers: make(map[uint64]chan struct{}),
 	}
 }
 
@@ -106,6 +109,28 @@ func (s *Service) List(tenantID string) []Alarm {
 		items = append(items, s.alarms[i])
 	}
 	return items
+}
+
+func (s *Service) SubscribeChanges() (<-chan struct{}, func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	subID := s.nextSubID
+	s.nextSubID++
+	ch := make(chan struct{}, 1)
+	s.subscribers[subID] = ch
+
+	return ch, func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		target, exists := s.subscribers[subID]
+		if !exists {
+			return
+		}
+		delete(s.subscribers, subID)
+		close(target)
+	}
 }
 
 func (s *Service) UpdateStatus(tenantID, alarmID, status string) (Alarm, error) {
@@ -134,6 +159,7 @@ func (s *Service) UpdateStatus(tenantID, alarmID, status string) (Alarm, error) 
 		if err := s.persistLocked(); err != nil {
 			return Alarm{}, err
 		}
+		s.notifySubscribersLocked()
 		return s.alarms[i], nil
 	}
 
@@ -169,6 +195,15 @@ func (s *Service) persistLocked() error {
 	return s.stateStore.Save(stateKey, stateSnapshot{
 		Alarms: cloneAlarms(s.alarms),
 	})
+}
+
+func (s *Service) notifySubscribersLocked() {
+	for _, subscriber := range s.subscribers {
+		select {
+		case subscriber <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func cloneAlarms(items []Alarm) []Alarm {

@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -16,7 +17,14 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 
 	response, err := s.authService.Login(request)
 	if err != nil {
-		writeError(w, http.StatusUnauthorized, err.Error())
+		switch {
+		case errors.Is(err, auth.ErrAdminMFAEnrollmentRequired):
+			writeError(w, http.StatusForbidden, err.Error())
+		case errors.Is(err, auth.ErrAdminMFARequired), errors.Is(err, auth.ErrInvalidMFACode):
+			writeError(w, http.StatusUnauthorized, err.Error())
+		default:
+			writeError(w, http.StatusUnauthorized, err.Error())
+		}
 		return
 	}
 

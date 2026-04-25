@@ -373,7 +373,7 @@ func (s *Service) dispatchPassDeliveryEmailChannelLocked(
 			}
 		}
 		subject, text := buildPassDeliveryEmailMessage(pass, template)
-		err := s.jobAlertEmailSender.Send(
+		_, err := s.jobAlertEmailSender.Send(
 			context.Background(),
 			AlertEmailSendInput{
 				TenantID: pass.TenantID,
@@ -442,7 +442,7 @@ func (s *Service) dispatchPassDeliveryWhatsAppChannelLocked(
 		}
 	}
 
-	err := s.jobAlertWhatsAppSender.Send(
+	_, err := s.jobAlertWhatsAppSender.Send(
 		context.Background(),
 		AlertWhatsAppSendInput{
 			TenantID: pass.TenantID,

@@ -374,6 +374,7 @@ async function setupApiMocks(
 
 async function login(page: Page, email: string) {
   await page.goto("/login")
+  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill(email)
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
@@ -772,6 +773,7 @@ test("tenant_admin events filter should support type switch, empty result hint a
   await login(page, viewer.email)
 
   await page.goto("/events")
+  await expect(page.getByRole("combobox", { name: "时间范围" })).toContainText("最近 24 小时")
   await expect(page.getByText("evt-filter-access")).toBeVisible()
   await expect(page.getByText("evt-filter-gateway")).toBeVisible()
 
@@ -786,6 +788,12 @@ test("tenant_admin events filter should support type switch, empty result hint a
   await page.getByRole("button", { name: "重置筛选" }).click()
   await expect(page.getByText("evt-filter-access")).toBeVisible()
   await expect(page.getByText("evt-filter-gateway")).toBeVisible()
+
+  await page.getByTestId("event-row").filter({ hasText: "evt-filter-gateway" }).click()
+  const detailDrawer = page.getByRole("dialog", { name: "evt-filter-gateway" })
+  await expect(detailDrawer).toBeVisible()
+  await expect(detailDrawer.getByText("原始 JSON", { exact: true })).toBeVisible()
+  await expect(detailDrawer.getByText(/"id": "evt-filter-gateway"/)).toBeVisible()
 })
 
 test("tenant_admin gateways filter should support status switch, empty result hint and reset", async ({ page }) => {

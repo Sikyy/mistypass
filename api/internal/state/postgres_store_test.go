@@ -37,6 +37,17 @@ func TestPostgresStoreSaveDeduplicatesUnchangedSnapshot(t *testing.T) {
 	}
 }
 
+func TestNewPostgresStoreConfiguresConnectionPool(t *testing.T) {
+	store := newTestPostgresStore(t)
+	stats := store.db.Stats()
+	if stats.MaxOpenConnections != defaultMaxOpenConns {
+		t.Fatalf("max open conns mismatch: got %d want %d", stats.MaxOpenConnections, defaultMaxOpenConns)
+	}
+	if store.db == nil {
+		t.Fatalf("expected db to be initialized")
+	}
+}
+
 func TestPostgresStoreSaveAppendsChangeWhenPayloadChanged(t *testing.T) {
 	store := newTestPostgresStore(t)
 	key := fmt.Sprintf("test_state_save_changed_%d", time.Now().UnixNano())

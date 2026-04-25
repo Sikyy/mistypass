@@ -1,5 +1,8 @@
-import { type FormEvent } from "react"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Link } from "react-router-dom"
+import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
+import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,6 +14,28 @@ type AccessGroupFormEmployee = {
   id: string
 }
 
+const accessGroupFormSchema = z.object({
+  group_name: z
+    .string()
+    .trim()
+    .min(1, "Please enter a user group name")
+    .max(64, "User group name must be at most 64 characters"),
+  group_description: z
+    .string()
+    .trim()
+    .max(128, "Description must be at most 128 characters")
+    .optional()
+    .or(z.literal("")),
+  group_member_query: z
+    .string()
+    .trim()
+    .max(128, "Member search keyword must be at most 128 characters")
+    .optional()
+    .or(z.literal("")),
+})
+
+type AccessGroupFormValues = z.infer<typeof accessGroupFormSchema>
+
 type AccessGroupFormProps = {
   filteredEmployees: AccessGroupFormEmployee[]
   groupDescription: string
@@ -20,7 +45,7 @@ type AccessGroupFormProps = {
   onDescriptionChange: (value: string) => void
   onMemberQueryChange: (value: string) => void
   onNameChange: (value: string) => void
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onSubmit: (payload: { name: string; description: string }) => void
   onToggleMember: (employeeID: string) => void
   selectedMemberIDs: string[]
 }
@@ -38,29 +63,84 @@ export function AccessGroupForm({
   onToggleMember,
   selectedMemberIDs,
 }: AccessGroupFormProps) {
+  const { t } = useTranslation()
+
+  const groupForm = useForm<AccessGroupFormValues>({
+    resolver: zodResolver(accessGroupFormSchema),
+    values: {
+      group_name: groupName,
+      group_description: groupDescription,
+      group_member_query: groupMemberQuery,
+    },
+  })
+  const groupNameField = groupForm.register("group_name")
+  const groupDescriptionField = groupForm.register("group_description")
+  const groupMemberQueryField = groupForm.register("group_member_query")
+  const groupFormError =
+    groupForm.formState.errors.group_name?.message ||
+    groupForm.formState.errors.group_description?.message ||
+    groupForm.formState.errors.group_member_query?.message ||
+    ""
+
+  function onSubmitGroupForm(values: AccessGroupFormValues) {
+    onSubmit({
+      name: values.group_name.trim(),
+      description: values.group_description || "",
+    })
+  }
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{isEditing ? "编辑用户组" : "新建用户组"}</CardTitle>
-        <CardDescription>先用企业目录确定成员，再把用户组作为策略与发放的基础对象。</CardDescription>
+        <CardTitle className="text-base">
+          {isEditing
+            ? t("accessPage.components.groupForm.titleEdit", { defaultValue: "Edit group" })
+            : t("accessPage.components.groupForm.titleCreate", { defaultValue: "Create group" })}
+        </CardTitle>
+        <CardDescription>
+          {t("accessPage.components.groupForm.description", {
+            defaultValue: "Confirm members from enterprise directory, then use groups as base objects for policy and issuance.",
+          })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <Input value={groupName} onChange={(event) => onNameChange(event.target.value)} placeholder="用户组名称" />
-          <Input value={groupDescription} onChange={(event) => onDescriptionChange(event.target.value)} placeholder="描述" />
+        <form className="space-y-3" onSubmit={groupForm.handleSubmit(onSubmitGroupForm)}>
           <Input
-            value={groupMemberQuery}
-            onChange={(event) => onMemberQueryChange(event.target.value)}
-            placeholder="从企业员工库搜索成员（姓名/邮箱/部门）"
+            {...groupNameField}
+            onChange={(event) => {
+              groupNameField.onChange(event)
+              onNameChange(event.target.value)
+            }}
+            placeholder={t("accessPage.components.groupForm.groupName", { defaultValue: "Group name" })}
+          />
+          <Input
+            {...groupDescriptionField}
+            onChange={(event) => {
+              groupDescriptionField.onChange(event)
+              onDescriptionChange(event.target.value)
+            }}
+            placeholder={t("accessPage.components.groupForm.descriptionInput", { defaultValue: "Description" })}
+          />
+          <Input
+            {...groupMemberQueryField}
+            onChange={(event) => {
+              groupMemberQueryField.onChange(event)
+              onMemberQueryChange(event.target.value)
+            }}
+            placeholder={t("accessPage.components.groupForm.memberSearch", {
+              defaultValue: "Search members from enterprise directory (name/email/department)",
+            })}
           />
           <div className="max-h-48 space-y-1 overflow-auto rounded-md border bg-muted/20 p-2">
             {filteredEmployees.length === 0 ? (
               <div className="space-y-2 px-2 py-3">
                 <p className="mp-kpi-note">
-                  当前组织员工库暂无可选成员，请先去企业页接入 HRIS、SCIM、CSV 或手动同步。
+                  {t("accessPage.components.groupForm.emptyEmployees", {
+                    defaultValue: "No selectable members in current organization. Connect HRIS, SCIM, CSV, or manual sync first.",
+                  })}
                 </p>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/enterprise">去企业页导入员工</Link>
+                  <Link to="/enterprise">{t("accessPage.components.groupForm.importEmployees", { defaultValue: "Import employees in Enterprise" })}</Link>
                 </Button>
               </div>
             ) : null}
@@ -81,10 +161,18 @@ export function AccessGroupForm({
               </label>
             ))}
           </div>
-          <p className="mp-kpi-note">已选择成员：{selectedMemberIDs.length}</p>
-          <Button type="submit" className="w-full">
-            {isEditing ? "更新用户组" : "创建用户组"}
+          <p className="mp-kpi-note">
+            {t("accessPage.components.groupForm.selectedMembers", {
+              defaultValue: "Selected members: {{count}}",
+              count: selectedMemberIDs.length,
+            })}
+          </p>
+          <Button type="submit" className="w-full" disabled={groupForm.formState.isSubmitting}>
+            {isEditing
+              ? t("accessPage.components.groupForm.submitEdit", { defaultValue: "Update group" })
+              : t("accessPage.components.groupForm.submitCreate", { defaultValue: "Create group" })}
           </Button>
+          {groupFormError ? <p className="text-sm text-destructive">{groupFormError}</p> : null}
         </form>
       </CardContent>
     </Card>

@@ -9,6 +9,10 @@ import (
 )
 
 func (s *server) gatewayBootstrapRegister(w http.ResponseWriter, r *http.Request) {
+	if !s.authorizeGatewayBootstrapToken(w, r) {
+		return
+	}
+
 	var request struct {
 		SerialNumber   string `json:"serial_number"`
 		TenantID       string `json:"tenant_id"`

@@ -18,9 +18,10 @@
 
 ### 2.2 Token 行为
 
-- 前端把 `access_token` 存在 `localStorage`：`mistypass_admin_token`。
+- 前端把 `access_token` 存在 `sessionStorage`：`mistypass_admin_access_token`。
+- 前端把 `refresh_token` 存在 `sessionStorage`：`mistypass_admin_refresh_token`。
 - 后续所有管理页 API 都通过 `Authorization: Bearer <token>` 访问。
-- 当前管理端 UI 未接入自动 refresh，token 过期后需要重新登录。
+- 当前管理端 UI 已接入 refresh token 流程；刷新失败或 refresh token 失效后需要重新登录。
 
 ### 2.3 测试账号（建议）
 
@@ -33,7 +34,7 @@
 
 - 使用了旧示例账号 `admin@mistypass.local`（历史文档残留）。
 - 前端未连到正确后端（确认 `VITE_API_BASE_URL`，默认 `http://localhost:8080`）。
-- token 过期或 localStorage 残留旧 token（可清空后重登）。
+- token 过期、refresh 失败或浏览器 `sessionStorage` 残留旧会话（可清空后重登）。
 
 ## 3. 页面与 API 对照
 
@@ -76,8 +77,9 @@
   - 企业员工：`GET /api/v1/enterprise/employees?tenant_id=...`
   - 企业同步补偿：`POST /api/v1/enterprise/employees/sync/reconcile`（按 `request_id` 重放 access 写入）
   - 企业同步补偿审计：`GET /api/v1/enterprise/sync-requests`（按 `request_id` 查询补偿状态/尝试次数/错误）
-  - 企业同步 worker 告警：`GET /api/v1/enterprise/sync-worker-alerts`（结构化失败阈值告警统计，支持 `since/until`）
-  - 企业同步 worker 告警汇总：`GET /api/v1/enterprise/sync-worker-alerts/summary`（按租户聚合 `count/first_seen_at/last_seen_at`，支持 `since/until`）
+  - 企业同步 worker 告警：`GET /api/v1/enterprise/sync-worker-alerts`（统一覆盖 reconcile / HRIS DLQ / HRIS pull 三类 worker 的结构化阈值告警，支持 `since/until`）
+  - 企业同步 worker 告警汇总：`GET /api/v1/enterprise/sync-worker-alerts/summary`（按 `tenant + worker_action` 聚合 `count/first_seen_at/last_seen_at`，支持 `since/until`）
+  - 企业同步 worker 告警订阅：`GET /api/v1/enterprise/sync-worker-alert-subscription`、`PUT /api/v1/enterprise/sync-worker-alert-subscription`（wallet 风格订阅策略，支持默认值回退、partial update、tenant scope）
   - 企业同步补偿批处理：`POST /api/v1/enterprise/sync-requests/reconcile-pending`（按租户批量处理 pending）
   - 辅助数据：`GET /api/v1/tenants`、`GET /api/v1/buildings|areas|doors?tenant_id=...`
 
@@ -132,6 +134,22 @@
 - 用途：告警列表与告警状态流转。
 - 本轮增强：增加通知策略（默认安全组，邮件/WhatsApp 通道）与通知日志队列视图。
 - API：`GET /api/v1/alarms`、`PATCH /api/v1/alarms/{alarmID}/status`、`GET /api/v1/tenants`
+
+11. `/enterprise`
+- 用途：企业目录、同步、IDP、审批异常与 HRIS connector 运维总览。
+- 本轮增强：
+  - `sync` 工作区已新增 Talenta connector 配置面板，支持 `webhook / pull / hybrid` 策略切换。
+  - 支持在 UI 中选择已有 HRIS vault secret ref，或直接写入新的 connector credential / webhook secret。
+  - 已展示稳定 webhook URL、当前 connector refs、最近 secret refs 与其他 HRIS connectors 摘要。
+  - `alerts` 工作区已支持基于 `worker_action / worker_alert_label / worker_kind / worker_filter_hint / worker_query_hint` 的精确 worker scope，并可按当前筛选批量跳转到目录、策略、同步三条处置入口；Talenta receipt / DLQ 也已补 `queue_state / replay_state` 运行态快捷筛选按钮，且与 `worker_status / worker_queue_state / worker_replay_state` URL hint/runtime scope 双向同步；receipt 已支持单条 `process` 与按当前可见且 `queue_state=ready` 的 `process-batch`，DLQ 也已支持单条 `replay` 与按当前可见且 `replay_state=ready` 的 `replay-batch`。上述 4 个手动入口当前在 UI 默认都传 `execution_mode=queued`，先 claim、持久化 execution record（`dispatch_mode=worker_tick`）再返回 queued summary；worker enabled 时会主动 wake 对应 worker，由 worker tick 扫描 `queued` execution 并继续执行，worker disabled 时才回退本进程后台异步处理。
+- API：
+  - 目录与同步：`GET /api/v1/enterprise/employees`、`GET /api/v1/enterprise/sync-jobs`、`POST /api/v1/enterprise/employees/sync`
+  - HRIS connector：`GET /api/v1/enterprise/hris-connectors`、`POST /api/v1/enterprise/hris-connectors`、`PATCH /api/v1/enterprise/hris-connectors/{connectorID}`
+  - HRIS vault metadata：`GET /api/v1/enterprise/hris-secrets`
+  - HRIS 运行态：`GET /api/v1/enterprise/sync-worker-alert-subscription`、`PUT /api/v1/enterprise/sync-worker-alert-subscription`、`GET /api/v1/enterprise/sync-worker-alerts`、`GET /api/v1/enterprise/sync-worker-alerts/summary`、`GET /api/v1/enterprise/hris-webhook-receipts`、`POST /api/v1/enterprise/hris-webhook-receipts/{receiptID}/process`、`POST /api/v1/enterprise/hris-webhook-receipts/process-batch`、`GET /api/v1/enterprise/hris-webhook-dlq`、`POST /api/v1/enterprise/hris-webhook-dlq/{entryID}/replay`、`POST /api/v1/enterprise/hris-webhook-dlq/replay-batch`、`GET /api/v1/enterprise/hris-pull-states`
+  - `GET /api/v1/enterprise/hris-webhook-receipts` 与 `GET /api/v1/enterprise/hris-webhook-dlq` 现已支持 `connector_id / status / q / offset / limit`，并分别支持 `queue_state` / `replay_state` runtime filter；返回体除 `items` 外，也会补 `total / has_more / next_offset` 与 `queue_counts / replay_counts`，便于前端按真实 backlog 做增量加载与 runtime 快捷筛选。
+  - `POST /api/v1/enterprise/hris-webhook-receipts/{receiptID}/process`、`POST /api/v1/enterprise/hris-webhook-receipts/process-batch`、`POST /api/v1/enterprise/hris-webhook-dlq/{entryID}/replay`、`POST /api/v1/enterprise/hris-webhook-dlq/replay-batch` 现都支持可选 `execution_mode=queued`；当前实现语义是“claim + 持久化 execution record（`dispatch_mode=worker_tick`）+ 立即返回 queued + wake worker，由 worker tick 扫描 `queued` execution 继续执行”；仅在 worker disabled 时才 fallback 到进程内后台异步执行，并非真正外部队列。
+  - IDP 与审批：`GET /api/v1/enterprise/idp-config`、`GET /api/v1/enterprise/jit-provision-approvals`、`POST /api/v1/enterprise/jit-provision-approvals/{approvalID}/review`
 
 ### 3.2 已实现但未挂载路由
 
@@ -205,6 +223,19 @@
 
 - 企业与 wallet 已接入 PostgreSQL `mistypass` 快照持久化并同步 `mistypass_*` 投影表；当前 `tenant/space/access/gateway/enterprise/event/alarm/audit/wallet` 全模块已升级为 `upsert + stale row 清理`。
 - PostgreSQL replay 已补“多租户 + 多 `state_key` 分层曲线”回归（短时基线），长时 soak 与 nightly 留档仍在推进。
+
+### 4.3 Enterprise HRIS 当前优先级（2026-04-25）
+
+- 自动化回归已补 Talenta `changeschedule` webhook merge、`merge miss -> DLQ -> replay`、`hybrid webhook + pull worker`，以及 DLQ / pull worker 的 `failure alert + retry cooldown + attempt limit` 主链路；同时已补 `GET /api/v1/enterprise/sync-worker-alerts` 与 `/summary` 的路由级过滤 / 聚合回归。
+- 后端已把 HRIS webhook `normalize/merge/sync` 失败补入 `sync-worker-alert` 聚合（`enterprise_hris_webhook_processing_alert`），Talenta merge miss / 字段缺失不再只停留在普通 audit。
+- 前端已补 Talenta connector Playwright smoke：`/enterprise#sync` 下已覆盖 `existing ref` 创建、`inline secret` 创建、`hybrid + incremental` 更新，以及保存失败态的首批错误分类与 retry suggestion；当前已校验 `credential_ref` 缺失与 upstream `429/503` 临时失败两类分支，并继续校验 `POST/PATCH /api/v1/enterprise/hris-connectors` 请求体与 reload 后 webhook URL / refs 回显。
+- 前端已补 `worker alerts` Playwright smoke：`/enterprise#sync` 下消费 `GET /api/v1/enterprise/sync-worker-alerts/summary`，校验 hot/stable 过滤、URL hint 回流、二次复核入口跳转参数，以及首批运行期恢复指引（冷却、字段映射/merge 分类）。
+- 前端已补 `sync -> alerts -> sync` 的 worker alert 跨 workspace Playwright smoke，覆盖 `#alerts` 目录异常视图、查询 hint 回填、回跳同步页、平台租户切换、按 `worker_action / worker_label / worker_kind` 的精确定位，以及告警页的精简态 worker guidance；最新也已覆盖 Talenta receipt / DLQ 运行态快捷筛选按钮、receipt 单条 `process`、receipt `process-batch`、DLQ 单条 `replay`、DLQ `replay-batch`、最近批处理明细面板、URL hint/runtime scope 回填、以及回跳同步页后的 scope 保留。2026-04-24 新增 queued 回归后，这 4 个手动动作都已验证默认走 `execution_mode=queued`，并覆盖单条/批量 summary 与 batch result 明细；同日后端也补上 execution record + wake worker 分发回归，确认 worker enabled 时会先落 `dispatch_mode=worker_tick` 的 execution record，再由 worker tick 扫描 `queued` execution 执行，而不是由请求线程直接承接主路径。随后又补了 running worker 的共享 state refresh 回归：已启动的第二实例在 tick 前会主动刷新 enterprise/DLQ state，因此无需重启也能接住另一实例刚写入的 queued receipt / queued replay。
+- `#alerts` 现已接通 read-only 运行期数据面：在 summary 之外继续展示 raw worker alerts、HRIS webhook receipt queue、HRIS pull states、DLQ 四段明细；其中 receipt queue 会直接暴露 `queue_state / next_retry_at / processing_deadline_at / remaining_attempts / cooldown_remaining_seconds / stale_in_flight`，DLQ 会直接暴露 `replay_state / next_retry_at / processing_deadline_at / remaining_attempts / cooldown_remaining_seconds / stale_in_flight`，并在 Talenta 告警页提供对应的 receipt / DLQ 快捷筛选按钮，以及单条 `process/replay` 与按当前可见结果执行的 `process-batch/replay-batch` 入口；最新列表接口与前端处置面也已一起补 `offset / limit / has_more / next_offset / queue_counts / replay_counts` 的真实 backlog 增量加载，`#alerts` 现支持 receipt / DLQ 的 `Load more`、pagination summary 与服务端 runtime counts 消费。最近一轮 batch 的汇总与条目级结果也已直接展示在卡片内，便于按 `vendor / connector / request / failure_stage` 做一线排障。
+- 从 `#alerts` 的 receipt / DLQ 卡片跳回 `#sync` 时，当前也会保留 `worker_status / worker_queue_state / worker_replay_state` scope，便于在同步工作区继续沿着同一 Talenta 故障上下文处置。
+- `#alerts` 当前也可直接消费 `worker_status / worker_queue_state / worker_replay_state` URL hints，并把对应 scope 应用到 receipt / DLQ 列表筛选，便于按 `received+ready`、`dlq+cooldown` 这类组合直接落到目标条目。
+- `#alerts` 当前已支持把当前筛选批量跳转到目录、策略、同步三条处置路径，并已接入 `sync-requests/reconcile-pending`、receipt `process-batch` 与 DLQ `replay-batch` 的真实执行入口；Talenta connector 保存失败态与运行期 worker alert 都已补首批错误分类与 retry suggestion。`GET /enterprise/hris-webhook-executions` 统一 execution history 列表/详情已接通，queued 单条/批量 receipt 与 DLQ 响应都会回传 `execution_id`；`#alerts` 前端也已补 execution history 面板，支持按 `kind / status / q / queue_state / replay_scope` 查看、增量加载、详情 drill-down、`execution_id` 深链，以及从 failed execution 直接触发新的 queued replay/process。通知策略、告警去重与 execution history 第二阶段细化均已落地，不再属于 Talenta 待办。
+- `attendance.liveattendance` 继续 deferred；Talenta 单厂商公开 webhook 范围已收口。最新后端已把 receipt / DLQ worker 候选收窄到 claimable 的 due-now / stale 项，cooldown / attempt-limit / fresh processing/replaying 继续通过 `queue_state / replay_state` 暴露，但不再进入后台 worker loop 产生额外 skip-only alert。`execution_mode=queued` 的第二阶段已进一步收口为 Redis external queue + candidate index + due-index 主路径，execution history 也会显式暴露 `external_queue_state` 与聚合 `external_queues` telemetry；execution claim 后的 target-state refresh 现也已补齐，因此跨实例 worker-only 窗口不再会按陈旧 receipt/DLQ target 重跑 Talenta 任务。Talenta 当前仅剩公开文档未提供的 `leave/time-off` 事件继续挂起，其他厂商仍按当前排期暂停推进。
 - PostgreSQL replay 已新增 soak + nightly 自动化链路，当前进入多日数据稳定性观察阶段。
 - Wallet 队列链路已补 DLQ + 摘要观测 + 批量治理 + 指标阈值 + 告警订阅策略 + 趋势指标 + 失败重试策略 + 双通道发送（`email: resend/mock` + `whatsapp: mock/meta`），并统一输出 `channel_results` 回执。
 - `BLOCKED_EXTERNAL` WhatsApp Meta 企业号真实通道待外部资质完成；当前以 mock/provider contract 回归为主。
@@ -212,7 +243,7 @@
 - UI 未做 token 自动 refresh。
 - 自动化测试覆盖仍偏低。
 
-### 4.3 后续规划重点
+### 4.4 后续规划重点
 
 - 真实 Google Wallet API 落地（替换 mock）。
 - 企业完整运营页面接入（当前后端接口已具备，管理端 enterprise 运营视图待补齐）。
@@ -314,8 +345,8 @@
     - `action=enterprise_sync_reconcile_worker_alert`
     - `source=enterprise_sync_worker`
     - `target` 包含 `failed`/`threshold` 统计。
-  - 验证结构化告警接口：`GET /api/v1/enterprise/sync-worker-alerts?tenant_id=...` 返回 `failed/threshold/processed/applied/skipped_*` 字段。
-  - 验证告警汇总接口：`GET /api/v1/enterprise/sync-worker-alerts/summary?tenant_id=...` 返回 `count/first_seen_at/last_seen_at` 与最近一次告警指标。
+  - 验证结构化告警接口：`GET /api/v1/enterprise/sync-worker-alerts?tenant_id=...` 返回 `worker_action/worker_kind/worker_label` 与 `failed/threshold/processed/applied/skipped_*` 字段。
+  - 验证告警汇总接口：`GET /api/v1/enterprise/sync-worker-alerts/summary?tenant_id=...` 返回 `tenant_id + worker_action` 维度的 `count/first_seen_at/last_seen_at` 与最近一次告警指标。
   - 验证审计筛选参数可用：`GET /api/v1/audit-logs?tenant_id=...&action=...&source=...&limit=...`。
   - 验证请求补偿审计字段被 worker 更新：`access_attempt_count`、`last_access_error`。
   - 验证 `max_attempts` 生效：达到上限后等待多个轮询周期，`access_attempt_count` 保持不再增长。

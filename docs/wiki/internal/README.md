@@ -8,10 +8,9 @@
 ## 1. 阅读顺序（建议）
 
 1. `docs/wiki/internal/system-overview.md`
-2. `docs/wiki/internal/module-handbook.md`
-3. `docs/wiki/internal/module-deep-dive.md`
-4. `docs/wiki/internal/priority-board.md`
-5. `docs/wiki/internal/dev-workflow.md`
+2. `docs/wiki/internal/module-reference.md`
+3. `docs/wiki/internal/priority-board.md`
+4. `docs/wiki/internal/dev-workflow.md`
 
 ## 2. 你能在这里找到什么
 

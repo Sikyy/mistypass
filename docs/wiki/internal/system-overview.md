@@ -52,4 +52,4 @@
 
 - 总体排期：`docs/development-status-roadmap.md`
 - API/UI 映射：`docs/testing/admin-ui-test-and-api-map.md`
-- 迁移策略：`docs/architecture/encore-migration-playbook.md`
+- 迁移决策：`docs/architecture/encore-decision-report-2026-04-19.md`

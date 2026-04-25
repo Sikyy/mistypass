@@ -19,6 +19,7 @@
 
 | 类型 | 获取方式 | 传递方式 | 主要用途 |
 |---|---|---|---|
+| 网关 bootstrap 令牌（`bootstrap_token`） | 平台配置 `GATEWAY_BOOTSTRAP_TOKEN` | `X-Bootstrap-Token: <bootstrap_token>`（兼容 Bearer） | `POST /api/v1/gateway/register` |
 | 管理端访问令牌（`access_token`） | `POST /api/v1/auth/login`（或 `refresh`） | `Authorization: Bearer <access_token>` | `/api/v1/*` 管理端受保护接口 |
 | 网关设备令牌（`device_token`） | `POST /api/v1/gateway/register` | `X-Device-Token: <device_token>`（兼容 Bearer） | `/api/v1/gateway/*` bootstrap/事件链路 |
 | 企业回调令牌（callback token） | 平台配置 `ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_CALLBACK_TOKEN` | `X-Enterprise-Callback-Token`（兼容 Bearer / body） | `POST /api/v1/enterprise/jit-provision-approvals/external-sync/callback` |

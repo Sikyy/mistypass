@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,32 @@ type Config struct {
 	AppEnv                                                       string
 	HTTPAddr                                                     string
 	CORSOrigin                                                   string
+	RedisAddr                                                    string
+	RedisPassword                                                string
+	RedisDB                                                      int
+	RedisKeyPrefix                                               string
+	RedisDialTimeout                                             time.Duration
+	RedisReadTimeout                                             time.Duration
+	RedisWriteTimeout                                            time.Duration
+	MQTTEnabled                                                  bool
+	MQTTBrokerURL                                                string
+	MQTTTopicPrefix                                              string
+	GatewayBootstrapToken                                        string
+	NATSEnabled                                                  bool
+	NATSServerURL                                                string
+	NATSSubjectPrefix                                            string
+	OTelEnabled                                                  bool
+	OTelServiceName                                              string
+	OTelExporterOTLPEndpoint                                     string
+	OTelExporterOTLPInsecure                                     bool
+	OTelTraceSampleRatio                                         float64
+	OTelExportTimeout                                            time.Duration
+	AuthAdminMFARequired                                         bool
+	ExternalAuthEnabled                                          bool
+	ExternalAuthProvider                                         string
+	ExternalAuthUserInfoURL                                      string
+	ExternalAuthTimeout                                          time.Duration
+	ExternalAuthDefaultRole                                      string
 	JWTSecret                                                    string
 	JWTIssuer                                                    string
 	JWTAccessTTL                                                 time.Duration
@@ -28,6 +55,13 @@ type Config struct {
 	EnterpriseSyncReconcileWorkerAlertFailureThreshold           int
 	EnterpriseSyncReconcileWorkerForceError                      bool
 	EnterpriseSyncReconcileWorkerForceErrorTenantID              string
+	EnterpriseSyncWorkerAlertAutoRetryWorkerEnabled              bool
+	EnterpriseSyncWorkerAlertAutoRetryWorkerInterval             time.Duration
+	EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize            int
+	EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts          int
+	EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff          time.Duration
+	EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff           time.Duration
+	EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL              time.Duration
 	EnterpriseJITApprovalExternalSyncWorkerEnabled               bool
 	EnterpriseJITApprovalExternalSyncWorkerInterval              time.Duration
 	EnterpriseJITApprovalExternalSyncWorkerBatchSize             int
@@ -37,6 +71,35 @@ type Config struct {
 	EnterpriseJITApprovalExternalSyncWorkerForceError            bool
 	EnterpriseJITApprovalExternalSyncWorkerForceErrorTenantID    string
 	EnterpriseJITApprovalExternalSyncCallbackToken               string
+	EnterpriseHRISWebhookReceiptWorkerEnabled                    bool
+	EnterpriseHRISWebhookReceiptWorkerInterval                   time.Duration
+	EnterpriseHRISWebhookReceiptWorkerBatchSize                  int
+	EnterpriseHRISWebhookReceiptWorkerMaxAttempts                int
+	EnterpriseHRISWebhookReceiptWorkerRetryCooldown              time.Duration
+	EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff            time.Duration
+	EnterpriseHRISWebhookReceiptWorkerProcessingTimeout          time.Duration
+	EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold      int
+	EnterpriseHRISWebhookReceiptWorkerLockTTL                    time.Duration
+	EnterpriseHRISWebhookDLQWorkerEnabled                        bool
+	EnterpriseHRISWebhookDLQWorkerInterval                       time.Duration
+	EnterpriseHRISWebhookDLQWorkerBatchSize                      int
+	EnterpriseHRISWebhookDLQWorkerMaxAttempts                    int
+	EnterpriseHRISWebhookDLQWorkerRetryCooldown                  time.Duration
+	EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff                time.Duration
+	EnterpriseHRISWebhookDLQWorkerProcessingTimeout              time.Duration
+	EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold          int
+	EnterpriseHRISWebhookDLQWorkerLockTTL                        time.Duration
+	EnterpriseHRISPullWorkerEnabled                              bool
+	EnterpriseHRISPullWorkerInterval                             time.Duration
+	EnterpriseHRISPullWorkerBatchSize                            int
+	EnterpriseHRISPullWorkerMaxAttempts                          int
+	EnterpriseHRISPullWorkerRetryCooldown                        time.Duration
+	EnterpriseHRISPullWorkerRetryMaxBackoff                      time.Duration
+	EnterpriseHRISPullWorkerProcessingTimeout                    time.Duration
+	EnterpriseHRISPullWorkerReconcileInterval                    time.Duration
+	EnterpriseHRISPullWorkerAlertFailureThreshold                int
+	EnterpriseHRISPullWorkerLockTTL                              time.Duration
+	HRISVaultMasterKey                                           string
 	GatewayEventsBatchForceRetryableError                        bool
 	GatewayEventsBatchForceRetryablePrefix                       string
 	WalletJobProcessDefaultMaxRetry                              int
@@ -60,303 +123,539 @@ type Config struct {
 }
 
 func FromEnv() Config {
-	appEnv := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV")))
-	if appEnv == "" {
-		appEnv = "development"
+	var cfg Config
+	loadServerConfig(&cfg)
+	loadRedisConfig(&cfg)
+	loadBrokerConfig(&cfg)
+	loadOTelConfig(&cfg)
+	loadAuthConfig(&cfg)
+	loadDatabaseConfig(&cfg)
+	loadEnterpriseConfig(&cfg)
+	loadGatewayConfig(&cfg)
+	loadWalletConfig(&cfg)
+	return cfg
+}
+
+func loadServerConfig(cfg *Config) {
+	cfg.AppEnv = envLowerOrDefault("APP_ENV", "development")
+	cfg.HTTPAddr = normalizeHTTPAddr(envStringOrDefault("PORT", "8080"))
+	cfg.CORSOrigin = envStringOrDefault("CORS_ORIGIN", "http://localhost:5173")
+}
+
+func loadRedisConfig(cfg *Config) {
+	cfg.RedisAddr = envString("REDIS_ADDR")
+	cfg.RedisPassword = envString("REDIS_PASSWORD")
+	cfg.RedisDB = parseIntOrFallback(envString("REDIS_DB"), 0)
+	if cfg.RedisDB < 0 {
+		cfg.RedisDB = 0
 	}
-
-	port := strings.TrimSpace(os.Getenv("PORT"))
-	if port == "" {
-		port = "8080"
+	cfg.RedisKeyPrefix = envStringOrDefault("REDIS_KEY_PREFIX", "mistypass")
+	cfg.RedisDialTimeout = parseDurationOrFallback(envString("REDIS_DIAL_TIMEOUT"), 3*time.Second)
+	if cfg.RedisDialTimeout < time.Second {
+		cfg.RedisDialTimeout = 3 * time.Second
 	}
-
-	addr := port
-	if !strings.Contains(port, ":") {
-		addr = ":" + port
+	cfg.RedisReadTimeout = parseDurationOrFallback(envString("REDIS_READ_TIMEOUT"), 3*time.Second)
+	if cfg.RedisReadTimeout < time.Second {
+		cfg.RedisReadTimeout = 3 * time.Second
 	}
-
-	origin := strings.TrimSpace(os.Getenv("CORS_ORIGIN"))
-	if origin == "" {
-		origin = "http://localhost:5173"
+	cfg.RedisWriteTimeout = parseDurationOrFallback(envString("REDIS_WRITE_TIMEOUT"), 3*time.Second)
+	if cfg.RedisWriteTimeout < time.Second {
+		cfg.RedisWriteTimeout = 3 * time.Second
 	}
+}
 
-	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+func loadBrokerConfig(cfg *Config) {
+	cfg.MQTTEnabled = parseBoolOrFallback(envString("MQTT_ENABLED"), false)
+	cfg.MQTTBrokerURL = envStringOrDefault("MQTT_BROKER_URL", "tcp://localhost:1883")
+	cfg.MQTTTopicPrefix = envStringOrDefault("MQTT_TOPIC_PREFIX", "mistypass")
+	cfg.GatewayBootstrapToken = envString("GATEWAY_BOOTSTRAP_TOKEN")
+	cfg.NATSEnabled = parseBoolOrFallback(envString("NATS_ENABLED"), false)
+	cfg.NATSServerURL = envStringOrDefault("NATS_SERVER_URL", "nats://localhost:4222")
+	cfg.NATSSubjectPrefix = envStringOrDefault("NATS_SUBJECT_PREFIX", "mistypass")
+}
 
-	jwtIssuer := strings.TrimSpace(os.Getenv("JWT_ISSUER"))
-	if jwtIssuer == "" {
-		jwtIssuer = "mistypass-api"
+func loadOTelConfig(cfg *Config) {
+	cfg.OTelEnabled = parseBoolOrFallback(envString("OTEL_ENABLED"), false)
+	cfg.OTelServiceName = envStringOrDefault("OTEL_SERVICE_NAME", "mistypass-api")
+	cfg.OTelExporterOTLPEndpoint = envString("OTEL_EXPORTER_OTLP_ENDPOINT")
+	cfg.OTelExporterOTLPInsecure = parseBoolOrFallback(envString("OTEL_EXPORTER_OTLP_INSECURE"), false)
+	cfg.OTelTraceSampleRatio = parseFloatOrFallback(envString("OTEL_TRACE_SAMPLE_RATIO"), 1.0)
+	if cfg.OTelTraceSampleRatio < 0 {
+		cfg.OTelTraceSampleRatio = 0
 	}
+	if cfg.OTelTraceSampleRatio > 1 {
+		cfg.OTelTraceSampleRatio = 1
+	}
+	cfg.OTelExportTimeout = parseDurationOrFallback(envString("OTEL_EXPORT_TIMEOUT"), 5*time.Second)
+	if cfg.OTelExportTimeout < time.Second {
+		cfg.OTelExportTimeout = 5 * time.Second
+	}
+}
 
-	accessTTL := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("JWT_ACCESS_TTL")),
+func loadAuthConfig(cfg *Config) {
+	cfg.AuthAdminMFARequired = parseBoolOrFallback(envString("AUTH_ADMIN_MFA_REQUIRED"), false)
+	cfg.ExternalAuthEnabled = parseBoolOrFallback(envString("EXTERNAL_AUTH_ENABLED"), false)
+	cfg.ExternalAuthProvider = envLowerOrDefault("EXTERNAL_AUTH_PROVIDER", "generic_oidc")
+	cfg.ExternalAuthUserInfoURL = envString("EXTERNAL_AUTH_USERINFO_URL")
+	cfg.ExternalAuthTimeout = parseDurationOrFallback(envString("EXTERNAL_AUTH_TIMEOUT"), 8*time.Second)
+	if cfg.ExternalAuthTimeout < time.Second {
+		cfg.ExternalAuthTimeout = 8 * time.Second
+	}
+	cfg.ExternalAuthDefaultRole = envLowerOrDefault("EXTERNAL_AUTH_DEFAULT_ROLE", "resident")
+	cfg.JWTSecret = envString("JWT_SECRET")
+	cfg.JWTIssuer = envStringOrDefault("JWT_ISSUER", "mistypass-api")
+	cfg.JWTAccessTTL = parseDurationOrFallback(envString("JWT_ACCESS_TTL"), time.Hour)
+	cfg.JWTRefreshTTL = parseDurationOrFallback(envString("JWT_REFRESH_TTL"), 7*24*time.Hour)
+	if raw := envString("ENABLE_DEMO_USERS"); raw != "" {
+		cfg.EnableDemoUsers = parseBoolOrFallback(raw, false)
+	}
+}
+
+func loadDatabaseConfig(cfg *Config) {
+	cfg.DatabaseURL = envString("DATABASE_URL")
+	cfg.DatabaseAutoMigrate = parseBoolOrFallback(envString("DATABASE_AUTO_MIGRATE"), true)
+}
+
+func loadEnterpriseConfig(cfg *Config) {
+	cfg.EnterpriseJITProvisionApprovalRequired = parseBoolOrFallback(
+		envString("ENTERPRISE_JIT_PROVISION_APPROVAL_REQUIRED"),
+		false,
+	)
+	loadEnterpriseSyncReconcileConfig(cfg)
+	loadEnterpriseSyncWorkerAlertAutoRetryConfig(cfg)
+	loadEnterpriseJITApprovalExternalSyncConfig(cfg)
+	loadEnterpriseHRISWebhookReceiptConfig(cfg)
+	loadEnterpriseHRISWebhookDLQConfig(cfg)
+	loadEnterpriseHRISPullConfig(cfg)
+	cfg.HRISVaultMasterKey = envString("HRIS_VAULT_MASTER_KEY")
+}
+
+func loadEnterpriseSyncReconcileConfig(cfg *Config) {
+	cfg.EnterpriseSyncReconcileWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_ENABLED"),
+		false,
+	)
+	cfg.EnterpriseSyncReconcileWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_INTERVAL"),
+		30*time.Second,
+	)
+	cfg.EnterpriseSyncReconcileWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_BATCH_SIZE"),
+		20,
+	)
+	if cfg.EnterpriseSyncReconcileWorkerBatchSize < 1 {
+		cfg.EnterpriseSyncReconcileWorkerBatchSize = 1
+	}
+	cfg.EnterpriseSyncReconcileWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_MAX_ATTEMPTS"),
+		5,
+	)
+	if cfg.EnterpriseSyncReconcileWorkerMaxAttempts < 1 {
+		cfg.EnterpriseSyncReconcileWorkerMaxAttempts = 1
+	}
+	cfg.EnterpriseSyncReconcileWorkerRetryCooldown = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_RETRY_COOLDOWN"),
+		30*time.Second,
+	)
+	cfg.EnterpriseSyncReconcileWorkerAlertFailureThreshold = parseIntOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_ALERT_FAILURE_THRESHOLD"),
+		3,
+	)
+	if cfg.EnterpriseSyncReconcileWorkerAlertFailureThreshold < 1 {
+		cfg.EnterpriseSyncReconcileWorkerAlertFailureThreshold = 1
+	}
+	cfg.EnterpriseSyncReconcileWorkerForceError = parseBoolOrFallback(
+		envString("ENTERPRISE_SYNC_RECONCILE_WORKER_FORCE_ERROR"),
+		false,
+	)
+	cfg.EnterpriseSyncReconcileWorkerForceErrorTenantID = envString(
+		"ENTERPRISE_SYNC_RECONCILE_WORKER_FORCE_ERROR_TENANT_ID",
+	)
+}
+
+func loadEnterpriseSyncWorkerAlertAutoRetryConfig(cfg *Config) {
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_ENABLED"),
+		false,
+	)
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_INTERVAL"),
+		30*time.Second,
+	)
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BATCH_SIZE"),
+		20,
+	)
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize < 1 {
+		cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBatchSize = 1
+	}
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_ATTEMPTS"),
+		3,
+	)
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts < 1 {
+		cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxAttempts = 1
+	}
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_BASE_BACKOFF"),
+		5*time.Minute,
+	)
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff < time.Second {
+		cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff = 5 * time.Minute
+	}
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_MAX_BACKOFF"),
 		time.Hour,
 	)
-	refreshTTL := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("JWT_REFRESH_TTL")),
-		7*24*time.Hour,
-	)
-	enableDemoUsers := appEnv != "production" && appEnv != "prod"
-	enableDemoUsersRaw := strings.TrimSpace(os.Getenv("ENABLE_DEMO_USERS"))
-	if enableDemoUsersRaw != "" {
-		enableDemoUsers = parseBoolOrFallback(enableDemoUsersRaw, enableDemoUsers)
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff < cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff {
+		cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerMaxBackoff = cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerBaseBackoff
 	}
+	cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL = parseDurationOrFallback(
+		envString("ENTERPRISE_SYNC_WORKER_ALERT_AUTO_RETRY_WORKER_LOCK_TTL"),
+		10*time.Minute,
+	)
+	if cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL < time.Second {
+		cfg.EnterpriseSyncWorkerAlertAutoRetryWorkerLockTTL = 10 * time.Minute
+	}
+}
 
-	dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
-	dbAutoMigrate := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("DATABASE_AUTO_MIGRATE")),
-		true,
-	)
-	enterpriseJITProvisionApprovalRequired := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_PROVISION_APPROVAL_REQUIRED")),
+func loadEnterpriseJITApprovalExternalSyncConfig(cfg *Config) {
+	cfg.EnterpriseJITApprovalExternalSyncWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_ENABLED"),
 		false,
 	)
-	enterpriseSyncReconcileWorkerEnabled := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_ENABLED")),
-		false,
-	)
-	enterpriseSyncReconcileWorkerInterval := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_INTERVAL")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_INTERVAL"),
 		30*time.Second,
 	)
-	enterpriseSyncReconcileWorkerBatchSize := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_BATCH_SIZE")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_BATCH_SIZE"),
 		20,
 	)
-	if enterpriseSyncReconcileWorkerBatchSize < 1 {
-		enterpriseSyncReconcileWorkerBatchSize = 1
+	if cfg.EnterpriseJITApprovalExternalSyncWorkerBatchSize < 1 {
+		cfg.EnterpriseJITApprovalExternalSyncWorkerBatchSize = 1
 	}
-	enterpriseSyncReconcileWorkerMaxAttempts := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_MAX_ATTEMPTS")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_MAX_ATTEMPTS"),
 		5,
 	)
-	if enterpriseSyncReconcileWorkerMaxAttempts < 1 {
-		enterpriseSyncReconcileWorkerMaxAttempts = 1
+	if cfg.EnterpriseJITApprovalExternalSyncWorkerMaxAttempts < 1 {
+		cfg.EnterpriseJITApprovalExternalSyncWorkerMaxAttempts = 1
 	}
-	enterpriseSyncReconcileWorkerRetryCooldown := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_RETRY_COOLDOWN")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerRetryCooldown = parseDurationOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_RETRY_COOLDOWN"),
 		30*time.Second,
 	)
-	enterpriseSyncReconcileWorkerAlertFailureThreshold := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_ALERT_FAILURE_THRESHOLD")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold = parseIntOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_ALERT_FAILURE_THRESHOLD"),
 		3,
 	)
-	if enterpriseSyncReconcileWorkerAlertFailureThreshold < 1 {
-		enterpriseSyncReconcileWorkerAlertFailureThreshold = 1
+	if cfg.EnterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold < 1 {
+		cfg.EnterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold = 1
 	}
-	enterpriseSyncReconcileWorkerForceError := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_FORCE_ERROR")),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerForceError = parseBoolOrFallback(
+		envString("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_FORCE_ERROR"),
 		false,
 	)
-	enterpriseSyncReconcileWorkerForceErrorTenantID := strings.TrimSpace(
-		os.Getenv("ENTERPRISE_SYNC_RECONCILE_WORKER_FORCE_ERROR_TENANT_ID"),
+	cfg.EnterpriseJITApprovalExternalSyncWorkerForceErrorTenantID = envString(
+		"ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_FORCE_ERROR_TENANT_ID",
 	)
-	enterpriseJITApprovalExternalSyncWorkerEnabled := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_ENABLED")),
+	cfg.EnterpriseJITApprovalExternalSyncCallbackToken = envString(
+		"ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_CALLBACK_TOKEN",
+	)
+}
+
+func loadEnterpriseHRISWebhookReceiptConfig(cfg *Config) {
+	cfg.EnterpriseHRISWebhookReceiptWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ENABLED"),
 		false,
 	)
-	enterpriseJITApprovalExternalSyncWorkerInterval := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_INTERVAL")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_INTERVAL"),
 		30*time.Second,
 	)
-	enterpriseJITApprovalExternalSyncWorkerBatchSize := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_BATCH_SIZE")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_BATCH_SIZE"),
 		20,
 	)
-	if enterpriseJITApprovalExternalSyncWorkerBatchSize < 1 {
-		enterpriseJITApprovalExternalSyncWorkerBatchSize = 1
+	if cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize < 1 {
+		cfg.EnterpriseHRISWebhookReceiptWorkerBatchSize = 1
 	}
-	enterpriseJITApprovalExternalSyncWorkerMaxAttempts := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_MAX_ATTEMPTS")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_MAX_ATTEMPTS"),
 		5,
 	)
-	if enterpriseJITApprovalExternalSyncWorkerMaxAttempts < 1 {
-		enterpriseJITApprovalExternalSyncWorkerMaxAttempts = 1
+	if cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts < 1 {
+		cfg.EnterpriseHRISWebhookReceiptWorkerMaxAttempts = 1
 	}
-	enterpriseJITApprovalExternalSyncWorkerRetryCooldown := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_RETRY_COOLDOWN")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_COOLDOWN"),
 		30*time.Second,
 	)
-	enterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_ALERT_FAILURE_THRESHOLD")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_RETRY_MAX_BACKOFF"),
+		cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown,
+	)
+	if cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown <= 0 {
+		cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff = 0
+	} else if cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff < cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown {
+		cfg.EnterpriseHRISWebhookReceiptWorkerRetryMaxBackoff = cfg.EnterpriseHRISWebhookReceiptWorkerRetryCooldown
+	}
+	cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_PROCESSING_TIMEOUT"),
+		5*time.Minute,
+	)
+	if cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout < time.Second {
+		cfg.EnterpriseHRISWebhookReceiptWorkerProcessingTimeout = 5 * time.Minute
+	}
+	cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_ALERT_FAILURE_THRESHOLD"),
 		3,
 	)
-	if enterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold < 1 {
-		enterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold = 1
+	if cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold < 1 {
+		cfg.EnterpriseHRISWebhookReceiptWorkerAlertFailureThreshold = 1
 	}
-	enterpriseJITApprovalExternalSyncWorkerForceError := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_FORCE_ERROR")),
+	cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_RECEIPT_WORKER_LOCK_TTL"),
+		10*time.Minute,
+	)
+	if cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL < time.Second {
+		cfg.EnterpriseHRISWebhookReceiptWorkerLockTTL = 10 * time.Minute
+	}
+}
+
+func loadEnterpriseHRISWebhookDLQConfig(cfg *Config) {
+	cfg.EnterpriseHRISWebhookDLQWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ENABLED"),
 		false,
 	)
-	enterpriseJITApprovalExternalSyncWorkerForceErrorTenantID := strings.TrimSpace(
-		os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_WORKER_FORCE_ERROR_TENANT_ID"),
+	cfg.EnterpriseHRISWebhookDLQWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_INTERVAL"),
+		30*time.Second,
 	)
-	enterpriseJITApprovalExternalSyncCallbackToken := strings.TrimSpace(
-		os.Getenv("ENTERPRISE_JIT_APPROVAL_EXTERNAL_SYNC_CALLBACK_TOKEN"),
+	cfg.EnterpriseHRISWebhookDLQWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_BATCH_SIZE"),
+		20,
 	)
-	gatewayEventsBatchForceRetryableError := parseBoolOrFallback(
-		strings.TrimSpace(os.Getenv("GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_ERROR")),
-		false,
-	)
-	gatewayEventsBatchForceRetryablePrefix := strings.TrimSpace(
-		os.Getenv("GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_PREFIX"),
-	)
-	if gatewayEventsBatchForceRetryablePrefix == "" {
-		gatewayEventsBatchForceRetryablePrefix = "force-retry-"
+	if cfg.EnterpriseHRISWebhookDLQWorkerBatchSize < 1 {
+		cfg.EnterpriseHRISWebhookDLQWorkerBatchSize = 1
 	}
-	walletJobProcessDefaultMaxRetry := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_JOB_PROCESS_DEFAULT_MAX_RETRY")),
+	cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_MAX_ATTEMPTS"),
+		5,
+	)
+	if cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts < 1 {
+		cfg.EnterpriseHRISWebhookDLQWorkerMaxAttempts = 1
+	}
+	cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_COOLDOWN"),
+		30*time.Second,
+	)
+	cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_RETRY_MAX_BACKOFF"),
+		cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown,
+	)
+	if cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown <= 0 {
+		cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff = 0
+	} else if cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff < cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown {
+		cfg.EnterpriseHRISWebhookDLQWorkerRetryMaxBackoff = cfg.EnterpriseHRISWebhookDLQWorkerRetryCooldown
+	}
+	cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_PROCESSING_TIMEOUT"),
+		5*time.Minute,
+	)
+	if cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout < time.Second {
+		cfg.EnterpriseHRISWebhookDLQWorkerProcessingTimeout = 5 * time.Minute
+	}
+	cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_ALERT_FAILURE_THRESHOLD"),
 		3,
 	)
-	if walletJobProcessDefaultMaxRetry < 1 {
-		walletJobProcessDefaultMaxRetry = 1
+	if cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold < 1 {
+		cfg.EnterpriseHRISWebhookDLQWorkerAlertFailureThreshold = 1
 	}
-	walletDLQCleanupDefaultLimit := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_DLQ_CLEANUP_DEFAULT_LIMIT")),
-		50,
+	cfg.EnterpriseHRISWebhookDLQWorkerLockTTL = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_WEBHOOK_DLQ_WORKER_LOCK_TTL"),
+		10*time.Minute,
 	)
-	if walletDLQCleanupDefaultLimit < 1 {
-		walletDLQCleanupDefaultLimit = 1
+	if cfg.EnterpriseHRISWebhookDLQWorkerLockTTL < time.Second {
+		cfg.EnterpriseHRISWebhookDLQWorkerLockTTL = 10 * time.Minute
 	}
-	walletDLQCleanupDefaultOlderThan := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_DLQ_CLEANUP_DEFAULT_OLDER_THAN")),
+}
+
+func loadEnterpriseHRISPullConfig(cfg *Config) {
+	cfg.EnterpriseHRISPullWorkerEnabled = parseBoolOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_ENABLED"),
+		false,
+	)
+	cfg.EnterpriseHRISPullWorkerInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_INTERVAL"),
+		time.Hour,
+	)
+	cfg.EnterpriseHRISPullWorkerBatchSize = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_BATCH_SIZE"),
+		10,
+	)
+	if cfg.EnterpriseHRISPullWorkerBatchSize < 1 {
+		cfg.EnterpriseHRISPullWorkerBatchSize = 1
+	}
+	cfg.EnterpriseHRISPullWorkerMaxAttempts = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_MAX_ATTEMPTS"),
+		5,
+	)
+	if cfg.EnterpriseHRISPullWorkerMaxAttempts < 1 {
+		cfg.EnterpriseHRISPullWorkerMaxAttempts = 1
+	}
+	cfg.EnterpriseHRISPullWorkerRetryCooldown = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_RETRY_COOLDOWN"),
+		30*time.Minute,
+	)
+	cfg.EnterpriseHRISPullWorkerRetryMaxBackoff = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_RETRY_MAX_BACKOFF"),
+		cfg.EnterpriseHRISPullWorkerRetryCooldown,
+	)
+	if cfg.EnterpriseHRISPullWorkerRetryCooldown <= 0 {
+		cfg.EnterpriseHRISPullWorkerRetryMaxBackoff = 0
+	} else if cfg.EnterpriseHRISPullWorkerRetryMaxBackoff < cfg.EnterpriseHRISPullWorkerRetryCooldown {
+		cfg.EnterpriseHRISPullWorkerRetryMaxBackoff = cfg.EnterpriseHRISPullWorkerRetryCooldown
+	}
+	cfg.EnterpriseHRISPullWorkerProcessingTimeout = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_PROCESSING_TIMEOUT"),
+		30*time.Minute,
+	)
+	if cfg.EnterpriseHRISPullWorkerProcessingTimeout < time.Second {
+		cfg.EnterpriseHRISPullWorkerProcessingTimeout = 30 * time.Minute
+	}
+	cfg.EnterpriseHRISPullWorkerReconcileInterval = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_RECONCILE_INTERVAL"),
 		24*time.Hour,
 	)
-	if walletDLQCleanupDefaultOlderThan < time.Second {
-		walletDLQCleanupDefaultOlderThan = 24 * time.Hour
+	if cfg.EnterpriseHRISPullWorkerReconcileInterval <= 0 {
+		cfg.EnterpriseHRISPullWorkerReconcileInterval = 24 * time.Hour
 	}
-	walletDLQAlertThreshold := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_DLQ_ALERT_THRESHOLD")),
+	cfg.EnterpriseHRISPullWorkerAlertFailureThreshold = parseIntOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_ALERT_FAILURE_THRESHOLD"),
+		3,
+	)
+	if cfg.EnterpriseHRISPullWorkerAlertFailureThreshold < 1 {
+		cfg.EnterpriseHRISPullWorkerAlertFailureThreshold = 1
+	}
+	cfg.EnterpriseHRISPullWorkerLockTTL = parseDurationOrFallback(
+		envString("ENTERPRISE_HRIS_PULL_WORKER_LOCK_TTL"),
+		10*time.Minute,
+	)
+	if cfg.EnterpriseHRISPullWorkerLockTTL < time.Second {
+		cfg.EnterpriseHRISPullWorkerLockTTL = 10 * time.Minute
+	}
+}
+
+func loadGatewayConfig(cfg *Config) {
+	cfg.GatewayEventsBatchForceRetryableError = parseBoolOrFallback(
+		envString("GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_ERROR"),
+		false,
+	)
+	cfg.GatewayEventsBatchForceRetryablePrefix = envStringOrDefault(
+		"GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_PREFIX",
+		"force-retry-",
+	)
+}
+
+func loadWalletConfig(cfg *Config) {
+	cfg.WalletJobProcessDefaultMaxRetry = parseIntOrFallback(
+		envString("WALLET_JOB_PROCESS_DEFAULT_MAX_RETRY"),
+		3,
+	)
+	if cfg.WalletJobProcessDefaultMaxRetry < 1 {
+		cfg.WalletJobProcessDefaultMaxRetry = 1
+	}
+	cfg.WalletDLQCleanupDefaultLimit = parseIntOrFallback(
+		envString("WALLET_DLQ_CLEANUP_DEFAULT_LIMIT"),
+		50,
+	)
+	if cfg.WalletDLQCleanupDefaultLimit < 1 {
+		cfg.WalletDLQCleanupDefaultLimit = 1
+	}
+	cfg.WalletDLQCleanupDefaultOlderThan = parseDurationOrFallback(
+		envString("WALLET_DLQ_CLEANUP_DEFAULT_OLDER_THAN"),
+		24*time.Hour,
+	)
+	if cfg.WalletDLQCleanupDefaultOlderThan < time.Second {
+		cfg.WalletDLQCleanupDefaultOlderThan = 24 * time.Hour
+	}
+	cfg.WalletDLQAlertThreshold = parseIntOrFallback(
+		envString("WALLET_DLQ_ALERT_THRESHOLD"),
 		20,
 	)
-	if walletDLQAlertThreshold < 1 {
-		walletDLQAlertThreshold = 1
+	if cfg.WalletDLQAlertThreshold < 1 {
+		cfg.WalletDLQAlertThreshold = 1
 	}
-	walletJobMetricsDefaultWindow := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_JOB_METRICS_DEFAULT_WINDOW")),
+	cfg.WalletJobMetricsDefaultWindow = parseDurationOrFallback(
+		envString("WALLET_JOB_METRICS_DEFAULT_WINDOW"),
 		15*time.Minute,
 	)
-	if walletJobMetricsDefaultWindow < time.Second {
-		walletJobMetricsDefaultWindow = 15 * time.Minute
+	if cfg.WalletJobMetricsDefaultWindow < time.Second {
+		cfg.WalletJobMetricsDefaultWindow = 15 * time.Minute
 	}
-	walletAlertDispatchMockTransientFailCount := parseIntOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_ALERT_DISPATCH_MOCK_TRANSIENT_FAIL_COUNT")),
+	cfg.WalletAlertDispatchMockTransientFailCount = parseIntOrFallback(
+		envString("WALLET_ALERT_DISPATCH_MOCK_TRANSIENT_FAIL_COUNT"),
 		0,
 	)
-	if walletAlertDispatchMockTransientFailCount < 0 {
-		walletAlertDispatchMockTransientFailCount = 0
+	if cfg.WalletAlertDispatchMockTransientFailCount < 0 {
+		cfg.WalletAlertDispatchMockTransientFailCount = 0
 	}
-	if walletAlertDispatchMockTransientFailCount > 100 {
-		walletAlertDispatchMockTransientFailCount = 100
+	if cfg.WalletAlertDispatchMockTransientFailCount > 100 {
+		cfg.WalletAlertDispatchMockTransientFailCount = 100
 	}
-	walletAlertEmailProvider := strings.ToLower(strings.TrimSpace(os.Getenv("WALLET_ALERT_EMAIL_PROVIDER")))
-	if walletAlertEmailProvider == "" {
-		walletAlertEmailProvider = "mock"
-	}
-	switch walletAlertEmailProvider {
+	loadWalletEmailAlertConfig(cfg)
+	loadWalletWhatsAppAlertConfig(cfg)
+}
+
+func loadWalletEmailAlertConfig(cfg *Config) {
+	cfg.WalletAlertEmailProvider = envLowerOrDefault("WALLET_ALERT_EMAIL_PROVIDER", "mock")
+	switch cfg.WalletAlertEmailProvider {
 	case "mock", "resend":
 	case "spaceemail":
-		walletAlertEmailProvider = "resend"
+		cfg.WalletAlertEmailProvider = "resend"
 	default:
-		walletAlertEmailProvider = "mock"
+		cfg.WalletAlertEmailProvider = "mock"
 	}
-	walletAlertEmailFrom := strings.TrimSpace(os.Getenv("WALLET_ALERT_EMAIL_FROM"))
-	if walletAlertEmailFrom == "" {
-		walletAlertEmailFrom = "no-reply@mistypass.local"
+	cfg.WalletAlertEmailFrom = envStringOrDefault("WALLET_ALERT_EMAIL_FROM", "no-reply@mistypass.local")
+	cfg.WalletAlertEmailReceiverMap = parseGroupEmailMap(envString("WALLET_ALERT_EMAIL_RECEIVER_MAP"))
+	cfg.WalletAlertResendEndpoint = envString("WALLET_ALERT_RESEND_ENDPOINT")
+	if cfg.WalletAlertResendEndpoint == "" {
+		cfg.WalletAlertResendEndpoint = envString("WALLET_ALERT_SPACEEMAIL_ENDPOINT")
 	}
-	walletAlertEmailReceiverMap := parseGroupEmailMap(
-		strings.TrimSpace(os.Getenv("WALLET_ALERT_EMAIL_RECEIVER_MAP")),
-	)
-	walletAlertResendEndpoint := strings.TrimSpace(os.Getenv("WALLET_ALERT_RESEND_ENDPOINT"))
-	if walletAlertResendEndpoint == "" {
-		walletAlertResendEndpoint = strings.TrimSpace(os.Getenv("WALLET_ALERT_SPACEEMAIL_ENDPOINT"))
+	cfg.WalletAlertResendAPIKey = envString("WALLET_ALERT_RESEND_API_KEY")
+	if cfg.WalletAlertResendAPIKey == "" {
+		cfg.WalletAlertResendAPIKey = envString("WALLET_ALERT_SPACEEMAIL_API_KEY")
 	}
-	walletAlertResendAPIKey := strings.TrimSpace(os.Getenv("WALLET_ALERT_RESEND_API_KEY"))
-	if walletAlertResendAPIKey == "" {
-		walletAlertResendAPIKey = strings.TrimSpace(os.Getenv("WALLET_ALERT_SPACEEMAIL_API_KEY"))
+	timeoutRaw := envString("WALLET_ALERT_RESEND_TIMEOUT")
+	if timeoutRaw == "" {
+		timeoutRaw = envString("WALLET_ALERT_SPACEEMAIL_TIMEOUT")
 	}
-	walletAlertResendTimeoutRaw := strings.TrimSpace(os.Getenv("WALLET_ALERT_RESEND_TIMEOUT"))
-	if walletAlertResendTimeoutRaw == "" {
-		walletAlertResendTimeoutRaw = strings.TrimSpace(os.Getenv("WALLET_ALERT_SPACEEMAIL_TIMEOUT"))
+	cfg.WalletAlertResendTimeout = parseDurationOrFallback(timeoutRaw, 5*time.Second)
+	if cfg.WalletAlertResendTimeout < time.Second {
+		cfg.WalletAlertResendTimeout = 5 * time.Second
 	}
-	walletAlertResendTimeout := parseDurationOrFallback(
-		walletAlertResendTimeoutRaw,
-		5*time.Second,
-	)
-	if walletAlertResendTimeout < time.Second {
-		walletAlertResendTimeout = 5 * time.Second
-	}
-	walletAlertWhatsAppProvider := strings.ToLower(strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_PROVIDER")))
-	if walletAlertWhatsAppProvider == "" {
-		walletAlertWhatsAppProvider = "mock"
-	}
-	switch walletAlertWhatsAppProvider {
+}
+
+func loadWalletWhatsAppAlertConfig(cfg *Config) {
+	cfg.WalletAlertWhatsAppProvider = envLowerOrDefault("WALLET_ALERT_WHATSAPP_PROVIDER", "mock")
+	switch cfg.WalletAlertWhatsAppProvider {
 	case "mock", "meta":
 	default:
-		walletAlertWhatsAppProvider = "mock"
+		cfg.WalletAlertWhatsAppProvider = "mock"
 	}
-	walletAlertWhatsAppReceiverMap := parseGroupEmailMap(
-		strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_RECEIVER_MAP")),
-	)
-	walletAlertWhatsAppEndpoint := strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_ENDPOINT"))
-	walletAlertWhatsAppAPIKey := strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_API_KEY"))
-	walletAlertWhatsAppPhoneNumberID := strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_PHONE_NUMBER_ID"))
-	walletAlertWhatsAppTimeout := parseDurationOrFallback(
-		strings.TrimSpace(os.Getenv("WALLET_ALERT_WHATSAPP_TIMEOUT")),
+	cfg.WalletAlertWhatsAppReceiverMap = parseGroupEmailMap(envString("WALLET_ALERT_WHATSAPP_RECEIVER_MAP"))
+	cfg.WalletAlertWhatsAppEndpoint = envString("WALLET_ALERT_WHATSAPP_ENDPOINT")
+	cfg.WalletAlertWhatsAppAPIKey = envString("WALLET_ALERT_WHATSAPP_API_KEY")
+	cfg.WalletAlertWhatsAppPhoneNumberID = envString("WALLET_ALERT_WHATSAPP_PHONE_NUMBER_ID")
+	cfg.WalletAlertWhatsAppTimeout = parseDurationOrFallback(
+		envString("WALLET_ALERT_WHATSAPP_TIMEOUT"),
 		5*time.Second,
 	)
-	if walletAlertWhatsAppTimeout < time.Second {
-		walletAlertWhatsAppTimeout = 5 * time.Second
-	}
-
-	return Config{
-		AppEnv:                                   appEnv,
-		HTTPAddr:                                 addr,
-		CORSOrigin:                               origin,
-		JWTSecret:                                jwtSecret,
-		JWTIssuer:                                jwtIssuer,
-		JWTAccessTTL:                             accessTTL,
-		JWTRefreshTTL:                            refreshTTL,
-		EnableDemoUsers:                          enableDemoUsers,
-		DatabaseURL:                              dbURL,
-		DatabaseAutoMigrate:                      dbAutoMigrate,
-		EnterpriseJITProvisionApprovalRequired:   enterpriseJITProvisionApprovalRequired,
-		EnterpriseSyncReconcileWorkerEnabled:     enterpriseSyncReconcileWorkerEnabled,
-		EnterpriseSyncReconcileWorkerInterval:    enterpriseSyncReconcileWorkerInterval,
-		EnterpriseSyncReconcileWorkerBatchSize:   enterpriseSyncReconcileWorkerBatchSize,
-		EnterpriseSyncReconcileWorkerMaxAttempts: enterpriseSyncReconcileWorkerMaxAttempts,
-		EnterpriseSyncReconcileWorkerRetryCooldown:                   enterpriseSyncReconcileWorkerRetryCooldown,
-		EnterpriseSyncReconcileWorkerAlertFailureThreshold:           enterpriseSyncReconcileWorkerAlertFailureThreshold,
-		EnterpriseSyncReconcileWorkerForceError:                      enterpriseSyncReconcileWorkerForceError,
-		EnterpriseSyncReconcileWorkerForceErrorTenantID:              enterpriseSyncReconcileWorkerForceErrorTenantID,
-		EnterpriseJITApprovalExternalSyncWorkerEnabled:               enterpriseJITApprovalExternalSyncWorkerEnabled,
-		EnterpriseJITApprovalExternalSyncWorkerInterval:              enterpriseJITApprovalExternalSyncWorkerInterval,
-		EnterpriseJITApprovalExternalSyncWorkerBatchSize:             enterpriseJITApprovalExternalSyncWorkerBatchSize,
-		EnterpriseJITApprovalExternalSyncWorkerMaxAttempts:           enterpriseJITApprovalExternalSyncWorkerMaxAttempts,
-		EnterpriseJITApprovalExternalSyncWorkerRetryCooldown:         enterpriseJITApprovalExternalSyncWorkerRetryCooldown,
-		EnterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold: enterpriseJITApprovalExternalSyncWorkerAlertFailureThreshold,
-		EnterpriseJITApprovalExternalSyncWorkerForceError:            enterpriseJITApprovalExternalSyncWorkerForceError,
-		EnterpriseJITApprovalExternalSyncWorkerForceErrorTenantID:    enterpriseJITApprovalExternalSyncWorkerForceErrorTenantID,
-		EnterpriseJITApprovalExternalSyncCallbackToken:               enterpriseJITApprovalExternalSyncCallbackToken,
-		GatewayEventsBatchForceRetryableError:                        gatewayEventsBatchForceRetryableError,
-		GatewayEventsBatchForceRetryablePrefix:                       gatewayEventsBatchForceRetryablePrefix,
-		WalletJobProcessDefaultMaxRetry:                              walletJobProcessDefaultMaxRetry,
-		WalletDLQCleanupDefaultLimit:                                 walletDLQCleanupDefaultLimit,
-		WalletDLQCleanupDefaultOlderThan:                             walletDLQCleanupDefaultOlderThan,
-		WalletDLQAlertThreshold:                                      walletDLQAlertThreshold,
-		WalletJobMetricsDefaultWindow:                                walletJobMetricsDefaultWindow,
-		WalletAlertDispatchMockTransientFailCount:                    walletAlertDispatchMockTransientFailCount,
-		WalletAlertEmailProvider:                                     walletAlertEmailProvider,
-		WalletAlertEmailFrom:                                         walletAlertEmailFrom,
-		WalletAlertEmailReceiverMap:                                  walletAlertEmailReceiverMap,
-		WalletAlertResendEndpoint:                                    walletAlertResendEndpoint,
-		WalletAlertResendAPIKey:                                      walletAlertResendAPIKey,
-		WalletAlertResendTimeout:                                     walletAlertResendTimeout,
-		WalletAlertWhatsAppProvider:                                  walletAlertWhatsAppProvider,
-		WalletAlertWhatsAppReceiverMap:                               walletAlertWhatsAppReceiverMap,
-		WalletAlertWhatsAppEndpoint:                                  walletAlertWhatsAppEndpoint,
-		WalletAlertWhatsAppAPIKey:                                    walletAlertWhatsAppAPIKey,
-		WalletAlertWhatsAppPhoneNumberID:                             walletAlertWhatsAppPhoneNumberID,
-		WalletAlertWhatsAppTimeout:                                   walletAlertWhatsAppTimeout,
+	if cfg.WalletAlertWhatsAppTimeout < time.Second {
+		cfg.WalletAlertWhatsAppTimeout = 5 * time.Second
 	}
 }
 
@@ -366,8 +665,91 @@ func (cfg Config) Validate() error {
 		if strings.TrimSpace(cfg.JWTSecret) == "" {
 			return errors.New("JWT_SECRET is required when APP_ENV is production")
 		}
+		if strings.TrimSpace(cfg.HRISVaultMasterKey) == "" {
+			return errors.New("HRIS_VAULT_MASTER_KEY is required when APP_ENV is production")
+		}
+		if strings.TrimSpace(cfg.GatewayBootstrapToken) == "" {
+			return errors.New("GATEWAY_BOOTSTRAP_TOKEN is required when APP_ENV is production")
+		}
+	}
+	if cfg.OTelEnabled {
+		if strings.TrimSpace(cfg.OTelExporterOTLPEndpoint) == "" {
+			return errors.New("OTEL_EXPORTER_OTLP_ENDPOINT is required when OTEL_ENABLED is true")
+		}
+		if cfg.OTelTraceSampleRatio < 0 || cfg.OTelTraceSampleRatio > 1 {
+			return errors.New("OTEL_TRACE_SAMPLE_RATIO must be between 0 and 1")
+		}
+	}
+	if cfg.MQTTEnabled {
+		brokerURL := strings.TrimSpace(cfg.MQTTBrokerURL)
+		if brokerURL == "" {
+			return errors.New("MQTT_BROKER_URL is required when MQTT_ENABLED is true")
+		}
+		parsed, err := url.Parse(brokerURL)
+		if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
+			return errors.New("MQTT_BROKER_URL must be a valid URL when MQTT_ENABLED is true")
+		}
+	}
+	if cfg.NATSEnabled {
+		serverURL := strings.TrimSpace(cfg.NATSServerURL)
+		if serverURL == "" {
+			return errors.New("NATS_SERVER_URL is required when NATS_ENABLED is true")
+		}
+		parsed, err := url.Parse(serverURL)
+		if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
+			return errors.New("NATS_SERVER_URL must be a valid URL when NATS_ENABLED is true")
+		}
+	}
+	if cfg.ExternalAuthEnabled {
+		provider := strings.ToLower(strings.TrimSpace(cfg.ExternalAuthProvider))
+		switch provider {
+		case "generic_oidc", "casdoor", "ory_kratos":
+		default:
+			return errors.New("EXTERNAL_AUTH_PROVIDER must be one of generic_oidc|casdoor|ory_kratos when EXTERNAL_AUTH_ENABLED is true")
+		}
+		userInfoURL := strings.TrimSpace(cfg.ExternalAuthUserInfoURL)
+		if userInfoURL == "" {
+			return errors.New("EXTERNAL_AUTH_USERINFO_URL is required when EXTERNAL_AUTH_ENABLED is true")
+		}
+		parsed, err := url.Parse(userInfoURL)
+		if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
+			return errors.New("EXTERNAL_AUTH_USERINFO_URL must be a valid URL when EXTERNAL_AUTH_ENABLED is true")
+		}
+		role := strings.ToLower(strings.TrimSpace(cfg.ExternalAuthDefaultRole))
+		switch role {
+		case "super_admin", "tenant_admin", "operator", "building_admin", "resident":
+		default:
+			return errors.New("EXTERNAL_AUTH_DEFAULT_ROLE must be one of super_admin|tenant_admin|operator|building_admin|resident when EXTERNAL_AUTH_ENABLED is true")
+		}
 	}
 	return nil
+}
+
+func envString(key string) string {
+	return strings.TrimSpace(os.Getenv(key))
+}
+
+func envStringOrDefault(key, fallback string) string {
+	value := envString(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func envLowerOrDefault(key, fallback string) string {
+	value := strings.ToLower(envString(key))
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func normalizeHTTPAddr(port string) string {
+	if strings.Contains(port, ":") {
+		return port
+	}
+	return ":" + port
 }
 
 func parseDurationOrFallback(raw string, fallback time.Duration) time.Duration {
@@ -402,6 +784,17 @@ func parseIntOrFallback(raw string, fallback int) int {
 		return fallback
 	}
 	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func parseFloatOrFallback(raw string, fallback float64) float64 {
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		return fallback
 	}

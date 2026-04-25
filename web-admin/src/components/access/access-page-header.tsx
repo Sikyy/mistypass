@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -25,17 +27,27 @@ export function AccessPageHeader({
   tenants,
   onTenantChange,
 }: AccessPageHeaderProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-1">
-        <p className="mp-page-eyebrow">身份与权限</p>
+        <p className="mp-page-eyebrow">{t("accessPage.components.header.eyebrow", { defaultValue: "Identity & access" })}</p>
         <h1 className="mp-page-title">
-          {platformViewer ? "组织目录、策略与授权工作台" : "员工与用户组、权限策略、临时授权"}
+          {platformViewer
+            ? t("accessPage.components.header.titlePlatform", { defaultValue: "Directory, policy, and grant workspace" })
+            : t("accessPage.components.header.titleTenant", { defaultValue: "Employees, groups, policies, and temporary grants" })}
         </h1>
         <p className="mp-page-description">
           {platformViewer
-            ? "按租户查看目录准备度、策略配置和临时授权，下游发放统一收口到凭证发放页。"
-            : "围绕当前组织先整理员工与用户组，再配置访问策略，最后处理访客和临时授权。"}
+            ? t("accessPage.components.header.descriptionPlatform", {
+                defaultValue:
+                  "Review readiness, policy setup, and temporary grants by tenant; long-term issuance is centralized in pass issuance.",
+              })
+            : t("accessPage.components.header.descriptionTenant", {
+                defaultValue:
+                  "For current organization, prepare employees/groups first, then policies, then visitor and temporary grants.",
+              })}
         </p>
       </div>
 
@@ -43,7 +55,7 @@ export function AccessPageHeader({
         <div className="w-full lg:w-[340px]">
           <Select value={selectedTenantID} onValueChange={onTenantChange}>
             <SelectTrigger>
-              <SelectValue placeholder="选择租户" />
+              <SelectValue placeholder={t("accessPage.components.header.selectTenant", { defaultValue: "Select tenant" })} />
             </SelectTrigger>
             <SelectContent>
               {tenants.map((item) => (
@@ -56,7 +68,7 @@ export function AccessPageHeader({
         </div>
       ) : (
         <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-          {selectedTenantID || "当前组织"}
+          {selectedTenantID || t("accessPage.components.header.currentOrganization", { defaultValue: "Current organization" })}
         </Badge>
       )}
     </div>
