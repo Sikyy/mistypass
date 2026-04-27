@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -20,91 +21,96 @@ type DeliveryMethod = "email_qr" | "wallet"
 
 const accessGrantScopeTypeValues = ["all", "building", "area", "door"] as const
 const accessGrantDeliveryMethodValues = ["email_qr", "wallet"] as const
-const accessGrantFormSchema = z
-  .object({
-    grant_scope_type: z.enum(accessGrantScopeTypeValues),
-    grant_delivery_method: z.enum(accessGrantDeliveryMethodValues),
-    grant_building_id: z
-      .string()
-      .trim()
-      .max(64, "Building ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    grant_area_id: z
-      .string()
-      .trim()
-      .max(64, "Area ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    grant_door_id: z
-      .string()
-      .trim()
-      .max(64, "Door ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    grant_grantee_name: z
-      .string()
-      .trim()
-      .min(1, "Please enter grantee name")
-      .max(64, "Grantee name must be at most 64 characters"),
-    grant_grantee_gender: z
-      .string()
-      .trim()
-      .max(16, "Gender must be at most 16 characters")
-      .optional()
-      .or(z.literal("")),
-    grant_grantee_phone: z
-      .string()
-      .trim()
-      .min(1, "Please enter phone number")
-      .max(32, "Phone number must be at most 32 characters"),
-    grant_grantee_email: z
-      .string()
-      .trim()
-      .min(1, "Please enter email")
-      .email("Invalid email format"),
-    grant_mobile_model: z
-      .string()
-      .trim()
-      .max(64, "Mobile model must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    grant_pass_type: z
-      .string()
-      .trim()
-      .min(1, "Please enter subject type")
-      .max(32, "Subject type must be at most 32 characters"),
-    grant_valid_until: z
-      .string()
-      .trim()
-      .min(1, "Please enter valid-until time")
-      .refine((value) => !Number.isNaN(new Date(value).getTime()), "Invalid valid-until time format"),
-  })
-  .superRefine((values, context) => {
-    if (values.grant_scope_type !== "all" && !values.grant_building_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["grant_building_id"],
-        message: "Building is required for this scope type",
-      })
-    }
-    if ((values.grant_scope_type === "area" || values.grant_scope_type === "door") && !values.grant_area_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["grant_area_id"],
-        message: "Area is required for this scope type",
-      })
-    }
-    if (values.grant_scope_type === "door" && !values.grant_door_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["grant_door_id"],
-        message: "Door scope requires a selected door",
-      })
-    }
-  })
+function buildAccessGrantFormSchema(t: (key: string) => string) {
+  return z
+    .object({
+      grant_scope_type: z.enum(accessGrantScopeTypeValues),
+      grant_delivery_method: z.enum(accessGrantDeliveryMethodValues),
+      grant_building_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.grantForm.validation.buildingIdMax"))
+        .optional()
+        .or(z.literal("")),
+      grant_area_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.grantForm.validation.areaIdMax"))
+        .optional()
+        .or(z.literal("")),
+      grant_door_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.grantForm.validation.doorIdMax"))
+        .optional()
+        .or(z.literal("")),
+      grant_grantee_name: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.grantForm.validation.granteeNameRequired"))
+        .max(64, t("accessPage.components.grantForm.validation.granteeNameMax")),
+      grant_grantee_gender: z
+        .string()
+        .trim()
+        .max(16, t("accessPage.components.grantForm.validation.genderMax"))
+        .optional()
+        .or(z.literal("")),
+      grant_grantee_phone: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.grantForm.validation.phoneRequired"))
+        .max(32, t("accessPage.components.grantForm.validation.phoneMax")),
+      grant_grantee_email: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.grantForm.validation.emailRequired"))
+        .email(t("accessPage.components.grantForm.validation.emailFormat")),
+      grant_mobile_model: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.grantForm.validation.mobileModelMax"))
+        .optional()
+        .or(z.literal("")),
+      grant_pass_type: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.grantForm.validation.subjectTypeRequired"))
+        .max(32, t("accessPage.components.grantForm.validation.subjectTypeMax")),
+      grant_valid_until: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.grantForm.validation.validUntilRequired"))
+        .refine(
+          (value) => !Number.isNaN(new Date(value).getTime()),
+          t("accessPage.components.grantForm.validation.validUntilFormat")
+        ),
+    })
+    .superRefine((values, context) => {
+      if (values.grant_scope_type !== "all" && !values.grant_building_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["grant_building_id"],
+          message: t("accessPage.components.grantForm.validation.buildingRequired"),
+        })
+      }
+      if ((values.grant_scope_type === "area" || values.grant_scope_type === "door") && !values.grant_area_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["grant_area_id"],
+          message: t("accessPage.components.grantForm.validation.areaRequired"),
+        })
+      }
+      if (values.grant_scope_type === "door" && !values.grant_door_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["grant_door_id"],
+          message: t("accessPage.components.grantForm.validation.doorRequired"),
+        })
+      }
+    })
+}
 
-type AccessGrantFormValues = z.infer<typeof accessGrantFormSchema>
+type AccessGrantFormValues = z.infer<ReturnType<typeof buildAccessGrantFormSchema>>
 
 type AccessGrantFormProps = {
   onSubmit: (payload: {
@@ -183,6 +189,7 @@ export function AccessGrantForm({
   onValidUntilChange,
 }: AccessGrantFormProps) {
   const { t } = useTranslation()
+  const accessGrantFormSchema = useMemo(() => buildAccessGrantFormSchema(t), [t])
   const grantForm = useForm<AccessGrantFormValues>({
     resolver: zodResolver(accessGrantFormSchema),
     values: {
@@ -221,6 +228,22 @@ export function AccessGrantForm({
     grantForm.formState.errors.grant_pass_type?.message ||
     grantForm.formState.errors.grant_valid_until?.message ||
     ""
+  const buildingDisabledReason =
+    scopeType === "all" ? t("accessPage.components.grantForm.disabledReason.buildingAllScope") : undefined
+  const areaDisabledReason =
+    scopeType === "all"
+      ? t("accessPage.components.grantForm.disabledReason.areaAllScope")
+      : scopeType === "building"
+        ? t("accessPage.components.grantForm.disabledReason.areaBuildingScope")
+        : !buildingID
+          ? t("accessPage.components.grantForm.disabledReason.areaNeedsBuilding")
+          : undefined
+  const doorDisabledReason =
+    scopeType !== "door"
+      ? t("accessPage.components.grantForm.disabledReason.doorScopeOnly")
+      : !areaID
+        ? t("accessPage.components.grantForm.disabledReason.doorNeedsArea")
+        : undefined
 
   function onSubmitGrantForm(values: AccessGrantFormValues) {
     onSubmit({
@@ -241,7 +264,7 @@ export function AccessGrantForm({
 
   return (
     <form className="space-y-3" onSubmit={grantForm.handleSubmit(onSubmitGrantForm)}>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <Controller
           control={grantForm.control}
           name="grant_scope_type"
@@ -253,7 +276,7 @@ export function AccessGrantForm({
                 onScopeTypeChange(value)
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full min-w-0">
                 <SelectValue placeholder={t("accessPage.components.grantForm.scope", { defaultValue: "Grant scope" })} />
               </SelectTrigger>
               <SelectContent>
@@ -276,12 +299,12 @@ export function AccessGrantForm({
                 onDeliveryMethodChange(value)
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full min-w-0">
                 <SelectValue placeholder={t("accessPage.components.grantForm.deliveryMethod", { defaultValue: "Delivery method" })} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="wallet">
-                  {t("accessPage.components.grantForm.deliveryWallet", { defaultValue: "MistyPass mobile pass" })}
+                  {t("accessPage.components.grantForm.deliveryWallet", { defaultValue: "Mistyislet mobile pass" })}
                 </SelectItem>
                 <SelectItem value="email_qr">
                   {t("accessPage.components.grantForm.deliveryEmailQr", { defaultValue: "Email QR pass" })}
@@ -303,7 +326,11 @@ export function AccessGrantForm({
               onBuildingChange(value)
             }}
           >
-            <SelectTrigger disabled={scopeType === "all"}>
+            <SelectTrigger
+              className="w-full min-w-0"
+              disabled={scopeType === "all"}
+              title={buildingDisabledReason}
+            >
               <SelectValue placeholder={t("accessPage.components.grantForm.buildingOptional", { defaultValue: "Building (optional)" })} />
             </SelectTrigger>
             <SelectContent>
@@ -327,7 +354,11 @@ export function AccessGrantForm({
               onAreaChange(value)
             }}
           >
-            <SelectTrigger disabled={scopeType === "all" || scopeType === "building" || !buildingID}>
+            <SelectTrigger
+              className="w-full min-w-0"
+              disabled={scopeType === "all" || scopeType === "building" || !buildingID}
+              title={areaDisabledReason}
+            >
               <SelectValue placeholder={t("accessPage.components.grantForm.areaOptional", { defaultValue: "Area (optional)" })} />
             </SelectTrigger>
             <SelectContent>
@@ -351,7 +382,11 @@ export function AccessGrantForm({
               onDoorChange(value)
             }}
           >
-            <SelectTrigger disabled={scopeType !== "door" || !areaID}>
+            <SelectTrigger
+              className="w-full min-w-0"
+              disabled={scopeType !== "door" || !areaID}
+              title={doorDisabledReason}
+            >
               <SelectValue placeholder={t("accessPage.components.grantForm.doorOptional", { defaultValue: "Door (optional)" })} />
             </SelectTrigger>
             <SelectContent>
@@ -372,7 +407,7 @@ export function AccessGrantForm({
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>{t("accessPage.components.grantForm.nameLabel", { defaultValue: "Name" })}</Label>
           <Input
@@ -392,11 +427,11 @@ export function AccessGrantForm({
               granteeGenderField.onChange(event)
               onGranteeGenderChange(event.target.value)
             }}
-            placeholder="male/female/other"
+            placeholder={t("accessPage.components.grantForm.genderPlaceholder", { defaultValue: "male/female/other" })}
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>{t("accessPage.components.grantForm.phoneLabel", { defaultValue: "Phone" })}</Label>
           <Input
@@ -405,7 +440,7 @@ export function AccessGrantForm({
               granteePhoneField.onChange(event)
               onGranteePhoneChange(event.target.value)
             }}
-            placeholder="+62-xxx-xxxx-xxxx"
+            placeholder={t("accessPage.components.grantForm.phonePlaceholder", { defaultValue: "+62-xxx-xxxx-xxxx" })}
           />
         </div>
         <div className="space-y-1.5">
@@ -416,11 +451,11 @@ export function AccessGrantForm({
               granteeEmailField.onChange(event)
               onGranteeEmailChange(event.target.value)
             }}
-            placeholder="name@company.com"
+            placeholder={t("accessPage.components.grantForm.emailPlaceholder", { defaultValue: "name@company.com" })}
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>{t("accessPage.components.grantForm.mobileModelLabel", { defaultValue: "Mobile model" })}</Label>
           <Input
@@ -429,7 +464,7 @@ export function AccessGrantForm({
               mobileModelField.onChange(event)
               onMobileModelChange(event.target.value)
             }}
-            placeholder="Pixel 8 / iPhone 16"
+            placeholder={t("accessPage.components.grantForm.mobileModelPlaceholder", { defaultValue: "Pixel 8 / iPhone 16" })}
           />
         </div>
         <div className="space-y-1.5">
@@ -440,7 +475,7 @@ export function AccessGrantForm({
               passTypeField.onChange(event)
               onPassTypeChange(event.target.value)
             }}
-            placeholder="employee / visitor / customer"
+            placeholder={t("accessPage.components.grantForm.subjectTypePlaceholder", { defaultValue: "employee / visitor / customer" })}
           />
         </div>
       </div>

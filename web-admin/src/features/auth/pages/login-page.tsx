@@ -19,6 +19,21 @@ const languageOptions = [
   { code: "id-ID", labelKey: "common.language.id" },
 ] as const
 
+const demoAccounts = [
+  {
+    label: "Organization Admin",
+    scope: "Mistyislet organization",
+    email: "organization.admin@mistypass.local",
+    password: "admin123",
+  },
+  {
+    label: "Place Admin",
+    scope: "Sudirman Hub place",
+    email: "place.admin.sudirman@mistypass.local",
+    password: "admin123",
+  },
+] as const
+
 function buildLoginSubmitSchema(t: TFunction) {
   return z.object({
     email: z
@@ -81,7 +96,7 @@ export function LoginPage() {
     try {
       const response = await login(parsed.data.email, parsed.data.password)
       setAuthenticatedSession(response.access_token, response.refresh_token, response.user)
-      navigate("/dashboard", { replace: true })
+      navigate("/home", { replace: true })
     } catch (err) {
       const message = err instanceof Error ? err.message : t("login.error.failed")
       setError(message)
@@ -97,7 +112,7 @@ export function LoginPage() {
           <div className="flex items-center gap-3">
             <MistyIslandMark className="size-14" markClassName="h-12 w-16" />
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.24em] text-muted-foreground uppercase">MistyPass</p>
+              <p className="text-[11px] font-semibold tracking-[0.24em] text-muted-foreground uppercase">Mistyislet</p>
               <p className="text-sm text-foreground">{t("login.hero.badge")}</p>
             </div>
           </div>
@@ -199,7 +214,29 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              {showDevTestAccounts ? <p className="mp-kpi-note">{t("login.form.devAccounts")}</p> : null}
+              {showDevTestAccounts ? (
+                <div className="space-y-2">
+                  <p className="mp-kpi-note">{t("login.form.devAccounts")}</p>
+                  <div className="grid gap-2">
+                    {demoAccounts.map((account) => (
+                      <button
+                        key={account.email}
+                        type="button"
+                        onClick={() => {
+                          setCredentials({ email: account.email, password: account.password })
+                        }}
+                        className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-left text-sm transition-colors hover:bg-white/[0.075]"
+                      >
+                        <span>
+                          <span className="block font-semibold text-foreground">{account.label}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">{account.email}</span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">{account.scope}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </section>

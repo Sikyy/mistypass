@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -14,27 +15,29 @@ type AccessGroupFormEmployee = {
   id: string
 }
 
-const accessGroupFormSchema = z.object({
-  group_name: z
-    .string()
-    .trim()
-    .min(1, "Please enter a user group name")
-    .max(64, "User group name must be at most 64 characters"),
-  group_description: z
-    .string()
-    .trim()
-    .max(128, "Description must be at most 128 characters")
-    .optional()
-    .or(z.literal("")),
-  group_member_query: z
-    .string()
-    .trim()
-    .max(128, "Member search keyword must be at most 128 characters")
-    .optional()
-    .or(z.literal("")),
-})
+function buildAccessGroupFormSchema(t: (key: string) => string) {
+  return z.object({
+    group_name: z
+      .string()
+      .trim()
+      .min(1, t("accessPage.components.groupForm.validation.groupNameRequired"))
+      .max(64, t("accessPage.components.groupForm.validation.groupNameMax")),
+    group_description: z
+      .string()
+      .trim()
+      .max(128, t("accessPage.components.groupForm.validation.descriptionMax"))
+      .optional()
+      .or(z.literal("")),
+    group_member_query: z
+      .string()
+      .trim()
+      .max(128, t("accessPage.components.groupForm.validation.memberSearchMax"))
+      .optional()
+      .or(z.literal("")),
+  })
+}
 
-type AccessGroupFormValues = z.infer<typeof accessGroupFormSchema>
+type AccessGroupFormValues = z.infer<ReturnType<typeof buildAccessGroupFormSchema>>
 
 type AccessGroupFormProps = {
   filteredEmployees: AccessGroupFormEmployee[]
@@ -64,6 +67,7 @@ export function AccessGroupForm({
   selectedMemberIDs,
 }: AccessGroupFormProps) {
   const { t } = useTranslation()
+  const accessGroupFormSchema = useMemo(() => buildAccessGroupFormSchema(t), [t])
 
   const groupForm = useForm<AccessGroupFormValues>({
     resolver: zodResolver(accessGroupFormSchema),
@@ -94,13 +98,11 @@ export function AccessGroupForm({
       <CardHeader>
         <CardTitle className="text-base">
           {isEditing
-            ? t("accessPage.components.groupForm.titleEdit", { defaultValue: "Edit group" })
-            : t("accessPage.components.groupForm.titleCreate", { defaultValue: "Create group" })}
+            ? t("accessPage.components.groupForm.titleEdit")
+            : t("accessPage.components.groupForm.titleCreate")}
         </CardTitle>
         <CardDescription>
-          {t("accessPage.components.groupForm.description", {
-            defaultValue: "Confirm members from enterprise directory, then use groups as base objects for policy and issuance.",
-          })}
+          {t("accessPage.components.groupForm.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -111,7 +113,7 @@ export function AccessGroupForm({
               groupNameField.onChange(event)
               onNameChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.groupForm.groupName", { defaultValue: "Group name" })}
+            placeholder={t("accessPage.components.groupForm.groupName")}
           />
           <Input
             {...groupDescriptionField}
@@ -119,7 +121,7 @@ export function AccessGroupForm({
               groupDescriptionField.onChange(event)
               onDescriptionChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.groupForm.descriptionInput", { defaultValue: "Description" })}
+            placeholder={t("accessPage.components.groupForm.descriptionInput")}
           />
           <Input
             {...groupMemberQueryField}
@@ -127,20 +129,16 @@ export function AccessGroupForm({
               groupMemberQueryField.onChange(event)
               onMemberQueryChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.groupForm.memberSearch", {
-              defaultValue: "Search members from enterprise directory (name/email/department)",
-            })}
+            placeholder={t("accessPage.components.groupForm.memberSearch")}
           />
           <div className="max-h-48 space-y-1 overflow-auto rounded-md border bg-muted/20 p-2">
             {filteredEmployees.length === 0 ? (
               <div className="space-y-2 px-2 py-3">
                 <p className="mp-kpi-note">
-                  {t("accessPage.components.groupForm.emptyEmployees", {
-                    defaultValue: "No selectable members in current organization. Connect HRIS, SCIM, CSV, or manual sync first.",
-                  })}
+                  {t("accessPage.components.groupForm.emptyEmployees")}
                 </p>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/enterprise">{t("accessPage.components.groupForm.importEmployees", { defaultValue: "Import employees in Enterprise" })}</Link>
+                  <Link to="/enterprise">{t("accessPage.components.groupForm.importEmployees")}</Link>
                 </Button>
               </div>
             ) : null}
@@ -163,14 +161,13 @@ export function AccessGroupForm({
           </div>
           <p className="mp-kpi-note">
             {t("accessPage.components.groupForm.selectedMembers", {
-              defaultValue: "Selected members: {{count}}",
               count: selectedMemberIDs.length,
             })}
           </p>
           <Button type="submit" className="w-full" disabled={groupForm.formState.isSubmitting}>
             {isEditing
-              ? t("accessPage.components.groupForm.submitEdit", { defaultValue: "Update group" })
-              : t("accessPage.components.groupForm.submitCreate", { defaultValue: "Create group" })}
+              ? t("accessPage.components.groupForm.submitEdit")
+              : t("accessPage.components.groupForm.submitCreate")}
           </Button>
           {groupFormError ? <p className="text-sm text-destructive">{groupFormError}</p> : null}
         </form>

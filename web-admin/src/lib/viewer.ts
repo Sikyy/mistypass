@@ -174,15 +174,15 @@ export function canAccessEventsPage(viewer: CurrentUser): boolean {
 export function getViewerRoleLabel(viewer: CurrentUser): string {
   switch (viewer.role) {
     case "super_admin":
-      return i18n.t("viewer.role.superAdmin", { defaultValue: "Platform admin" })
+      return i18n.t("viewer.role.superAdmin", { defaultValue: "Organization Admin" })
     case "tenant_admin":
-      return i18n.t("viewer.role.tenantAdmin", { defaultValue: "Tenant admin" })
+      return i18n.t("viewer.role.tenantAdmin", { defaultValue: "Organization Admin" })
     case "operator":
-      return i18n.t("viewer.role.operator", { defaultValue: "Operator" })
+      return i18n.t("viewer.role.operator", { defaultValue: "Place Admin" })
     case "building_admin":
-      return i18n.t("viewer.role.buildingAdmin", { defaultValue: "Building admin" })
+      return i18n.t("viewer.role.buildingAdmin", { defaultValue: "Place Admin" })
     case "resident":
-      return i18n.t("viewer.role.resident", { defaultValue: "Resident" })
+      return i18n.t("viewer.role.resident", { defaultValue: "Unsupported account" })
     default:
       return viewer.role
   }

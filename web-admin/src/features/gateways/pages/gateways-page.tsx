@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CpuIcon, DoorOpenIcon, NetworkIcon, RadioTowerIcon } from "lucide-react"
+import { CpuIcon, DoorOpenIcon, NetworkIcon, RadioTowerIcon, Settings2Icon } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
@@ -319,6 +319,7 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
   const [error, setError] = useState("")
   const [query, setQuery] = useState("")
   const [gatewayStatusFilter, setGatewayStatusFilter] = useState<"all" | "online" | "offline">("all")
+  const [setupPanelOpen, setSetupPanelOpen] = useState(false)
   const gatewayRegistrationForm = useForm<GatewayRegistrationFormValues>({
     resolver: zodResolver(gatewayRegistrationSchema),
     defaultValues: {
@@ -1085,6 +1086,11 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
     gatewayRegistrationForm.formState.errors.building_id?.message ||
     gatewayRegistrationForm.formState.errors.device_capacity?.message ||
     ""
+  const gatewayRegistrationDisabledReason = submitting || gatewayRegistrationForm.formState.isSubmitting
+    ? t("gateways.disabledReasons.commandBusy")
+    : !tenantID.trim()
+      ? t("gateways.disabledReasons.selectTenant")
+      : ""
 
   return (
     <div className="space-y-6">
@@ -1214,78 +1220,108 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
 
       {gatewayRegistrationVisible ? (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("gateways.register.title")}</CardTitle>
-            <CardDescription>
-              {platformViewer
-                ? t("gateways.register.descriptionPlatform")
-                : t("gateways.register.descriptionTenant")}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form
-              className={`grid gap-3 ${platformViewer ? "md:grid-cols-[1fr_220px_1fr_160px_auto]" : "md:grid-cols-[1fr_1fr_160px_auto]"}`}
-              onSubmit={gatewayRegistrationForm.handleSubmit(onRegisterGateway)}
+          <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="text-base">{t("gateways.setup.title")}</CardTitle>
+              <CardDescription>{t("gateways.setup.description")}</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="interaction"
+              className="w-full sm:w-auto"
+              aria-expanded={setupPanelOpen}
+              onClick={() => setSetupPanelOpen((current) => !current)}
             >
-              <Input
-                {...gatewayRegistrationForm.register("serial_number")}
-                placeholder={t("gateways.register.serialPlaceholder")}
-              />
-              {platformViewer ? (
-                <Controller
-                  control={gatewayRegistrationForm.control}
-                  name="tenant_id"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value)
-                        setTenantID(value)
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={t("gateways.register.tenantPlaceholder")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tenants.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              ) : null}
-              <Input
-                {...gatewayRegistrationForm.register("building_id")}
-                placeholder={t("gateways.register.buildingPlaceholder")}
-              />
-              <Controller
-                control={gatewayRegistrationForm.control}
-                name="device_capacity"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("gateways.register.capacityPlaceholder")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="4">{t("gateways.register.capacity4")}</SelectItem>
-                      <SelectItem value="8">{t("gateways.register.capacity8")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              <Button type="submit" disabled={submitting || gatewayRegistrationForm.formState.isSubmitting || !tenantID}>
-                {submitting ? t("gateways.register.submitting") : t("gateways.register.submit")}
-              </Button>
-              {gatewayRegistrationFormError ? (
-                <p className={`text-sm text-destructive ${platformViewer ? "md:col-span-5" : "md:col-span-4"}`}>
-                  {gatewayRegistrationFormError}
-                </p>
-              ) : null}
-            </form>
-          </CardContent>
+              <Settings2Icon className="mr-1.5 size-4" />
+              {setupPanelOpen ? t("gateways.setup.collapse") : t("gateways.setup.expand")}
+            </Button>
+          </CardHeader>
+          {setupPanelOpen ? (
+            <CardContent>
+              <div className="rounded-lg border bg-muted/10 p-3">
+                <div className="mb-3 space-y-1">
+                  <p className="text-sm font-medium">{t("gateways.register.title")}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {platformViewer
+                      ? t("gateways.register.descriptionPlatform")
+                      : t("gateways.register.descriptionTenant")}
+                  </p>
+                </div>
+                <form
+                  className={`grid gap-3 ${platformViewer ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,220px)_minmax(0,1fr)_minmax(0,160px)_auto]" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,160px)_auto]"}`}
+                  onSubmit={gatewayRegistrationForm.handleSubmit(onRegisterGateway)}
+                >
+                  <Input
+                    {...gatewayRegistrationForm.register("serial_number")}
+                    placeholder={t("gateways.register.serialPlaceholder")}
+                  />
+                  {platformViewer ? (
+                    <Controller
+                      control={gatewayRegistrationForm.control}
+                      name="tenant_id"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            setTenantID(value)
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={t("gateways.register.tenantPlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tenants.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  ) : null}
+                  <Input
+                    {...gatewayRegistrationForm.register("building_id")}
+                    placeholder={t("gateways.register.buildingPlaceholder")}
+                  />
+                  <Controller
+                    control={gatewayRegistrationForm.control}
+                    name="device_capacity"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("gateways.register.capacityPlaceholder")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">{t("gateways.register.capacity4")}</SelectItem>
+                          <SelectItem value="8">{t("gateways.register.capacity8")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full lg:w-auto"
+                    disabled={Boolean(gatewayRegistrationDisabledReason)}
+                    title={gatewayRegistrationDisabledReason || undefined}
+                  >
+                    {submitting ? t("gateways.register.submitting") : t("gateways.register.submit")}
+                  </Button>
+                  {gatewayRegistrationDisabledReason ? (
+                    <p className={`text-xs text-muted-foreground ${platformViewer ? "lg:col-span-5" : "lg:col-span-4"}`}>
+                      {gatewayRegistrationDisabledReason}
+                    </p>
+                  ) : null}
+                  {gatewayRegistrationFormError ? (
+                    <p className={`text-sm text-destructive ${platformViewer ? "lg:col-span-5" : "lg:col-span-4"}`}>
+                      {gatewayRegistrationFormError}
+                    </p>
+                  ) : null}
+                </form>
+              </div>
+            </CardContent>
+          ) : null}
         </Card>
       ) : null}
 

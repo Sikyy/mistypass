@@ -88,6 +88,22 @@ export function WalletDeliveryReceiptsCard({
   const { t } = useTranslation()
   const batchActionDisabled =
     !writable || batchRetryingDelivery || repairingRetryablePasses || loading || refreshing
+  const batchActionDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : batchRetryingDelivery || repairingRetryablePasses
+      ? t("walletPage.disabledReasons.busy")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : ""
+  const retryBatchDisabledReason =
+    batchActionDisabledReason ||
+    (batchRetryableDeliveryNotificationsCount === 0 ? t("walletPage.disabledReasons.noRetryableDeliveries") : "")
+  const repairBatchDisabledReason =
+    batchActionDisabledReason ||
+    (repairableRetryableDeliveryPassesCount === 0 ? t("walletPage.disabledReasons.noRepairablePasses") : "")
+  const reissueDraftDisabledReason =
+    batchActionDisabledReason ||
+    (reissueTargetIDsByRetryableDeliveryCount === 0 ? t("walletPage.disabledReasons.noReissueTargets") : "")
 
   return (
     <Card>
@@ -153,6 +169,7 @@ export function WalletDeliveryReceiptsCard({
               size="sm"
               variant="outline"
               disabled={batchActionDisabled || batchRetryableDeliveryNotificationsCount === 0}
+              title={retryBatchDisabledReason || undefined}
               onClick={onRetryBatch}
             >
               {batchRetryingDelivery
@@ -163,6 +180,7 @@ export function WalletDeliveryReceiptsCard({
               size="sm"
               variant="outline"
               disabled={batchActionDisabled || repairableRetryableDeliveryPassesCount === 0}
+              title={repairBatchDisabledReason || undefined}
               onClick={onRepairBatch}
             >
               {repairingRetryablePasses
@@ -172,6 +190,9 @@ export function WalletDeliveryReceiptsCard({
             <Button asChild size="sm" variant="outline">
               <Link to={enterpriseReceiptRecoveryReviewLink}>{t("walletPage.actions.backToEnterpriseReceiptReview")}</Link>
             </Button>
+            {batchActionDisabledReason ? (
+              <p className="w-full basis-full text-xs text-muted-foreground">{batchActionDisabledReason}</p>
+            ) : null}
           </div>
         </div>
 
@@ -200,6 +221,7 @@ export function WalletDeliveryReceiptsCard({
               size="sm"
               variant="outline"
               disabled={batchActionDisabled || batchRetryableDeliveryNotificationsCount === 0}
+              title={retryBatchDisabledReason || undefined}
               onClick={onRetryBatch}
             >
               {batchRetryingDelivery
@@ -210,6 +232,7 @@ export function WalletDeliveryReceiptsCard({
               size="sm"
               variant="outline"
               disabled={batchActionDisabled || repairableRetryableDeliveryPassesCount === 0}
+              title={repairBatchDisabledReason || undefined}
               onClick={onRepairBatch}
             >
               {repairingRetryablePasses
@@ -220,6 +243,7 @@ export function WalletDeliveryReceiptsCard({
               size="sm"
               variant="outline"
               disabled={batchActionDisabled || reissueTargetIDsByRetryableDeliveryCount === 0}
+              title={reissueDraftDisabledReason || undefined}
               onClick={onSeedBatchReissue}
             >
               {t("walletPage.actions.seedBatchReissueDraft", { count: reissueTargetIDsByRetryableDeliveryCount })}
@@ -231,6 +255,11 @@ export function WalletDeliveryReceiptsCard({
               <Button asChild size="sm" variant="outline">
                 <Link to={enterpriseSyncWorkerReviewLink}>{t("walletPage.actions.backToEnterpriseWorkerReview")}</Link>
               </Button>
+            ) : null}
+            {!batchActionDisabledReason && (retryBatchDisabledReason || repairBatchDisabledReason || reissueDraftDisabledReason) ? (
+              <p className="w-full basis-full text-xs text-muted-foreground">
+                {retryBatchDisabledReason || repairBatchDisabledReason || reissueDraftDisabledReason}
+              </p>
             ) : null}
           </div>
         </div>
@@ -295,6 +324,7 @@ export function WalletDeliveryReceiptsCard({
                         size="sm"
                         variant="outline"
                         disabled={!writable || retryingDeliveryNotificationID === item.id}
+                        title={!writable ? t("walletPage.disabledReasons.readOnly") : retryingDeliveryNotificationID === item.id ? t("walletPage.disabledReasons.busy") : undefined}
                         onClick={() => void onRetryDeliveryNotification(item.id)}
                       >
                         {retryingDeliveryNotificationID === item.id

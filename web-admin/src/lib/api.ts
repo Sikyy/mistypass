@@ -20,6 +20,8 @@ export type Building = {
   created_at: string
 }
 
+export type Place = Building
+
 export type Floor = {
   id: string
   tenant_id: string
@@ -47,6 +49,16 @@ export type Door = {
   gateway_id: string
   kind: "office" | "turnstile" | "server-room" | "elevator" | "parking-gate" | "emergency-exit"
   status: "online" | "offline"
+  created_at: string
+}
+
+export type Lock = Door
+
+export type DoorGroup = {
+  id: string
+  tenant_id: string
+  name: string
+  door_ids?: string[]
   created_at: string
 }
 
@@ -94,6 +106,81 @@ export type Gateway = {
   status: string
   last_seen_at: string
   bound_door_ids?: string[]
+}
+
+export type Controller = {
+  id: string
+  resource_type: "Controller"
+  tenant_id: string
+  place_id: string
+  name: string
+  description?: string
+  device_id: string
+  token: string
+  status: "online" | "offline"
+  configured: boolean
+  lock_ids?: string[]
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
+export type Reader = {
+  id: string
+  resource_type: "Reader"
+  tenant_id: string
+  place_id: string
+  controller_id: string
+  name: string
+  description?: string
+  device_id: string
+  token: string
+  model: string
+  protocol: string
+  status: "online" | "offline"
+  configured: boolean
+  lock_ids?: string[]
+  last_seen_at: string
+  created_at: string
+  updated_at: string
+}
+
+export type Terminal = {
+  id: string
+  resource_type: "Terminal"
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  name: string
+  description: string
+  place_id: string
+  place?: {
+    id: string
+    resource_type: "Place"
+    name: string
+  }
+  marketplace_installation_id?: string | null
+  controller_id?: string
+  reader_id?: string
+  status?: "online" | "offline"
+  last_seen_at?: string
+}
+
+export type Integration = {
+  id: string
+  resource_type: "Integration"
+  tenant_id: string
+  type: "identity_provider" | "hris" | "webhook" | "mqtt" | "device_api" | string
+  provider: string
+  name: string
+  description: string
+  status: string
+  configured: boolean
+  sync_mode?: string
+  source_id?: string
+  last_sync_at?: string
+  created_at: string
+  updated_at: string
 }
 
 export type GatewaySerialInventoryProductType =
@@ -187,12 +274,78 @@ export type AccessPolicy = {
   updated_at: string
 }
 
+export type AccessUser = {
+  id: string
+  tenant_id: string
+  building_id?: string
+  name: string
+  email: string
+  role: string
+  status: string
+  group_ids?: string[]
+  sync_source?: string
+  sync_ref?: string
+  created_at: string
+}
+
 export type UserGroup = {
   id: string
   tenant_id: string
+  building_id?: string
   name: string
   description: string
   members?: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type Team = {
+  id: string
+  resource_type: "Team"
+  tenant_id: string
+  name: string
+  scope: "organization" | "place"
+  place_id?: string
+  description?: string
+  source?: string
+  created_at: string
+  updated_at: string
+}
+
+export type TeamMembership = {
+  id: string
+  resource_type: "TeamMembership"
+  tenant_id: string
+  team_id: string
+  member_type: "User" | "Guest"
+  member_id: string
+  member_email?: string
+  member_name?: string
+  source?: string
+  created_at: string
+  updated_at: string
+}
+
+export type Role = {
+  id: string
+  name: string
+  applies_to: "Organization" | "Place" | "Group"
+  description?: string
+  permissions: Record<string, boolean>
+  built_in: boolean
+}
+
+export type RoleAssignment = {
+  id: string
+  tenant_id: string
+  role_id: string
+  applies_to_type: "Organization" | "Place" | "Group"
+  applies_to_id: string
+  assignee_type: "User" | "Team" | "Guest"
+  assignee_id: string
+  assignee_email?: string
+  valid_from?: string
+  valid_until?: string
   created_at: string
   updated_at: string
 }
@@ -216,6 +369,25 @@ export type TemporaryAccess = {
   authorized_by_email?: string
   authorized_by_role?: string
   authorized_at?: string
+  created_at: string
+}
+
+export type Share = {
+  id: string
+  tenant_id: string
+  email: string
+  group_id?: string
+  role_id: string
+  place_id?: string
+  lock_id?: string
+  valid_from?: string
+  valid_until: string
+  status: string
+  delivery_method: "wallet" | "email_qr"
+  grantee_name?: string
+  authorized_by_id?: string
+  authorized_by_email?: string
+  authorized_by_role?: string
   created_at: string
 }
 
@@ -251,6 +423,40 @@ export type DeviceEvent = {
   detail: string
   result: "success" | "denied" | "warning"
   at: string
+}
+
+export type EventSetEvent = {
+  uuid: string
+  type: string
+  actor_type?: string
+  actor_id?: string
+  actor_name?: string
+  actor_email?: string
+  object_type?: string
+  object_id?: string
+  object_name?: string
+  place_id?: string
+  lock_id?: string
+  success: boolean
+  result: string
+  detail?: string
+  created_at: string
+}
+
+export type EventSet = {
+  id: string
+  created_at: string
+  status: "in_progress" | "finished" | "failed"
+  interval?: string
+  event_place_id?: string
+  place_id?: string
+  event_type?: string
+  event_uuid?: string
+  event_success?: boolean
+  event_object_id?: string
+  event_object_type?: string
+  events: EventSetEvent[]
+  cursor?: string
 }
 
 export type Alarm = {
@@ -889,6 +1095,41 @@ export type WalletPassInstance = {
   revoked_at?: string
   created_by: string
   updated_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type Card = {
+  id: string
+  resource_type: "Card"
+  tenant_id: string
+  status: "activated" | "deactivated" | "unassigned"
+  token: string
+  uid?: string
+  card_number?: string
+  provider: string
+  template_id: string
+  user_id?: string
+  assignee_type?: "User" | "Guest"
+  assignee_id?: string
+  activation_token?: string
+  last_used_at?: string
+  issued_at: string
+  expires_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type CardAssignment = {
+  id: string
+  resource_type: "CardAssignment"
+  tenant_id: string
+  status: "activated" | "deactivated"
+  card_id: string
+  card: Card
+  assignee_type: "User" | "Guest"
+  assignee_id: string
+  user_id?: string
   created_at: string
   updated_at: string
 }
@@ -1555,6 +1796,10 @@ export async function listBuildings(token: string | undefined, tenantID?: string
   return requestItems<Building>(withTenantQuery("/api/v1/buildings", tenantID), token)
 }
 
+export async function listPlaces(token: string | undefined, tenantID?: string): Promise<Place[]> {
+  return requestItems<Place>(withTenantQuery("/api/v1/places", tenantID), token)
+}
+
 export async function createBuilding(
   token: string | undefined,
   payload: {
@@ -1623,6 +1868,16 @@ export async function listDoors(token: string | undefined, tenantID?: string): P
   return requestItems<Door>(withTenantQuery("/api/v1/doors", tenantID), token)
 }
 
+export async function listLocks(token: string | undefined, tenantID?: string, placeID?: string): Promise<Lock[]> {
+  let path = withTenantQuery("/api/v1/locks", tenantID)
+  const nextPlaceID = placeID?.trim()
+  if (nextPlaceID) {
+    const separator = path.includes("?") ? "&" : "?"
+    path = `${path}${separator}place_id=${encodeURIComponent(nextPlaceID)}`
+  }
+  return requestItems<Lock>(path, token)
+}
+
 export async function createDoor(
   token: string | undefined,
   payload: {
@@ -1648,6 +1903,78 @@ export async function createDoor(
 
 export async function listGateways(token: string | undefined): Promise<Gateway[]> {
   return requestItems<Gateway>("/api/v1/gateways", token)
+}
+
+export async function listControllers(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    query?: string
+    place_id?: string
+    lock_id?: string
+    status?: Controller["status"]
+    sort?: "name" | "-name"
+  }
+): Promise<Controller[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.lock_id?.trim()) query.set("lock_id", options.lock_id.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<Controller>(suffix ? `/api/v1/controllers?${suffix}` : "/api/v1/controllers", token)
+}
+
+export async function listReaders(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    query?: string
+    model?: string
+    place_id?: string
+    lock_id?: string
+    status?: Reader["status"]
+    sort?: "name" | "-name"
+  }
+): Promise<Reader[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.model?.trim()) query.set("model", options.model.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.lock_id?.trim()) query.set("lock_id", options.lock_id.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<Reader>(suffix ? `/api/v1/readers?${suffix}` : "/api/v1/readers", token)
+}
+
+export async function listTerminals(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    query?: string
+    place_id?: string
+    status?: Terminal["status"]
+    sort?: "name" | "-name"
+  }
+): Promise<Terminal[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<Terminal>(suffix ? `/api/v1/terminals?${suffix}` : "/api/v1/terminals", token)
 }
 
 function buildGatewaySerialInventoryPath(
@@ -1962,6 +2289,10 @@ export async function listAccessPolicies(token: string | undefined): Promise<Acc
   return requestItems<AccessPolicy>("/api/v1/access-policies", token)
 }
 
+export async function listAccessUsers(token: string | undefined, tenantID?: string): Promise<AccessUser[]> {
+  return requestItems<AccessUser>(withTenantQuery("/api/v1/users", tenantID), token)
+}
+
 export async function createAccessPolicy(
   token: string | undefined,
   payload: {
@@ -2014,6 +2345,62 @@ export async function listUserGroups(token: string | undefined): Promise<UserGro
   return requestItems<UserGroup>("/api/v1/user-groups", token)
 }
 
+export async function listGroups(token: string | undefined, tenantID?: string, placeID?: string): Promise<UserGroup[]> {
+  let path = withTenantQuery("/api/v1/groups", tenantID)
+  const nextPlaceID = placeID?.trim()
+  if (nextPlaceID) {
+    const separator = path.includes("?") ? "&" : "?"
+    path = `${path}${separator}place_id=${encodeURIComponent(nextPlaceID)}`
+  }
+  return requestItems<UserGroup>(path, token)
+}
+
+export async function listDoorGroups(token: string | undefined, tenantID?: string): Promise<DoorGroup[]> {
+  return requestItems<DoorGroup>(withTenantQuery("/api/v1/door-groups", tenantID), token)
+}
+
+export async function listTeams(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    query?: string
+    scope?: Team["scope"]
+    place_id?: string
+    sort?: "name" | "-name"
+  }
+): Promise<Team[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.scope?.trim()) query.set("scope", options.scope.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<Team>(suffix ? `/api/v1/teams?${suffix}` : "/api/v1/teams", token)
+}
+
+export async function listTeamMemberships(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    team_id?: string
+    member_type?: TeamMembership["member_type"]
+    member_id?: string
+  }
+): Promise<TeamMembership[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.team_id?.trim()) query.set("team_id", options.team_id.trim())
+  if (options?.member_type?.trim()) query.set("member_type", options.member_type.trim())
+  if (options?.member_id?.trim()) query.set("member_id", options.member_id.trim())
+  const suffix = query.toString()
+  return requestItems<TeamMembership>(suffix ? `/api/v1/team_memberships?${suffix}` : "/api/v1/team_memberships", token)
+}
+
 export async function createUserGroup(
   token: string | undefined,
   payload: {
@@ -2054,6 +2441,53 @@ export async function updateUserGroup(
 
 export async function listTemporaryAccess(token: string | undefined): Promise<TemporaryAccess[]> {
   return requestItems<TemporaryAccess>("/api/v1/temporary-access", token)
+}
+
+export async function listRoles(token: string | undefined, appliesTo?: Role["applies_to"]): Promise<Role[]> {
+  const path = appliesTo ? `/api/v1/roles?applies_to=${encodeURIComponent(appliesTo)}` : "/api/v1/roles"
+  return requestItems<Role>(path, token)
+}
+
+export async function listRoleAssignments(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    role_id?: string
+    applies_to_type?: RoleAssignment["applies_to_type"]
+    applies_to_id?: string
+    assignee_type?: RoleAssignment["assignee_type"]
+    assignee_id?: string
+  }
+): Promise<RoleAssignment[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.role_id?.trim()) query.set("role_id", options.role_id.trim())
+  if (options?.applies_to_type?.trim()) query.set("applies_to_type", options.applies_to_type.trim())
+  if (options?.applies_to_id?.trim()) query.set("applies_to_id", options.applies_to_id.trim())
+  if (options?.assignee_type?.trim()) query.set("assignee_type", options.assignee_type.trim())
+  if (options?.assignee_id?.trim()) query.set("assignee_id", options.assignee_id.trim())
+  const suffix = query.toString()
+  return requestItems<RoleAssignment>(suffix ? `/api/v1/role_assignments?${suffix}` : "/api/v1/role_assignments", token)
+}
+
+export async function listShares(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+    lock_id?: string
+    role_id?: string
+    email?: string
+  }
+): Promise<Share[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.lock_id?.trim()) query.set("lock_id", options.lock_id.trim())
+  if (options?.role_id?.trim()) query.set("role_id", options.role_id.trim())
+  if (options?.email?.trim()) query.set("email", options.email.trim())
+  const suffix = query.toString()
+  return requestItems<Share>(suffix ? `/api/v1/shares?${suffix}` : "/api/v1/shares", token)
 }
 
 export async function createTemporaryAccess(
@@ -2135,6 +2569,101 @@ export async function listAccessEvents(token: string | undefined, options?: List
 
 export async function listDeviceEvents(token: string | undefined, options?: ListPageOptions): Promise<DeviceEvent[]> {
   return requestItems<DeviceEvent>(withPageQuery("/api/v1/events/device", options), token)
+}
+
+export async function createEventSet(
+  token: string | undefined,
+  payload?: {
+    tenant_id?: string
+    interval?: string
+    place_id?: string
+    event_place_id?: string
+    event_type?: string
+    event_uuid?: string
+    event_success?: boolean
+    event_object_id?: string
+    event_object_type?: string
+  }
+): Promise<EventSet> {
+  const query = new URLSearchParams()
+  if (payload?.tenant_id?.trim()) query.set("tenant_id", payload.tenant_id.trim())
+  const suffix = query.toString()
+  return request<EventSet>(
+    suffix ? `/api/v1/event_sets?${suffix}` : "/api/v1/event_sets",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        event_set: {
+          interval: payload?.interval,
+          place_id: payload?.place_id,
+          event_place_id: payload?.event_place_id,
+          event_type: payload?.event_type,
+          event_uuid: payload?.event_uuid,
+          event_success: payload?.event_success,
+          event_object_id: payload?.event_object_id,
+          event_object_type: payload?.event_object_type,
+        },
+      }),
+    },
+    token
+  )
+}
+
+export async function getEventSet(
+  token: string | undefined,
+  eventSetID: string,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+    event_type?: string
+    event_uuid?: string
+    interval?: string
+  }
+): Promise<EventSet> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.event_type?.trim()) query.set("event_type", options.event_type.trim())
+  if (options?.event_uuid?.trim()) query.set("event_uuid", options.event_uuid.trim())
+  if (options?.interval?.trim()) query.set("interval", options.interval.trim())
+  const suffix = query.toString()
+  return request<EventSet>(
+    suffix ? `/api/v1/event_sets/${encodePathSegment(eventSetID)}?${suffix}` : `/api/v1/event_sets/${encodePathSegment(eventSetID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function getEventMetadata(token: string | undefined): Promise<{ object_type_to_action: Record<string, string[]> }> {
+  return request<{ object_type_to_action: Record<string, string[]> }>("/api/v1/events/meta", { method: "GET" }, token)
+}
+
+export async function listEventTypes(token: string | undefined): Promise<string[]> {
+  return request<string[]>("/api/v1/events/types", { method: "GET" }, token)
+}
+
+export async function listIntegrations(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    query?: string
+    type?: Integration["type"]
+    provider?: string
+    status?: string
+    sort?: "name" | "-name"
+  }
+): Promise<Integration[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.type?.trim()) query.set("type", options.type.trim())
+  if (options?.provider?.trim()) query.set("provider", options.provider.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<Integration>(suffix ? `/api/v1/integrations?${suffix}` : "/api/v1/integrations", token)
 }
 
 export async function listAlarms(token: string | undefined, options?: ListPageOptions): Promise<Alarm[]> {
@@ -3286,6 +3815,56 @@ export async function revokeWalletPass(
   }
 ): Promise<WalletPassInstance> {
   return updateWalletPassStatus(token, passID, "revoke", payload)
+}
+
+export async function listCards(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    status?: Card["status"]
+    user_id?: string
+    token?: string
+    uid?: string
+    card_number?: string
+    card_id?: string
+  }
+): Promise<Card[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.user_id?.trim()) query.set("user_id", options.user_id.trim())
+  if (options?.token?.trim()) query.set("token", options.token.trim())
+  if (options?.uid?.trim()) query.set("uid", options.uid.trim())
+  if (options?.card_number?.trim()) query.set("card_number", options.card_number.trim())
+  if (options?.card_id?.trim()) query.set("card_id", options.card_id.trim())
+  const suffix = query.toString()
+  return requestItems<Card>(suffix ? `/api/v1/cards?${suffix}` : "/api/v1/cards", token)
+}
+
+export async function listCardAssignments(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    status?: CardAssignment["status"]
+    card_id?: string
+    assignee_type?: CardAssignment["assignee_type"]
+    assignee_id?: string
+    user_id?: string
+  }
+): Promise<CardAssignment[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.card_id?.trim()) query.set("card_id", options.card_id.trim())
+  if (options?.assignee_type?.trim()) query.set("assignee_type", options.assignee_type.trim())
+  if (options?.assignee_id?.trim()) query.set("assignee_id", options.assignee_id.trim())
+  if (options?.user_id?.trim()) query.set("user_id", options.user_id.trim())
+  const suffix = query.toString()
+  return requestItems<CardAssignment>(suffix ? `/api/v1/card_assignments?${suffix}` : "/api/v1/card_assignments", token)
 }
 
 function buildWalletJobMetricsPath(options: {

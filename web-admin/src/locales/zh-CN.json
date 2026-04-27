@@ -18,12 +18,12 @@
       "failed": "登录失败"
     },
     "hero": {
-      "badge": "MistyPass 企业与空间访问平台",
+      "badge": "Mistyislet 企业与空间访问平台",
       "title": "企业、楼宇与门禁发放的一体化工作台",
-      "description": "同时支持平台管理、楼宇值守和企业自营场景，强调目录同步、凭证发放与审计追踪。",
+      "description": "面向 Organization Admin 与 Place Admin，强调目录同步、凭证发放与审计追踪。",
       "pointTenant": "组织级数据隔离与角色工作台",
       "pointSync": "员工导入、SSO、发放与事件记录",
-      "footer": "MistyPass 管理后台 · MVP"
+      "footer": "Mistyislet 管理后台 · MVP"
     },
     "form": {
       "title": "登录",
@@ -34,7 +34,7 @@
       "passwordPlaceholder": "********",
       "submit": "登录",
       "submitting": "登录中...",
-      "devAccounts": "开发环境测试账号示例：`superadmin@mistypass.local`、`tenant.admin@sudirman.co`、`building.admin.sudirman@mistypass.local`，密码均为 `admin123`。"
+      "devAccounts": "开发环境视角账号：Organization Admin `organization.admin@mistypass.local` 与 Place Admin `place.admin.sudirman@mistypass.local`，密码均为 `admin123`。"
     }
   },
   "notFound": {
@@ -45,7 +45,7 @@
   },
   "noPermission": {
     "title": "当前账号不能进入管理后台",
-    "description": "此账号属于普通用户角色，管理后台仅面向平台、租户、楼宇和运营角色开放。",
+    "description": "此账号未被分配 Organization Admin 或 Place Admin 管理权限。",
     "mobileHint": "{{email}} 可继续使用移动端或自助凭证入口完成日常通行操作。",
     "logout": "退出并切换账号"
   },
@@ -79,7 +79,7 @@
       },
       "wallet": {
         "label": "凭证发放",
-        "description": "MistyPass 发放与状态"
+        "description": "Mistyislet 发放与状态"
       },
       "gateways": {
         "label": "网关",
@@ -131,8 +131,8 @@
         "missing": "未分配楼宇"
       },
       "operator": {
-        "label": "运营视图",
-        "value": "只显示可处置范围"
+        "label": "Place Admin 视图",
+        "value": "只读 Place 范围"
       }
     },
     "restoringSession": "正在恢复当前会话..."
@@ -148,7 +148,7 @@
       "eyebrowPlatform": "平台工作台",
       "eyebrowBuildingAdmin": "楼宇值守工作台",
       "eyebrowTenant": "企业工作台",
-      "title": "MistyPass 控制中心",
+      "title": "Mistyislet 控制中心",
       "descriptionPlatform": "提供租户、网关、通行事件与告警态势的实时可视化。",
       "descriptionBuildingAdmin": "聚焦负责楼宇的空间状态、网关在线率和告警处置，不暴露无关组织范围。",
       "descriptionTenant": "聚焦当前组织的空间状态、发放运行和安全处置。",
@@ -457,6 +457,49 @@
       "allSeverities": "全部等级",
       "reset": "重置筛选"
     },
+    "tabs": {
+      "queue": "处置队列",
+      "notifications": "通知配置"
+    },
+    "queue": {
+      "groupCount": "{{count}} 条",
+      "fields": {
+        "tenant": "租户",
+        "building": "楼宇",
+        "area": "区域",
+        "door": "门点",
+        "detectedAt": "发现时间"
+      },
+      "nextAction": {
+        "acknowledge": "确认",
+        "investigate": "调查",
+        "mitigate": "缓解",
+        "close": "关闭",
+        "done": "已完成"
+      },
+      "groups": {
+        "open": {
+          "title": "Open",
+          "description": "等待首次确认或已确认但尚未进入调查的告警。",
+          "empty": "当前没有待确认告警。"
+        },
+        "investigating": {
+          "title": "Investigating",
+          "description": "正在调查或已升级的告警，需要推进到缓解。",
+          "empty": "当前没有调查中告警。"
+        },
+        "mitigated": {
+          "title": "Mitigated",
+          "description": "已缓解但尚未关闭的告警。",
+          "empty": "当前没有待关闭的已缓解告警。"
+        },
+        "closed": {
+          "title": "Closed",
+          "description": "已关闭或已标记为误报的告警。",
+          "empty": "当前没有已关闭告警。"
+        }
+      }
+    },
     "notificationPolicy": {
       "title": "告警通知策略",
       "descriptionBuildingAdmin": "默认接收组为安全组；楼宇管理员可叠加负责楼宇的值守组，并支持邮件与 WhatsApp 双通道。",
@@ -585,6 +628,20 @@
       "rebootQueued": "重启任务已入队（{{taskID}}），目标 {{gatewayID}}"
     },
     "readOnlyBoundaryHint": "按钮禁用或缺失属于权限边界，不是系统异常。",
+    "disabledReasons": {
+      "commandBusy": "网关命令或库存更新仍在执行，请等待完成。",
+      "enterBatchTargets": "先选择表格行或粘贴序列号，再批量更新状态。",
+      "enterConfigVersion": "先输入配置版本号，再发布配置。",
+      "enterDeviceSerial": "先输入或探测设备序列号，再挂载设备。",
+      "inventoryAlreadyStatus": "此序列号已经是 {{status}} 状态。",
+      "inventoryScrappedCannotFreeze": "已报废序列号不能直接冻结；如需重新入库，请先回库。",
+      "noDeviceSlots": "此网关没有剩余下挂设备槽位（{{remaining}}）。",
+      "readOnly": "当前角色可以查看网关运维，但不能修改设备、绑定关系或下发命令。",
+      "selectBoundDoor": "先选择已绑定门点，再解绑。",
+      "selectDoor": "先选择门点，再绑定到此网关。",
+      "selectGateway": "先选择网关，再下发此操作。",
+      "selectTenant": "先选择租户，再注册或导入库存。"
+    },
     "header": {
       "eyebrow": "网关运维",
       "titlePlatform": "网关",
@@ -624,6 +681,12 @@
         "title": "下挂设备在线",
         "note": "读卡器/旧设备在线统计。"
       }
+    },
+    "setup": {
+      "title": "网关配置入口",
+      "description": "低频注册任务默认折叠，避免和实时命令中心争抢首屏空间。",
+      "expand": "展开配置",
+      "collapse": "收起配置"
     },
     "register": {
       "title": "注册网关",
@@ -730,6 +793,13 @@
       "configVersionPlaceholder": "配置版本号",
       "publishConfig": "发布配置",
       "reboot": "重启",
+      "rebootConfirm": {
+        "title": "确认重启网关",
+        "description": "重启会短暂中断该网关下设备的心跳和通行上报。请确认现场允许短暂离线后再继续。",
+        "targetLabel": "目标网关",
+        "cancel": "取消",
+        "confirm": "确认重启"
+      },
       "deviceMgmt": {
         "title": "下挂设备管理",
         "remaining": "余量 {{remain}}/{{capacity}}",
@@ -1248,16 +1318,20 @@
   },
   "enterpriseSyncWorkspace": {
     "hints": {
-      "segmentGroupDesc": "分段用户组说明",
-      "segmentGroupDescWithSource": "分段用户组说明（含来源）",
-      "segmentGroupName": "分段用户组名称",
-      "segmentGroupNameWithTenant": "分段用户组名称（含租户）",
-      "segmentPolicyName": "分段策略名称",
-      "segmentPolicyNameWithSource": "分段策略名称（含来源）",
-      "workerGroupDesc": "{{scope}} Worker 告警分组说明",
-      "workerGroupName": "{{scope}} Worker 告警分组",
-      "workerPolicyGroup": "{{scope}} Worker 告警策略组",
-      "workerPolicyName": "{{scope}} Worker 告警策略"
+      "segmentGroupDesc": "同步结果复核用户组",
+      "segmentGroupDescWithSource": "{{source}} 同步结果复核用户组",
+      "segmentGroupName": "目录就绪用户组",
+      "segmentGroupNameWithTenant": "{{tenant}} 目录就绪用户组",
+      "segmentPolicyName": "策略下发复核",
+      "segmentPolicyNameWithSource": "{{source}} 策略下发复核",
+      "workerGroupDesc": "复核 {{scope}} 的 Worker 告警信号",
+      "workerGroupName": "{{scope}} Worker 复核用户组",
+      "workerPolicyGroup": "{{scope}} Worker 复核用户组",
+      "workerPolicyName": "{{scope}} Worker 策略跟进"
+    },
+    "executionContext": {
+      "focusHint": "来自告警页的执行记录上下文已在当前同步工作台生效。",
+      "returnToAlerts": "返回告警"
     },
     "hrisConnector": {
       "form": {
@@ -1272,6 +1346,12 @@
         "credentialRefPlaceholder": "选择凭证 Ref",
         "credentialTitle": "Connector 凭证",
         "description": "在 enterprise sync workspace 内直接配置 Talenta 的 webhook、pull 或 hybrid 模式。",
+        "disabledExistingCredentialRef": "当前 connector 使用已有凭证 Ref，增量覆盖字段需在 vault secret 中维护。",
+        "disabledLoading": "HRIS connector 数据仍在加载中。",
+        "disabledNoCredentialRefs": "当前没有可复用的凭证 Ref，请先切换为写入新 Secret。",
+        "disabledNoWebhookSecretRefs": "当前没有可复用的 Webhook Secret Ref，请先切换为写入新 Secret。",
+        "disabledReadOnly": "当前角色可以查看 HRIS connector，但不能更新配置。",
+        "disabledSaving": "Connector 保存正在执行中。",
         "employeePathLabel": "员工列表路径",
         "incrementalDescription": "Talenta 默认支持增量拉取。只有在租户需要覆盖 query param 名称或时间格式时，才打开这里的自定义覆盖项。",
         "incrementalDisabledHint": "当前未启用覆盖项，系统会继续使用 Talenta 默认增量契约：updated_after、updated_before、rfc3339；同时仍按计划执行 full reconcile。",
@@ -1396,49 +1476,49 @@
       "title": "同步异常分类"
     },
     "mainflow": {
-      "connected": "已连接",
+      "connected": "所有环节已连接",
       "description": "把“同步结果到用户组使用再到权限下发”拆成分段状态，并给出统一收口提示与优先动作。",
       "directoryUsage": {
-        "action": "目录使用操作",
-        "descriptionAttention": "关注说明",
-        "descriptionPending": "待处理说明",
-        "descriptionReady": "就绪说明",
-        "metricPending": "待处理指标",
-        "metricReady": "就绪指标"
+        "action": "复核目录",
+        "descriptionAttention": "员工已导入，但策略闭环前仍需复核用户组。",
+        "descriptionPending": "先导入员工记录，再创建用户组。",
+        "descriptionReady": "员工和用户组已就绪，可以交接到策略。",
+        "metricPending": "暂无在职员工记录。",
+        "metricReady": "{{employees}} 名员工 / {{groups}} 个用户组"
       },
       "issuanceReceipt": {
-        "action": "发放回执操作",
-        "descriptionAttention": "关注说明",
-        "descriptionPending": "待处理说明",
-        "descriptionReady": "就绪说明",
-        "metricPending": "待处理指标",
-        "metricReady": "就绪指标"
+        "action": "复核发放",
+        "descriptionAttention": "策略已就绪，但凭证发放仍需跟进。",
+        "descriptionPending": "先关闭策略下发，再发放凭证。",
+        "descriptionReady": "策略下发已为用户生成凭证。",
+        "metricPending": "暂无可用于发放的策略。",
+        "metricReady": "{{policies}} 条策略 / {{issued}} 张已发放凭证"
       },
       "policyDelivery": {
-        "action": "策略下发操作",
-        "descriptionAttention": "关注说明",
-        "descriptionPending": "待处理说明",
-        "descriptionReady": "就绪说明",
-        "metricPending": "待处理指标",
-        "metricReady": "就绪指标"
+        "action": "复核策略",
+        "descriptionAttention": "用户组已存在，但发放前仍需复核策略。",
+        "descriptionPending": "策略下发前，请先创建或复核用户组。",
+        "descriptionReady": "此租户的用户组和访问策略已对齐。",
+        "metricPending": "暂无可用于策略下发的用户组。",
+        "metricReady": "{{groups}} 个用户组 / {{policies}} 条策略"
       },
       "priority": {
         "done": {
-          "action": "优先级·已完成操作",
-          "description": "优先级·已完成说明",
-          "title": "优先级·已完成"
+          "action": "复核已发放凭证",
+          "description": "最近同步的目录、策略和发放步骤已对齐。",
+          "title": "流程已闭环"
         },
         "failure": {
-          "action": "优先级·失败项操作",
-          "description": "优先级·失败项说明",
-          "title": "优先级·失败项"
+          "action": "复核阻塞项",
+          "description": "策略和凭证闭环前，请先处理拒绝、停用或失败记录。",
+          "title": "修复同步阻塞项"
         },
         "pending": {
-          "description": "优先级·待处理说明",
-          "title": "优先级·待处理"
+          "description": "完成下一项目录、策略或发放步骤，保持同步流程推进。",
+          "title": "继续配置"
         }
       },
-      "priorityRank": "优先级排序",
+      "priorityRank": "优先级 {{rank}}",
       "segment": {
         "directoryUsage": "目录使用",
         "issuanceReceipt": "发放回执",
@@ -1463,36 +1543,36 @@
         "pendingReview": "待复核",
         "syncFailures": "同步失败数"
       },
-      "latestResultSummary": "最新结果摘要",
-      "latestResultWithSource": "最新结果（含来源）",
-      "noResult": "暂无结果",
-      "noResultHint": "暂无结果提示",
+      "latestResultSummary": "新增 {{created}} 条，更新 {{updated}} 条，停用 {{deactivated}} 条，拒绝 {{rejected}} 条",
+      "latestResultWithSource": "{{source}} 同步结果",
+      "noResult": "暂无同步结果",
+      "noResultHint": "提交 HRIS、SCIM、CSV 或手动同步后开始流程。",
       "pendingImport": "待导入",
-      "priorityAligned": "优先级一致",
-      "startedEnded": "开始/结束时间",
+      "priorityAligned": "主动作会跟随当前最优先的未解决同步环节。",
+      "startedEnded": "开始 {{startedAt}} / 结束 {{endedAt}}",
       "title": "同步结果与下一步"
     },
     "pipeline": {
       "employeeDirectory": {
-        "actionReview": "复核",
-        "actionView": "查看",
-        "helperEmpty": "空态提示",
-        "helperReady": "就绪提示",
+        "actionReview": "复核目录",
+        "actionView": "查看员工",
+        "helperEmpty": "暂无可用员工。",
+        "helperReady": "{{count}} 名在职员工已就绪。",
         "title": "员工目录"
       },
       "issuance": {
-        "actionGo": "前往",
-        "actionView": "查看",
-        "helperEmpty": "空态提示",
-        "helperReady": "就绪提示",
-        "title": "发放"
+        "actionGo": "前往发放",
+        "actionView": "查看已发放凭证",
+        "helperEmpty": "暂无已发放凭证。",
+        "helperReady": "{{count}} 张已发放凭证已就绪。",
+        "title": "凭证发放"
       },
       "policies": {
-        "actionGo": "前往",
-        "actionView": "查看",
-        "helperEmpty": "空态提示",
-        "helperReady": "就绪提示",
-        "title": "策略"
+        "actionGo": "前往策略",
+        "actionView": "查看策略",
+        "helperEmpty": "暂无可用门禁策略。",
+        "helperReady": "{{count}} 条策略已就绪。",
+        "title": "门禁策略"
       },
       "primaryAction": {
         "goAlerts": "前往告警",
@@ -1504,31 +1584,31 @@
         "viewIssuance": "查看发放"
       },
       "syncResult": {
-        "actionGoAlerts": "前往告警",
-        "actionGoSync": "前往同步",
-        "actionView": "查看",
+        "actionGoAlerts": "复核同步阻塞项",
+        "actionGoSync": "运行同步",
+        "actionView": "查看同步结果",
         "helperNoJob": "尚无同步任务，请先提交一次同步。",
         "helperWithJob": "最近任务：来源 {{source}}，状态 {{status}}，拒绝 {{rejected}} 条。",
         "title": "同步结果"
       },
       "userGroups": {
-        "actionGo": "前往",
-        "actionView": "查看",
-        "helperEmpty": "空态提示",
-        "helperReady": "就绪提示",
+        "actionGo": "前往用户组",
+        "actionView": "查看用户组",
+        "helperEmpty": "暂无可用用户组。",
+        "helperReady": "{{count}} 个用户组已就绪。",
         "title": "用户组"
       }
     },
     "pipelineCheck": {
-      "badgeFailure": "失败徽标",
-      "badgePending": "待处理徽标",
-      "badgeReady": "就绪徽标",
-      "fallbackByConnectivity": "按连接状态使用备选动作",
-      "fallbackByStep": "按步骤使用备选动作",
-      "priorityAligned": "优先级一致",
-      "stepPending": "步骤待处理",
-      "stepReady": "步骤就绪",
-      "title": "流程检查"
+      "badgeFailure": "存在同步阻塞项",
+      "badgePending": "{{count}} 个步骤待处理",
+      "badgeReady": "流程已就绪",
+      "fallbackByConnectivity": "使用流程动作",
+      "fallbackByStep": "打开步骤",
+      "priorityAligned": "下一步跟随最高优先级未解决步骤。",
+      "stepPending": "待处理",
+      "stepReady": "就绪",
+      "title": "流程就绪度"
     },
     "quickImport": {
       "currentSource": "当前来源",
@@ -1538,21 +1618,21 @@
     },
     "recentResults": {
       "description": "直接复核最近任务的来源、增量结果和失败情况，不用跳去异常页才看得到。",
-      "empty": "暂无数据",
-      "rowActorAt": "执行人与时间",
-      "rowSummary": "摘要",
+      "empty": "暂无最近同步结果。",
+      "rowActorAt": "执行人 {{actor}} / {{at}}",
+      "rowSummary": "新增 {{created}} 条，更新 {{updated}} 条，停用 {{deactivated}} 条，拒绝 {{rejected}} 条",
       "title": "最近同步结果"
     },
     "remediation": {
       "description": "把“看到异常”继续推进到“下一步去哪里处理、处理后怎么回到目录主路径”。",
-      "fallbackByStep": "按步骤使用备选动作",
-      "priorityHint": "优先级提示",
+      "fallbackByStep": "打开步骤",
+      "priorityHint": "处理优先级与主同步流程保持一致。",
       "title": "同步处理闭环"
     },
     "sourceOverview": {
       "description": "按来源查看同步质量、风险与下一步动作。",
-      "fallbackAction": "备选动作",
-      "latestEndedAt": "最近结束时间",
+      "fallbackAction": "使用来源动作",
+      "latestEndedAt": "最近结束：{{value}}",
       "title": "同步来源概览"
     },
     "submit": {
@@ -1581,14 +1661,14 @@
       "clear": "清空",
       "clearReviewState": "清空复核状态",
       "description": "在同步工作区处理 Worker 告警，并可回流到目录、策略与发放。",
-      "empty": "暂无数据",
+      "empty": "暂无需要复核的 Worker 告警。",
       "filters": {
-        "alerting": "告警中",
-        "all": "全部",
-        "hot": "高风险",
-        "stable": "稳定"
+        "alerting": "告警中（{{count}}）",
+        "all": "全部（{{count}}）",
+        "hot": "高风险（{{count}}）",
+        "stable": "稳定（{{count}}）"
       },
-      "focusHint": "聚焦提示",
+      "focusHint": "当前从告警链接进入。清空上下文前，请先复核这个 Worker 信号。",
       "goAlerts": "前往告警",
       "goDirectory": "前往目录",
       "goPolicies": "前往策略",
@@ -1640,8 +1720,8 @@
           "genericSync": "企业同步"
         }
       },
-      "queryPlaceholder": "筛选关键字",
-      "reviewHandled": "已复核处理",
+      "queryPlaceholder": "筛选 Worker 告警",
+      "reviewHandled": "{{stage}} 复核已记录，请继续在告警中完成二次复核。",
       "title": "Worker 告警处置"
     },
     "workerReview": {
@@ -1665,36 +1745,36 @@
     },
     "approvalClosure": {
       "pending": {
-        "batchApprove": "批量通过",
-        "batchReject": "批量拒绝",
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "审批闭环·待处理"
+        "batchApprove": "通过待审批项（{{count}}）",
+        "batchReject": "拒绝待审批项（{{count}}）",
+        "descriptionEmpty": "没有剩余待处理审批。",
+        "descriptionWithItems": "复核或批量关闭待处理的 JIT 审批。",
+        "locate": "查看待审批项",
+        "title": "待审批闭环"
       },
       "syncFailed": {
-        "batchMarkSynced": "批量标记已同步",
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "审批闭环·同步失败"
+        "batchMarkSynced": "标记回写已同步（{{count}}）",
+        "descriptionEmpty": "没有需要关闭的回写失败记录。",
+        "descriptionWithItems": "离开审批队列前，请先修复失败的回写记录。",
+        "locate": "查看失败项",
+        "title": "回写失败闭环"
       },
       "syncPending": {
-        "batchMarkSynced": "批量标记已同步",
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "审批闭环·同步中"
+        "batchMarkSynced": "标记回写已同步（{{count}}）",
+        "descriptionEmpty": "没有等待确认的回写中记录。",
+        "descriptionWithItems": "关闭审批流程前，请确认回写中的记录已经完成。",
+        "locate": "查看回写中",
+        "title": "回写中闭环"
       }
     },
     "approvalClosureCard": {
-      "description": "审批闭环卡片说明",
-      "title": "审批闭环卡片"
+      "description": "离开 JIT 队列前，关闭待审批项并确认外部回写状态。",
+      "title": "审批闭环"
     },
     "blockers": {
-      "description": "阻塞项说明",
-      "emptyDescription": "空态说明",
-      "emptyTitle": "空态标题",
+      "description": "仍会阻塞目录、策略或钱包闭环的事项。",
+      "emptyDescription": "当前没有审批、目录或钱包阻塞项。",
+      "emptyTitle": "没有闭环阻塞项",
       "goPolicies": "前往策略",
       "goWallet": "前往钱包",
       "title": "阻塞项"
@@ -1704,43 +1784,62 @@
       "emptyDash": "-",
       "processing": "处理中..."
     },
+    "disabledReasons": {
+      "actionBusy": "另一个 Enterprise 操作正在执行，请等待完成。",
+      "actionUnavailable": "当前角色或工作台状态不支持此操作。",
+      "exporting": "通知导出正在执行中。",
+      "loading": "Enterprise 告警数据仍在加载中。",
+      "noDueNotifications": "当前没有到期可重试的 Worker 告警通知。",
+      "noExternalSyncFailures": "当前没有外部回写失败的审批记录。",
+      "noExternalSyncPending": "当前没有外部回写待确认的审批记录。",
+      "noFailedNotifications": "当前视图没有失败的 Worker 告警通知。",
+      "noPendingApprovals": "当前没有待处理 JIT 审批。",
+      "noProcessableReceipts": "当前视图没有 ready 状态的 HRIS webhook receipt。",
+      "noReplayableDLQ": "当前视图没有 ready 状态的 HRIS DLQ 条目。",
+      "noRetryableNotifications": "当前视图没有可重试的 Worker 告警通知。",
+      "noSuppressedNotifications": "当前视图没有可恢复的已静默 Worker 告警通知。",
+      "noVisibleNotifications": "当前视图没有 Worker 告警通知记录。",
+      "noVisiblePendingApprovals": "当前筛选条件下没有待处理 JIT 审批。",
+      "noVisibleSyncMarkableApprovals": "当前视图没有需要关闭外部回写状态的非 pending 审批。",
+      "readOnly": "当前角色可以查看 Enterprise 告警，但不能修改审批、队列或通知。"
+    },
     "count": "{{count}} 条",
     "directoryClosure": {
       "deactivated": {
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "目录闭环·停用"
+        "descriptionEmpty": "没有需要复核的停用员工记录。",
+        "descriptionWithItems": "发放或保留凭证前，请先复核已停用员工。",
+        "locate": "查看停用员工",
+        "title": "停用员工"
       },
       "rejected": {
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "目录闭环·拒绝"
+        "descriptionEmpty": "没有剩余被拒绝的同步记录。",
+        "descriptionWithItems": "策略和钱包闭环前，请先处理被拒绝记录。",
+        "locate": "查看拒绝记录",
+        "title": "拒绝记录"
       },
       "unfinished": {
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "目录闭环·未完成"
+        "descriptionEmpty": "没有需要关注的未完成同步任务。",
+        "descriptionWithItems": "请完成或排查未正常关闭的同步任务。",
+        "locate": "查看未完成任务",
+        "title": "未完成目录闭环"
       },
       "worker": {
-        "descriptionEmpty": "空态说明",
-        "descriptionWithItems": "含数据说明",
-        "locate": "定位处理",
-        "title": "目录闭环·Worker"
+        "descriptionEmpty": "没有需要跟进的 Worker 告警。",
+        "descriptionWithItems": "关闭目录异常前，请先复核活跃 Worker 告警。",
+        "locate": "查看 Worker 告警",
+        "title": "Worker 跟进"
       }
     },
     "directoryClosureCard": {
-      "description": "目录闭环卡片说明",
-      "title": "目录闭环卡片"
+      "description": "复核目录异常，并把每一项导向下一步闭环动作。",
+      "title": "目录闭环"
     },
     "header": {
       "description": "按处理目标切换到聚焦落地页：总览、审批积压、目录异常。",
       "hint": {
-        "approvalBacklog": "审批积压",
-        "directoryExceptions": "目录异常",
-        "overview": "总览"
+        "approvalBacklog": "审批积压聚焦 JIT 决策和外部回写状态。",
+        "directoryExceptions": "目录异常汇总同步失败、停用员工和 Worker 告警。",
+        "overview": "总览展示审批、目录和恢复流程的下一项未解决动作。"
       },
       "tabs": {
         "approvalBacklog": "审批积压（{{count}}）",
@@ -1750,42 +1849,42 @@
       "title": "审批与异常落地页"
     },
     "hints": {
-      "sourcePrefix": "来源前缀",
+      "sourcePrefix": "{{summary}} 后续处理",
       "sync": "同步",
-      "syncReviewGroup": "同步复核用户组",
-      "syncReviewPolicy": "同步复核策略",
-      "syncTask": "同步任务",
-      "syncTaskWithID": "同步任务（含ID）",
-      "workerAlert": "Worker告警",
-      "workerAlertWithTime": "Worker告警（含时间）",
-      "workerReviewGroup": "Worker复核用户组",
-      "workerReviewPolicy": "Worker复核策略"
+      "syncReviewGroup": "{{source}} 同步用户组复核",
+      "syncReviewPolicy": "{{source}} 同步策略复核",
+      "syncTask": "{{source}} 同步任务",
+      "syncTaskWithID": "{{source}} 同步任务 {{id}}",
+      "workerAlert": "{{scope}} Worker 告警",
+      "workerAlertWithTime": "{{scope}} Worker 告警 {{at}}",
+      "workerReviewGroup": "{{scope}} Worker 用户组复核",
+      "workerReviewPolicy": "{{scope}} Worker 策略复核"
     },
     "jitApproval": {
       "actions": {
-        "approve": "通过",
-        "markSynced": "标记已同步",
+        "approve": "批准",
+        "markSynced": "标记已回写",
         "reject": "拒绝"
       },
-      "batchApprove": "批量通过",
-      "batchMarkSynced": "批量标记已同步",
-      "batchReject": "批量拒绝",
-      "description": "JIT审批说明",
-      "empty": "暂无数据",
-      "queryPlaceholder": "按邮箱 / 外部ID / 审批ID筛选",
-      "statusFilterTitle": "状态筛选",
+      "batchApprove": "通过待审批项（{{count}}）",
+      "batchMarkSynced": "批量标记已回写（{{count}}）",
+      "batchReject": "拒绝待审批项（{{count}}）",
+      "description": "复核 JIT 审批和外部同步回写状态。",
+      "empty": "当前筛选条件下没有 JIT 审批。",
+      "queryPlaceholder": "按邮箱 / external_id / 审批ID筛选",
+      "statusFilterTitle": "审批状态",
       "statusOptions": {
-        "all": "全部",
-        "approved": "已通过",
-        "pending": "待处理",
-        "rejected": "已拒绝"
+        "all": "全部（{{count}}）",
+        "approved": "已批准（{{count}}）",
+        "pending": "待处理（{{count}}）",
+        "rejected": "已拒绝（{{count}}）"
       },
       "syncOptions": {
-        "all": "全部",
-        "failed": "失败",
-        "none": "无",
-        "pending": "待处理",
-        "success": "成功"
+        "all": "全部（{{count}}）",
+        "failed": "失败（{{count}}）",
+        "none": "无（{{count}}）",
+        "pending": "进行中（{{count}}）",
+        "success": "成功（{{count}}）"
       },
       "table": {
         "actions": "操作",
@@ -1797,7 +1896,7 @@
       "title": "JIT审批"
     },
     "landingActions": {
-      "description": "落地动作说明",
+      "description": "从落地页直接跳到负责下一项未解决动作的工作区。",
       "title": "落地动作"
     },
     "receiptRecovery": {
@@ -1806,14 +1905,14 @@
         "repair": "修复",
         "retry": "重试"
       },
-      "blockedHint": "阻塞提示",
-      "currentStatus": "当前状态",
-      "description": "回执修复说明",
+      "blockedHint": "仍有闭环阻塞项。请先清理审批和目录问题，再重试回流。",
+      "currentStatus": "回执恢复状态",
+      "description": "修复失败回执回流，并确认受影响记录能否被修复。",
       "loading": "正在加载回执修复...",
-      "pendingCount": "待处理数量",
-      "queryHintEmpty": "空查询提示",
-      "queryHintWithValue": "查询提示（带值）",
-      "readyHint": "就绪提示",
+      "pendingCount": "{{count}} 个阻塞项",
+      "queryHintEmpty": "未限定目标。",
+      "queryHintWithValue": "限定目标：{{hint}}",
+      "readyHint": "此回执流程没有剩余审批或目录阻塞项。",
       "readyToBackflow": "可回流",
       "status": {
         "attention": "需关注",
@@ -1823,9 +1922,9 @@
       "title": "回执修复"
     },
     "recoveryActions": {
-      "blockerCount": "阻塞数量",
+      "blockerCount": "{{count}} 个阻塞项",
       "canBackflow": "可回流",
-      "description": "恢复动作说明",
+      "description": "为可回到目录或策略流程的记录选择恢复路径。",
       "goDirectory": "前往目录",
       "goPolicies": "前往策略",
       "title": "恢复动作"
@@ -1866,6 +1965,185 @@
         "windowPlaceholder": "window_seconds"
       },
       "description": "集中处理同步任务与 Worker 告警，避免遗漏关键闭环动作。",
+      "executionHistory": {
+        "title": "Webhook 执行历史",
+        "description": "跟踪已排队的 Talenta 回执处理与 DLQ 重放执行记录。",
+        "filters": {
+          "all": "全部",
+          "queued": "已排队",
+          "running": "执行中",
+          "succeeded": "已成功",
+          "failed": "失败"
+        },
+        "kind": {
+          "receiptProcess": "回执处理",
+          "dlqReplay": "DLQ 重放"
+        },
+        "kindFilter": {
+          "all": "全部类型",
+          "receiptProcess": "回执处理",
+          "dlqReplay": "DLQ 重放"
+        },
+        "queueStateFilter": {
+          "all": "全部运行态",
+          "ready": "待处理",
+          "cooldown": "冷却中",
+          "inFlight": "执行中",
+          "attemptLimit": "达到尝试上限",
+          "terminal": "已终止"
+        },
+        "replayScopeFilter": {
+          "all": "全部链路",
+          "replayed": "重放记录",
+          "workerRequired": "需要 Worker"
+        },
+        "replayWorkerRequired": "需要",
+        "replayWorkerOptional": "不需要",
+        "executionModeFilter": {
+          "all": "全部模式",
+          "queued": "队列",
+          "inline": "内联"
+        },
+        "dispatchModeFilter": {
+          "all": "全部派发",
+          "workerTick": "Worker tick",
+          "workerTaskChannel": "任务通道",
+          "goroutineFallback": "Goroutine 兜底"
+        },
+        "searchPlaceholder": "搜索 Connector、请求、事件、目标、派发模式或错误",
+        "targetStatusPlaceholder": "精确筛选目标状态，例如 processed",
+        "targetStatus": "目标 {{status}}",
+        "replaying": "重放中...",
+        "replay": "重放失败执行",
+        "openSourceExecution": "打开来源执行",
+        "hideDetails": "隐藏详情",
+        "details": "详情",
+        "startedAt": "开始 {{value}}",
+        "finishedAt": "完成 {{value}}",
+        "dispatchMeta": "执行人 {{requestedBy}} / 审计 {{auditSource}}",
+        "replayMeta": "来源 {{sourceExecutionID}} / Worker {{workerRequirement}}",
+        "runtimeMeta": "队列 {{queueState}} / 重试 {{nextRetryAt}} / 截止 {{processingDeadlineAt}}",
+        "runtimeBadges": {
+          "cooldownRemaining": "冷却 {{seconds}} 秒",
+          "staleInFlight": "滞留执行中"
+        },
+        "auditCounts": "运行 {{attempts}} 次 / 重新入队 {{requeues}} 次",
+        "paginationSummary": "已加载 {{loaded}} / {{total}} 条执行记录。",
+        "columns": {
+          "queuedAt": "排队",
+          "kind": "类型",
+          "dispatch": "派发",
+          "status": "状态",
+          "actions": "操作"
+        },
+        "loading": "正在加载执行历史...",
+        "empty": "当前范围内没有执行历史。",
+        "loadingMore": "加载更多中...",
+        "loadMore": "加载更多",
+        "detail": {
+          "title": "执行详情",
+          "description": "查看排队 Talenta 执行记录，并将当前选择保留在 URL 中。",
+          "filteredHint": "此记录通过 execution_id 加载，可能不在当前列表筛选范围内。",
+          "loading": "正在加载执行详情...",
+          "kind": "类型",
+          "timeline": "时间线",
+          "timelineQueued": "排队 {{value}}",
+          "timelineUpdated": "更新 {{value}}",
+          "target": "目标",
+          "connector": "Connector",
+          "request": "请求",
+          "dispatch": "派发",
+          "replay": "重放",
+          "replayWorkerRequirement": "Worker {{value}}",
+          "runtime": "运行态",
+          "attempts": "尝试",
+          "attemptCount": "运行 {{count}} 次",
+          "requeueCount": "重新入队 {{count}} 次",
+          "failureStage": "失败阶段",
+          "lastError": "最近错误",
+          "empty": "此记录暂无执行详情。"
+        }
+      },
+      "notificationHistory": {
+        "title": "同步与 Worker 通知历史",
+        "description": "最近 {{count}} 条 Worker 告警通知记录，包含冷却跳过与重试结果。",
+        "filters": {
+          "all": "全部",
+          "failed": "失败",
+          "retryable": "可重试",
+          "suppressed": "已静默",
+          "dueNow": "到期"
+        },
+        "searchPlaceholder": "搜索 Worker、Connector、原因、请求 ID 或供应商错误...",
+        "exporting": "导出中...",
+        "exportVisible": "导出筛选结果（{{count}}）",
+        "statusSummary": {
+          "sent": "已发送 {{count}}",
+          "failed": "失败 {{count}}",
+          "skipped": "已跳过 {{count}}"
+        },
+        "autoRetryDueBusy": "正在自动重试到期项...",
+        "autoRetryDue": "自动重试到期项（{{count}}）",
+        "suppressVisibleBusy": "正在静默可见项...",
+        "suppressVisible": "静默可见项（{{count}}）",
+        "restoreVisibleBusy": "正在恢复可见项...",
+        "restoreVisible": "恢复可见项（{{count}}）",
+        "retryVisibleBusy": "正在重试可见项...",
+        "retryVisible": "重试可见项（{{count}}）",
+        "batchHint": "批量操作作用于当前视图：重试只处理可重试失败并抑制重复指纹；静默会把可见失败标记为手动跳过；恢复会将可见手动静默重新打开为可重试失败。",
+        "columns": {
+          "time": "时间",
+          "worker": "Worker",
+          "countThreshold": "数量 / 阈值",
+          "attempt": "尝试次数",
+          "channels": "通道",
+          "receivers": "接收组",
+          "status": "状态",
+          "actions": "操作"
+        },
+        "loading": "正在加载通知记录...",
+        "empty": "暂无记录。点击“立即派发”生成记录。",
+        "emptyFiltered": "当前筛选条件下没有通知记录。",
+        "retrySource": "重试来源 {{id}}",
+        "pendingAge": {
+          "status": "待确认 {{age}}",
+          "seconds": "{{count}} 秒",
+          "minutes": "{{count}} 分钟",
+          "hours": "{{count}} 小时",
+          "days": "{{count}} 天"
+        },
+        "nextRetryAt": "下次重试 {{at}}",
+        "confirmAttempts": "确认尝试 {{count}} 次",
+        "lastConfirmResult": "上次确认 {{result}}",
+        "lastConfirmAttemptAt": "上次确认时间 {{at}}",
+        "restoreStatus": "恢复受阻：{{status}}",
+        "retrying": "重试中...",
+        "retry": "重试",
+        "suppress": "静默",
+        "restoring": "恢复中...",
+        "restore": "恢复",
+        "hideDetails": "隐藏详情",
+        "details": "详情",
+        "detailsFingerprint": "指纹",
+        "detailsIdempotencyKey": "幂等键",
+        "detailsRequestID": "请求 ID",
+        "detailsSourceNotificationID": "来源通知",
+        "detailsRestoreStatus": "恢复状态",
+        "detailsPendingAge": "待确认时长",
+        "detailsConfirmAttempts": "确认尝试",
+        "detailsNextRetryAt": "下次重试时间",
+        "detailsLastConfirmResult": "上次确认结果",
+        "detailsLastConfirmAttemptAt": "上次确认尝试时间",
+        "detailsProviderError": "供应商错误",
+        "detailsChannelResults": "通道结果",
+        "loadingMore": "加载更多中...",
+        "loadMore": "加载更多",
+        "restoreEligibility": {
+          "ready": "可恢复",
+          "alreadySent": "已有更新的通知发送",
+          "newerHistoryExists": "已有更新的通知历史"
+        }
+      },
       "pendingSyncRequests": {
         "attempts": "尝试 {{attemptCount}} 次 / 上次尝试 {{attemptedAt}}",
         "batchHint": "按创建顺序处理当前租户最早的待补偿请求，单次最多 20 条。",
@@ -1899,7 +2177,9 @@
       "batchResult": {
         "dispatch": "分发方式 {{dispatchMode}}",
         "itemMeta": "条目 {{entryID}} / 阶段 {{stage}} / 详情 {{detail}}",
+        "openExecution": "打开执行记录",
         "summary": "selected {{total}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
         "title": "最近一批 DLQ 处置"
       },
       "empty": "暂无DLQ条目",
@@ -1912,12 +2192,15 @@
         "terminal": "已终态"
       },
       "meta": "重放 {{replayCount}} 次 / 上次重放 {{replayedAt}} / 更新时间 {{updatedAt}}",
+      "paginationSummary": "已加载 {{loaded}} / {{total}} 条 DLQ 条目。",
       "runtime": "重放态 {{replayState}} / 下次重试 {{nextRetryAt}} / 处理截止 {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "冷却剩余 {{seconds}} 秒",
         "remainingAttempts": "剩余重放 {{count}}",
         "staleInFlight": "replay 已超时"
       },
+      "loadingMore": "加载更多中...",
+      "loadMore": "加载更多",
       "title": "同步与Worker·最近DLQ"
     },
     "webhookReceipts": {
@@ -1930,7 +2213,9 @@
       "batchResult": {
         "dispatch": "分发方式 {{dispatchMode}}",
         "itemMeta": "receipt {{receiptID}} / connector {{connector}} / 详情 {{detail}}",
+        "openExecution": "打开执行记录",
         "summary": "selected {{total}} / processed {{processed}} / skipped {{skipped}} / failed {{failed}} / dlq {{dlq}}",
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
         "title": "最近一批 Receipt 处置"
       },
       "empty": "暂无Receipt队列条目",
@@ -1943,12 +2228,15 @@
         "terminal": "已终态"
       },
       "meta": "尝试 {{attempts}} 次 / 最近尝试 {{attemptAt}} / 接收于 {{receivedAt}}",
+      "paginationSummary": "已加载 {{loaded}} / {{total}} 条 Receipt 条目。",
       "runtime": "队列 {{queueState}} / 下次重试 {{nextRetryAt}} / 处理截止 {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "冷却剩余 {{seconds}} 秒",
         "remainingAttempts": "剩余尝试 {{count}}",
         "staleInFlight": "processing 已超时"
       },
+      "loadingMore": "加载更多中...",
+      "loadMore": "加载更多",
       "title": "同步与Worker·Receipt队列"
     },
     "pullStates": {
@@ -2005,90 +2293,101 @@
       "viewSyncResult": "查看同步结果"
     },
     "alertRecovery": {
-      "noBlockersDescription": "无阻塞项说明",
+      "noBlockersDescription": "审批、同步、Worker 告警和 IDP 阻塞项已清空，可以继续目录流程的下一步动作。",
       "noBlockersTitle": "无阻塞项",
-      "withBlockersDescription": "有阻塞项说明",
-      "withBlockersTitle": "存在阻塞项"
+      "withBlockersDescription": "仍有 {{blockerCount}} 个阻塞项需要关闭，恢复路径才算干净。",
+      "withBlockersTitle": "恢复阻塞项仍在"
     },
     "attention": {
       "idpNotReady": {
-        "description": "关注项·IDP未就绪说明",
-        "title": "关注项·IDP未就绪"
+        "description": "用户依赖企业登录前，请先完成 SSO 配置。",
+        "title": "IDP 尚未就绪"
       },
       "pendingApprovals": {
-        "description": "关注项·审批待处理说明",
-        "title": "关注项·审批待处理"
+        "description": "复核待处理 JIT 审批，避免目录访问流程停住。",
+        "title": "审批需要复核"
       },
       "syncNeedsReview": {
-        "description": "关注项·同步待复核说明",
-        "title": "关注项·同步待复核"
+        "description": "最近同步有被拒绝、停用或未完成记录需要复核。",
+        "title": "同步需要复核"
       },
       "workerAlert": {
-        "description": "关注项·Worker告警说明",
-        "title": "关注项·Worker告警"
+        "description": "Worker 告警处于活跃状态。重试前请先确认失败阶段。",
+        "title": "同步 Worker 信号活跃"
       }
     },
     "cards": {
       "approvalBacklog": {
-        "descriptionCleared": "已清空说明",
-        "descriptionPending": "待处理说明",
-        "pendingCount": "待处理数量",
-        "returnHint": "返回提示",
+        "descriptionCleared": "当前没有阻塞此流程的待处理 JIT 审批。",
+        "descriptionPending": "目录和发放闭环前，需要先复核待处理 JIT 审批。",
+        "pendingCount": "{{count}} 个待处理审批",
+        "returnHint": "审批队列关闭后，返回推荐工作流动作继续处理。",
         "title": "审批积压"
       },
       "deactivatedEmployees": {
-        "description": "停用员工说明",
+        "description": "访问和凭证漂移前，先复核同步停用的员工。",
         "title": "停用员工"
       },
       "directoryException": {
-        "completedButEmpty": "已完成但为空",
-        "deactivatedEmployees": "停用员工",
-        "returnHint": "返回提示",
-        "stableDescription": "稳定状态说明",
+        "completedButEmpty": "最近同步已完成，但没有生成在职员工记录。",
+        "deactivatedEmployees": "{{deactivated}} 名停用员工需要清理访问和凭证。",
+        "returnHint": "目录清理后，返回推荐工作流动作继续处理。",
+        "stableDescription": "当前没有拒绝、停用或空目录异常阻塞闭环。",
         "title": "目录异常"
       },
       "latestSyncIncomplete": {
-        "description": "最新同步未完成说明",
+        "description": "最近同步尚未达到干净的已导入状态。",
         "title": "最新同步未完成"
       },
       "rejectedRecords": {
-        "description": "拒绝记录说明",
+        "description": "被拒绝记录需要先复核，才能进入用户组或策略流程。",
         "title": "拒绝记录"
       },
       "syncCompletedEmpty": {
-        "description": "同步完成但目录为空说明",
+        "description": "同步已完成，但没有生成在职目录记录。",
         "title": "同步完成但目录为空"
       },
       "syncOutcome": {
-        "applyPoliciesNext": "下一步应用策略",
-        "closedLoopHint": "闭环提示",
-        "completedEmptyDirectory": "目录已完成但为空",
-        "connectedWithIssuedPasses": "已与已发放凭证关联",
-        "emptyDescription": "空态说明",
-        "groupEmployeesNext": "下一步员工分组",
-        "keepMoving": "继续推进",
-        "needsReview": "待复核",
-        "readyForIssuance": "可发放",
-        "returnHintAfterAlert": "告警后返回提示",
-        "returnHintAfterImport": "导入后返回提示",
+        "applyPoliciesNext": "{{tenantGroupsCount}} 个用户组已就绪，下一步创建或复核策略。",
+        "closedLoopHint": "同步流程已连接到发放。",
+        "completedEmptyDirectory": "最近同步已完成，但暂无在职员工。",
+        "connectedWithIssuedPasses": "此目录流程已发放 {{issuedPassCount}} 张凭证。",
+        "emptyDescription": "先运行或选择一个目录同步来源，再复核下游访问。",
+        "groupEmployeesNext": "{{activeEmployeeCount}} 名在职员工可分配到用户组。",
+        "keepMoving": "继续下游步骤，保持流程推进。",
+        "needsReview": "{{sourceLabel}} 同步状态为 {{status}}，有 {{rejected}} 条拒绝记录。",
+        "readyForIssuance": "策略已就绪，可以进入凭证发放。",
+        "returnHintAfterAlert": "关闭同步异常后，返回推荐下游动作继续处理。",
+        "returnHintAfterImport": "导入后继续处理员工、用户组、策略和发放。",
         "title": "同步结果"
       }
     },
     "errors": {
-      "batchApprovalPartialFailure": "批量审批部分失败",
-      "batchExternalSyncPartialFailure": "批量外部同步部分失败",
+      "batchApprovalPartialFailure": "部分审批记录处理失败，请在台账中复核失败项后重试。",
+      "batchExternalSyncPartialFailure": "部分外部回写状态更新失败，请在台账中复核失败项后重试。",
       "batchRefreshFailed": "批量刷新失败",
       "dispatchWorkerAlertsFailed": "派发 Worker 告警通知失败",
+      "autoRetryWorkerAlertNotificationsFailed": "自动重试 Worker 告警通知失败",
+      "exportWorkerAlertNotificationsFailed": "导出 Worker 告警通知失败",
       "invalidSyncPayload": "无效同步载荷",
+      "loadWebhookDLQFailed": "加载 Webhook DLQ 条目失败",
+      "loadWebhookExecutionDetailFailed": "加载 Webhook 执行详情失败",
+      "loadWebhookExecutionsFailed": "加载 Webhook 执行历史失败",
+      "loadWebhookReceiptsFailed": "加载 Webhook 回执失败",
+      "loadWorkerAlertNotificationsFailed": "加载 Worker 告警通知失败",
       "processWebhookReceiptBatchFailed": "批量处理 Receipt 队列失败",
       "processWebhookReceiptBatchPartialFailure": "批量处理 Receipt 队列部分失败",
       "reconcilePendingFailed": "批量补偿待处理同步请求失败",
       "replayDLQBatchPartialFailure": "批量重放 DLQ 部分失败",
       "replayDLQFailed": "重放 DLQ 失败",
+      "restoreWorkerAlertNotificationsBatchFailed": "恢复 Worker 告警通知失败",
+      "retryWorkerAlertNotificationFailed": "重试 Worker 告警通知失败",
+      "retryWorkerAlertNotificationsBatchFailed": "批量重试 Worker 告警通知失败",
       "webhookDLQWorkerRequired": "当前未启用 DLQ worker，不能执行要求 worker-only 的 queued 重放",
       "webhookReceiptWorkerRequired": "当前未启用 Receipt worker，不能执行要求 worker-only 的 queued 处理",
       "saveWorkerAlertSubscriptionFailed": "保存 Worker 告警订阅失败",
       "saveTalentaConnectorFailed": "保存 Talenta connector 失败",
+      "suppressWorkerAlertNotificationsBatchFailed": "静默 Worker 告警通知失败",
       "submitSyncFailed": "提交同步失败",
       "syncAtLeastOne": "至少同步一项",
       "updateApprovalFailed": "更新审批失败",
@@ -2096,13 +2395,13 @@
     },
     "flowHints": {
       "firstPolicy": "首条策略",
-      "groupDescDeactivatedCleanup": "停用清理用户组说明",
-      "groupDescSyncDraft": "同步草稿用户组说明",
-      "officePolicyTemplate": "办公策略模板"
+      "groupDescDeactivatedCleanup": "复核最近同步产生的停用员工清理。",
+      "groupDescSyncDraft": "供下游策略复核使用的目录同步草稿组。",
+      "officePolicyTemplate": "{{groupName}} 办公通行策略"
     },
     "header": {
-      "description": "统一查看目录接入、同步结果、策略联动与发放闭环。",
-      "eyebrow": "模块标签",
+      "description": "查看目录来源、同步结果、SSO 就绪度、策略交接和凭证发放闭环。",
+      "eyebrow": "目录控制台",
       "platform": {
         "description": "跨租户查看目录同步、Worker 告警、HRIS 回执和 SSO 状态，用于平台级排障和健康巡检。",
         "eyebrow": "平台目录健康",
@@ -2118,35 +2417,35 @@
     },
     "idpOutcome": {
       "clearAlertsFirst": {
-        "description": "IDP结果·先清告警说明",
-        "title": "IDP结果·先清告警"
+        "description": "将 SSO 视为就绪前，请先解决同步或 Worker 告警。",
+        "title": "先清理告警"
       },
       "confirmSyncSource": {
-        "description": "IDP结果·确认同步来源说明",
-        "title": "IDP结果·确认同步来源"
+        "description": "确认用于驱动用户组、策略和发放的目录来源。",
+        "title": "确认同步来源"
       },
       "goPolicyRules": {
-        "description": "IDP结果·前往策略规则说明",
-        "title": "IDP结果·前往策略规则"
+        "description": "使用已验证的登录和目录来源复核策略规则。",
+        "title": "复核策略规则"
       },
       "groupEmployeesAfterIdp": {
-        "description": "IDP结果·IDP后进行员工分组说明",
-        "title": "IDP结果·IDP后进行员工分组"
+        "description": "SSO 已就绪。先给员工分组，策略才能命中目标。",
+        "title": "IDP 配置后分组员工"
       },
       "idpClosedLoop": {
-        "description": "IDP结果·IDP闭环说明",
-        "title": "IDP结果·IDP闭环"
+        "description": "SSO、目录、策略和发放前置条件已对齐。",
+        "title": "IDP 流程已闭环"
       },
       "setupIdpFirst": {
-        "description": "IDP结果·先配置IDP说明",
-        "title": "IDP结果·先配置IDP"
+        "description": "将用户导入企业登录前，请先配置身份提供方。",
+        "title": "先配置 IDP"
       }
     },
     "kpi": {
-      "approvalsHint": "审批提示",
-      "employeesHint": "员工提示",
-      "ssoHint": "SSO提示",
-      "syncJobsHint": "同步任务提示"
+      "approvalsHint": "等待复核的 JIT 审批。",
+      "employeesHint": "可用于用户组、策略和发放的在职员工。",
+      "ssoHint": "当前企业登录配置状态。",
+      "syncJobsHint": "此租户范围内最近的目录同步任务。"
     },
     "labels": {
       "alerts": "告警",
@@ -2165,24 +2464,24 @@
       "cardDescription": "根据目录、策略和发放状态推荐下一步动作。",
       "cardTitle": "建议下一步",
       "closedLoop": {
-        "description": "下一步动作·闭环说明",
-        "title": "下一步动作·闭环"
+        "description": "当前组织的目录、策略和已发放凭证已对齐。",
+        "title": "流程已闭环"
       },
       "connectEmployees": {
-        "description": "下一步动作·接入员工说明",
-        "title": "下一步动作·接入员工"
+        "description": "配置用户组和策略前，请先导入或接入员工。",
+        "title": "接入员工"
       },
       "createPolicies": {
-        "description": "下一步动作·创建策略说明",
-        "title": "下一步动作·创建策略"
+        "description": "员工和用户组就绪后创建访问策略。",
+        "title": "创建策略"
       },
       "goIssuance": {
-        "description": "下一步动作·前往发放说明",
-        "title": "下一步动作·前往发放"
+        "description": "策略就绪后进入凭证发放。",
+        "title": "前往发放"
       },
       "groupEmployees": {
-        "description": "下一步动作·员工分组说明",
-        "title": "下一步动作·员工分组"
+        "description": "将已导入员工放入用户组，策略才能命中目标。",
+        "title": "员工分组"
       },
       "stats": {
         "groups": "用户组数量",
@@ -2192,46 +2491,46 @@
     },
     "quickActions": {
       "alerts": {
-        "description": "快捷动作·告警说明"
+        "description": "打开需要关注的 Worker 告警、回执和 DLQ 队列。"
       },
       "csv": {
-        "description": "快捷动作·CSV说明",
-        "title": "快捷动作·CSV"
+        "description": "HRIS 或 SCIM 尚未接入时，导入 CSV 员工文件。",
+        "title": "CSV 导入"
       },
       "hris": {
-        "description": "快捷动作·HRIS说明",
-        "title": "快捷动作·HRIS"
+        "description": "配置 HRIS 同步，自动更新员工目录。",
+        "title": "HRIS 同步"
       },
       "idp": {
-        "description": "快捷动作·IDP说明",
-        "title": "快捷动作·IDP"
+        "description": "复核 SSO 设置和 JIT 审批就绪度。",
+        "title": "企业登录"
       }
     },
     "remediation": {
       "firstSync": {
-        "description": "修复建议·首次同步说明",
-        "title": "修复建议·首次同步"
+        "description": "复核目录健康前，请先提交第一次同步任务。",
+        "title": "运行首次同步"
       },
       "handleRejected": {
-        "completed": "已完成",
-        "pending": "待处理",
-        "title": "修复建议·处理拒绝项"
+        "completed": "没有剩余拒绝记录。",
+        "pending": "{{rejected}} 条拒绝记录需要复核。",
+        "title": "处理拒绝记录"
       },
       "pushToPolicyAndIssuance": {
-        "noEmployees": "无员工",
-        "noGroups": "无用户组",
-        "noPolicies": "无策略",
-        "readyForIssuance": "可发放",
-        "title": "修复建议·推进到策略与发放"
+        "noEmployees": "策略和发放交接前，请先导入员工。",
+        "noGroups": "策略交接前，请先创建用户组。",
+        "noPolicies": "发放凭证前，请先创建访问策略。",
+        "readyForIssuance": "策略前置条件已就绪，可以发放凭证。",
+        "title": "推进到策略与发放"
       },
       "reviewDeactivatedImpact": {
-        "completed": "已完成",
-        "pending": "待处理",
-        "title": "修复建议·复核停用影响"
+        "completed": "没有待清理的停用员工。",
+        "pending": "{{deactivated}} 名停用员工需要复核访问和凭证。",
+        "title": "复核停用影响"
       },
       "reviewLatest": {
-        "description": "修复建议·复核最新结果说明",
-        "title": "修复建议·复核最新结果"
+        "description": "复核最近同步结果，并先处理风险最高的记录。",
+        "title": "复核最新同步"
       }
     },
     "status": {
@@ -2271,28 +2570,28 @@
     },
     "syncOutcome": {
       "backToEmployees": {
-        "description": "同步结果·回到员工目录说明",
-        "title": "同步结果·回到员工目录"
+        "description": "返回员工目录检查已导入记录。",
+        "title": "返回员工"
       },
       "closedLoop": {
-        "description": "同步结果·闭环说明",
-        "title": "同步结果·闭环"
+        "description": "最近同步已连接到用户组、策略和发放。",
+        "title": "同步流程已闭环"
       },
       "createPolicies": {
-        "description": "同步结果·创建策略说明",
-        "title": "同步结果·创建策略"
+        "description": "创建策略，让已导入员工获得正确访问。",
+        "title": "创建策略"
       },
       "firstImport": {
-        "description": "同步结果·首次导入说明",
-        "title": "同步结果·首次导入"
+        "description": "复核用户组、策略或凭证前，请先导入员工。",
+        "title": "从导入开始"
       },
       "groupNewEmployees": {
-        "description": "同步结果·新员工分组说明",
-        "title": "同步结果·新员工分组"
+        "description": "策略交接前，请先将新导入员工放入用户组。",
+        "title": "分组新员工"
       },
       "reviewRejected": {
-        "description": "同步结果·复核拒绝项说明",
-        "title": "同步结果·复核拒绝项"
+        "description": "被拒绝记录需要修正后才能进入目录流程。",
+        "title": "复核拒绝记录"
       }
     },
     "syncResult": {
@@ -2311,86 +2610,86 @@
     },
     "syncSourceFeedback": {
       "backflowToDirectory": {
-        "description": "同步来源反馈·回流到目录说明",
-        "title": "同步来源反馈·回流到目录"
+        "description": "将已复核记录送回目录流程。",
+        "title": "回流到目录"
       },
       "closedLoop": {
-        "description": "同步来源反馈·闭环说明",
-        "title": "同步来源反馈·闭环"
+        "description": "此来源已连接到目录、策略和发放步骤。",
+        "title": "来源流程已闭环"
       },
       "pendingConfirm": {
-        "description": "同步来源反馈·待确认说明",
-        "title": "同步来源反馈·待确认"
+        "description": "将此来源作为主目录来源前，请先确认。",
+        "title": "确认来源"
       },
       "pendingFirstResult": {
-        "description": "同步来源反馈·待首个结果说明",
-        "title": "同步来源反馈·待首个结果"
+        "description": "运行一次同步并等待首个结果后再继续。",
+        "title": "等待首个结果"
       },
       "pendingReview": {
-        "description": "同步来源反馈·待复核说明",
-        "title": "同步来源反馈·待复核"
+        "description": "复核此来源的拒绝或未完成记录。",
+        "title": "复核来源结果"
       },
       "readyForGrouping": {
-        "description": "同步来源反馈·可分组说明",
-        "title": "同步来源反馈·可分组"
+        "description": "此来源的员工可分配到用户组。",
+        "title": "可分组"
       },
       "scimDeactivated": {
-        "description": "同步来源反馈·SCIM停用说明",
-        "title": "同步来源反馈·SCIM停用"
+        "description": "SCIM 停用变更需要先清理再闭环。",
+        "title": "SCIM 停用清理"
       }
     },
     "syncSourceStatus": {
       "closedLoop": {
-        "description": "同步来源状态·闭环说明"
+        "description": "该来源已通过下游访问流程闭环，已发放 {{issuedPassCount}} 张凭证。"
       },
       "deactivatedNeedsCleanup": {
-        "description": "同步来源状态·停用待清理说明"
+        "description": "{{deactivated}} 条停用记录需要清理后，访问才能视为闭环。"
       },
-      "metrics": "同步来源状态指标",
+      "metrics": "新增 {{created}} 条，更新 {{updated}} 条，停用 {{deactivated}} 条，拒绝 {{rejected}} 条",
       "needsReview": {
-        "description": "同步来源状态·待复核说明"
+        "description": "此来源最近状态为 {{status}}，有 {{rejected}} 条拒绝记录，需要复核。"
       },
-      "noResult": "暂无结果",
+      "noResult": "暂无同步结果",
       "pendingConfirm": {
-        "description": "同步来源状态·待确认说明"
+        "description": "将此同步来源视为启用前，请先确认。"
       },
       "pendingConnect": {
-        "description": "同步来源状态·待接入说明"
+        "description": "导入员工前，请先接入同步来源。"
       },
       "pendingIssuance": {
-        "description": "同步来源状态·待发放说明"
+        "description": "此来源记录的凭证发放仍待处理。"
       },
       "readyForGrouping": {
-        "description": "同步来源状态·可分组说明"
+        "description": "{{activeEmployeeCount}} 名已导入员工可分配到用户组。"
       },
       "readyForPolicies": {
-        "description": "同步来源状态·可配置策略说明"
+        "description": "{{tenantGroupsCount}} 个用户组已可配置策略。"
       }
     },
     "syncSources": {
       "csvImport": {
-        "description": "同步来源·CSV导入说明",
-        "label": "标签"
+        "description": "上传 CSV 文件，用于一次性或兜底员工导入。",
+        "label": "CSV 导入"
       },
       "hris": {
-        "description": "同步来源·HRIS说明",
-        "label": "标签"
+        "description": "接入 HRIS，让员工目录保持与源系统同步。",
+        "label": "HRIS"
       },
       "manual": {
-        "description": "同步来源·手动说明",
-        "label": "标签"
+        "description": "用于小范围变更或受控测试的手动同步。",
+        "label": "手动同步"
       },
       "scim": {
-        "description": "同步来源·SCIM说明",
-        "label": "标签"
+        "description": "使用 SCIM 从 IdP 持续同步身份生命周期变更。",
+        "label": "SCIM"
       }
     },
     "syncSummary": {
       "approvalReviewed": "审批已复核",
       "dlqBatchReplayCompleted": "DLQ 批量重放完成：selected {{totalEntries}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
       "dlqBatchReplayQueued": "DLQ 批量重放已排队：selected {{totalEntries}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}} / via {{dispatchMode}}",
-      "batchExternalSyncCompleted": "批量外部同步已完成",
-      "batchReviewCompleted": "批量复核已完成",
+      "batchExternalSyncCompleted": "批量更新外部回写状态完成（{{status}}）：成功 {{successCount}} 条，失败 {{failedCount}} 条。",
+      "batchReviewCompleted": "批量{{decisionLabel}}完成：成功 {{successCount}} 条，失败 {{failedCount}} 条。",
       "dlqReplayCompleted": "DLQ 已重放",
       "dlqReplayQueued": "DLQ 已加入后台重放队列：{{entryID}} / status {{status}} / via {{dispatchMode}}",
       "externalSyncMarked": "外部同步已标记",
@@ -2409,6 +2708,12 @@
       },
       "talentaConnectorSaved": "Talenta connector {{action}}，当前同步策略为 {{syncStrategy}}。",
       "workerAlertDispatchCompleted": "Worker 告警通知派发完成：候选 {{totalAlerts}} / 已发送 {{dispatched}} / 跳过 {{skipped}} / 失败 {{failed}}",
+      "workerAlertNotificationAutoRetried": "Worker 告警自动重试完成：已发送 {{retried}} / 失败 {{failed}} / 跳过 {{skipped}} / 已静默 {{suppressed}}",
+      "workerAlertNotificationBatchRestored": "Worker 告警通知已恢复：恢复 {{restored}} / 跳过 {{skipped}}",
+      "workerAlertNotificationBatchRetried": "Worker 告警通知已重试：已发送 {{retried}} / 失败 {{failed}} / 跳过 {{skipped}} / 已静默 {{suppressed}}",
+      "workerAlertNotificationBatchSuppressed": "Worker 告警通知已静默：静默 {{suppressed}} / 跳过 {{skipped}}",
+      "workerAlertNotificationExported": "Worker 告警通知已导出：{{count}} 条记录",
+      "workerAlertNotificationRetried": "Worker 告警通知已重试：{{workerLabel}} / 状态 {{status}} / 第 {{attempt}} 次",
       "workerAlertSubscriptionSaved": "Worker 告警订阅已保存：threshold {{threshold}} / window {{windowSeconds}} / cooldown {{cooldownSeconds}}"
     },
     "workflow": {
@@ -2465,53 +2770,53 @@
       "savePolicyFailed": "保存策略失败"
     },
     "labels": {
-      "deactivatedCleanup": "已停用清理",
+      "deactivatedCleanup": "停用清理",
       "expired": "已过期",
-      "memberCarry": "成员带入",
+      "memberCarry": "已带入成员",
       "memberReview": "成员复核",
-      "policyStatusActive": "策略状态启用中",
-      "policyStatusDraft": "策略状态草稿",
-      "segmentHintPrefix": "片段提示前缀"
+      "policyStatusActive": "启用",
+      "policyStatusDraft": "草稿",
+      "segmentHintPrefix": "环节"
     },
     "summary": {
-      "acceptedTargetPrefix": "已接受目标前缀",
-      "batchPolicyFlowHint": "批量策略流程提示",
-      "batchPolicyFlowHintWithTargets": "批量策略流程提示含 目标",
-      "batchPolicyStatusFailedSuffix": "批量策略状态失败后缀",
-      "batchPolicyStatusUpdated": "批量策略状态已更新",
-      "defaultGroupDescFromEnterprise": "默认用户组描述来自企业",
-      "directoryLocatedGroup": "目录定位用户组",
-      "directoryLocatedGroupByMember": "目录定位用户组按 成员",
-      "directoryPrefilledBySync": "目录预填充按 同步",
-      "directoryPrefilledByWorker": "目录预填充按 Worker",
-      "directoryPrefilledGroupHint": "目录预填充用户组提示",
-      "directoryPrefilledStarter": "目录预填充起始",
-      "flowAccepted": "流程已接受",
-      "grantCreated": "授权已创建",
-      "grantStarterApplied": "授权起始已应用",
-      "groupCreated": "用户组已创建",
-      "groupUpdated": "用户组已更新",
-      "hintedMemberCarriedSuffix": "提示成员已带入后缀",
-      "hintedMemberLocatedSuffix": "提示成员定位后缀",
-      "hintedMemberParenSuffix": "提示成员括号后缀",
-      "hintedMemberWithPrefixParenSuffix": "提示成员含 前缀括号后缀",
-      "issuanceStageHint": "发放阶段提示",
-      "noPoliciesForBatchReview": "无策略用于批量复核",
-      "organizationSuffix": "组织后缀",
-      "policyCreated": "策略已创建",
-      "policyLocated": "策略定位",
-      "policyLocatedEmpty": "策略定位空",
-      "policyMatchedRows": "策略匹配到行",
-      "policyPrefilledByWorker": "策略预填充按 Worker",
-      "policyPrefilledName": "策略预填充名称",
-      "policyPrefilledStarter": "策略预填充起始",
-      "policyPrefilledStarterByHint": "策略预填充起始按 提示",
-      "policyStarterApplied": "策略起始已应用",
-      "policyUpdated": "策略已更新",
-      "segmentSuffix": "片段后缀",
-      "starterGroupsCreated": "起始用户组已创建",
-      "starterGroupsFailedSuffix": "起始用户组失败后缀",
-      "summaryWithSegment": "摘要含 片段"
+      "acceptedTargetPrefix": "目标 {{targetLabel}}。",
+      "batchPolicyFlowHint": "{{policyCount}} 条策略已切换为启用，下一步复核发放目标。",
+      "batchPolicyFlowHintWithTargets": "{{policyCount}} 条策略已切换为启用，并识别到 {{targetCount}} 个可能的发放目标。",
+      "batchPolicyStatusFailedSuffix": "，失败 {{failedCount}} 条",
+      "batchPolicyStatusUpdated": "已将 {{total}} 条策略切换为{{targetLabel}}：成功 {{success}} 条{{failedSuffix}}。",
+      "defaultGroupDescFromEnterprise": "来自 Enterprise 目录恢复的用户组草稿。",
+      "directoryLocatedGroup": "已打开用户组 {{groupName}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryLocatedGroupByMember": "已按成员定位到用户组 {{groupName}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledBySync": "已根据 {{enterpriseSyncCompactTail}} 准备目录用户组。{{directoryRemediationLabel}}",
+      "directoryPrefilledByWorker": "已根据 {{enterpriseWorkerCompactTail}} 准备用户组。",
+      "directoryPrefilledGroupHint": "已准备用户组 {{groupNameHint}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledStarter": "已准备起始用户组 {{defaultGroup}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "flowAccepted": "已从 Enterprise 接收 {{flowLabel}}{{stageLabel}}。{{tenantSuffix}}{{segmentSuffix}}",
+      "grantCreated": "已为 {{granteeName}} 创建授权。",
+      "grantStarterApplied": "已应用授权起始模板：{{title}}。",
+      "groupCreated": "用户组 {{name}} 已创建。",
+      "groupUpdated": "用户组 {{name}} 已更新。",
+      "hintedMemberCarriedSuffix": "，并带入成员 {{hintedMemberLabel}}",
+      "hintedMemberLocatedSuffix": "，已选中成员 {{hintedMemberLabel}}",
+      "hintedMemberParenSuffix": "（成员 {{hintedMemberLabel}}）",
+      "hintedMemberWithPrefixParenSuffix": "，带入成员 {{hintedMemberLabel}}",
+      "issuanceStageHint": "{{targetPrefix}}继续处理 Enterprise 上下文带来的凭证发放。",
+      "noPoliciesForBatchReview": "当前批量复核视图没有匹配策略。",
+      "organizationSuffix": "组织 {{tenantLabel}}。",
+      "policyCreated": "策略 {{name}} 已创建。",
+      "policyLocated": "已打开策略 {{policyName}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyLocatedEmpty": "没有匹配到现有策略。{{hintedMemberSuffix}}{{enterpriseSummaryTail}}",
+      "policyMatchedRows": "匹配到 {{matchedCount}} 行策略，已打开 {{policyName}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledByWorker": "已根据 {{enterpriseWorkerCompactTail}} 准备策略草稿。",
+      "policyPrefilledName": "已准备策略草稿 {{policyNameHint}}{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarter": "已为 {{groupName}} 准备起始策略{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarterByHint": "已为 {{groupName}} 准备起始策略{{hintedMemberSuffix}}。{{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyStarterApplied": "已为 {{groupName}} 应用策略起始模板。",
+      "policyUpdated": "策略 {{name}} 已更新。",
+      "segmentSuffix": "环节 {{flowSegmentDescriptor}}。",
+      "starterGroupsCreated": "已创建 {{createdCount}} 个起始用户组{{failedSuffix}}。",
+      "starterGroupsFailedSuffix": "，失败 {{failedCount}} 个",
+      "summaryWithSegment": "{{withoutTailPunctuation}}。环节 {{flowSegmentDescriptor}}。"
     },
     "components": {
       "directorySection": {
@@ -2537,7 +2842,7 @@
         "grantsLoading": "正在统计授权...",
         "grantsNote": "访客 {{visitorGrantCount}}，已过期 {{expiredGrantCount}}。",
         "deliveryMethods": "投递方式",
-        "deliveryMethodsNote": "MistyPass 手机凭证 / 邮件二维码。"
+        "deliveryMethodsNote": "Mistyislet 手机凭证 / 邮件二维码。"
       },
       "enterpriseFlow": {
         "syncRecordLabel": "{{source}} 任务 {{jobID}}",
@@ -2580,7 +2885,7 @@
         "endDate": "结束日期",
         "deliveryMethod": "投递方式",
         "deliveryAll": "全部方式",
-        "deliveryWallet": "MistyPass 手机凭证",
+        "deliveryWallet": "Mistyislet 手机凭证",
         "deliveryEmailQr": "邮件二维码凭证",
         "subjectType": "对象类型",
         "subjectAll": "全部对象类型",
@@ -2598,7 +2903,7 @@
         "scopeArea": "区域",
         "scopeDoor": "门点",
         "deliveryMethod": "投递方式",
-        "deliveryWallet": "MistyPass 手机凭证",
+        "deliveryWallet": "Mistyislet 手机凭证",
         "deliveryEmailQr": "邮件二维码凭证",
         "buildingOptional": "楼宇（可选）",
         "areaOptional": "区域（可选）",
@@ -2607,12 +2912,45 @@
         "nameLabel": "姓名",
         "namePlaceholder": "被授权人姓名",
         "genderLabel": "性别",
+        "genderPlaceholder": "男 / 女 / 其他",
         "phoneLabel": "电话",
+        "phonePlaceholder": "+62-xxx-xxxx-xxxx",
         "emailLabel": "邮箱",
+        "emailPlaceholder": "name@company.com",
         "mobileModelLabel": "手机型号",
+        "mobileModelPlaceholder": "Pixel 8 / iPhone 16",
         "subjectTypeLabel": "对象类型",
+        "subjectTypePlaceholder": "员工 / 访客 / 客户",
         "validUntilPlaceholder": "有效期至（例如 2026-04-11 20:00）",
-        "submit": "创建授权"
+        "submit": "创建授权",
+        "disabledReason": {
+          "buildingAllScope": "授权覆盖全部区域时无需选择楼宇。",
+          "areaAllScope": "授权覆盖全部区域时无需选择区域。",
+          "areaBuildingScope": "楼宇级授权无需选择区域。",
+          "areaNeedsBuilding": "请先选择楼宇，再选择区域。",
+          "doorScopeOnly": "只有门点级授权才需要选择门点。",
+          "doorNeedsArea": "请先选择区域，再选择门点。"
+        },
+        "validation": {
+          "buildingIdMax": "楼宇 ID 最多 64 个字符。",
+          "areaIdMax": "区域 ID 最多 64 个字符。",
+          "doorIdMax": "门点 ID 最多 64 个字符。",
+          "granteeNameRequired": "请输入被授权人姓名。",
+          "granteeNameMax": "被授权人姓名最多 64 个字符。",
+          "genderMax": "性别最多 16 个字符。",
+          "phoneRequired": "请输入电话号码。",
+          "phoneMax": "电话号码最多 32 个字符。",
+          "emailRequired": "请输入邮箱。",
+          "emailFormat": "邮箱格式无效。",
+          "mobileModelMax": "手机型号最多 64 个字符。",
+          "subjectTypeRequired": "请输入对象类型。",
+          "subjectTypeMax": "对象类型最多 32 个字符。",
+          "validUntilRequired": "请选择有效期截止时间。",
+          "validUntilFormat": "有效期截止时间格式无效。",
+          "buildingRequired": "此范围类型必须选择楼宇。",
+          "areaRequired": "此范围类型必须选择区域。",
+          "doorRequired": "门点范围必须选择具体门点。"
+        }
       },
       "grantLedgerTable": {
         "columns": {
@@ -2668,7 +3006,13 @@
         "importEmployees": "在企业页导入员工",
         "selectedMembers": "已选成员：{{count}}",
         "submitEdit": "更新用户组",
-        "submitCreate": "创建用户组"
+        "submitCreate": "创建用户组",
+        "validation": {
+          "groupNameRequired": "请输入用户组名称。",
+          "groupNameMax": "用户组名称最多 64 个字符。",
+          "descriptionMax": "描述最多 128 个字符。",
+          "memberSearchMax": "成员搜索关键词最多 128 个字符。"
+        }
       },
       "groupLedgerTable": {
         "columns": {
@@ -2695,7 +3039,8 @@
         "descriptionPlatform": "按租户复盘准备度、策略配置与临时授权；长期发放集中在凭证发放。",
         "descriptionTenant": "当前组织先准备员工与用户组，再配置策略，最后处理访客和临时授权。",
         "selectTenant": "选择租户",
-        "currentOrganization": "当前组织"
+        "currentOrganization": "当前组织",
+        "scopeLockedDescription": "当前账号角色已固定到单一租户，因此不提供租户切换。"
       },
       "recommendation": {
         "sections": {
@@ -2741,7 +3086,7 @@
           "draft": "草稿"
         },
         "delivery": {
-          "wallet": "MistyPass 手机凭证",
+          "wallet": "Mistyislet 手机凭证",
           "emailQr": "邮件二维码凭证"
         },
         "remaining": {
@@ -2824,7 +3169,29 @@
         "schedule": "时段（例如 Mon-Fri 07:00-19:00）",
         "memberCount": "成员数",
         "submitEdit": "更新策略",
-        "submitCreate": "创建策略"
+        "submitCreate": "创建策略",
+        "validation": {
+          "policyNameRequired": "请输入策略名称。",
+          "policyNameMax": "策略名称最多 64 个字符。",
+          "buildingIdMax": "楼宇 ID 最多 64 个字符。",
+          "areaIdMax": "区域 ID 最多 64 个字符。",
+          "doorIdMax": "门点 ID 最多 64 个字符。",
+          "scheduleMax": "时段最多 128 个字符。",
+          "memberCountRequired": "请输入成员数。",
+          "memberCountMax": "成员数格式无效。",
+          "memberCountInteger": "成员数必须是大于或等于 0 的整数。",
+          "buildingRequired": "此范围类型必须选择楼宇。",
+          "areaRequired": "此范围类型必须选择区域。",
+          "doorRequired": "门点范围必须选择具体门点。"
+        },
+        "disabledReason": {
+          "buildingAllScope": "策略覆盖全部区域时无需选择楼宇。",
+          "areaAllScope": "策略覆盖全部区域时无需选择区域。",
+          "areaBuildingScope": "楼宇级策略无需选择区域。",
+          "areaNeedsBuilding": "请先选择楼宇，再选择区域。",
+          "doorScopeOnly": "只有门点级策略才需要选择门点。",
+          "doorNeedsArea": "请先选择区域，再选择门点。"
+        }
       },
       "policyLedgerTable": {
         "columns": {
@@ -2964,16 +3331,16 @@
       "openLink": "打开链接",
       "sending": "发送中",
       "sendDelivery": "发送投递",
-      "batchRetrying": "批量重试中",
-      "batchRetryDelivery": "批量重试投递",
-      "repairingStatus": "修复中状态",
-      "batchRepairStatus": "批量修复状态",
+      "batchRetrying": "批量重发中",
+      "batchRetryDelivery": "批量重发失败通道（{{count}}）",
+      "repairingStatus": "状态修复中",
+      "batchRepairStatus": "批量状态修复（{{count}}）",
       "backToEnterpriseReceiptReview": "返回到 企业回执复核",
-      "seedBatchReissueDraft": "填充批量补发草稿",
-      "backToEnterpriseSyncIssue": "返回到 企业同步发放",
+      "seedBatchReissueDraft": "填充批量补发草稿（{{count}}）",
+      "backToEnterpriseSyncIssue": "返回企业页按同步异常定位",
       "backToEnterpriseWorkerReview": "返回到 企业 Worker 复核",
       "retrying": "重试中",
-      "retryFailedDeliveryChannel": "重试失败投递渠道",
+      "retryFailedDeliveryChannel": "重发失败通道",
       "creating": "创建中",
       "createPhysicalTask": "创建实体任务",
       "issueEmployeePassFirst": "发放员工凭证优先",
@@ -3032,17 +3399,37 @@
         "pending": "待处理",
         "visitorTemporary": "访客临时"
       },
-      "readOnlyBoundary": "只读仅 边界",
+      "readOnlyBoundary": "当前角色可以查看钱包运营，但不能修改凭证。",
       "scenario": {
         "employeeMobile": "员工移动",
         "employeePhysical": "员工实体",
         "visitorQr": "访客二维码",
         "visitorTemporary": "访客临时"
       },
-      "readOnlyBoundaryOnly": "只读仅 边界仅",
-      "readOnlyIntro": "只读仅 说明",
-      "readOnlyDeliveryReceiptsOnly": "只读仅 投递回执仅",
-      "readOnlyPhysicalTasksOnly": "只读仅 实体任务仅"
+      "readOnlyBoundaryOnly": "只读角色。",
+      "readOnlyIntro": "只读角色可查看模板、凭证、投递回执和实体卡任务。",
+      "readOnlyDeliveryReceiptsOnly": "当前角色不能执行投递恢复动作。",
+      "readOnlyPhysicalTasksOnly": "当前角色不能执行实体卡任务动作。"
+    },
+    "disabledReasons": {
+      "busy": "另一个 Wallet 操作仍在执行，请等待完成。",
+      "deliveryInProgress": "投递正在发送中。",
+      "emailChannelOff": "先启用 Email 后才能编辑收件人。",
+      "enterBatchTargets": "先输入至少一个员工或访客 ID，再提交批量发放。",
+      "enterTargetID": "先输入员工或访客 ID，再发放凭证。",
+      "issuing": "发放正在执行中。",
+      "loading": "Wallet 数据正在加载或刷新。",
+      "noIssueReadyTargets": "当前没有可直接发放的缺失 Enterprise 目标。",
+      "noMissingTargets": "预填批次中没有缺失的 Enterprise 目标。",
+      "noPrefilledTargets": "当前没有可恢复的 Enterprise 预填目标。",
+      "noReissueTargets": "当前没有可用于批量补发的失败投递目标。",
+      "noRepairablePasses": "当前投递回执中没有可修复状态的凭证。",
+      "noRetryableDeliveries": "当前视图没有可重试的失败投递通道。",
+      "readOnly": "当前角色可以查看 Wallet 操作，但不能修改凭证。",
+      "selectDeliveryPass": "先选择已发放凭证，再发送投递。",
+      "selectPasses": "先在当前视图选择至少一个凭证，再执行批量操作。",
+      "selectTemplate": "先选择发放模板，再提交。",
+      "whatsAppChannelOff": "先启用 WhatsApp 后才能编辑收件人。"
     },
     "labels": {
       "accessMedium": {
@@ -3126,120 +3513,120 @@
       "loadOpsFailed": "加载操作失败",
       "tenantRequired": "租户必填",
       "saveAlertSubscriptionFailed": "保存告警订阅失败",
-      "templateNameRequired": "模板名称必填",
-      "createTemplateFailed": "创建模板失败",
-      "updateTemplateStatusFailed": "更新模板状态失败",
-      "issueTemplateRequired": "发放模板必填",
-      "issueTargetRequired": "发放目标必填",
-      "singleIssueFailed": "单个发放失败",
-      "batchIssueTemplateRequired": "批量发放模板必填",
-      "batchIssueTargetsRequired": "批量发放目标必填",
-      "batchIssueFailed": "批量发放失败",
-      "deliveryPassRequired": "投递凭证必填",
-      "deliveryChannelRequired": "投递渠道必填",
-      "deliverySubmitFailed": "投递提交失败",
-      "deliveryRetryFailed": "投递重试失败",
-      "batchRetryDeliveryFailed": "批量重试投递失败",
-      "reissueTemplateMissing": "补发模板缺失",
-      "batchRepairPassStatusFailed": "批量修复凭证状态失败",
-      "physicalTaskPassRequired": "实体任务凭证必填",
-      "createPhysicalTaskFailed": "创建实体任务失败",
-      "updatePhysicalTaskFailed": "更新实体任务失败",
-      "updatePassStatusFailed": "更新凭证状态失败",
-      "noActionableSelectedPasses": "无可操作已选择凭证",
+      "templateNameRequired": "请填写模板名称。",
+      "createTemplateFailed": "创建模板失败。",
+      "updateTemplateStatusFailed": "更新模板状态失败。",
+      "issueTemplateRequired": "发放凭证前请选择模板。",
+      "issueTargetRequired": "发放凭证前请输入目标 ID。",
+      "singleIssueFailed": "发放凭证失败。",
+      "batchIssueTemplateRequired": "批量发放前请选择模板。",
+      "batchIssueTargetsRequired": "批量发放至少需要 1 个目标 ID。",
+      "batchIssueFailed": "提交批量发放失败。",
+      "deliveryPassRequired": "投递前请选择已发放凭证。",
+      "deliveryChannelRequired": "请至少选择一个投递渠道。",
+      "deliverySubmitFailed": "发送凭证投递失败。",
+      "deliveryRetryFailed": "重试投递失败。",
+      "batchRetryDeliveryFailed": "重试所选投递渠道失败。",
+      "reissueTemplateMissing": "当前没有启用的补发模板。",
+      "batchRepairPassStatusFailed": "批量修复凭证状态失败。",
+      "physicalTaskPassRequired": "创建实体卡任务前，请先选择一张凭证。",
+      "createPhysicalTaskFailed": "创建实体卡任务失败。",
+      "updatePhysicalTaskFailed": "更新实体卡任务失败。",
+      "updatePassStatusFailed": "更新凭证状态失败。",
+      "noActionableSelectedPasses": "选中的凭证都不能执行此动作。",
       "batchUpdatePassStatusFailed": "批量更新凭证状态失败",
       "dispatchAlertsFailed": "分发告警失败",
       "retryAlertNotificationFailed": "重试告警通知失败",
       "refreshOpsFailed": "刷新操作失败",
-      "clipboardUnsupported": "剪贴板不支持",
-      "copySaveLinkFailed": "复制保存链接失败",
-      "refreshSaveLinkFailed": "刷新保存链接失败",
-      "generateQrCodeFailed": "生成二维码码 失败"
+      "clipboardUnsupported": "当前浏览器不可用剪贴板。",
+      "copySaveLinkFailed": "复制保存链接失败。",
+      "refreshSaveLinkFailed": "刷新保存链接失败。",
+      "generateQrCodeFailed": "生成二维码失败。"
     },
     "scenarios": {
       "employeeMobile": {
-        "templateName": "模板名称"
+        "templateName": "员工手机凭证"
       },
       "visitorQr": {
-        "templateName": "模板名称"
+        "templateName": "访客二维码凭证"
       }
     },
     "summaries": {
       "enterprise": {
-        "syncRecordLabel": "同步记录标签",
-        "syncSourceDefault": "同步来源默认",
-        "syncStatusSuffix": "同步状态后缀",
-        "workerAlertLabel": "Worker 告警标签",
+        "syncRecordLabel": "{{source}} 同步任务 {{jobID}}{{statusSuffix}}",
+        "syncSourceDefault": "已选来源",
+        "syncStatusSuffix": " / 状态 {{status}}",
+        "workerAlertLabel": "{{tenant}} Worker 信号 {{level}}{{thresholdSuffix}}",
         "currentTenant": "当前租户",
-        "workerAlertThresholdSuffix": "Worker 告警阈值后缀",
-        "flowAcceptedPrefix": "流程已接受前缀",
-        "organizationSegment": "组织片段",
-        "segmentHintSegment": "片段提示片段",
-        "recoveryConclusionSegment": "恢复结论片段",
-        "targetLocatedSegment": "目标定位片段",
-        "batchTargetsPrefilledSegment": "批量目标预填充片段",
-        "syncRecordSegment": "同步记录片段",
-        "workerAlertSegment": "Worker 告警片段",
-        "sentenceEnd": "句末末尾",
-        "receiptRecoveryRetryDelivery": "回执恢复重试投递",
-        "receiptRecoveryRepairStatus": "回执恢复修复状态",
-        "receiptRecoveryReviewClosed": "回执恢复复核已关闭",
-        "matchedPassesDirectDelivery": "匹配到凭证直接投递",
-        "noExistingPassPrefilledSingle": "无现有凭证预填充单个",
-        "backToReceiptRecoveryLoop": "返回到 回执恢复循环",
-        "allTargetsMatched": "全部目标匹配到",
-        "missingTargetsSeeded": "缺失目标已填充",
-        "noIssueReadyTargets": "无发放就绪目标",
-        "issueReadyTargetsSeeded": "发放就绪目标已填充",
-        "allPrefilledTargetsRestored": "全部预填充目标已恢复"
+        "workerAlertThresholdSuffix": " / 失败 {{failed}} / 阈值 {{threshold}}",
+        "flowAcceptedPrefix": "已从 Enterprise 打开 {{flowLabel}} {{stageLabel}}。",
+        "organizationSegment": "组织 {{tenant}}。",
+        "segmentHintSegment": "环节 {{segment}}。",
+        "recoveryConclusionSegment": "恢复动作 {{action}}。",
+        "targetLocatedSegment": "已预填目标 {{target}}。",
+        "batchTargetsPrefilledSegment": "已预填 {{count}} 个目标，匹配 {{matched}} 个，缺失 {{missing}} 个。",
+        "syncRecordSegment": "来源 {{syncRecord}}。",
+        "workerAlertSegment": "Worker 信号 {{workerAlert}}。",
+        "sentenceEnd": "提交前请复核已带入的钱包草稿。",
+        "receiptRecoveryRetryDelivery": "已从回执恢复打开投递重试。{{retryableCount}} 个通道可重试，{{repairableCount}} 张凭证可修复状态。",
+        "receiptRecoveryRepairStatus": "已从回执恢复打开状态修复。{{repairableCount}} 张凭证可修复，{{retryableCount}} 个通道仍可重试。",
+        "receiptRecoveryReviewClosed": "回执恢复已标记为闭环。{{failedCount}} 条失败投递记录仍会保留用于审计。",
+        "matchedPassesDirectDelivery": "已有 {{count}} 张凭证匹配此 Enterprise 目标，已选中用于投递复核。",
+        "noExistingPassPrefilledSingle": "没有现有凭证匹配此 Enterprise 目标，已改为准备单笔发放草稿。",
+        "backToReceiptRecoveryLoop": "回执恢复上下文已启用。闭环前请先复核投递回执。",
+        "allTargetsMatched": "所有预填 Enterprise 目标都已匹配现有凭证。",
+        "missingTargetsSeeded": "{{count}} 个缺失 Enterprise 目标已保留在批量发放草稿中。",
+        "noIssueReadyTargets": "暂无可发放的缺失 Enterprise 目标。",
+        "issueReadyTargetsSeeded": "{{count}} 个可发放 Enterprise 目标已填入批量草稿。",
+        "allPrefilledTargetsRestored": "{{count}} 个预填 Enterprise 目标已恢复到批量草稿。"
       },
-      "templateCreated": "模板已创建",
-      "templateStatusUpdated": "模板状态已更新",
-      "singleIssueSubmitted": "单个发放已提交",
-      "batchIssueSubmitted": "批量发放已提交",
-      "deliverySubmitted": "投递已提交",
-      "reasonSuffix": "原因后缀",
-      "deliveryRetrySubmitted": "投递重试已提交",
-      "noRetryableDeliveryChannels": "无可重试投递渠道",
-      "batchRetryDeliverySubmitted": "批量重试投递已提交",
-      "batchRetryDeliveryFailedSuffix": "批量重试投递失败后缀",
-      "noReissueTargets": "无补发目标",
-      "reissueDraftSeeded": "补发草稿已填充",
-      "reissueTemplateReady": "补发模板就绪",
-      "reissueTemplateInactive": "补发模板未启用",
-      "noRepairableDeliveryPasses": "无可修复投递凭证",
-      "batchRepairPassStatusSubmitted": "批量修复凭证状态已提交",
-      "batchRepairPassStatusFailedSuffix": "批量修复凭证状态失败后缀",
-      "physicalTaskCreated": "实体任务已创建",
-      "physicalTaskUpdated": "实体任务已更新",
-      "passStatusUpdated": "凭证状态已更新",
-      "batchPassActionCompleted": "批量凭证动作已完成",
-      "alertDispatchEvaluated": "告警分发已评估",
-      "alertRetryResult": "告警重试结果",
-      "scenarioLedgerFocused": "场景台账聚焦",
-      "scenarioPresetAppliedWithTemplate": "场景预设已应用含 模板",
-      "scenarioPresetAppliedWithoutTemplate": "场景预设已应用不含模板",
-      "saveLinkCopied": "保存链接已复制",
-      "saveLinkRefreshed": "保存链接已刷新"
+      "templateCreated": "{{passType}} 模板 {{templateName}} 已创建。",
+      "templateStatusUpdated": "模板 {{templateName}} 已标记为 {{status}}。",
+      "singleIssueSubmitted": "{{targetType}} {{targetID}} 凭证已提交，状态 {{status}}。",
+      "batchIssueSubmitted": "已通过 {{executionMode}} 提交 {{count}} 个 {{targetType}} 目标的批量发放。",
+      "deliverySubmitted": "{{targetID}} 投递已提交，状态 {{status}}{{reasonSuffix}}。",
+      "reasonSuffix": "（{{reason}}）",
+      "deliveryRetrySubmitted": "{{targetID}} 投递重试已提交，状态 {{status}}{{reasonSuffix}}。",
+      "noRetryableDeliveryChannels": "暂无可重试投递渠道。",
+      "batchRetryDeliverySubmitted": "已批量重发 {{total}} 条失败通道，成功 {{successCount}} 条{{failedSuffix}}。",
+      "batchRetryDeliveryFailedSuffix": "，失败 {{failedCount}} 条",
+      "noReissueTargets": "失败投递中暂无可补发目标。",
+      "reissueDraftSeeded": "已用模板 {{templateName}} 填入 {{count}} 个补发目标。{{statusHint}}",
+      "reissueTemplateReady": "模板已启用。",
+      "reissueTemplateInactive": "模板未启用，提交前请先启用。",
+      "noRepairableDeliveryPasses": "失败投递回执中没有可修复状态的凭证。",
+      "batchRepairPassStatusSubmitted": "已按失败回执批量修复 {{total}} 张凭证状态，成功 {{successCount}} 张{{failedSuffix}}。",
+      "batchRepairPassStatusFailedSuffix": "，失败 {{failedCount}} 张",
+      "physicalTaskCreated": "{{taskType}} 任务已为 {{targetID}} 创建，状态 {{status}}。",
+      "physicalTaskUpdated": "{{taskType}} 任务已将 {{targetID}} 切换到 {{status}}。",
+      "passStatusUpdated": "{{targetType}} {{targetID}} 凭证已切换到 {{status}}。",
+      "batchPassActionCompleted": "{{action}} 已完成：成功 {{succeeded}} 条，失败 {{failed}} 条。",
+      "alertDispatchEvaluated": "钱包告警派发已完成评估：候选 {{totalAlerts}} 条 / 已发送 {{dispatched}} 条 / 已跳过 {{skipped}} 条 / 失败 {{failed}} 条。",
+      "alertRetryResult": "告警重试完成，状态 {{status}}{{reasonSuffix}}。",
+      "scenarioLedgerFocused": "已聚焦到 {{scenario}} 台账。",
+      "scenarioPresetAppliedWithTemplate": "已应用 {{scenario}} 预设，当前模板为 {{templateName}}。",
+      "scenarioPresetAppliedWithoutTemplate": "已应用 {{scenario}} 预设。发放前请先创建或选择模板。",
+      "saveLinkCopied": "已复制 {{targetID}} 的保存链接。",
+      "saveLinkRefreshed": "已刷新 {{targetID}} 的保存链接。"
     },
     "warnings": {
       "aggregateTenantLoadFailed": "汇总租户加载失败"
     },
     "page": {
       "eyebrow": "凭证运营",
-      "title": "MistyPass 凭证工作台",
+      "title": "Mistyislet 凭证工作台",
       "description": "统一管理员工长期凭证、访客临时凭证、投递回执、实体卡任务和队列异常。"
     },
     "tabs": {
       "operations": "操作",
       "advanced": "高级"
     },
-    "operations": {
-      "title": "日常发放与状态维护",
-      "description": "把模板选择、单笔/批量发放、投递和凭证状态维护收敛到一个日常操作区。",
-      "scenarioStats": "场景统计",
-      "scenarioTemplateReady": "场景模板就绪",
-      "scenarioTemplateMissing": "场景模板缺失"
+      "operations": {
+        "title": "日常发放与状态维护",
+        "description": "把模板选择、单笔/批量发放、投递和凭证状态维护收敛到一个日常操作区。",
+        "scenarioStats": "{{passCount}} 张凭证 / {{saveLinkCount}} 个保存链接",
+        "scenarioTemplateReady": "模板已就绪",
+        "scenarioTemplateMissing": "缺少模板"
     },
     "cards": {
       "employeeIssuance": {
@@ -3257,60 +3644,60 @@
       "statusMaintenance": {
         "title": "凭证状态维护",
         "description": "查看已发放凭证并执行挂起、恢复、吊销等状态动作。",
-        "stats": "统计"
+        "stats": "{{suspendedCount}} 张已挂起 / {{revocableCount}} 张可吊销"
       },
       "deliveryWorkspace": {
         "title": "投递工作区",
         "description": "集中处理保存链接、邮件、WhatsApp 和补发投递，避免凭证已生成但用户未收到。",
         "activeTemplate": "启用中模板",
-        "noTemplate": "无模板",
-        "dispatchChannels": "分发渠道"
+        "noTemplate": "暂无启用模板",
+        "dispatchChannels": "邮件 / WhatsApp 投递"
       },
       "recentDelivery": {
         "title": "最近投递",
         "description": "查看最新投递任务和渠道结果，优先处理失败或缺少保存链接的凭证。",
-        "empty": "空"
+        "empty": "暂无最近投递任务。"
       },
       "sendDelivery": {
         "title": "发送凭证投递",
         "description": "选择已发放凭证并通过邮件或 WhatsApp 发送保存链接。",
-        "passHasSaveLink": "凭证有 保存链接",
+        "passHasSaveLink": "凭证已有保存链接",
         "passMissingSaveLink": "凭证缺失保存链接",
-        "emptyNoSaveLinks": "空无 保存链接",
-        "emptySelectPass": "空选择凭证",
-        "emailHint": "邮箱提示",
-        "whatsAppHint": "WhatsApp 提示"
+        "emptyNoSaveLinks": "暂无可投递的已发放凭证保存链接。",
+        "emptySelectPass": "选择一张已发放凭证后发送保存链接。",
+        "emailHint": "多个邮箱用英文逗号分隔。",
+        "whatsAppHint": "多个 WhatsApp 号码用英文逗号分隔。"
       },
       "recentDeliveryReceipts": {
         "title": "投递回执与恢复",
         "description": "按回执状态定位可重试投递、需修复状态和需补发的凭证。",
-        "recoveryStatusTitle": "恢复状态标题",
-        "step1Title": "步骤 1",
-        "step1Description": "步骤 1 说明",
-        "step2Title": "步骤 2",
-        "step2Description": "步骤 2 说明",
-        "step3Title": "步骤 3",
-        "step3Description": "步骤 3 说明",
-        "matchRetryableByHint": "匹配可重试按 提示",
-        "retryableCount": "可重试数量",
-        "batchLimit": "批量上限",
-        "repairableAndReissueCount": "可修复与 补发数量",
-        "empty": "空",
-        "retryFromSource": "重试来自来源"
+        "recoveryStatusTitle": "恢复状态",
+        "step1Title": "归类失败",
+        "step1Description": "{{failedCount}} 条投递失败：{{retryableCount}} 条可重试，{{nonRetryableCount}} 条需人工复核。",
+        "step2Title": "执行恢复",
+        "step2Description": "可执行 {{retryableCount}} 条重试、{{repairableCount}} 张状态修复和 {{reissueCount}} 个补发草稿。",
+        "step3Title": "确认闭环",
+        "step3Description": "恢复完成后回到 Enterprise 告警确认回执流程不再阻塞闭环。",
+        "matchRetryableByHint": "按 {{hint}} 筛选后有 {{count}} 条可重试投递。",
+        "retryableCount": "当前有 {{count}} 条可重试投递。",
+        "batchLimit": "本次批量动作将处理 {{count}} 条。",
+        "repairableAndReissueCount": "可修复 {{repairableCount}} 张状态，并可生成 {{reissueCount}} 个补发草稿。",
+        "empty": "暂无需要恢复的投递回执。",
+        "retryFromSource": " · 重试来源 {{sourceID}}"
       },
       "physicalTasks": {
         "title": "实体卡任务",
         "description": "为需要实体卡的员工创建制卡、补卡、挂失和回收任务。",
-        "lossReportHint": "遗失报告提示",
-        "defaultHint": "默认提示",
-        "emptyNoEligiblePass": "空无 可处理凭证",
-        "emptySelectPass": "空选择凭证"
+        "lossReportHint": "仅对需要补发或阻断的凭证使用挂失。",
+        "defaultHint": "为所选实体卡凭证创建制卡或补发任务。",
+        "emptyNoEligiblePass": "暂无可创建任务的员工实体卡凭证。",
+        "emptySelectPass": "选择一张员工实体卡凭证后创建任务。"
       },
       "recentPhysicalTasks": {
         "title": "最近实体卡任务",
         "description": "跟踪实体卡任务状态、卡号和最近更新时间。",
-        "empty": "空",
-        "passStatusLabel": "凭证状态标签",
+        "empty": "暂无最近实体卡任务。",
+        "passStatusLabel": "凭证状态",
         "taskID": "任务 ID",
         "updatedAt": "更新时间",
         "cardNumber": "卡编号"
@@ -3318,12 +3705,12 @@
       "issuedPasses": {
         "title": "已发放凭证",
         "description": "按人员、访客、模板和状态检索凭证，并对选中项执行批量维护。",
-        "matchedCount": "匹配到数量",
-        "selectedCount": "已选择数量",
-        "selectionHint": "选择提示",
-        "loading": "加载中",
-        "emptyNoPasses": "空无 凭证",
-        "emptyFiltered": "空筛选后"
+        "matchedCount": "匹配到 {{count}} 张凭证",
+        "selectedCount": "当前视图已选择 {{count}} 张",
+        "selectionHint": "选择凭证后执行批量维护。",
+        "loading": "正在加载已发放凭证...",
+        "emptyNoPasses": "暂无已发放凭证。",
+        "emptyFiltered": "当前筛选条件下没有匹配凭证。"
       }
     },
     "placeholders": {
@@ -3358,7 +3745,17 @@
     },
     "advanced": {
       "title": "高级队列与告警",
-      "description": "面向管理员查看发放队列、趋势、DLQ、告警订阅和跨租户风险排行。"
+      "description": "默认折叠低频任务：实体卡任务、告警订阅、队列趋势、通知记录、DLQ 清理归档和跨租户风险排行。",
+      "expand": "展开高级运营",
+      "collapse": "收起高级运营",
+      "summary": {
+        "physicalTasks": "实体卡任务",
+        "alerts": "告警",
+        "notifications": "通知",
+        "dlqArchives": "DLQ 归档",
+        "subscriptionEnabled": "订阅已启用",
+        "subscriptionDisabled": "订阅未启用"
+      }
     },
     "dialogs": {
       "qrCode": {
@@ -3404,6 +3801,9 @@
         "enabledHint": "关闭后仅保留指标看板。",
         "emailHint": "邮件通知通道。",
         "whatsappHint": "即时通知通道。",
+        "thresholdPlaceholder": "DLQ 告警阈值",
+        "windowPlaceholder": "评估窗口（秒）",
+        "cooldownPlaceholder": "通知冷却时间（秒）",
         "receiverGroups": "receiver_groups（逗号分隔）",
         "lastUpdated": "最后更新：{{time}}",
         "readOnlyHint": "当前角色为只读。可查看发放状态，但无法修改订阅策略。",
@@ -3481,7 +3881,16 @@
         "submittingBatch": "提交中...",
         "submitBatchIssue": "提交批量发放",
         "recentBatchReceipts": "最近批量回执",
-        "receiptCount": "{{count}} 条记录"
+        "receiptCount": "{{count}} 条记录",
+        "validation": {
+          "selectTemplateRequired": "请先选择发放模板",
+          "targetIDRequired": "请输入员工或访客 ID",
+          "targetIDMax": "员工或访客 ID 最多 128 个字符",
+          "expirationInvalid": "过期时间格式无效",
+          "selectBatchTemplateRequired": "请先选择批量发放模板",
+          "batchTargetsRequired": "请至少输入一个员工或访客 ID",
+          "batchTargetsMax": "批量目标内容过长，请拆分后重新提交"
+        }
       },
       "riskOverview": {
         "pendingAnomalies": "待处理异常",
@@ -3518,6 +3927,7 @@
         "description": "模板定义目标类型、发放场景与默认样式。可套用场景预设，一键填充推荐名称、class_id 与 style_config。",
         "templateName": "模板名称，例如总部员工长期凭证",
         "classID": "class_id（可选）",
+        "styleConfigPlaceholder": "style_config（可选，每行 key=value）\nbrand_color=#0f766e\nlogo_variant=light",
         "templateType": "模板类型",
         "employeeTemplate": "员工凭证模板",
         "visitorTemplate": "访客 / 临时凭证模板",
@@ -3537,7 +3947,13 @@
         "setDefault": "设为默认",
         "processing": "处理中...",
         "disable": "停用",
-        "enable": "启用"
+        "enable": "启用",
+        "validation": {
+          "templateNameRequired": "请输入模板名称",
+          "templateNameMax": "模板名称最多 128 个字符",
+          "classIDMax": "class_id 最多 128 个字符",
+          "styleConfigMax": "style_config 过长，请拆分后提交"
+        }
       }
     }
   },
@@ -3555,11 +3971,11 @@
   },
   "viewer": {
     "role": {
-      "superAdmin": "平台管理员",
-      "tenantAdmin": "租户管理员",
-      "operator": "操作员",
-      "buildingAdmin": "楼宇管理员",
-      "resident": "普通用户"
+      "superAdmin": "Organization Admin",
+      "tenantAdmin": "Organization Admin",
+      "operator": "Place Admin",
+      "buildingAdmin": "Place Admin",
+      "resident": "不支持的账号"
     }
   }
 }

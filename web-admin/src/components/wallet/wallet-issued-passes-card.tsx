@@ -96,6 +96,13 @@ export function WalletIssuedPassesCard({
   const { t } = useTranslation()
   const passVisibleColumnCount = passTable.getVisibleLeafColumns().length
   const passToggleableColumns = passTable.getAllLeafColumns().filter((column) => column.getCanHide())
+  const batchActionDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : batchUpdatingPassAction.length > 0
+      ? t("walletPage.disabledReasons.busy")
+      : selectedFilteredPassCount === 0
+        ? t("walletPage.disabledReasons.selectPasses")
+        : ""
   const passColumnLabels: Record<string, string> = {
     expires_at: t("walletPage.table.columns.expiresAt"),
     save_link: t("walletPage.table.columns.saveLink"),
@@ -114,14 +121,14 @@ export function WalletIssuedPassesCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_180px_180px_220px]">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,180px)_minmax(0,180px)_minmax(0,220px)]">
           <Input
             value={passQuery}
             onChange={(event) => onPassQueryChange(event.target.value)}
             placeholder={t("walletPage.placeholders.passSearch")}
           />
           <Select value={passStatusFilter} onValueChange={(value) => onPassStatusFilterChange(value as WalletPassStatusFilter)}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder={t("walletPage.placeholders.passStatus")} />
             </SelectTrigger>
             <SelectContent>
@@ -133,7 +140,7 @@ export function WalletIssuedPassesCard({
             </SelectContent>
           </Select>
           <Select value={passTargetTypeFilter} onValueChange={(value) => onPassTargetTypeFilterChange(value as WalletPassTargetTypeFilter)}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder={t("walletPage.placeholders.targetType")} />
             </SelectTrigger>
             <SelectContent>
@@ -143,7 +150,7 @@ export function WalletIssuedPassesCard({
             </SelectContent>
           </Select>
           <Select value={passTemplateFilter} onValueChange={onPassTemplateFilterChange}>
-            <SelectTrigger>
+            <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder={t("walletPage.placeholders.template")} />
             </SelectTrigger>
             <SelectContent>
@@ -178,6 +185,7 @@ export function WalletIssuedPassesCard({
                 variant="outline"
                 onClick={onClearSelection}
                 disabled={!writable || batchUpdatingPassAction.length > 0}
+                title={!writable ? t("walletPage.disabledReasons.readOnly") : batchUpdatingPassAction.length > 0 ? t("walletPage.disabledReasons.busy") : undefined}
               >
                 {t("walletPage.actions.clearSelection")}
               </Button>
@@ -187,6 +195,7 @@ export function WalletIssuedPassesCard({
               variant="outline"
               onClick={() => onUpdateSelectedPasses("suspend")}
               disabled={!writable || selectedFilteredPassCount === 0 || batchUpdatingPassAction.length > 0}
+              title={batchActionDisabledReason || undefined}
             >
               {batchUpdatingPassAction === "suspend" ? t("walletPage.actions.batchSuspending") : t("walletPage.actions.batchSuspend")}
             </Button>
@@ -195,6 +204,7 @@ export function WalletIssuedPassesCard({
               variant="outline"
               onClick={() => onUpdateSelectedPasses("activate")}
               disabled={!writable || selectedFilteredPassCount === 0 || batchUpdatingPassAction.length > 0}
+              title={batchActionDisabledReason || undefined}
             >
               {batchUpdatingPassAction === "activate" ? t("walletPage.actions.batchActivating") : t("walletPage.actions.batchActivate")}
             </Button>
@@ -203,9 +213,13 @@ export function WalletIssuedPassesCard({
               variant="outline"
               onClick={() => onUpdateSelectedPasses("revoke")}
               disabled={!writable || selectedFilteredPassCount === 0 || batchUpdatingPassAction.length > 0}
+              title={batchActionDisabledReason || undefined}
             >
               {batchUpdatingPassAction === "revoke" ? t("walletPage.actions.batchRevoking") : t("walletPage.actions.batchRevoke")}
             </Button>
+            {batchActionDisabledReason ? (
+              <p className="w-full basis-full text-xs text-muted-foreground">{batchActionDisabledReason}</p>
+            ) : null}
           </div>
         </div>
 

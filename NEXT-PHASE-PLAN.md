@@ -181,7 +181,7 @@
 阶段八（业务迭代）← 持续进行
 ```
 
-> Web Admin UI 重设计、设计语言与角色化整改已独立到 `MISTYPASS-ROLE-BASED-UI-REFORM-PLAN.md`，与上述阶段并行推进。
+> Web Admin UI 角色化整改已独立到 `MISTYPASS-ROLE-BASED-UI-REFORM-PLAN.md`（阶段 0-6 已完成），以 Kisi 为基准的全面重构计划见 `MISTYPASS-KISI-UI-REFORM-PLAN.md`，与上述阶段并行推进。
 
 ---
 

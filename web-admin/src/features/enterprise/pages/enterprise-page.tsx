@@ -2371,9 +2371,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         const message =
           err instanceof Error
             ? err.message
-            : t("enterprisePage.errors.loadWorkerAlertNotificationsFailed", {
-                defaultValue: "failed to load worker alert notifications",
-              })
+            : t("enterprisePage.errors.loadWorkerAlertNotificationsFailed")
         setError(message)
         setWorkerAlertNotifications([])
         setWorkerAlertNotificationFilterCounts(emptyWorkerAlertNotificationFilterCounts)
@@ -2415,9 +2413,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         const message =
           err instanceof Error
             ? err.message
-            : t("enterprisePage.errors.loadWebhookExecutionsFailed", {
-                defaultValue: "failed to load webhook execution history",
-              })
+            : t("enterprisePage.errors.loadWebhookExecutionsFailed")
         setError(message)
         setHRISWebhookExecutions([])
         setHRISWebhookExecutionStatusCounts(emptyHRISWebhookExecutionStatusCounts)
@@ -2478,9 +2474,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         const message =
           err instanceof Error
             ? err.message
-            : t("enterprisePage.errors.loadWebhookExecutionDetailFailed", {
-                defaultValue: "failed to load webhook execution detail",
-              })
+            : t("enterprisePage.errors.loadWebhookExecutionDetailFailed")
         setSelectedHRISWebhookExecution(null)
         setSelectedHRISWebhookExecutionError(message)
       })
@@ -2518,9 +2512,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         const message =
           err instanceof Error
             ? err.message
-            : t("enterprisePage.errors.loadWebhookReceiptsFailed", {
-                defaultValue: "failed to load webhook receipts",
-              })
+            : t("enterprisePage.errors.loadWebhookReceiptsFailed")
         setError(message)
         setHRISWebhookReceipts([])
         setHRISWebhookReceiptQueueCounts(null)
@@ -2562,9 +2554,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         const message =
           err instanceof Error
             ? err.message
-            : t("enterprisePage.errors.loadWebhookDLQFailed", {
-                defaultValue: "failed to load webhook DLQ entries",
-              })
+            : t("enterprisePage.errors.loadWebhookDLQFailed")
         setError(message)
         setHRISWebhookDLQEntries([])
         setHRISWebhookDLQReplayCounts(null)
@@ -2696,9 +2686,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.loadWorkerAlertNotificationsFailed", {
-              defaultValue: "failed to load worker alert notifications",
-            })
+          : t("enterprisePage.errors.loadWorkerAlertNotificationsFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationListLoadingMore(false)
@@ -2726,9 +2714,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.loadWebhookExecutionsFailed", {
-              defaultValue: "failed to load webhook execution history",
-            })
+          : t("enterprisePage.errors.loadWebhookExecutionsFailed")
       setError(message)
     } finally {
       setHRISWebhookExecutionListLoadingMore(false)
@@ -2756,9 +2742,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.loadWebhookReceiptsFailed", {
-              defaultValue: "failed to load webhook receipts",
-            })
+          : t("enterprisePage.errors.loadWebhookReceiptsFailed")
       setError(message)
     } finally {
       setHRISWebhookReceiptListLoadingMore(false)
@@ -2786,9 +2770,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.loadWebhookDLQFailed", {
-              defaultValue: "failed to load webhook DLQ entries",
-            })
+          : t("enterprisePage.errors.loadWebhookDLQFailed")
       setError(message)
     } finally {
       setHRISWebhookDLQListLoadingMore(false)
@@ -2882,7 +2864,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       )
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationExported", {
-          defaultValue: "Worker alert notifications exported: {{count}} records",
           count: workerAlertNotificationTotal,
         })
       )
@@ -2890,9 +2871,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.exportWorkerAlertNotificationsFailed", {
-              defaultValue: "failed to export worker alert notifications",
-            })
+          : t("enterprisePage.errors.exportWorkerAlertNotificationsFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationExporting(false)
@@ -3044,7 +3023,9 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
         t("enterprisePage.syncSummary.approvalReviewed", {
           approvalID,
           decisionLabel:
-            decision === "approved" ? t("enterprisePage.actions.approved") : t("enterprisePage.actions.rejected"),
+            decision === "approved"
+              ? t("enterpriseAlertsWorkspace.jitApproval.actions.approve")
+              : t("enterpriseAlertsWorkspace.jitApproval.actions.reject"),
         })
       )
     } catch (err) {
@@ -3115,7 +3096,9 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       setSyncSummary(
         t("enterprisePage.syncSummary.batchReviewCompleted", {
           decisionLabel:
-            decision === "approved" ? t("enterprisePage.actions.approved") : t("enterprisePage.actions.rejected"),
+            decision === "approved"
+              ? t("enterpriseAlertsWorkspace.jitApproval.actions.approve")
+              : t("enterpriseAlertsWorkspace.jitApproval.actions.reject"),
           successCount,
           failedCount,
         })
@@ -3546,7 +3529,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       })
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationRetried", {
-          defaultValue: "Worker alert notification retried: {{workerLabel}} / status {{status}} / attempt {{attempt}}",
           status: retried.status,
           attempt: retried.attempt ?? 0,
           workerLabel: retried.worker_label || retried.worker_action || nextNotificationID,
@@ -3557,9 +3539,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.retryWorkerAlertNotificationFailed", {
-              defaultValue: "failed to retry worker alert notification",
-            })
+          : t("enterprisePage.errors.retryWorkerAlertNotificationFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationActionID(null)
@@ -3594,8 +3574,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       })
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationAutoRetried", {
-          defaultValue:
-            "Worker alert auto retry completed: {{retried}} sent / {{failed}} failed / {{skipped}} skipped / {{suppressed}} suppressed",
           retried: result.retried,
           failed: result.failed,
           skipped: result.skipped,
@@ -3607,9 +3585,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.autoRetryWorkerAlertNotificationsFailed", {
-              defaultValue: "failed to auto retry worker alert notifications",
-            })
+          : t("enterprisePage.errors.autoRetryWorkerAlertNotificationsFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationAutoRetryActionID(null)
@@ -3642,8 +3618,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       })
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationBatchRetried", {
-          defaultValue:
-            "Worker alert notifications retried: {{retried}} sent / {{failed}} failed / {{skipped}} skipped / {{suppressed}} suppressed",
           retried: result.retried,
           failed: result.failed,
           skipped: result.skipped,
@@ -3655,9 +3629,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.retryWorkerAlertNotificationsBatchFailed", {
-              defaultValue: "failed to retry worker alert notifications",
-            })
+          : t("enterprisePage.errors.retryWorkerAlertNotificationsBatchFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationBatchActionID(null)
@@ -3690,7 +3662,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       })
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationBatchSuppressed", {
-          defaultValue: "Worker alert notifications suppressed: {{suppressed}} suppressed / {{skipped}} skipped",
           suppressed: result.suppressed,
           skipped: result.skipped,
         })
@@ -3700,9 +3671,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.suppressWorkerAlertNotificationsBatchFailed", {
-              defaultValue: "failed to suppress worker alert notifications",
-            })
+          : t("enterprisePage.errors.suppressWorkerAlertNotificationsBatchFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationSuppressBatchActionID(null)
@@ -3736,7 +3705,6 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       })
       setSyncSummary(
         t("enterprisePage.syncSummary.workerAlertNotificationBatchRestored", {
-          defaultValue: "Worker alert notifications restored: {{restored}} restored / {{skipped}} skipped",
           restored: result.restored,
           skipped: result.skipped,
         })
@@ -3746,9 +3714,7 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
       const message =
         err instanceof Error
           ? err.message
-          : t("enterprisePage.errors.restoreWorkerAlertNotificationsBatchFailed", {
-              defaultValue: "failed to restore worker alert notifications",
-            })
+          : t("enterprisePage.errors.restoreWorkerAlertNotificationsBatchFailed")
       setError(message)
     } finally {
       setWorkerAlertNotificationRestoreBatchActionID(null)

@@ -1,13 +1,7 @@
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
+import { DetailDrawer } from "@/components/detail-drawer"
 
 type EventDetailDrawerEvent = {
   actor: string
@@ -39,15 +33,15 @@ export function EventDetailDrawer({ event, onOpenChange, open }: EventDetailDraw
   const { t, i18n } = useTranslation()
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto bg-background sm:max-w-xl">
-        <SheetHeader>
-          <SheetTitle>{event?.id ?? t("events.detail.titleFallback")}</SheetTitle>
-          <SheetDescription>{event ? t("events.detail.description") : ""}</SheetDescription>
-        </SheetHeader>
-
+    <DetailDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title={event?.id ?? t("events.detail.titleFallback")}
+      description={event ? t("events.detail.description") : undefined}
+      contentClassName="bg-background text-foreground sm:max-w-xl"
+    >
         {event ? (
-          <div className="space-y-4 px-4 pb-4">
+          <>
             <div className="grid gap-3 rounded-xl border bg-muted/15 p-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-muted-foreground">{t("events.detail.fields.type")}</span>
@@ -104,10 +98,9 @@ export function EventDetailDrawer({ event, onOpenChange, open }: EventDetailDraw
                 {formatJSON(event.raw)}
               </pre>
             </div>
-          </div>
+          </>
         ) : null}
-      </SheetContent>
-    </Sheet>
+    </DetailDrawer>
   )
 }
 

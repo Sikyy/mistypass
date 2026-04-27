@@ -160,6 +160,9 @@ func (s *server) listFloors(w http.ResponseWriter, r *http.Request) {
 	if buildingScope != nil {
 		items = filterFloorsByScope(items, buildingScope)
 	}
+	if placeID := strings.TrimSpace(r.URL.Query().Get("place_id")); placeID != "" {
+		items = filterFloorsByScope(items, map[string]struct{}{placeID: {}})
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
 	})
@@ -220,6 +223,9 @@ func (s *server) listAreas(w http.ResponseWriter, r *http.Request) {
 	items := s.spaceSvc.ListAreas(tenantID)
 	if buildingScope != nil {
 		items = filterAreasByScope(items, buildingScope)
+	}
+	if placeID := strings.TrimSpace(r.URL.Query().Get("place_id")); placeID != "" {
+		items = filterAreasByScope(items, map[string]struct{}{placeID: {}})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,

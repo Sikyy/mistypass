@@ -37,10 +37,9 @@ export function WalletAlertNotificationRecordsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("walletPage.components.alertNotificationRecords.title", { defaultValue: "Alert notification records" })}</CardTitle>
+        <CardTitle className="text-base">{t("walletPage.components.alertNotificationRecords.title")}</CardTitle>
         <CardDescription>
           {t("walletPage.components.alertNotificationRecords.description", {
-            defaultValue: "Recent {{count}} delivery results (including cooldown skips).",
             count: alertNotifications.length,
           })}
         </CardDescription>
@@ -49,30 +48,28 @@ export function WalletAlertNotificationRecordsCard({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.time", { defaultValue: "Time" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.errorCode", { defaultValue: "Error code" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.countThreshold", { defaultValue: "Count / threshold" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.attempt", { defaultValue: "Attempt" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.channels", { defaultValue: "Channels" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.receiverGroups", { defaultValue: "Receiver groups" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.status", { defaultValue: "Status" })}</TableHead>
-              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.actions", { defaultValue: "Actions" })}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.time")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.errorCode")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.countThreshold")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.attempt")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.channels")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.receiverGroups")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.status")}</TableHead>
+              <TableHead>{t("walletPage.components.alertNotificationRecords.columns.actions")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                  {t("walletPage.components.alertNotificationRecords.loading", { defaultValue: "Loading notification records..." })}
+                  {t("walletPage.components.alertNotificationRecords.loading")}
                 </TableCell>
               </TableRow>
             ) : null}
             {!loading && alertNotifications.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                  {t("walletPage.components.alertNotificationRecords.empty", {
-                    defaultValue: 'No records yet. Click "Evaluate and notify now" to create records.',
-                  })}
+                  {t("walletPage.components.alertNotificationRecords.empty")}
                 </TableCell>
               </TableRow>
             ) : null}
@@ -121,8 +118,8 @@ export function WalletAlertNotificationRecordsCard({
                         disabled={retryingAlertNotificationID === item.id || loading || refreshing || !writable}
                       >
                         {retryingAlertNotificationID === item.id
-                          ? t("walletPage.components.alertNotificationRecords.retrying", { defaultValue: "Retrying..." })
-                          : t("walletPage.components.alertNotificationRecords.retry", { defaultValue: "Retry" })}
+                          ? t("walletPage.components.alertNotificationRecords.retrying")
+                          : t("walletPage.components.alertNotificationRecords.retry")}
                       </Button>
                     ) : (
                       <span className="mp-kpi-note">-</span>

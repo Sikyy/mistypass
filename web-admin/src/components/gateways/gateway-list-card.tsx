@@ -53,7 +53,11 @@ export function GatewayListCard({
   const { t, i18n } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState("")
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => ({
+    bound_door_ids: false,
+    building: !platformViewer,
+    device_capacity: false,
+  }))
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 25,
@@ -247,7 +251,7 @@ export function GatewayListCard({
         <div className="flex flex-col gap-2 rounded-lg border bg-muted/10 px-3 py-2">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <Input
-              className="md:max-w-sm"
+              className="min-w-0 md:max-w-sm"
               value={globalFilter}
               onChange={(event) => {
                 setGlobalFilter(event.target.value)

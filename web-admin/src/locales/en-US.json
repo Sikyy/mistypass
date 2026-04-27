@@ -18,12 +18,12 @@
       "failed": "Login failed"
     },
     "hero": {
-      "badge": "MistyPass Enterprise & Space Access Platform",
+      "badge": "Mistyislet Enterprise & Space Access Platform",
       "title": "Unified Console for Enterprise, Building, and Access Issuance",
-      "description": "Built for platform admins, building operators, and enterprise teams with directory sync, credential issuance, and audit trails.",
+      "description": "Built for Organization Admins and Place Admins with directory sync, credential issuance, and audit trails.",
       "pointTenant": "Organization-level tenant isolation and role workbench",
       "pointSync": "Employee import, SSO, issuance, and event traceability",
-      "footer": "MistyPass Admin Console · MVP"
+      "footer": "Mistyislet Admin Console · MVP"
     },
     "form": {
       "title": "Sign in",
@@ -34,7 +34,7 @@
       "passwordPlaceholder": "********",
       "submit": "Sign in",
       "submitting": "Signing in...",
-      "devAccounts": "Dev-only test accounts: `superadmin@mistypass.local`, `tenant.admin@sudirman.co`, `building.admin.sudirman@mistypass.local`; password is `admin123`."
+      "devAccounts": "Dev-only view accounts: Organization Admin `organization.admin@mistypass.local` and Place Admin `place.admin.sudirman@mistypass.local`; password is `admin123`."
     }
   },
   "notFound": {
@@ -45,7 +45,7 @@
   },
   "noPermission": {
     "title": "This account cannot enter the admin console",
-    "description": "This account uses the resident role. The admin console is limited to platform, tenant, building, and operator roles.",
+    "description": "This account is not assigned to Organization Admin or Place Admin access.",
     "mobileHint": "{{email}} can continue through the mobile or self-service credential experience for daily access.",
     "logout": "Sign out and switch account"
   },
@@ -79,7 +79,7 @@
       },
       "wallet": {
         "label": "Issuance",
-        "description": "MistyPass issuance and status"
+        "description": "Mistyislet issuance and status"
       },
       "gateways": {
         "label": "Gateways",
@@ -131,8 +131,8 @@
         "missing": "No buildings assigned"
       },
       "operator": {
-        "label": "Operator view",
-        "value": "Scoped handling only"
+        "label": "Place Admin view",
+        "value": "Read-only place scope"
       }
     },
     "restoringSession": "Restoring current session..."
@@ -148,7 +148,7 @@
       "eyebrowPlatform": "Platform Workspace",
       "eyebrowBuildingAdmin": "Building Operations Workspace",
       "eyebrowTenant": "Enterprise Workspace",
-      "title": "MistyPass Control Center",
+      "title": "Mistyislet Control Center",
       "descriptionPlatform": "Real-time visibility for tenants, gateways, access events, and alarm posture.",
       "descriptionBuildingAdmin": "Focus on assigned building status, gateway online rate, and alarm handling without leaking unrelated scope.",
       "descriptionTenant": "Focus on current tenant space status, issuance operations, and security handling.",
@@ -457,6 +457,49 @@
       "allSeverities": "All Severities",
       "reset": "Reset Filters"
     },
+    "tabs": {
+      "queue": "Handling Queue",
+      "notifications": "Notifications"
+    },
+    "queue": {
+      "groupCount": "{{count}} items",
+      "fields": {
+        "tenant": "Tenant",
+        "building": "Building",
+        "area": "Area",
+        "door": "Door",
+        "detectedAt": "Detected At"
+      },
+      "nextAction": {
+        "acknowledge": "Acknowledge",
+        "investigate": "Investigate",
+        "mitigate": "Mitigate",
+        "close": "Close",
+        "done": "Completed"
+      },
+      "groups": {
+        "open": {
+          "title": "Open",
+          "description": "Alarms waiting for first acknowledgment or acknowledged but not yet under investigation.",
+          "empty": "No alarms waiting for acknowledgment."
+        },
+        "investigating": {
+          "title": "Investigating",
+          "description": "Alarms currently under investigation or escalated, ready to move toward mitigation.",
+          "empty": "No alarms under investigation."
+        },
+        "mitigated": {
+          "title": "Mitigated",
+          "description": "Alarms mitigated but not yet closed.",
+          "empty": "No mitigated alarms waiting for closure."
+        },
+        "closed": {
+          "title": "Closed",
+          "description": "Resolved alarms and alarms marked false positive.",
+          "empty": "No closed alarms."
+        }
+      }
+    },
     "notificationPolicy": {
       "title": "Alarm Notification Policy",
       "descriptionBuildingAdmin": "Default receiver group is Security Team; building admins can add on-duty groups and use Email/WhatsApp channels.",
@@ -539,7 +582,7 @@
       "legacyController": "Legacy Controller"
     },
     "deviceSource": {
-      "mistypassProcured": "MistyPass Procured",
+      "mistypassProcured": "Mistyislet Procured",
       "legacyIntegration": "Legacy Integration"
     },
     "inventoryStatus": {
@@ -585,6 +628,20 @@
       "rebootQueued": "Reboot queued ({{taskID}}), target {{gatewayID}}"
     },
     "readOnlyBoundaryHint": "Disabled or hidden actions are permission boundaries, not system faults.",
+    "disabledReasons": {
+      "commandBusy": "A gateway command or inventory update is still running. Wait for it to finish.",
+      "enterBatchTargets": "Select table rows or paste serials before batch update.",
+      "enterConfigVersion": "Enter a config version before publishing.",
+      "enterDeviceSerial": "Enter or probe a device serial before mounting.",
+      "inventoryAlreadyStatus": "This serial is already {{status}}.",
+      "inventoryScrappedCannotFreeze": "Scrapped serials cannot be frozen; return them first if they should re-enter stock.",
+      "noDeviceSlots": "No mounted-device slots remain on this gateway ({{remaining}}).",
+      "readOnly": "Current role can view gateway operations but cannot change devices, bindings, or commands.",
+      "selectBoundDoor": "Select a bound door before unbinding it.",
+      "selectDoor": "Select a door before binding it to this gateway.",
+      "selectGateway": "Select a gateway before dispatching this action.",
+      "selectTenant": "Select a tenant before registration or inventory import."
+    },
     "header": {
       "eyebrow": "Gateway Operations",
       "titlePlatform": "Gateways",
@@ -624,6 +681,12 @@
         "title": "Online Devices",
         "note": "Reader/legacy device online stats."
       }
+    },
+    "setup": {
+      "title": "Gateway Setup",
+      "description": "Keep low-frequency registration tasks folded away from the live command center.",
+      "expand": "Open Setup",
+      "collapse": "Close Setup"
     },
     "register": {
       "title": "Register Gateway",
@@ -730,6 +793,13 @@
       "configVersionPlaceholder": "Config version",
       "publishConfig": "Publish Config",
       "reboot": "Reboot",
+      "rebootConfirm": {
+        "title": "Confirm Gateway Reboot",
+        "description": "Rebooting briefly interrupts heartbeat and access reports for devices mounted on this gateway. Continue only when the site can tolerate a short offline window.",
+        "targetLabel": "Target gateway",
+        "cancel": "Cancel",
+        "confirm": "Confirm Reboot"
+      },
       "deviceMgmt": {
         "title": "Mounted Device Management",
         "remaining": "Remaining {{remain}}/{{capacity}}",
@@ -1248,16 +1318,20 @@
   },
   "enterpriseSyncWorkspace": {
     "hints": {
-      "segmentGroupDesc": "segment group desc",
-      "segmentGroupDescWithSource": "segment group desc with source",
-      "segmentGroupName": "segment group name",
-      "segmentGroupNameWithTenant": "segment group name with tenant",
-      "segmentPolicyName": "segment policy name",
-      "segmentPolicyNameWithSource": "segment policy name with source",
-      "workerGroupDesc": "worker group desc",
-      "workerGroupName": "worker group name",
-      "workerPolicyGroup": "worker policy group",
-      "workerPolicyName": "worker policy name"
+      "segmentGroupDesc": "Sync output review group",
+      "segmentGroupDescWithSource": "{{source}} sync output review group",
+      "segmentGroupName": "Directory readiness group",
+      "segmentGroupNameWithTenant": "{{tenant}} directory readiness group",
+      "segmentPolicyName": "Policy delivery review",
+      "segmentPolicyNameWithSource": "{{source}} policy delivery review",
+      "workerGroupDesc": "Review worker alert signals for {{scope}}",
+      "workerGroupName": "{{scope}} worker review group",
+      "workerPolicyGroup": "{{scope}} worker review group",
+      "workerPolicyName": "{{scope}} worker policy follow-up"
+    },
+    "executionContext": {
+      "focusHint": "Execution context from alerts is active in this sync workspace.",
+      "returnToAlerts": "Return to alerts"
     },
     "hrisConnector": {
       "form": {
@@ -1272,9 +1346,15 @@
         "credentialRefPlaceholder": "Select credential ref",
         "credentialTitle": "Connector credential",
         "description": "Configure Talenta webhook, pull, or hybrid sync without leaving the enterprise sync workspace.",
+        "disabledExistingCredentialRef": "Incremental override fields are locked when this connector uses an existing credential ref.",
+        "disabledLoading": "HRIS connector data is still loading.",
+        "disabledNoCredentialRefs": "No reusable credential refs are available. Switch to store a new secret first.",
+        "disabledNoWebhookSecretRefs": "No reusable webhook secret refs are available. Switch to store a new secret first.",
+        "disabledReadOnly": "Current role can review HRIS connectors but cannot update them.",
+        "disabledSaving": "Connector save is already in progress.",
         "employeePathLabel": "Employee list path",
         "incrementalDescription": "Talenta supports incremental pull by default. Turn this on only when the tenant needs custom query param names or timestamp formatting overrides.",
-        "incrementalDisabledHint": "Overrides are off, so MistyPass will keep the Talenta default incremental contract: updated_after, updated_before, and rfc3339. Scheduled full reconcile still runs on cadence.",
+        "incrementalDisabledHint": "Overrides are off, so Mistyislet will keep the Talenta default incremental contract: updated_after, updated_before, and rfc3339. Scheduled full reconcile still runs on cadence.",
         "incrementalEnabledHint": "Only fill the fields you need to override. Any blank value keeps the Talenta default incremental contract.",
         "incrementalRefHint": "This connector uses an existing credential ref. Talenta incremental pull stays enabled by default; update the vault secret only when this tenant needs custom query overrides.",
         "incrementalTitle": "Incremental contract overrides",
@@ -1396,139 +1476,139 @@
       "title": "Sync Issue Categories"
     },
     "mainflow": {
-      "connected": "connected",
+      "connected": "All segments connected",
       "description": "Split flow from sync result to group usage to policy delivery and provide unified next actions.",
       "directoryUsage": {
-        "action": "action",
-        "descriptionAttention": "description attention",
-        "descriptionPending": "description pending",
-        "descriptionReady": "description ready",
-        "metricPending": "metric pending",
-        "metricReady": "metric ready"
+        "action": "Review directory",
+        "descriptionAttention": "Employees are imported, but groups still need review before policies can close.",
+        "descriptionPending": "Import employee records before building groups.",
+        "descriptionReady": "Employees and groups are ready for policy handoff.",
+        "metricPending": "No active employee records yet.",
+        "metricReady": "{{employees}} employees / {{groups}} groups"
       },
       "issuanceReceipt": {
-        "action": "action",
-        "descriptionAttention": "description attention",
-        "descriptionPending": "description pending",
-        "descriptionReady": "description ready",
-        "metricPending": "metric pending",
-        "metricReady": "metric ready"
+        "action": "Review issuance",
+        "descriptionAttention": "Policies are ready, but credential issuance still needs follow-up.",
+        "descriptionPending": "Close policy delivery before issuing credentials.",
+        "descriptionReady": "Policy delivery has issued credentials for users.",
+        "metricPending": "No policies are ready for issuance yet.",
+        "metricReady": "{{policies}} policies / {{issued}} issued passes"
       },
       "policyDelivery": {
-        "action": "action",
-        "descriptionAttention": "description attention",
-        "descriptionPending": "description pending",
-        "descriptionReady": "description ready",
-        "metricPending": "metric pending",
-        "metricReady": "metric ready"
+        "action": "Review policies",
+        "descriptionAttention": "Groups exist, but policies still need review before issuance.",
+        "descriptionPending": "Create or review groups before policy delivery.",
+        "descriptionReady": "Groups and access policies are aligned for this tenant.",
+        "metricPending": "No groups are ready for policy delivery yet.",
+        "metricReady": "{{groups}} groups / {{policies}} policies"
       },
       "priority": {
         "done": {
-          "action": "action",
-          "description": "description",
-          "title": "title"
+          "action": "Review issued passes",
+          "description": "Directory, policy, and issuance steps are aligned for the latest sync.",
+          "title": "Flow closed"
         },
         "failure": {
-          "action": "action",
-          "description": "description",
-          "title": "title"
+          "action": "Review blockers",
+          "description": "Resolve rejected, deactivated, or failed records before policies and credentials can close.",
+          "title": "Fix sync blockers"
         },
         "pending": {
-          "description": "description",
-          "title": "title"
+          "description": "Complete the next directory, policy, or issuance step to keep the sync flow moving.",
+          "title": "Continue setup"
         }
       },
-      "priorityRank": "priority rank",
+      "priorityRank": "Priority {{rank}}",
       "segment": {
-        "directoryUsage": "directory usage",
-        "issuanceReceipt": "issuance receipt",
-        "policyDelivery": "policy delivery"
+        "directoryUsage": "Directory usage",
+        "issuanceReceipt": "Issuance receipt",
+        "policyDelivery": "Policy delivery"
       },
       "status": {
-        "attention": "attention",
-        "pending": "pending",
-        "ready": "ready"
+        "attention": "Needs attention",
+        "pending": "Pending",
+        "ready": "Ready"
       },
       "title": "Main Flow Segment Status",
-      "unresolvedCount": "unresolved count"
+      "unresolvedCount": "{{count}} open segments"
     },
     "outcome": {
       "description": "After sync, continue directly to directory review, groups, policies, or exception handling.",
-      "fallbackBySyncResult": "fallback by sync result",
+      "fallbackBySyncResult": "Follow sync result",
       "kpi": {
-        "activeEmployees": "active employees",
-        "directoryResult": "directory result",
-        "followup": "followup",
-        "groupsPolicies": "groups policies",
-        "pendingReview": "pending review",
-        "syncFailures": "sync failures"
+        "activeEmployees": "{{count}} active employees",
+        "directoryResult": "Directory result",
+        "followup": "Follow-up",
+        "groupsPolicies": "{{groups}} groups / {{policies}} policies",
+        "pendingReview": "Pending review",
+        "syncFailures": "{{count}} failed sync jobs"
       },
-      "latestResultSummary": "latest result summary",
-      "latestResultWithSource": "latest result with source",
-      "noResult": "no result",
-      "noResultHint": "no result hint",
-      "pendingImport": "pending import",
-      "priorityAligned": "priority aligned",
-      "startedEnded": "started ended",
+      "latestResultSummary": "Created {{created}}, updated {{updated}}, deactivated {{deactivated}}, rejected {{rejected}}",
+      "latestResultWithSource": "{{source}} sync result",
+      "noResult": "No sync result yet",
+      "noResultHint": "Submit an HRIS, SCIM, CSV, or manual sync to start the flow.",
+      "pendingImport": "Import pending",
+      "priorityAligned": "Primary action follows the next unresolved sync segment.",
+      "startedEnded": "Started {{startedAt}} / ended {{endedAt}}",
       "title": "Sync Result and Next Step"
     },
     "pipeline": {
       "employeeDirectory": {
-        "actionReview": "action review",
-        "actionView": "action view",
-        "helperEmpty": "helper empty",
-        "helperReady": "helper ready",
-        "title": "title"
+        "actionReview": "Review directory",
+        "actionView": "View employees",
+        "helperEmpty": "No active employees are available yet.",
+        "helperReady": "{{count}} active employees ready.",
+        "title": "Employee directory"
       },
       "issuance": {
-        "actionGo": "action go",
-        "actionView": "action view",
-        "helperEmpty": "helper empty",
-        "helperReady": "helper ready",
-        "title": "title"
+        "actionGo": "Go to issuance",
+        "actionView": "View issued passes",
+        "helperEmpty": "No issued credentials are available yet.",
+        "helperReady": "{{count}} issued credentials ready.",
+        "title": "Credential issuance"
       },
       "policies": {
-        "actionGo": "action go",
-        "actionView": "action view",
-        "helperEmpty": "helper empty",
-        "helperReady": "helper ready",
-        "title": "title"
+        "actionGo": "Go to policies",
+        "actionView": "View policies",
+        "helperEmpty": "No access policies are ready yet.",
+        "helperReady": "{{count}} policies ready.",
+        "title": "Access policies"
       },
       "primaryAction": {
-        "goAlerts": "go alerts",
-        "goDirectory": "go directory",
-        "goIssuance": "go issuance",
-        "goPolicies": "go policies",
-        "goSync": "go sync",
-        "viewEmployees": "view employees",
-        "viewIssuance": "view issuance"
+        "goAlerts": "Go to alerts",
+        "goDirectory": "Go to directory",
+        "goIssuance": "Go to issuance",
+        "goPolicies": "Go to policies",
+        "goSync": "Go to sync",
+        "viewEmployees": "View employees",
+        "viewIssuance": "View issued passes"
       },
       "syncResult": {
-        "actionGoAlerts": "action go alerts",
-        "actionGoSync": "action go sync",
-        "actionView": "action view",
-        "helperNoJob": "helper no job",
-        "helperWithJob": "helper with job",
-        "title": "title"
+        "actionGoAlerts": "Review sync blockers",
+        "actionGoSync": "Run sync",
+        "actionView": "View sync result",
+        "helperNoJob": "No sync job has run yet.",
+        "helperWithJob": "{{source}} sync is {{status}} with {{rejected}} rejected records.",
+        "title": "Sync result"
       },
       "userGroups": {
-        "actionGo": "action go",
-        "actionView": "action view",
-        "helperEmpty": "helper empty",
-        "helperReady": "helper ready",
-        "title": "title"
+        "actionGo": "Go to groups",
+        "actionView": "View groups",
+        "helperEmpty": "No user groups are ready yet.",
+        "helperReady": "{{count}} groups ready.",
+        "title": "User groups"
       }
     },
     "pipelineCheck": {
-      "badgeFailure": "badge failure",
-      "badgePending": "badge pending",
-      "badgeReady": "badge ready",
-      "fallbackByConnectivity": "fallback by connectivity",
-      "fallbackByStep": "fallback by step",
-      "priorityAligned": "priority aligned",
-      "stepPending": "step pending",
-      "stepReady": "step ready",
-      "title": "title"
+      "badgeFailure": "Sync blockers active",
+      "badgePending": "{{count}} steps pending",
+      "badgeReady": "Pipeline ready",
+      "fallbackByConnectivity": "Use pipeline action",
+      "fallbackByStep": "Open step",
+      "priorityAligned": "Next action follows the highest-priority unresolved step.",
+      "stepPending": "Pending",
+      "stepReady": "Ready",
+      "title": "Pipeline readiness"
     },
     "quickImport": {
       "currentSource": "Current Source",
@@ -1538,22 +1618,22 @@
     },
     "recentResults": {
       "description": "Review recent source, delta result, and failures without leaving this workspace.",
-      "empty": "empty",
-      "rowActorAt": "row actor at",
-      "rowSummary": "row summary",
+      "empty": "No recent sync results.",
+      "rowActorAt": "Actor {{actor}} / {{at}}",
+      "rowSummary": "Created {{created}}, updated {{updated}}, deactivated {{deactivated}}, rejected {{rejected}}",
       "title": "Recent Sync Results"
     },
     "remediation": {
       "description": "Move from issue discovery to concrete next actions and return path to main directory flow.",
-      "fallbackByStep": "fallback by step",
-      "priorityHint": "priority hint",
+      "fallbackByStep": "Open step",
+      "priorityHint": "Remediation follows the same priority as the main sync flow.",
       "title": "Sync Remediation Loop"
     },
     "sourceOverview": {
-      "description": "description",
-      "fallbackAction": "fallback action",
-      "latestEndedAt": "latest ended at",
-      "title": "title"
+      "description": "Review source health, the latest result, and the next action for each sync source.",
+      "fallbackAction": "Use source action",
+      "latestEndedAt": "Latest end: {{value}}",
+      "title": "Sync source overview"
     },
     "submit": {
       "description": "Use JSON import workspace for now to validate backend sync flow before formal HRIS/SCIM forms.",
@@ -1574,26 +1654,26 @@
     },
     "workerAlerts": {
       "category": {
-        "alerting": "alerting",
-        "hot": "hot",
-        "stable": "stable"
+        "alerting": "Alerting",
+        "hot": "Hot",
+        "stable": "Stable"
       },
-      "clear": "clear",
-      "clearReviewState": "clear review state",
+      "clear": "Clear",
+      "clearReviewState": "Clear review state",
       "description": "Handle worker alert leads in sync workspace and route back to directory, policy, or issuance.",
-      "empty": "empty",
+      "empty": "No worker alerts need review.",
       "filters": {
-        "alerting": "alerting",
-        "all": "all",
-        "hot": "hot",
-        "stable": "stable"
+        "alerting": "Alerting ({{count}})",
+        "all": "All ({{count}})",
+        "hot": "Hot ({{count}})",
+        "stable": "Stable ({{count}})"
       },
-      "focusHint": "focus hint",
-      "goAlerts": "go alerts",
-      "goDirectory": "go directory",
-      "goPolicies": "go policies",
-      "goSecondaryReview": "go secondary review",
-      "goWallet": "go wallet",
+      "focusHint": "Filtered from an alert link. Review the scoped worker signal before clearing the context.",
+      "goAlerts": "Go to alerts",
+      "goDirectory": "Go to directory",
+      "goPolicies": "Go to policies",
+      "goSecondaryReview": "Go to secondary review",
+      "goWallet": "Go to wallet",
       "guidance": {
         "actions": {
           "avoidManualRetryFlood": "Avoid repeated manual retries so the same failing batch does not turn into more noise.",
@@ -1608,9 +1688,9 @@
         },
         "actionsTitle": "Suggested actions",
         "badges": {
-          "fixNow": "fix now",
-          "retryLater": "retry later",
-          "review": "manual review"
+          "fixNow": "Fix now",
+          "retryLater": "Retry later",
+          "review": "Manual review"
         },
         "signals": {
           "attemptLimit": "attempt limit reached",
@@ -1640,107 +1720,126 @@
           "genericSync": "Enterprise Sync"
         }
       },
-      "queryPlaceholder": "query placeholder",
-      "reviewHandled": "review handled",
-      "title": "Worker Alert Positioning"
+      "queryPlaceholder": "Filter worker alerts",
+      "reviewHandled": "{{stage}} review has been recorded. Continue secondary review from alerts.",
+      "title": "Worker routing"
     },
     "workerReview": {
       "stage": {
-        "alerts": "alerts",
-        "current": "current",
-        "directory": "directory",
-        "issuance": "issuance",
-        "policies": "policies",
-        "sync": "sync"
+        "alerts": "Alerts",
+        "current": "Current step",
+        "directory": "Directory",
+        "issuance": "Issuance",
+        "policies": "Policies",
+        "sync": "Sync"
       }
     }
   },
   "enterpriseAlertsWorkspace": {
     "actions": {
-      "backToDirectory": "back to directory",
-      "goDirectoryExceptions": "go directory exceptions",
-      "goIdpReview": "go idp review",
-      "goSync": "go sync",
-      "reviewDeactivated": "review deactivated"
+      "backToDirectory": "Back to directory",
+      "goDirectoryExceptions": "Review directory exceptions",
+      "goIdpReview": "Review IDP approvals",
+      "goSync": "Go to sync",
+      "reviewDeactivated": "Review deactivated employees"
     },
     "approvalClosure": {
       "pending": {
-        "batchApprove": "batch approve",
-        "batchReject": "batch reject",
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "batchApprove": "Approve pending ({{count}})",
+        "batchReject": "Reject pending ({{count}})",
+        "descriptionEmpty": "No pending approvals remain.",
+        "descriptionWithItems": "Review or batch close pending JIT approvals.",
+        "locate": "View pending",
+        "title": "Pending approval closure"
       },
       "syncFailed": {
-        "batchMarkSynced": "batch mark synced",
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "batchMarkSynced": "Mark write-back synced ({{count}})",
+        "descriptionEmpty": "No failed write-back records need closure.",
+        "descriptionWithItems": "Repair failed write-back records before leaving the approval queue.",
+        "locate": "View failed",
+        "title": "Failed write-back closure"
       },
       "syncPending": {
-        "batchMarkSynced": "batch mark synced",
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "batchMarkSynced": "Mark write-back synced ({{count}})",
+        "descriptionEmpty": "No in-progress write-back records are waiting.",
+        "descriptionWithItems": "Confirm in-progress write-back records before closing the approval flow.",
+        "locate": "View in progress",
+        "title": "In-progress write-back closure"
       }
     },
     "approvalClosureCard": {
-      "description": "description",
-      "title": "title"
+      "description": "Close pending approvals and confirm external write-back state before leaving the JIT queue.",
+      "title": "Approval closure"
     },
     "blockers": {
-      "description": "description",
-      "emptyDescription": "empty description",
-      "emptyTitle": "empty title",
-      "goPolicies": "go policies",
-      "goWallet": "go wallet",
-      "title": "title"
+      "description": "Items that still block directory, policy, or wallet closure.",
+      "emptyDescription": "No approval, directory, or wallet blockers are active.",
+      "emptyTitle": "No closure blockers",
+      "goPolicies": "Go to policies",
+      "goWallet": "Go to wallet",
+      "title": "Closure blockers"
     },
     "common": {
       "clear": "Clear",
       "emptyDash": "-",
       "processing": "Processing..."
     },
+    "disabledReasons": {
+      "actionBusy": "An Enterprise action is already running. Wait for it to finish.",
+      "actionUnavailable": "This action is not available for the current role or workspace state.",
+      "exporting": "Notification export is already running.",
+      "loading": "Enterprise alert data is still loading.",
+      "noDueNotifications": "No worker alert notifications are due for retry.",
+      "noExternalSyncFailures": "No failed external write-back approvals are available.",
+      "noExternalSyncPending": "No pending external write-back approvals are available.",
+      "noFailedNotifications": "No failed worker alert notifications match the current view.",
+      "noPendingApprovals": "No pending JIT approvals are available.",
+      "noProcessableReceipts": "No ready HRIS webhook receipts match the current view.",
+      "noReplayableDLQ": "No ready HRIS DLQ entries match the current view.",
+      "noRetryableNotifications": "No retryable worker alert notifications match the current view.",
+      "noSuppressedNotifications": "No restorable suppressed worker alert notifications match the current view.",
+      "noVisibleNotifications": "No worker alert notification records match the current view.",
+      "noVisiblePendingApprovals": "No pending JIT approvals match the current filters.",
+      "noVisibleSyncMarkableApprovals": "No non-pending approvals need external write-back closure in the current view.",
+      "readOnly": "Current role can review Enterprise alerts but cannot change approvals, queues, or notifications."
+    },
     "count": "{{count}} items",
     "directoryClosure": {
       "deactivated": {
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "descriptionEmpty": "No deactivated employee records need review.",
+        "descriptionWithItems": "Review deactivated employees before issuing or preserving credentials.",
+        "locate": "View deactivated",
+        "title": "Deactivated employees"
       },
       "rejected": {
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "descriptionEmpty": "No rejected sync records remain.",
+        "descriptionWithItems": "Resolve rejected records before policy and wallet closure.",
+        "locate": "View rejected",
+        "title": "Rejected records"
       },
       "unfinished": {
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "descriptionEmpty": "No unfinished sync jobs need attention.",
+        "descriptionWithItems": "Finish or inspect sync jobs that have not closed cleanly.",
+        "locate": "View unfinished",
+        "title": "Unfinished directory closure"
       },
       "worker": {
-        "descriptionEmpty": "description empty",
-        "descriptionWithItems": "description with items",
-        "locate": "locate",
-        "title": "title"
+        "descriptionEmpty": "No worker alerts need follow-up.",
+        "descriptionWithItems": "Review active worker alerts before closing directory exceptions.",
+        "locate": "View worker alerts",
+        "title": "Worker follow-up"
       }
     },
     "directoryClosureCard": {
-      "description": "description",
-      "title": "title"
+      "description": "Review directory exceptions and route each item to the next closure action.",
+      "title": "Directory closure"
     },
     "header": {
       "description": "Switch by handling goal: overview, approval backlog, and directory exceptions.",
       "hint": {
-        "approvalBacklog": "approval backlog",
-        "directoryExceptions": "directory exceptions",
-        "overview": "overview"
+        "approvalBacklog": "Approval backlog focuses on JIT decisions and external write-back state.",
+        "directoryExceptions": "Directory exceptions groups sync failures, deactivations, and worker alerts.",
+        "overview": "Overview shows the next unresolved approval, directory, and recovery actions."
       },
       "tabs": {
         "approvalBacklog": "Approval Backlog ({{count}})",
@@ -1750,95 +1849,95 @@
       "title": "Approvals & Exceptions Landing"
     },
     "hints": {
-      "sourcePrefix": "source prefix",
+      "sourcePrefix": "{{summary}} follow-up",
       "sync": "sync",
-      "syncReviewGroup": "sync review group",
-      "syncReviewPolicy": "sync review policy",
-      "syncTask": "sync task",
-      "syncTaskWithID": "sync task with id",
-      "workerAlert": "worker alert",
-      "workerAlertWithTime": "worker alert with time",
-      "workerReviewGroup": "worker review group",
-      "workerReviewPolicy": "worker review policy"
+      "syncReviewGroup": "{{source}} sync review",
+      "syncReviewPolicy": "{{source}} policy review",
+      "syncTask": "{{source}} sync task",
+      "syncTaskWithID": "{{source}} sync task {{id}}",
+      "workerAlert": "{{scope}} worker alert",
+      "workerAlertWithTime": "{{scope}} worker alert at {{at}}",
+      "workerReviewGroup": "{{scope}} worker review",
+      "workerReviewPolicy": "{{scope}} worker policy review"
     },
     "jitApproval": {
       "actions": {
-        "approve": "approve",
-        "markSynced": "mark synced",
-        "reject": "reject"
+        "approve": "Approve",
+        "markSynced": "Mark written back",
+        "reject": "Reject"
       },
-      "batchApprove": "batch approve",
-      "batchMarkSynced": "batch mark synced",
-      "batchReject": "batch reject",
-      "description": "description",
-      "empty": "empty",
+      "batchApprove": "Approve pending ({{count}})",
+      "batchMarkSynced": "Mark written back ({{count}})",
+      "batchReject": "Reject pending ({{count}})",
+      "description": "Review JIT approvals and their external sync write-back status.",
+      "empty": "No JIT approvals match the current filters.",
       "queryPlaceholder": "Filter by email / external_id / approval ID",
-      "statusFilterTitle": "status filter title",
+      "statusFilterTitle": "Approval status",
       "statusOptions": {
-        "all": "all",
-        "approved": "approved",
-        "pending": "pending",
-        "rejected": "rejected"
+        "all": "All ({{count}})",
+        "approved": "Approved ({{count}})",
+        "pending": "Pending ({{count}})",
+        "rejected": "Rejected ({{count}})"
       },
       "syncOptions": {
-        "all": "all",
-        "failed": "failed",
-        "none": "none",
-        "pending": "pending",
-        "success": "success"
+        "all": "All ({{count}})",
+        "failed": "Failed ({{count}})",
+        "none": "No write-back ({{count}})",
+        "pending": "In progress ({{count}})",
+        "success": "Synced ({{count}})"
       },
       "table": {
-        "actions": "actions",
-        "email": "email",
-        "externalSync": "external sync",
-        "status": "status",
-        "updatedAt": "updated at"
+        "actions": "Actions",
+        "email": "Email",
+        "externalSync": "External sync",
+        "status": "Status",
+        "updatedAt": "Updated at"
       },
-      "title": "title"
+      "title": "JIT approvals"
     },
     "landingActions": {
-      "description": "description",
-      "title": "title"
+      "description": "Jump from the landing view to the workspace that owns the next unresolved action.",
+      "title": "Landing actions"
     },
     "receiptRecovery": {
       "actions": {
-        "closed": "closed",
-        "repair": "repair",
-        "retry": "retry"
+        "closed": "Review closed",
+        "repair": "Repair pass status",
+        "retry": "Retry delivery"
       },
-      "blockedHint": "blocked hint",
-      "currentStatus": "current status",
-      "description": "description",
-      "loading": "loading",
-      "pendingCount": "pending count",
-      "queryHintEmpty": "query hint empty",
-      "queryHintWithValue": "query hint with value",
-      "readyHint": "ready hint",
-      "readyToBackflow": "ready to backflow",
+      "blockedHint": "Closure blockers remain. Clear approvals and directory issues before retrying backflow.",
+      "currentStatus": "Receipt recovery status",
+      "description": "Recover failed receipt backflow and confirm whether the affected records can be repaired.",
+      "loading": "Loading recovery context...",
+      "pendingCount": "{{count}} blockers",
+      "queryHintEmpty": "No scoped target is applied.",
+      "queryHintWithValue": "Scoped target: {{hint}}",
+      "readyHint": "No approval or directory blockers remain for this receipt flow.",
+      "readyToBackflow": "Ready to backflow",
       "status": {
-        "attention": "attention",
-        "pending": "pending",
-        "ready": "ready"
+        "attention": "Needs attention",
+        "pending": "Pending",
+        "ready": "Ready"
       },
-      "title": "title"
+      "title": "Receipt recovery"
     },
     "recoveryActions": {
-      "blockerCount": "blocker count",
-      "canBackflow": "can backflow",
-      "description": "description",
-      "goDirectory": "go directory",
-      "goPolicies": "go policies",
-      "title": "title"
+      "blockerCount": "{{count}} blockers",
+      "canBackflow": "Backflow available",
+      "description": "Choose the recovery path for records that can return to directory or policy flow.",
+      "goDirectory": "Go to directory",
+      "goPolicies": "Go to policies",
+      "title": "Recovery actions"
     },
     "syncAndWorker": {
       "actions": {
-        "alertToDirectory": "alert to directory",
-        "alertToPolicies": "alert to policies",
-        "alertToSync": "alert to sync",
-        "alertToWallet": "alert to wallet",
-        "jobToDirectory": "job to directory",
-        "jobToPolicies": "job to policies",
-        "jobToWallet": "job to wallet"
+        "alertToDirectory": "Open directory from alert",
+        "alertToPolicies": "Open policies from alert",
+        "alertToSync": "Open sync from alert",
+        "alertToWallet": "Open wallet from alert",
+        "jobToDirectory": "Open directory from job",
+        "jobToPolicies": "Open policies from job",
+        "jobToWallet": "Open wallet from job"
       },
       "alertSubscription": {
         "cooldownPlaceholder": "cooldown_seconds",
@@ -1865,29 +1964,208 @@
         "whatsAppHint": "WhatsApp notification channel.",
         "windowPlaceholder": "window_seconds"
       },
-      "description": "description",
+      "description": "Centralize sync jobs, worker alerts, receipt queues, and DLQ replay so closure actions are not missed.",
+      "executionHistory": {
+        "title": "Webhook execution history",
+        "description": "Track queued Talenta receipt processing and DLQ replay execution records.",
+        "filters": {
+          "all": "All",
+          "queued": "Queued",
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed"
+        },
+        "kind": {
+          "receiptProcess": "Receipt process",
+          "dlqReplay": "DLQ replay"
+        },
+        "kindFilter": {
+          "all": "All kinds",
+          "receiptProcess": "Receipt process",
+          "dlqReplay": "DLQ replay"
+        },
+        "queueStateFilter": {
+          "all": "All runtime",
+          "ready": "Ready",
+          "cooldown": "Cooldown",
+          "inFlight": "In flight",
+          "attemptLimit": "Attempt limit",
+          "terminal": "Terminal"
+        },
+        "replayScopeFilter": {
+          "all": "All lineage",
+          "replayed": "Replays",
+          "workerRequired": "Worker required"
+        },
+        "replayWorkerRequired": "Worker required",
+        "replayWorkerOptional": "Worker optional",
+        "executionModeFilter": {
+          "all": "All modes",
+          "queued": "Queued",
+          "inline": "Inline"
+        },
+        "dispatchModeFilter": {
+          "all": "All dispatch",
+          "workerTick": "Worker tick",
+          "workerTaskChannel": "Task channel",
+          "goroutineFallback": "Goroutine fallback"
+        },
+        "searchPlaceholder": "Search connector, request, event, target, dispatch mode, or error",
+        "targetStatusPlaceholder": "Filter target status exactly, e.g. processed",
+        "targetStatus": "Target {{status}}",
+        "replaying": "Replaying...",
+        "replay": "Replay failed execution",
+        "openSourceExecution": "Open source execution",
+        "hideDetails": "Hide details",
+        "details": "Details",
+        "startedAt": "Started {{value}}",
+        "finishedAt": "Finished {{value}}",
+        "dispatchMeta": "Actor {{requestedBy}} / audit {{auditSource}}",
+        "replayMeta": "Replay of {{sourceExecutionID}} / worker {{workerRequirement}}",
+        "runtimeMeta": "Queue {{queueState}} / retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
+        "runtimeBadges": {
+          "cooldownRemaining": "Cooldown {{seconds}}s",
+          "staleInFlight": "Stale in-flight"
+        },
+        "auditCounts": "Runs {{attempts}} / requeued {{requeues}}",
+        "paginationSummary": "Loaded {{loaded}} of {{total}} execution records.",
+        "columns": {
+          "queuedAt": "Queued",
+          "kind": "Kind",
+          "dispatch": "Dispatch",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "loading": "Loading execution history...",
+        "empty": "No execution history matches the current scope.",
+        "loadingMore": "Loading more...",
+        "loadMore": "Load more",
+        "detail": {
+          "title": "Execution detail",
+          "description": "Drill into a queued Talenta execution record and keep the current selection in the URL.",
+          "filteredHint": "This record was loaded via execution_id and may be outside the current list filter.",
+          "loading": "Loading execution details...",
+          "kind": "Kind",
+          "timeline": "Timeline",
+          "timelineQueued": "Queued {{value}}",
+          "timelineUpdated": "Updated {{value}}",
+          "target": "Target",
+          "connector": "Connector",
+          "request": "Request",
+          "dispatch": "Dispatch",
+          "replay": "Replay",
+          "replayWorkerRequirement": "Worker {{value}}",
+          "runtime": "Runtime",
+          "attempts": "Attempts",
+          "attemptCount": "Runs {{count}}",
+          "requeueCount": "Requeued {{count}}",
+          "failureStage": "Failure stage",
+          "lastError": "Last error",
+          "empty": "No execution details are available for this record."
+        }
+      },
+      "notificationHistory": {
+        "title": "Sync & Worker Notification History",
+        "description": "Recent {{count}} worker alert notification records, including cooldown skips and retry results.",
+        "filters": {
+          "all": "All",
+          "failed": "Failed",
+          "retryable": "Retryable",
+          "suppressed": "Suppressed",
+          "dueNow": "Due now"
+        },
+        "searchPlaceholder": "Search worker, connector, reason, request ID, provider error...",
+        "exporting": "Exporting...",
+        "exportVisible": "Export filtered ({{count}})",
+        "statusSummary": {
+          "sent": "Sent {{count}}",
+          "failed": "Failed {{count}}",
+          "skipped": "Skipped {{count}}"
+        },
+        "autoRetryDueBusy": "Auto retrying due...",
+        "autoRetryDue": "Auto-retry due now ({{count}})",
+        "suppressVisibleBusy": "Suppressing visible...",
+        "suppressVisible": "Suppress visible ({{count}})",
+        "restoreVisibleBusy": "Restoring visible...",
+        "restoreVisible": "Restore visible ({{count}})",
+        "retryVisibleBusy": "Retrying visible...",
+        "retryVisible": "Retry visible ({{count}})",
+        "batchHint": "Batch actions work on the current view: retry only retries retryable failures and suppresses duplicate fingerprints; suppress marks visible failures as manually skipped; restore reopens visible manual suppressions as retryable failures.",
+        "columns": {
+          "time": "Time",
+          "worker": "Worker",
+          "countThreshold": "Count / threshold",
+          "attempt": "Attempt",
+          "channels": "Channels",
+          "receivers": "Receiver groups",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "loading": "Loading notification records...",
+        "empty": "No records yet. Click \"Dispatch now\" to create records.",
+        "emptyFiltered": "No notification records match the current filter.",
+        "retrySource": "Retry of {{id}}",
+        "pendingAge": {
+          "status": "Pending {{age}}",
+          "seconds": "{{count}} sec",
+          "minutes": "{{count}} min",
+          "hours": "{{count}} hr",
+          "days": "{{count}} d"
+        },
+        "nextRetryAt": "Next retry {{at}}",
+        "confirmAttempts": "Confirm attempts {{count}}",
+        "lastConfirmResult": "Last confirm {{result}}",
+        "lastConfirmAttemptAt": "Last confirm at {{at}}",
+        "restoreStatus": "Restore blocked: {{status}}",
+        "retrying": "Retrying...",
+        "retry": "Retry",
+        "suppress": "Suppress",
+        "restoring": "Restoring...",
+        "restore": "Restore",
+        "hideDetails": "Hide details",
+        "details": "Details",
+        "detailsFingerprint": "Fingerprint",
+        "detailsIdempotencyKey": "Idempotency key",
+        "detailsRequestID": "Request ID",
+        "detailsSourceNotificationID": "Source notification",
+        "detailsRestoreStatus": "Restore status",
+        "detailsPendingAge": "Pending age",
+        "detailsConfirmAttempts": "Confirm attempts",
+        "detailsNextRetryAt": "Next retry at",
+        "detailsLastConfirmResult": "Last confirm result",
+        "detailsLastConfirmAttemptAt": "Last confirm attempt at",
+        "detailsProviderError": "Provider error",
+        "detailsChannelResults": "Channel results",
+        "loadingMore": "Loading more...",
+        "loadMore": "Load more",
+        "restoreEligibility": {
+          "ready": "Ready to restore",
+          "alreadySent": "A newer notification was already sent",
+          "newerHistoryExists": "A newer notification history already exists"
+        }
+      },
       "pendingSyncRequests": {
         "attempts": "attempts {{attemptCount}} / last attempt {{attemptedAt}}",
         "batchHint": "Process the oldest pending tenant requests in created order, up to 20 per run.",
         "batchReconcile": "Batch Reconcile",
         "description": "Replay sync requests where access_applied=false.",
-        "empty": "no pending sync requests",
+        "empty": "No pending sync requests need reconcile.",
         "meta": "job {{jobID}} / connector {{connector}} / created {{createdAt}}",
-        "title": "pending sync reconcile"
+        "title": "Pending sync reconcile"
       },
       "queryPlaceholder": "Filter by job ID / source / actor / tenant",
     "syncJobs": {
-      "empty": "empty",
+      "empty": "No sync jobs match the current scope.",
       "filters": {
-        "all": "all",
-        "attention": "attention",
-          "deactivated": "deactivated",
-          "healthy": "healthy",
-          "rejected": "rejected"
+        "all": "All",
+        "attention": "Needs attention",
+          "deactivated": "Deactivated",
+          "healthy": "Healthy",
+          "rejected": "Rejected"
         },
-        "sourceAll": "source all",
-      "sourceValue": "source value",
-      "title": "title"
+        "sourceAll": "All sources",
+      "sourceValue": "Source {{source}}",
+      "title": "Sync jobs"
     },
     "dlq": {
       "actions": {
@@ -1899,10 +2177,12 @@
       "batchResult": {
         "dispatch": "Dispatch {{dispatchMode}}",
         "itemMeta": "entry {{entryID}} / stage {{stage}} / detail {{detail}}",
+        "openExecution": "Open execution",
         "summary": "selected {{total}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
-        "title": "latest DLQ batch"
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
+        "title": "Latest DLQ batch"
       },
-      "empty": "empty",
+      "empty": "No DLQ entries match the current filters.",
       "filters": {
         "all": "All",
         "attemptLimit": "Attempt limit",
@@ -1912,13 +2192,16 @@
         "terminal": "Terminal"
       },
       "meta": "replay {{replayCount}} / last replay {{replayedAt}} / updated {{updatedAt}}",
+      "paginationSummary": "Loaded {{loaded}} of {{total}} DLQ entries.",
       "runtime": "state {{replayState}} / next retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "Cooldown {{seconds}}s",
         "remainingAttempts": "Replays left {{count}}",
         "staleInFlight": "Replay timed out"
       },
-      "title": "recent DLQ"
+      "loadingMore": "Loading more...",
+      "loadMore": "Load more",
+      "title": "Recent DLQ"
     },
     "webhookReceipts": {
       "actions": {
@@ -1930,10 +2213,12 @@
       "batchResult": {
         "dispatch": "Dispatch {{dispatchMode}}",
         "itemMeta": "receipt {{receiptID}} / connector {{connector}} / detail {{detail}}",
+        "openExecution": "Open execution",
         "summary": "selected {{total}} / processed {{processed}} / skipped {{skipped}} / failed {{failed}} / dlq {{dlq}}",
-        "title": "latest receipt batch"
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
+        "title": "Latest receipt batch"
       },
-      "empty": "empty",
+      "empty": "No webhook receipt queue entries match the current filters.",
       "filters": {
         "all": "All",
         "attemptLimit": "Attempt limit",
@@ -1943,162 +2228,176 @@
         "terminal": "Terminal"
       },
       "meta": "attempts {{attempts}} / last attempt {{attemptAt}} / received {{receivedAt}}",
+      "paginationSummary": "Loaded {{loaded}} of {{total}} receipt entries.",
       "runtime": "queue {{queueState}} / next retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "Cooldown {{seconds}}s",
         "remainingAttempts": "Attempts left {{count}}",
         "staleInFlight": "Processing timed out"
       },
-      "title": "webhook receipt queue"
+      "loadingMore": "Loading more...",
+      "loadMore": "Load more",
+      "title": "Webhook receipt queue"
     },
     "pullStates": {
-      "empty": "empty",
+      "empty": "No pull states match the current scope.",
       "meta": "failures {{failures}} / mode {{mode}} / request {{request}}",
       "timestamps": "last success {{successAt}} / last failure {{failureAt}}",
-      "title": "pull states"
+      "title": "Pull states"
     },
-    "title": "title",
+    "title": "Sync & Worker follow-up",
     "workerEvents": {
-      "empty": "empty",
+      "empty": "No raw worker alert events match the current scope.",
       "meta": "at {{at}} / connector {{connector}} / request {{request}}",
       "metrics": "failed {{failed}} / threshold {{threshold}} / processed {{processed}} / applied {{applied}}",
-      "title": "raw worker alerts"
+      "title": "Raw worker alerts"
     },
     "workerAlerts": {
-      "empty": "empty",
+      "empty": "No worker alerts match the current filters.",
       "filters": {
-        "alerting": "alerting",
-          "all": "all",
-          "hot": "hot",
-          "stable": "stable"
+        "alerting": "Alerting",
+          "all": "All",
+          "hot": "Hot",
+          "stable": "Stable"
         },
-        "title": "title"
+        "title": "Worker alerts"
       }
     }
   },
   "enterprisePage": {
     "actions": {
-      "afterAction": "after action",
-      "approved": "approved",
-      "backToSyncAfterReview": "back to sync after review",
-      "continueImport": "continue import",
-      "goToAlerts": "go to alerts",
-      "goToDeactivatedCleanup": "go to deactivated cleanup",
-      "goToDirectory": "go to directory",
-      "goToIdp": "go to idp",
-      "goToPolicies": "go to policies",
-      "goToSync": "go to sync",
-      "goToWallet": "go to wallet",
-      "handleApprovals": "handle approvals",
-      "rejected": "rejected",
-      "reviewDirectory": "review directory",
-      "reviewEmployees": "review employees",
-      "setAsSyncEntry": "set as sync entry",
-      "submitSyncJob": "submit sync job",
-      "switchToCsv": "switch to csv",
-      "viewDirectory": "view directory",
-      "viewEmployees": "view employees",
-      "viewEnterpriseLogin": "view enterprise login",
-      "viewExceptions": "view exceptions",
-      "viewIssuanceCenter": "view issuance center",
-      "viewPendingItems": "view pending items",
-      "viewSyncResult": "view sync result"
+      "afterAction": "After {{action}}",
+      "approved": "Approved",
+      "backToSyncAfterReview": "Back to sync after review",
+      "continueImport": "Continue import",
+      "goToAlerts": "Go to alerts",
+      "goToDeactivatedCleanup": "Go to deactivated cleanup",
+      "goToDirectory": "Go to directory",
+      "goToIdp": "Go to IDP",
+      "goToPolicies": "Go to policies",
+      "goToSync": "Go to sync",
+      "goToWallet": "Go to wallet",
+      "handleApprovals": "Handle approvals",
+      "rejected": "Rejected",
+      "reviewDirectory": "Review directory",
+      "reviewEmployees": "Review employees",
+      "setAsSyncEntry": "Use as sync entry",
+      "submitSyncJob": "Submit sync job",
+      "switchToCsv": "Switch to CSV",
+      "viewDirectory": "View directory",
+      "viewEmployees": "View employees",
+      "viewEnterpriseLogin": "View enterprise login",
+      "viewExceptions": "View exceptions",
+      "viewIssuanceCenter": "View issuance center",
+      "viewPendingItems": "View pending items",
+      "viewSyncResult": "View sync result"
     },
     "alertRecovery": {
-      "noBlockersDescription": "no blockers description",
-      "noBlockersTitle": "no blockers title",
-      "withBlockersDescription": "with blockers description",
-      "withBlockersTitle": "with blockers title"
+      "noBlockersDescription": "Approval, sync, worker alert, and IDP blockers are clear. Continue with the next directory flow action.",
+      "noBlockersTitle": "No active blockers",
+      "withBlockersDescription": "{{blockerCount}} blockers still need closure before the recovery path is clean.",
+      "withBlockersTitle": "Recovery blockers active"
     },
     "attention": {
       "idpNotReady": {
-        "description": "description",
-        "title": "title"
+        "description": "Configure SSO before users rely on enterprise login.",
+        "title": "IDP setup is not ready"
       },
       "pendingApprovals": {
-        "description": "description",
-        "title": "title"
+        "description": "Review pending JIT approvals so directory access can continue.",
+        "title": "Approvals need review"
       },
       "syncNeedsReview": {
-        "description": "description",
-        "title": "title"
+        "description": "The latest sync has rejected, deactivated, or incomplete records to review.",
+        "title": "Sync needs review"
       },
       "workerAlert": {
-        "description": "description",
-        "title": "title"
+        "description": "Worker alerts are active. Check the failure stage before retrying.",
+        "title": "Sync worker signal active"
       }
     },
     "cards": {
       "approvalBacklog": {
-        "descriptionCleared": "description cleared",
-        "descriptionPending": "description pending",
-        "pendingCount": "pending count",
-        "returnHint": "return hint",
-        "title": "title"
+        "descriptionCleared": "No pending JIT approvals are blocking this flow.",
+        "descriptionPending": "Pending JIT approvals need review before directory and issuance can close.",
+        "pendingCount": "{{count}} pending approvals",
+        "returnHint": "Return to the recommended workflow action after closing the approval queue.",
+        "title": "Approval backlog"
       },
       "deactivatedEmployees": {
-        "description": "description",
-        "title": "title"
+        "description": "Review employees deactivated by sync before access and credentials drift.",
+        "title": "Deactivated employees"
       },
       "directoryException": {
-        "completedButEmpty": "completed but empty",
-        "deactivatedEmployees": "deactivated employees",
-        "returnHint": "return hint",
-        "stableDescription": "stable description",
-        "title": "title"
+        "completedButEmpty": "The latest sync completed but produced no active employee records.",
+        "deactivatedEmployees": "{{deactivated}} deactivated employees need access and credential cleanup.",
+        "returnHint": "Return to the recommended workflow action after directory cleanup.",
+        "stableDescription": "No rejected, deactivated, or empty-directory exceptions are blocking closure.",
+        "title": "Directory exceptions"
       },
       "latestSyncIncomplete": {
-        "description": "description",
-        "title": "title"
+        "description": "The latest sync has not reached a clean imported state.",
+        "title": "Latest sync incomplete"
       },
       "rejectedRecords": {
-        "description": "description",
-        "title": "title"
+        "description": "Rejected records require review before they can enter groups or policies.",
+        "title": "Rejected records"
       },
       "syncCompletedEmpty": {
-        "description": "description",
-        "title": "title"
+        "description": "The sync finished but did not produce active directory records.",
+        "title": "Sync completed with an empty directory"
       },
       "syncOutcome": {
-        "applyPoliciesNext": "apply policies next",
-        "closedLoopHint": "closed loop hint",
-        "completedEmptyDirectory": "completed empty directory",
-        "connectedWithIssuedPasses": "connected with issued passes",
-        "emptyDescription": "empty description",
-        "groupEmployeesNext": "group employees next",
-        "keepMoving": "keep moving",
-        "needsReview": "needs review",
-        "readyForIssuance": "ready for issuance",
-        "returnHintAfterAlert": "return hint after alert",
-        "returnHintAfterImport": "return hint after import",
-        "title": "title"
+        "applyPoliciesNext": "{{tenantGroupsCount}} groups are ready. Create or review policies next.",
+        "closedLoopHint": "The sync flow is connected through issuance.",
+        "completedEmptyDirectory": "The latest sync completed but no active employees are available yet.",
+        "connectedWithIssuedPasses": "{{issuedPassCount}} credentials have been issued from this directory flow.",
+        "emptyDescription": "Run or select a directory sync source before reviewing downstream access.",
+        "groupEmployeesNext": "{{activeEmployeeCount}} active employees are ready for group assignment.",
+        "keepMoving": "Continue the next downstream step to keep the flow moving.",
+        "needsReview": "{{sourceLabel}} sync is {{status}} with {{rejected}} rejected records.",
+        "readyForIssuance": "Policies are ready. Move to credential issuance.",
+        "returnHintAfterAlert": "Return to the recommended downstream action after closing sync exceptions.",
+        "returnHintAfterImport": "After import, continue to employees, groups, policies, and issuance.",
+        "title": "Sync outcome"
       }
     },
     "errors": {
-      "batchApprovalPartialFailure": "batch approval partial failure",
-      "batchExternalSyncPartialFailure": "batch external sync partial failure",
-      "batchRefreshFailed": "batch refresh failed",
-      "dispatchWorkerAlertsFailed": "failed to dispatch worker alert notifications",
-      "invalidSyncPayload": "invalid sync payload",
-      "processWebhookReceiptBatchFailed": "failed to process webhook receipt queue in batch",
-      "processWebhookReceiptBatchPartialFailure": "failed to process part of the visible webhook receipt queue",
-      "reconcilePendingFailed": "failed to reconcile pending sync requests",
-      "replayDLQBatchPartialFailure": "failed to replay part of the visible DLQ entries",
-      "replayDLQFailed": "failed to replay DLQ entry",
-      "webhookDLQWorkerRequired": "the DLQ worker is not enabled, so worker-only queued replay is unavailable",
-      "webhookReceiptWorkerRequired": "the receipt worker is not enabled, so worker-only queued processing is unavailable",
-      "saveWorkerAlertSubscriptionFailed": "failed to save worker alert subscription",
-      "saveTalentaConnectorFailed": "save talenta connector failed",
-      "submitSyncFailed": "submit sync failed",
-      "syncAtLeastOne": "sync at least one",
-      "updateApprovalFailed": "update approval failed",
-      "updateExternalSyncFailed": "update external sync failed"
+      "batchApprovalPartialFailure": "Some approval records failed. Review the failed items in the ledger and retry.",
+      "batchExternalSyncPartialFailure": "Some external writeback status updates failed. Review the failed items in the ledger and retry.",
+      "batchRefreshFailed": "Batch refresh failed. Review the affected records and retry.",
+      "dispatchWorkerAlertsFailed": "Failed to dispatch worker alert notifications.",
+      "autoRetryWorkerAlertNotificationsFailed": "Failed to auto-retry worker alert notifications.",
+      "exportWorkerAlertNotificationsFailed": "Failed to export worker alert notifications.",
+      "invalidSyncPayload": "Sync payload must be a JSON array of employee records.",
+      "loadWebhookDLQFailed": "Failed to load webhook DLQ entries.",
+      "loadWebhookExecutionDetailFailed": "Failed to load webhook execution detail.",
+      "loadWebhookExecutionsFailed": "Failed to load webhook execution history.",
+      "loadWebhookReceiptsFailed": "Failed to load webhook receipts.",
+      "loadWorkerAlertNotificationsFailed": "Failed to load worker alert notifications.",
+      "processWebhookReceiptBatchFailed": "Failed to process the visible webhook receipt queue.",
+      "processWebhookReceiptBatchPartialFailure": "Part of the visible webhook receipt queue failed to process.",
+      "reconcilePendingFailed": "Failed to reconcile pending sync requests.",
+      "replayDLQBatchPartialFailure": "Part of the visible DLQ entries failed to replay.",
+      "replayDLQFailed": "Failed to replay DLQ entry.",
+      "restoreWorkerAlertNotificationsBatchFailed": "Failed to restore worker alert notifications.",
+      "retryWorkerAlertNotificationFailed": "Failed to retry worker alert notification.",
+      "retryWorkerAlertNotificationsBatchFailed": "Failed to retry worker alert notifications.",
+      "webhookDLQWorkerRequired": "The DLQ worker is not enabled, so worker-only queued replay is unavailable.",
+      "webhookReceiptWorkerRequired": "The receipt worker is not enabled, so worker-only queued processing is unavailable.",
+      "saveWorkerAlertSubscriptionFailed": "Failed to save worker alert subscription.",
+      "saveTalentaConnectorFailed": "Failed to save Talenta connector.",
+      "suppressWorkerAlertNotificationsBatchFailed": "Failed to suppress worker alert notifications.",
+      "submitSyncFailed": "Failed to submit sync job.",
+      "syncAtLeastOne": "Provide at least one employee record before submitting sync.",
+      "updateApprovalFailed": "Failed to update approval decision.",
+      "updateExternalSyncFailed": "Failed to update external write-back status."
     },
     "flowHints": {
-      "firstPolicy": "first policy",
-      "groupDescDeactivatedCleanup": "group desc deactivated cleanup",
-      "groupDescSyncDraft": "group desc sync draft",
-      "officePolicyTemplate": "office policy template"
+      "firstPolicy": "First access policy",
+      "groupDescDeactivatedCleanup": "Review deactivated employee cleanup from the latest sync.",
+      "groupDescSyncDraft": "Directory sync draft group for downstream policy review.",
+      "officePolicyTemplate": "{{groupName}} office access policy"
     },
     "header": {
       "description": "Review directory sources, sync results, SSO readiness, policy handoff, and credential issuance closure.",
@@ -2118,332 +2417,338 @@
     },
     "idpOutcome": {
       "clearAlertsFirst": {
-        "description": "description",
-        "title": "title"
+        "description": "Resolve sync or worker alerts before treating SSO as ready.",
+        "title": "Clear alerts first"
       },
       "confirmSyncSource": {
-        "description": "description",
-        "title": "title"
+        "description": "Confirm the directory source that should feed groups, policies, and issuance.",
+        "title": "Confirm sync source"
       },
       "goPolicyRules": {
-        "description": "description",
-        "title": "title"
+        "description": "Use the verified login and directory source to review policy rules.",
+        "title": "Review policy rules"
       },
       "groupEmployeesAfterIdp": {
-        "description": "description",
-        "title": "title"
+        "description": "SSO is ready. Group employees so access policies can target them.",
+        "title": "Group employees after IDP setup"
       },
       "idpClosedLoop": {
-        "description": "description",
-        "title": "title"
+        "description": "SSO, directory, policy, and issuance prerequisites are aligned.",
+        "title": "IDP flow closed"
       },
       "setupIdpFirst": {
-        "description": "description",
-        "title": "title"
+        "description": "Set up the identity provider before routing users through enterprise login.",
+        "title": "Set up IDP first"
       }
     },
     "kpi": {
-      "approvalsHint": "approvals hint",
-      "employeesHint": "employees hint",
-      "ssoHint": "sso hint",
-      "syncJobsHint": "sync jobs hint"
+      "approvalsHint": "Pending JIT approvals waiting for review.",
+      "employeesHint": "Active employees available for groups, policies, and issuance.",
+      "ssoHint": "Current enterprise login configuration status.",
+      "syncJobsHint": "Recent directory sync jobs in this tenant scope."
     },
     "labels": {
-      "alerts": "alerts",
-      "currentOrganization": "current organization",
-      "employees": "employees",
-      "idp": "idp",
-      "issuedPasses": "issued passes",
-      "pendingApprovals": "pending approvals",
-      "policies": "policies",
-      "recentSyncJobs": "recent sync jobs",
-      "ssoStatus": "sso status",
-      "sync": "sync",
-      "userGroups": "user groups"
+      "alerts": "Alerts",
+      "currentOrganization": "Current organization",
+      "employees": "Employees",
+      "idp": "IDP",
+      "issuedPasses": "Issued passes",
+      "pendingApprovals": "Pending approvals",
+      "policies": "Policies",
+      "recentSyncJobs": "Recent sync jobs",
+      "ssoStatus": "SSO status",
+      "sync": "Sync",
+      "userGroups": "User groups"
     },
     "nextAction": {
       "cardDescription": "Recommended action based on directory, policy, and issuance readiness.",
       "cardTitle": "Recommended next step",
       "closedLoop": {
-        "description": "description",
-        "title": "title"
+        "description": "Directory, policies, and issued passes are aligned for the current organization.",
+        "title": "Flow is closed"
       },
       "connectEmployees": {
-        "description": "description",
-        "title": "title"
+        "description": "Import or connect employees before configuring groups and policies.",
+        "title": "Connect employees"
       },
       "createPolicies": {
-        "description": "description",
-        "title": "title"
+        "description": "Create access policies after employees and groups are ready.",
+        "title": "Create policies"
       },
       "goIssuance": {
-        "description": "description",
-        "title": "title"
+        "description": "Move to credential issuance once policies are ready.",
+        "title": "Go to issuance"
       },
       "groupEmployees": {
-        "description": "description",
-        "title": "title"
+        "description": "Put imported employees into groups so policies can target them.",
+        "title": "Group employees"
       },
       "stats": {
-        "groups": "groups",
-        "issuedPasses": "issued passes",
-        "policies": "policies"
+        "groups": "Groups",
+        "issuedPasses": "Issued passes",
+        "policies": "Policies"
       }
     },
     "quickActions": {
       "alerts": {
-        "description": "description"
+        "description": "Open worker alerts, receipts, and DLQ queues that need attention."
       },
       "csv": {
-        "description": "description",
-        "title": "title"
+        "description": "Import a CSV employee file when HRIS or SCIM is not connected yet.",
+        "title": "CSV import"
       },
       "hris": {
-        "description": "description",
-        "title": "title"
+        "description": "Configure HRIS sync for automated employee directory updates.",
+        "title": "HRIS sync"
       },
       "idp": {
-        "description": "description",
-        "title": "title"
+        "description": "Review SSO settings and JIT approval readiness.",
+        "title": "Enterprise login"
       }
     },
     "remediation": {
       "firstSync": {
-        "description": "description",
-        "title": "title"
+        "description": "Submit the first sync job before reviewing directory health.",
+        "title": "Run the first sync"
       },
       "handleRejected": {
-        "completed": "completed",
-        "pending": "pending",
-        "title": "title"
+        "completed": "No rejected records remain.",
+        "pending": "{{rejected}} rejected records need review.",
+        "title": "Handle rejected records"
       },
       "pushToPolicyAndIssuance": {
-        "noEmployees": "no employees",
-        "noGroups": "no groups",
-        "noPolicies": "no policies",
-        "readyForIssuance": "ready for issuance",
-        "title": "title"
+        "noEmployees": "Import employees before policy and issuance handoff.",
+        "noGroups": "Create user groups before policy handoff.",
+        "noPolicies": "Create access policies before issuing credentials.",
+        "readyForIssuance": "Policy prerequisites are ready for credential issuance.",
+        "title": "Move to policies and issuance"
       },
       "reviewDeactivatedImpact": {
-        "completed": "completed",
-        "pending": "pending",
-        "title": "title"
+        "completed": "No deactivated employee cleanup is pending.",
+        "pending": "{{deactivated}} deactivated employees need access and credential review.",
+        "title": "Review deactivation impact"
       },
       "reviewLatest": {
-        "description": "description",
-        "title": "title"
+        "description": "Review the latest sync result and resolve the highest-risk records first.",
+        "title": "Review the latest sync"
       }
     },
     "status": {
-      "cleared": "cleared",
-      "closedLoop": "closed loop",
-      "deactivatedNeedsCleanup": "deactivated needs cleanup",
-      "directoryStable": "directory stable",
-      "needsReview": "needs review",
-      "notConfigured": "not configured",
-      "pendingBackflow": "pending backflow",
-      "pendingCleanup": "pending cleanup",
-      "pendingConfirm": "pending confirm",
-      "pendingConnect": "pending connect",
-      "pendingImport": "pending import",
-      "pendingIssuance": "pending issuance",
-      "pendingReview": "pending review",
-      "pendingSubmit": "pending submit",
-      "readyToProceed": "ready to proceed"
+      "cleared": "Cleared",
+      "closedLoop": "Closed loop",
+      "deactivatedNeedsCleanup": "Deactivation cleanup",
+      "directoryStable": "Directory stable",
+      "needsReview": "Needs review",
+      "notConfigured": "Not configured",
+      "pendingBackflow": "Pending backflow",
+      "pendingCleanup": "Pending cleanup",
+      "pendingConfirm": "Pending confirmation",
+      "pendingConnect": "Pending connection",
+      "pendingImport": "Pending import",
+      "pendingIssuance": "Pending issuance",
+      "pendingReview": "Pending review",
+      "pendingSubmit": "Pending submit",
+      "readyToProceed": "Ready to proceed"
     },
     "syncCheckpoints": {
       "csvImport": {
-        "duplicateHandling": "duplicate handling",
-        "headersAndRequired": "headers and required"
+        "duplicateHandling": "Duplicate handling",
+        "headersAndRequired": "Headers and required fields"
       },
       "hris": {
-        "fieldMapping": "field mapping",
-        "primaryKeyEmail": "primary key email"
+        "fieldMapping": "Field mapping",
+        "primaryKeyEmail": "Primary key and email"
       },
       "manual": {
-        "backflowToStableGroups": "backflow to stable groups",
-        "requiredProfileFields": "required profile fields"
+        "backflowToStableGroups": "Backflow to stable groups",
+        "requiredProfileFields": "Required profile fields"
       },
       "scim": {
-        "deactivationSemantics": "deactivation semantics",
-        "externalIdEmail": "external id email"
+        "deactivationSemantics": "Deactivation semantics",
+        "externalIdEmail": "External ID and email"
       }
     },
     "syncOutcome": {
       "backToEmployees": {
-        "description": "description",
-        "title": "title"
+        "description": "Return to the employee directory to inspect imported records.",
+        "title": "Back to employees"
       },
       "closedLoop": {
-        "description": "description",
-        "title": "title"
+        "description": "The latest sync is connected through groups, policies, and issuance.",
+        "title": "Sync flow closed"
       },
       "createPolicies": {
-        "description": "description",
-        "title": "title"
+        "description": "Create policies so imported employees receive the right access.",
+        "title": "Create policies"
       },
       "firstImport": {
-        "description": "description",
-        "title": "title"
+        "description": "Import employees before reviewing groups, policies, or credentials.",
+        "title": "Start with an import"
       },
       "groupNewEmployees": {
-        "description": "description",
-        "title": "title"
+        "description": "Place newly imported employees into groups before policy handoff.",
+        "title": "Group new employees"
       },
       "reviewRejected": {
-        "description": "description",
-        "title": "title"
+        "description": "Rejected records need correction before they can enter the directory flow.",
+        "title": "Review rejected records"
       }
     },
     "syncResult": {
       "failure": {
-        "csvImport": "csv import",
-        "hris": "hris",
-        "manual": "manual",
-        "scim": "scim"
+        "csvImport": "CSV import failed",
+        "hris": "HRIS sync failed",
+        "manual": "Manual sync failed",
+        "scim": "SCIM sync failed"
       },
       "success": {
-        "csvImport": "csv import",
-        "default": "default",
-        "manual": "manual",
-        "scimDeactivated": "scim deactivated"
+        "csvImport": "CSV import completed",
+        "default": "Sync completed",
+        "manual": "Manual sync completed",
+        "scimDeactivated": "SCIM sync completed with deactivations"
       }
     },
     "syncSourceFeedback": {
       "backflowToDirectory": {
-        "description": "description",
-        "title": "title"
+        "description": "Send reviewed records back into the directory flow.",
+        "title": "Backflow to directory"
       },
       "closedLoop": {
-        "description": "description",
-        "title": "title"
+        "description": "This source is connected through directory, policy, and issuance steps.",
+        "title": "Source flow closed"
       },
       "pendingConfirm": {
-        "description": "description",
-        "title": "title"
+        "description": "Confirm this source before using it as the primary directory feed.",
+        "title": "Confirm source"
       },
       "pendingFirstResult": {
-        "description": "description",
-        "title": "title"
+        "description": "Run a sync and wait for the first result before continuing.",
+        "title": "Waiting for first result"
       },
       "pendingReview": {
-        "description": "description",
-        "title": "title"
+        "description": "Review rejected or incomplete records from this source.",
+        "title": "Review source result"
       },
       "readyForGrouping": {
-        "description": "description",
-        "title": "title"
+        "description": "Employees from this source are ready to be assigned to groups.",
+        "title": "Ready for grouping"
       },
       "scimDeactivated": {
-        "description": "description",
-        "title": "title"
+        "description": "SCIM deactivation changes need cleanup before closure.",
+        "title": "SCIM deactivation cleanup"
       }
     },
     "syncSourceStatus": {
       "closedLoop": {
-        "description": "description"
+        "description": "The source is connected through the downstream access flow with {{issuedPassCount}} issued credentials."
       },
       "deactivatedNeedsCleanup": {
-        "description": "description"
+        "description": "{{deactivated}} deactivated records need cleanup before access can be considered closed."
       },
-      "metrics": "metrics",
+      "metrics": "Created {{created}}, updated {{updated}}, deactivated {{deactivated}}, rejected {{rejected}}",
       "needsReview": {
-        "description": "description"
+        "description": "Review this source because its latest status is {{status}} with {{rejected}} rejected records."
       },
-      "noResult": "no result",
+      "noResult": "No sync result yet",
       "pendingConfirm": {
-        "description": "description"
+        "description": "Confirm this sync source before treating it as active."
       },
       "pendingConnect": {
-        "description": "description"
+        "description": "Connect a sync source before importing employees."
       },
       "pendingIssuance": {
-        "description": "description"
+        "description": "Credential issuance is still pending for records from this source."
       },
       "readyForGrouping": {
-        "description": "description"
+        "description": "{{activeEmployeeCount}} imported employees are ready for group assignment."
       },
       "readyForPolicies": {
-        "description": "description"
+        "description": "{{tenantGroupsCount}} groups are ready for policy configuration."
       }
     },
     "syncSources": {
       "csvImport": {
-        "description": "description",
-        "label": "label"
+        "description": "Upload a CSV file for one-time or fallback employee import.",
+        "label": "CSV import"
       },
       "hris": {
-        "description": "description",
-        "label": "label"
+        "description": "Connect HRIS to keep the directory synchronized from the source system.",
+        "label": "HRIS"
       },
       "manual": {
-        "description": "description",
-        "label": "label"
+        "description": "Use manual sync for small changes or controlled testing.",
+        "label": "Manual sync"
       },
       "scim": {
-        "description": "description",
-        "label": "label"
+        "description": "Use SCIM to keep identity lifecycle changes flowing from the IdP.",
+        "label": "SCIM"
       }
     },
     "syncSummary": {
-      "approvalReviewed": "approval reviewed",
+      "approvalReviewed": "Approval {{decisionLabel}} for {{email}}.",
       "dlqBatchReplayCompleted": "DLQ batch replay completed: selected {{totalEntries}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
       "dlqBatchReplayQueued": "DLQ batch replay queued: selected {{totalEntries}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}} / via {{dispatchMode}}",
-      "batchExternalSyncCompleted": "batch external sync completed",
-      "batchReviewCompleted": "batch review completed",
+      "batchExternalSyncCompleted": "Batch external writeback status update completed ({{status}}): {{successCount}} succeeded, {{failedCount}} failed.",
+      "batchReviewCompleted": "Batch {{decisionLabel}} completed: {{successCount}} succeeded, {{failedCount}} failed.",
       "dlqReplayCompleted": "DLQ replay completed",
       "dlqReplayQueued": "DLQ replay queued: {{entryID}} / status {{status}} / via {{dispatchMode}}",
-      "externalSyncMarked": "external sync marked",
+      "externalSyncMarked": "External write-back marked {{status}} for {{email}}.",
       "webhookReceiptProcessed": "Webhook receipt processed: {{receiptID}} / status {{status}}",
       "webhookReceiptQueued": "Webhook receipt queued: {{receiptID}} / status {{status}} / via {{dispatchMode}}",
       "webhookReceiptBatchProcessCompleted": "Webhook receipt batch processing completed: selected {{totalReceipts}} / processed {{processed}} / skipped {{skipped}} / failed {{failed}} / dlq {{dlq}}",
       "webhookReceiptBatchQueued": "Webhook receipt batch queued: selected {{totalReceipts}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}} / via {{dispatchMode}}",
       "webhookExecutionReplayQueued": "Execution replay queued: {{sourceExecutionID}} / new {{executionID}} / via {{dispatchMode}}",
-      "reconcilePendingCompleted": "pending sync requests processed: processed {{processed}} / applied {{applied}} / failed {{failed}} / attempt-limit {{skippedByAttemptLimit}} / cooldown {{skippedByCooldown}}",
-      "submitted": "submitted",
-      "submittedButEmpty": "submitted but empty",
-      "submittedWithFollowUp": "submitted with follow up",
+      "reconcilePendingCompleted": "Pending sync requests processed: processed {{processed}} / applied {{applied}} / failed {{failed}} / attempt-limit {{skippedByAttemptLimit}} / cooldown {{skippedByCooldown}}",
+      "submitted": "Sync job submitted.",
+      "submittedButEmpty": "Sync job submitted, but no active records were produced.",
+      "submittedWithFollowUp": "Sync job submitted with {{rejected}} rejected and {{deactivated}} deactivated records.",
       "talentaConnectorAction": {
         "created": "created",
         "updated": "updated"
       },
       "talentaConnectorSaved": "Talenta connector {{action}} with {{syncStrategy}} strategy.",
-      "workerAlertDispatchCompleted": "Worker alert dispatch completed: candidates {{totalAlerts}} / sent {{dispatched}} / skipped {{skipped}} / failed {{failed}}",
-      "workerAlertSubscriptionSaved": "Worker alert subscription saved: threshold {{threshold}} / window {{windowSeconds}} / cooldown {{cooldownSeconds}}"
+      "workerAlertDispatchCompleted": "Sync worker alert dispatch completed: candidates {{totalAlerts}} / sent {{dispatched}} / skipped {{skipped}} / failed {{failed}}",
+      "workerAlertNotificationAutoRetried": "Sync worker alert auto retry completed: {{retried}} sent / {{failed}} failed / {{skipped}} skipped / {{suppressed}} suppressed",
+      "workerAlertNotificationBatchRestored": "Sync worker alert notifications restored: {{restored}} restored / {{skipped}} skipped",
+      "workerAlertNotificationBatchRetried": "Sync worker alert notifications retried: {{retried}} sent / {{failed}} failed / {{skipped}} skipped / {{suppressed}} suppressed",
+      "workerAlertNotificationBatchSuppressed": "Sync worker alert notifications suppressed: {{suppressed}} suppressed / {{skipped}} skipped",
+      "workerAlertNotificationExported": "Sync worker alert notifications exported: {{count}} records",
+      "workerAlertNotificationRetried": "Sync worker alert notification retried: {{workerLabel}} / status {{status}} / attempt {{attempt}}",
+      "workerAlertSubscriptionSaved": "Sync worker subscription saved: threshold {{threshold}} / window {{windowSeconds}} / cooldown {{cooldownSeconds}}"
     },
     "workflow": {
       "description": "Move through directory intake, sync validation, grouping and policy delivery, then credential issuance.",
       "state": {
-        "blocked": "blocked",
-        "completed": "completed",
-        "pending": "pending"
+        "blocked": "Blocked",
+        "completed": "Completed",
+        "pending": "Pending"
       },
       "steps": {
         "directory": {
-          "helperBlocked": "helper blocked",
-          "helperCompleted": "helper completed",
-          "helperPending": "helper pending",
-          "metric": "Employees",
+          "helperBlocked": "Import employees before grouping them.",
+          "helperCompleted": "User groups are ready for policy handoff.",
+          "helperPending": "Create or review groups for imported employees.",
+          "metric": "{{count}} groups",
           "title": "Directory"
         },
         "issuance": {
-          "helperBlocked": "helper blocked",
-          "helperCompleted": "helper completed",
-          "helperPending": "helper pending",
-          "metric": "Credentials",
+          "helperBlocked": "Create policies before issuing credentials.",
+          "helperCompleted": "Credentials have been issued for this flow.",
+          "helperPending": "Issue credentials after policies are ready.",
+          "metric": "{{count}} credentials",
           "title": "Issuance"
         },
         "policies": {
-          "helperBlocked": "helper blocked",
-          "helperCompleted": "helper completed",
-          "helperPending": "helper pending",
-          "metric": "Policies",
+          "helperBlocked": "Create groups before adding policies.",
+          "helperCompleted": "Access policies are ready for issuance.",
+          "helperPending": "Create or review policies for the selected groups.",
+          "metric": "{{count}} policies",
           "title": "Policies"
         },
         "sync": {
-          "helperCompleted": "helper completed",
-          "helperPending": "helper pending",
-          "metric": "Sync jobs",
+          "helperCompleted": "Directory records are available for downstream work.",
+          "helperPending": "Run a sync or select a source before continuing.",
+          "metric": "{{syncCount}} sync jobs / {{activeEmployeeCount}} employees",
           "title": "Sync"
         }
       },
@@ -2465,53 +2770,53 @@
       "savePolicyFailed": "save policy failed"
     },
     "labels": {
-      "deactivatedCleanup": "deactivated cleanup",
-      "expired": "expired",
-      "memberCarry": "member carry",
-      "memberReview": "member review",
-      "policyStatusActive": "policy status active",
-      "policyStatusDraft": "policy status draft",
-      "segmentHintPrefix": "segment hint prefix"
+      "deactivatedCleanup": "Deactivation cleanup",
+      "expired": "Expired",
+      "memberCarry": "Member carried",
+      "memberReview": "Member review",
+      "policyStatusActive": "active",
+      "policyStatusDraft": "draft",
+      "segmentHintPrefix": "Segment"
     },
     "summary": {
-      "acceptedTargetPrefix": "accepted target prefix",
-      "batchPolicyFlowHint": "batch policy flow hint",
-      "batchPolicyFlowHintWithTargets": "batch policy flow hint with targets",
-      "batchPolicyStatusFailedSuffix": "batch policy status failed suffix",
-      "batchPolicyStatusUpdated": "batch policy status updated",
-      "defaultGroupDescFromEnterprise": "default group desc from enterprise",
-      "directoryLocatedGroup": "directory located group",
-      "directoryLocatedGroupByMember": "directory located group by member",
-      "directoryPrefilledBySync": "directory prefilled by sync",
-      "directoryPrefilledByWorker": "directory prefilled by worker",
-      "directoryPrefilledGroupHint": "directory prefilled group hint",
-      "directoryPrefilledStarter": "directory prefilled starter",
-      "flowAccepted": "flow accepted",
-      "grantCreated": "grant created",
-      "grantStarterApplied": "grant starter applied",
-      "groupCreated": "group created",
-      "groupUpdated": "group updated",
-      "hintedMemberCarriedSuffix": "hinted member carried suffix",
-      "hintedMemberLocatedSuffix": "hinted member located suffix",
-      "hintedMemberParenSuffix": "hinted member paren suffix",
-      "hintedMemberWithPrefixParenSuffix": "hinted member with prefix paren suffix",
-      "issuanceStageHint": "issuance stage hint",
-      "noPoliciesForBatchReview": "no policies for batch review",
-      "organizationSuffix": "organization suffix",
-      "policyCreated": "policy created",
-      "policyLocated": "policy located",
-      "policyLocatedEmpty": "policy located empty",
-      "policyMatchedRows": "policy matched rows",
-      "policyPrefilledByWorker": "policy prefilled by worker",
-      "policyPrefilledName": "policy prefilled name",
-      "policyPrefilledStarter": "policy prefilled starter",
-      "policyPrefilledStarterByHint": "policy prefilled starter by hint",
-      "policyStarterApplied": "policy starter applied",
-      "policyUpdated": "policy updated",
-      "segmentSuffix": "segment suffix",
-      "starterGroupsCreated": "starter groups created",
-      "starterGroupsFailedSuffix": "starter groups failed suffix",
-      "summaryWithSegment": "summary with segment"
+      "acceptedTargetPrefix": "Target {{targetLabel}}. ",
+      "batchPolicyFlowHint": "{{policyCount}} policies moved to active. Review issuance targets next.",
+      "batchPolicyFlowHintWithTargets": "{{policyCount}} policies moved to active and {{targetCount}} likely issuance targets were detected.",
+      "batchPolicyStatusFailedSuffix": ", {{failedCount}} failed",
+      "batchPolicyStatusUpdated": "Updated {{total}} policies to {{targetLabel}}: {{success}} succeeded{{failedSuffix}}.",
+      "defaultGroupDescFromEnterprise": "Group prepared from Enterprise directory recovery.",
+      "directoryLocatedGroup": "Opened group {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryLocatedGroupByMember": "Located group {{groupName}} by member{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledBySync": "Prepared a directory group from {{enterpriseSyncCompactTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledByWorker": "Prepared a group from {{enterpriseWorkerCompactTail}}.",
+      "directoryPrefilledGroupHint": "Prepared group {{groupNameHint}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledStarter": "Prepared starter group {{defaultGroup}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "flowAccepted": "Accepted {{flowLabel}}{{stageLabel}} from Enterprise.{{tenantSuffix}}{{segmentSuffix}}",
+      "grantCreated": "Grant created for {{granteeName}}.",
+      "grantStarterApplied": "Grant starter applied: {{title}}.",
+      "groupCreated": "Group {{name}} created.",
+      "groupUpdated": "Group {{name}} updated.",
+      "hintedMemberCarriedSuffix": " with member {{hintedMemberLabel}} carried over",
+      "hintedMemberLocatedSuffix": " with member {{hintedMemberLabel}} selected",
+      "hintedMemberParenSuffix": " (member {{hintedMemberLabel}})",
+      "hintedMemberWithPrefixParenSuffix": " with member {{hintedMemberLabel}}",
+      "issuanceStageHint": "{{targetPrefix}}Continue credential issuance from Enterprise context.",
+      "noPoliciesForBatchReview": "No policies match the current batch review view.",
+      "organizationSuffix": " Organization {{tenantLabel}}.",
+      "policyCreated": "Policy {{name}} created.",
+      "policyLocated": "Opened policy {{policyName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyLocatedEmpty": "No existing policy matched. {{hintedMemberSuffix}}{{enterpriseSummaryTail}}",
+      "policyMatchedRows": "{{matchedCount}} policy rows matched; opened {{policyName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledByWorker": "Prepared a policy draft from {{enterpriseWorkerCompactTail}}.",
+      "policyPrefilledName": "Prepared policy draft {{policyNameHint}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarter": "Prepared starter policy for {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarterByHint": "Prepared starter policy for {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyStarterApplied": "Policy starter applied for {{groupName}}.",
+      "policyUpdated": "Policy {{name}} updated.",
+      "segmentSuffix": " Segment {{flowSegmentDescriptor}}.",
+      "starterGroupsCreated": "Created {{createdCount}} starter groups{{failedSuffix}}.",
+      "starterGroupsFailedSuffix": ", {{failedCount}} failed",
+      "summaryWithSegment": "{{withoutTailPunctuation}}. Segment {{flowSegmentDescriptor}}."
     },
     "components": {
       "directorySection": {
@@ -2537,7 +2842,7 @@
         "grantsLoading": "Counting grants...",
         "grantsNote": "Visitors {{visitorGrantCount}}, expired {{expiredGrantCount}}.",
         "deliveryMethods": "Delivery methods",
-        "deliveryMethodsNote": "MistyPass mobile pass / email QR."
+        "deliveryMethodsNote": "Mistyislet mobile pass / email QR."
       },
       "enterpriseFlow": {
         "syncRecordLabel": "{{source}} task {{jobID}}",
@@ -2580,7 +2885,7 @@
         "endDate": "End date",
         "deliveryMethod": "Delivery method",
         "deliveryAll": "All methods",
-        "deliveryWallet": "MistyPass mobile pass",
+        "deliveryWallet": "Mistyislet mobile pass",
         "deliveryEmailQr": "Email QR pass",
         "subjectType": "Subject type",
         "subjectAll": "All subject types",
@@ -2598,7 +2903,7 @@
         "scopeArea": "Area",
         "scopeDoor": "Door",
         "deliveryMethod": "Delivery method",
-        "deliveryWallet": "MistyPass mobile pass",
+        "deliveryWallet": "Mistyislet mobile pass",
         "deliveryEmailQr": "Email QR pass",
         "buildingOptional": "Building (optional)",
         "areaOptional": "Area (optional)",
@@ -2607,12 +2912,45 @@
         "nameLabel": "Name",
         "namePlaceholder": "Grantee name",
         "genderLabel": "Gender",
+        "genderPlaceholder": "male/female/other",
         "phoneLabel": "Phone",
+        "phonePlaceholder": "+62-xxx-xxxx-xxxx",
         "emailLabel": "Email",
+        "emailPlaceholder": "name@company.com",
         "mobileModelLabel": "Mobile model",
+        "mobileModelPlaceholder": "Pixel 8 / iPhone 16",
         "subjectTypeLabel": "Subject type",
+        "subjectTypePlaceholder": "employee / visitor / customer",
         "validUntilPlaceholder": "Valid until (e.g. 2026-04-11 20:00)",
-        "submit": "Create grant"
+        "submit": "Create grant",
+        "disabledReason": {
+          "buildingAllScope": "Building is not needed when the grant covers all areas.",
+          "areaAllScope": "Area is not needed when the grant covers all areas.",
+          "areaBuildingScope": "Area is not needed for a building-level grant.",
+          "areaNeedsBuilding": "Select a building before choosing an area.",
+          "doorScopeOnly": "Door selection is only needed for door-level grants.",
+          "doorNeedsArea": "Select an area before choosing a door."
+        },
+        "validation": {
+          "buildingIdMax": "Building ID must be at most 64 characters.",
+          "areaIdMax": "Area ID must be at most 64 characters.",
+          "doorIdMax": "Door ID must be at most 64 characters.",
+          "granteeNameRequired": "Please enter grantee name.",
+          "granteeNameMax": "Grantee name must be at most 64 characters.",
+          "genderMax": "Gender must be at most 16 characters.",
+          "phoneRequired": "Please enter phone number.",
+          "phoneMax": "Phone number must be at most 32 characters.",
+          "emailRequired": "Please enter email.",
+          "emailFormat": "Invalid email format.",
+          "mobileModelMax": "Mobile model must be at most 64 characters.",
+          "subjectTypeRequired": "Please enter subject type.",
+          "subjectTypeMax": "Subject type must be at most 32 characters.",
+          "validUntilRequired": "Please enter valid-until time.",
+          "validUntilFormat": "Invalid valid-until time format.",
+          "buildingRequired": "Building is required for this scope type.",
+          "areaRequired": "Area is required for this scope type.",
+          "doorRequired": "Door scope requires a selected door."
+        }
       },
       "grantLedgerTable": {
         "columns": {
@@ -2668,7 +3006,13 @@
         "importEmployees": "Import employees in Enterprise",
         "selectedMembers": "Selected members: {{count}}",
         "submitEdit": "Update group",
-        "submitCreate": "Create group"
+        "submitCreate": "Create group",
+        "validation": {
+          "groupNameRequired": "Please enter a user group name.",
+          "groupNameMax": "User group name must be at most 64 characters.",
+          "descriptionMax": "Description must be at most 128 characters.",
+          "memberSearchMax": "Member search keyword must be at most 128 characters."
+        }
       },
       "groupLedgerTable": {
         "columns": {
@@ -2695,7 +3039,8 @@
         "descriptionPlatform": "Review readiness, policy setup, and temporary grants by tenant; long-term issuance is centralized in pass issuance.",
         "descriptionTenant": "For current organization, prepare employees/groups first, then policies, then visitor and temporary grants.",
         "selectTenant": "Select tenant",
-        "currentOrganization": "Current organization"
+        "currentOrganization": "Current organization",
+        "scopeLockedDescription": "This account is fixed to one tenant by role, so tenant switching is disabled."
       },
       "recommendation": {
         "sections": {
@@ -2741,7 +3086,7 @@
           "draft": "Draft"
         },
         "delivery": {
-          "wallet": "MistyPass mobile pass",
+          "wallet": "Mistyislet mobile pass",
           "emailQr": "Email QR pass"
         },
         "remaining": {
@@ -2824,7 +3169,29 @@
         "schedule": "Schedule (e.g. Mon-Fri 07:00-19:00)",
         "memberCount": "Member count",
         "submitEdit": "Update policy",
-        "submitCreate": "Create policy"
+        "submitCreate": "Create policy",
+        "validation": {
+          "policyNameRequired": "Please enter a policy name.",
+          "policyNameMax": "Policy name must be at most 64 characters.",
+          "buildingIdMax": "Building ID must be at most 64 characters.",
+          "areaIdMax": "Area ID must be at most 64 characters.",
+          "doorIdMax": "Door ID must be at most 64 characters.",
+          "scheduleMax": "Schedule must be at most 128 characters.",
+          "memberCountRequired": "Please enter member count.",
+          "memberCountMax": "Member count format is invalid.",
+          "memberCountInteger": "Member count must be an integer greater than or equal to 0.",
+          "buildingRequired": "Building is required for this scope type.",
+          "areaRequired": "Area is required for this scope type.",
+          "doorRequired": "Door scope requires a selected door."
+        },
+        "disabledReason": {
+          "buildingAllScope": "Building is not needed when the policy covers all areas.",
+          "areaAllScope": "Area is not needed when the policy covers all areas.",
+          "areaBuildingScope": "Area is not needed for a building-level policy.",
+          "areaNeedsBuilding": "Select a building before choosing an area.",
+          "doorScopeOnly": "Door selection is only needed for door-level policies.",
+          "doorNeedsArea": "Select an area before choosing a door."
+        }
       },
       "policyLedgerTable": {
         "columns": {
@@ -2933,397 +3300,417 @@
   "walletPage": {
     "actions": {
       "physicalTask": {
-        "cancel": "cancel",
-        "confirmLoss": "confirm loss",
-        "issueDirectly": "issue directly",
-        "markIssued": "mark issued",
-        "ready": "ready",
-        "startPrinting": "start printing"
+        "cancel": "Cancel",
+        "confirmLoss": "Confirm loss",
+        "issueDirectly": "Issue directly",
+        "markIssued": "Mark issued",
+        "ready": "Ready",
+        "startPrinting": "Start printing"
       },
-      "openSaveLink": "open save link",
-      "copyLink": "copy link",
-      "viewQrCode": "view qr code",
-      "refreshing": "refreshing",
-      "refreshLink": "refresh link",
-      "suspend": "suspend",
-      "activate": "activate",
-      "revoke": "revoke",
-      "switchToScenario": "switch to scenario",
-      "applyPreset": "apply preset",
-      "goTemporaryAccessLedger": "go temporary access ledger",
-      "useEmployeeTemplate": "use employee template",
-      "createEmployeeTemplateFirst": "create employee template first",
-      "goSyncEmployeeDirectory": "go sync employee directory",
-      "useVisitorTemplate": "use visitor template",
-      "createVisitorTemplateFirst": "create visitor template first",
-      "goTemporaryAccess": "go temporary access",
-      "viewSuspended": "view suspended",
-      "viewAllStatuses": "view all statuses",
-      "viewLedger": "view ledger",
-      "viewSimilarLedger": "view similar ledger",
-      "openLink": "open link",
-      "sending": "sending",
-      "sendDelivery": "send delivery",
-      "batchRetrying": "batch retrying",
-      "batchRetryDelivery": "batch retry delivery",
-      "repairingStatus": "repairing status",
-      "batchRepairStatus": "batch repair status",
-      "backToEnterpriseReceiptReview": "back to enterprise receipt review",
-      "seedBatchReissueDraft": "seed batch reissue draft",
-      "backToEnterpriseSyncIssue": "back to enterprise sync issue",
-      "backToEnterpriseWorkerReview": "back to enterprise worker review",
-      "retrying": "retrying",
-      "retryFailedDeliveryChannel": "retry failed delivery channel",
-      "creating": "creating",
-      "createPhysicalTask": "create physical task",
-      "issueEmployeePassFirst": "issue employee pass first",
-      "processing": "processing",
-      "clearFilters": "clear filters",
-      "clearSelection": "clear selection",
-      "batchSuspending": "batch suspending",
-      "batchSuspend": "batch suspend",
-      "batchActivating": "batch activating",
-      "batchActivate": "batch activate",
-      "batchRevoking": "batch revoking",
-      "batchRevoke": "batch revoke",
-      "columnDisplay": "column display",
-      "downloadSvg": "download svg"
+      "openSaveLink": "Open save link",
+      "copyLink": "Copy link",
+      "viewQrCode": "View QR code",
+      "refreshing": "Refreshing...",
+      "refreshLink": "Refresh link",
+      "suspend": "Suspend",
+      "activate": "Activate",
+      "revoke": "Revoke",
+      "switchToScenario": "Switch scenario",
+      "applyPreset": "Apply preset",
+      "goTemporaryAccessLedger": "Go to temporary access ledger",
+      "useEmployeeTemplate": "Use employee template",
+      "createEmployeeTemplateFirst": "Create employee template first",
+      "goSyncEmployeeDirectory": "Go to employee directory sync",
+      "useVisitorTemplate": "Use visitor template",
+      "createVisitorTemplateFirst": "Create visitor template first",
+      "goTemporaryAccess": "Go to temporary access",
+      "viewSuspended": "View suspended",
+      "viewAllStatuses": "View all statuses",
+      "viewLedger": "View ledger",
+      "viewSimilarLedger": "View similar ledger",
+      "openLink": "Open link",
+      "sending": "Sending...",
+      "sendDelivery": "Send delivery",
+      "batchRetrying": "retrying failed channels",
+      "batchRetryDelivery": "retry failed channels ({{count}})",
+      "repairingStatus": "repairing credential status",
+      "batchRepairStatus": "batch status repair ({{count}})",
+      "backToEnterpriseReceiptReview": "Back to enterprise receipt review",
+      "seedBatchReissueDraft": "Seed batch reissue draft ({{count}})",
+      "backToEnterpriseSyncIssue": "Back to enterprise sync issue",
+      "backToEnterpriseWorkerReview": "Back to enterprise worker review",
+      "retrying": "Retrying...",
+      "retryFailedDeliveryChannel": "Retry failed channel",
+      "creating": "Creating...",
+      "createPhysicalTask": "Create physical task",
+      "issueEmployeePassFirst": "Issue employee credential first",
+      "processing": "Processing...",
+      "clearFilters": "Clear filters",
+      "clearSelection": "Clear selection",
+      "batchSuspending": "Suspending selected...",
+      "batchSuspend": "Suspend selected",
+      "batchActivating": "Activating selected...",
+      "batchActivate": "Activate selected",
+      "batchRevoking": "Revoking selected...",
+      "batchRevoke": "Revoke selected",
+      "columnDisplay": "Column display",
+      "downloadSvg": "Download SVG"
     },
     "enterprise": {
       "receiptRecoveryAction": {
-        "repairPassStatus": "repair pass status",
-        "retryDelivery": "retry delivery",
-        "reviewClosed": "review closed"
+        "repairPassStatus": "Repair credential status",
+        "retryDelivery": "Retry delivery",
+        "reviewClosed": "Review closed recovery"
       },
       "receiptRecoveryStatus": {
-        "attention": "attention",
-        "pending": "pending",
-        "ready": "ready"
+        "attention": "Needs attention",
+        "pending": "Pending",
+        "ready": "Ready"
       },
       "segment": {
-        "directoryUsage": "directory usage",
-        "issuanceReceipt": "issuance receipt",
-        "policyDelivery": "policy delivery",
-        "receiptRecovery": "receipt recovery"
+        "directoryUsage": "Directory usage",
+        "issuanceReceipt": "Issuance receipt",
+        "policyDelivery": "Policy delivery",
+        "receiptRecovery": "Receipt recovery"
       },
       "segmentStatus": {
-        "attention": "attention",
-        "pending": "pending",
-        "ready": "ready"
+        "attention": "Needs attention",
+        "pending": "Pending",
+        "ready": "Ready"
       },
       "stage": {
-        "default": "default",
-        "directory": "directory",
-        "issuance": "issuance",
-        "policies": "policies"
+        "default": "Credential issuance",
+        "directory": "Directory follow-up",
+        "issuance": "Issuance",
+        "policies": "Policy handoff"
       },
       "missingTargetReason": {
-        "issueReady": "issue ready",
-        "statusNeedsAlerts": "status needs alerts",
-        "needsDirectory": "needs directory",
-        "needsAlerts": "needs alerts"
+        "issueReady": "Ready for issuance",
+        "statusNeedsAlerts": "Status needs alert review",
+        "needsDirectory": "Needs directory cleanup",
+        "needsAlerts": "Needs alert closure"
       },
-      "latestSyncIssueHint": "latest sync issue hint"
+      "latestSyncIssueHint": "Latest sync issue"
     },
     "hints": {
       "delivery": {
         "employeePhysical": "employee physical",
-        "hasSaveLink": "has save link",
-        "pending": "pending",
-        "visitorTemporary": "visitor temporary"
+        "hasSaveLink": "Has save link",
+        "pending": "Pending delivery",
+        "visitorTemporary": "Visitor temporary"
       },
-      "readOnlyBoundary": "read only boundary",
+      "readOnlyBoundary": "Current role can review Wallet operations but cannot change credentials.",
       "scenario": {
-        "employeeMobile": "employee mobile",
-        "employeePhysical": "employee physical",
-        "visitorQr": "visitor qr",
-        "visitorTemporary": "visitor temporary"
+        "employeeMobile": "Employee mobile",
+        "employeePhysical": "Employee physical",
+        "visitorQr": "Visitor QR",
+        "visitorTemporary": "Visitor temporary"
       },
-      "readOnlyBoundaryOnly": "read only boundary only",
-      "readOnlyIntro": "read only intro",
-      "readOnlyDeliveryReceiptsOnly": "read only delivery receipts only",
-      "readOnlyPhysicalTasksOnly": "read only physical tasks only"
+      "readOnlyBoundaryOnly": "Read-only role.",
+      "readOnlyIntro": "Read-only roles can inspect templates, passes, delivery receipts, and physical tasks.",
+      "readOnlyDeliveryReceiptsOnly": "Delivery recovery actions are disabled for the current role.",
+      "readOnlyPhysicalTasksOnly": "Physical card task actions are disabled for the current role."
+    },
+    "disabledReasons": {
+      "busy": "Another Wallet action is still running. Wait for it to finish.",
+      "deliveryInProgress": "Delivery is being sent.",
+      "emailChannelOff": "Turn on Email before editing recipients.",
+      "enterBatchTargets": "Enter at least one employee or visitor ID before submitting batch issuance.",
+      "enterTargetID": "Enter an employee or visitor ID before issuing.",
+      "issuing": "Issuance is already in progress.",
+      "loading": "Wallet data is loading or refreshing.",
+      "noIssueReadyTargets": "No missing Enterprise targets are ready for direct issuance.",
+      "noMissingTargets": "No missing Enterprise targets are available in the prefilled batch.",
+      "noPrefilledTargets": "No prefilled Enterprise targets are available to restore.",
+      "noReissueTargets": "No failed delivery targets are ready for batch reissue.",
+      "noRepairablePasses": "No credentials can be repaired from the current delivery receipts.",
+      "noRetryableDeliveries": "No retryable failed delivery channels match the current view.",
+      "readOnly": "Current role can review Wallet operations but cannot change credentials.",
+      "selectDeliveryPass": "Select an issued credential before sending delivery.",
+      "selectPasses": "Select at least one credential in this view before running a batch action.",
+      "selectTemplate": "Select an issuance template before submitting.",
+      "whatsAppChannelOff": "Turn on WhatsApp before editing recipients."
     },
     "labels": {
       "accessMedium": {
-        "mobilePass": "mobile pass",
-        "physicalCard": "physical card",
-        "qrCode": "qr code",
-        "temporaryPass": "temporary pass"
+        "mobilePass": "Mobile pass",
+        "physicalCard": "Physical card",
+        "qrCode": "QR code",
+        "temporaryPass": "Temporary pass"
       },
       "deliveryMethod": {
-        "emailQr": "email qr",
-        "walletLink": "wallet link"
+        "emailQr": "Email QR",
+        "walletLink": "Wallet link"
       },
       "passType": {
-        "employee": "employee",
-        "visitor": "visitor"
+        "employee": "Employee",
+        "visitor": "Visitor"
       },
       "physicalTaskType": {
-        "issue": "issue",
-        "lossReport": "loss report",
-        "reissue": "reissue"
+        "issue": "Issue",
+        "lossReport": "Loss report",
+        "reissue": "Reissue"
       },
       "targetType": {
-        "user": "user",
-        "visitor": "visitor"
+        "user": "User",
+        "visitor": "Visitor"
       },
       "templateStatus": {
-        "enabled": "enabled",
-        "disabled": "disabled"
+        "enabled": "Enabled",
+        "disabled": "Disabled"
       },
-      "passCount": "pass count",
-      "saveLinkCount": "save link count"
+      "passCount": "{{count}} credentials",
+      "saveLinkCount": "{{count}} save links"
     },
     "status": {
       "delivery": {
-        "failed": "failed",
-        "sent": "sent",
-        "skipped": "skipped"
+        "failed": "Failed",
+        "sent": "Sent",
+        "skipped": "Skipped"
       },
       "pass": {
-        "active": "active",
-        "issued": "issued",
-        "revoked": "revoked",
-        "suspended": "suspended"
+        "active": "Active",
+        "issued": "Issued",
+        "revoked": "Revoked",
+        "suspended": "Suspended"
       },
       "physicalTask": {
-        "cancelled": "cancelled",
-        "issued": "issued",
-        "printing": "printing",
-        "queued": "queued",
-        "ready": "ready",
-        "reportedLost": "reported lost"
+        "cancelled": "Cancelled",
+        "issued": "Issued",
+        "printing": "Printing",
+        "queued": "Queued",
+        "ready": "Ready",
+        "reportedLost": "Reported lost"
       }
     },
     "validation": {
       "delivery": {
-        "passRequired": "pass required",
-        "emailRecipientsTooLong": "email recipients too long",
-        "whatsAppRecipientsTooLong": "whats app recipients too long",
-        "channelRequired": "channel required"
+        "passRequired": "Select an issued credential before sending delivery.",
+        "emailRecipientsTooLong": "Email recipient list is too long.",
+        "whatsAppRecipientsTooLong": "WhatsApp recipient list is too long.",
+        "channelRequired": "Select at least one delivery channel."
       },
       "physicalTask": {
-        "passRequired": "pass required",
-        "cardNumberTooLong": "card number too long",
-        "noteTooLong": "note too long"
+        "passRequired": "Select an eligible employee physical credential.",
+        "cardNumberTooLong": "Card number is too long.",
+        "noteTooLong": "Task note is too long."
       }
     },
     "table": {
       "columns": {
-        "template": "template",
-        "target": "target",
-        "status": "status",
-        "expiresAt": "expires at",
-        "saveLink": "save link",
-        "updatedAt": "updated at",
-        "actions": "actions"
+        "template": "Template",
+        "target": "Target",
+        "status": "Status",
+        "expiresAt": "Expires at",
+        "saveLink": "Save link",
+        "updatedAt": "Updated at",
+        "actions": "Actions"
       },
-      "templateInactive": "template inactive",
-      "expiresAtDefaultPolicy": "expires at default policy"
+      "templateInactive": "Template inactive",
+      "expiresAtDefaultPolicy": "Default policy"
     },
     "errors": {
-      "loadOpsFailed": "load ops failed",
-      "tenantRequired": "tenant required",
-      "saveAlertSubscriptionFailed": "save alert subscription failed",
-      "templateNameRequired": "template name required",
-      "createTemplateFailed": "create template failed",
-      "updateTemplateStatusFailed": "update template status failed",
-      "issueTemplateRequired": "issue template required",
-      "issueTargetRequired": "issue target required",
-      "singleIssueFailed": "single issue failed",
-      "batchIssueTemplateRequired": "batch issue template required",
-      "batchIssueTargetsRequired": "batch issue targets required",
-      "batchIssueFailed": "batch issue failed",
-      "deliveryPassRequired": "delivery pass required",
-      "deliveryChannelRequired": "delivery channel required",
-      "deliverySubmitFailed": "delivery submit failed",
-      "deliveryRetryFailed": "delivery retry failed",
-      "batchRetryDeliveryFailed": "batch retry delivery failed",
-      "reissueTemplateMissing": "reissue template missing",
-      "batchRepairPassStatusFailed": "batch repair pass status failed",
-      "physicalTaskPassRequired": "physical task pass required",
-      "createPhysicalTaskFailed": "create physical task failed",
-      "updatePhysicalTaskFailed": "update physical task failed",
-      "updatePassStatusFailed": "update pass status failed",
-      "noActionableSelectedPasses": "no actionable selected passes",
-      "batchUpdatePassStatusFailed": "batch update pass status failed",
-      "dispatchAlertsFailed": "dispatch alerts failed",
-      "retryAlertNotificationFailed": "retry alert notification failed",
-      "refreshOpsFailed": "refresh ops failed",
-      "clipboardUnsupported": "clipboard unsupported",
-      "copySaveLinkFailed": "copy save link failed",
-      "refreshSaveLinkFailed": "refresh save link failed",
-      "generateQrCodeFailed": "generate qr code failed"
+      "loadOpsFailed": "Failed to load Wallet operations.",
+      "tenantRequired": "Select a tenant before running Wallet operations.",
+      "saveAlertSubscriptionFailed": "Failed to save alert subscription.",
+      "templateNameRequired": "Template name is required.",
+      "createTemplateFailed": "Failed to create template.",
+      "updateTemplateStatusFailed": "Failed to update template status.",
+      "issueTemplateRequired": "Select a template before issuing a credential.",
+      "issueTargetRequired": "Enter a target ID before issuing a credential.",
+      "singleIssueFailed": "Failed to issue credential.",
+      "batchIssueTemplateRequired": "Select a template before batch issuance.",
+      "batchIssueTargetsRequired": "Enter at least one target ID for batch issuance.",
+      "batchIssueFailed": "Failed to submit batch issuance.",
+      "deliveryPassRequired": "Select an issued credential before delivery.",
+      "deliveryChannelRequired": "Select at least one delivery channel.",
+      "deliverySubmitFailed": "Failed to send credential delivery.",
+      "deliveryRetryFailed": "Failed to retry delivery.",
+      "batchRetryDeliveryFailed": "Failed to retry selected delivery channels.",
+      "reissueTemplateMissing": "No active reissue template is available.",
+      "batchRepairPassStatusFailed": "Failed to repair credential status in batch.",
+      "physicalTaskPassRequired": "Select a credential before creating a physical card task.",
+      "createPhysicalTaskFailed": "Failed to create physical card task.",
+      "updatePhysicalTaskFailed": "Failed to update physical card task.",
+      "updatePassStatusFailed": "Failed to update credential status.",
+      "noActionableSelectedPasses": "No selected credentials can run this action.",
+      "batchUpdatePassStatusFailed": "Failed to update selected credential statuses.",
+      "dispatchAlertsFailed": "Failed to dispatch Wallet alerts.",
+      "retryAlertNotificationFailed": "Failed to retry alert notification.",
+      "refreshOpsFailed": "Failed to refresh Wallet operations.",
+      "clipboardUnsupported": "Clipboard is unavailable in this browser.",
+      "copySaveLinkFailed": "Failed to copy save link.",
+      "refreshSaveLinkFailed": "Failed to refresh save link.",
+      "generateQrCodeFailed": "Failed to generate QR code."
     },
     "scenarios": {
       "employeeMobile": {
-        "templateName": "template name"
+        "templateName": "Employee mobile credential"
       },
       "visitorQr": {
-        "templateName": "template name"
+        "templateName": "Visitor QR credential"
       }
     },
     "summaries": {
       "enterprise": {
-        "syncRecordLabel": "sync record label",
-        "syncSourceDefault": "sync source default",
-        "syncStatusSuffix": "sync status suffix",
-        "workerAlertLabel": "worker alert label",
+        "syncRecordLabel": "{{source}} sync job {{jobID}}{{statusSuffix}}",
+        "syncSourceDefault": "selected source",
+        "syncStatusSuffix": " / status {{status}}",
+        "workerAlertLabel": "{{tenant}} worker signal {{level}}{{thresholdSuffix}}",
         "currentTenant": "current tenant",
-        "workerAlertThresholdSuffix": "worker alert threshold suffix",
-        "flowAcceptedPrefix": "flow accepted prefix",
-        "organizationSegment": "organization segment",
-        "segmentHintSegment": "segment hint segment",
-        "recoveryConclusionSegment": "recovery conclusion segment",
-        "targetLocatedSegment": "target located segment",
-        "batchTargetsPrefilledSegment": "batch targets prefilled segment",
-        "syncRecordSegment": "sync record segment",
-        "workerAlertSegment": "worker alert segment",
-        "sentenceEnd": "sentence end",
-        "receiptRecoveryRetryDelivery": "receipt recovery retry delivery",
-        "receiptRecoveryRepairStatus": "receipt recovery repair status",
-        "receiptRecoveryReviewClosed": "receipt recovery review closed",
-        "matchedPassesDirectDelivery": "matched passes direct delivery",
-        "noExistingPassPrefilledSingle": "no existing pass prefilled single",
-        "backToReceiptRecoveryLoop": "back to receipt recovery loop",
-        "allTargetsMatched": "all targets matched",
-        "missingTargetsSeeded": "missing targets seeded",
-        "noIssueReadyTargets": "no issue ready targets",
-        "issueReadyTargetsSeeded": "issue ready targets seeded",
-        "allPrefilledTargetsRestored": "all prefilled targets restored"
+        "workerAlertThresholdSuffix": " / failed {{failed}} of {{threshold}}",
+        "flowAcceptedPrefix": "{{flowLabel}} {{stageLabel}} opened from Enterprise. ",
+        "organizationSegment": "Organization {{tenant}}. ",
+        "segmentHintSegment": "Segment {{segment}}. ",
+        "recoveryConclusionSegment": "Recovery action {{action}}. ",
+        "targetLocatedSegment": "Target {{target}} prefilled. ",
+        "batchTargetsPrefilledSegment": "{{count}} targets prefilled, {{matched}} matched, {{missing}} missing. ",
+        "syncRecordSegment": "Source {{syncRecord}}. ",
+        "workerAlertSegment": "Worker signal {{workerAlert}}. ",
+        "sentenceEnd": "Review the seeded Wallet draft before submitting.",
+        "receiptRecoveryRetryDelivery": "Receipt recovery opened retry delivery. {{retryableCount}} retryable channels, {{repairableCount}} credentials eligible for status repair.",
+        "receiptRecoveryRepairStatus": "Receipt recovery opened status repair. {{repairableCount}} credentials can be repaired, {{retryableCount}} channels remain retryable.",
+        "receiptRecoveryReviewClosed": "Receipt recovery is marked closed. {{failedCount}} failed delivery records remain visible for audit.",
+        "matchedPassesDirectDelivery": "{{count}} existing credentials matched this Enterprise target and were selected for delivery review.",
+        "noExistingPassPrefilledSingle": "No existing credential matched this Enterprise target. A single-issue draft was prepared instead.",
+        "backToReceiptRecoveryLoop": "Receipt recovery context is active. Review delivery receipts before closing the loop.",
+        "allTargetsMatched": "All prefilled Enterprise targets already match existing credentials.",
+        "missingTargetsSeeded": "{{count}} missing Enterprise targets were kept in the batch issuance draft.",
+        "noIssueReadyTargets": "No missing Enterprise targets are ready for issuance yet.",
+        "issueReadyTargetsSeeded": "{{count}} issue-ready Enterprise targets were seeded into the batch draft.",
+        "allPrefilledTargetsRestored": "{{count}} prefilled Enterprise targets were restored to the batch draft."
       },
-      "templateCreated": "template created",
-      "templateStatusUpdated": "template status updated",
-      "singleIssueSubmitted": "single issue submitted",
-      "batchIssueSubmitted": "batch issue submitted",
-      "deliverySubmitted": "delivery submitted",
-      "reasonSuffix": "reason suffix",
-      "deliveryRetrySubmitted": "delivery retry submitted",
-      "noRetryableDeliveryChannels": "no retryable delivery channels",
-      "batchRetryDeliverySubmitted": "batch retry delivery submitted",
-      "batchRetryDeliveryFailedSuffix": "batch retry delivery failed suffix",
-      "noReissueTargets": "no reissue targets",
-      "reissueDraftSeeded": "reissue draft seeded",
-      "reissueTemplateReady": "reissue template ready",
-      "reissueTemplateInactive": "reissue template inactive",
-      "noRepairableDeliveryPasses": "no repairable delivery passes",
-      "batchRepairPassStatusSubmitted": "batch repair pass status submitted",
-      "batchRepairPassStatusFailedSuffix": "batch repair pass status failed suffix",
-      "physicalTaskCreated": "physical task created",
-      "physicalTaskUpdated": "physical task updated",
-      "passStatusUpdated": "pass status updated",
-      "batchPassActionCompleted": "batch pass action completed",
-      "alertDispatchEvaluated": "alert dispatch evaluated",
-      "alertRetryResult": "alert retry result",
-      "scenarioLedgerFocused": "scenario ledger focused",
-      "scenarioPresetAppliedWithTemplate": "scenario preset applied with template",
-      "scenarioPresetAppliedWithoutTemplate": "scenario preset applied without template",
-      "saveLinkCopied": "save link copied",
-      "saveLinkRefreshed": "save link refreshed"
+      "templateCreated": "{{passType}} template {{templateName}} created.",
+      "templateStatusUpdated": "Template {{templateName}} marked {{status}}.",
+      "singleIssueSubmitted": "{{targetType}} {{targetID}} credential submitted with status {{status}}.",
+      "batchIssueSubmitted": "Batch issuance submitted for {{count}} {{targetType}} targets via {{executionMode}}.",
+      "deliverySubmitted": "Delivery submitted for {{targetID}} with status {{status}}{{reasonSuffix}}.",
+      "reasonSuffix": " ({{reason}})",
+      "deliveryRetrySubmitted": "Delivery retry submitted for {{targetID}} with status {{status}}{{reasonSuffix}}.",
+      "noRetryableDeliveryChannels": "No retryable delivery channels are available.",
+      "batchRetryDeliverySubmitted": "Retried {{total}} failed channels, {{successCount}} succeeded{{failedSuffix}}.",
+      "batchRetryDeliveryFailedSuffix": ", {{failedCount}} failed",
+      "noReissueTargets": "No reissue targets are available from failed deliveries.",
+      "reissueDraftSeeded": "{{count}} reissue targets were seeded with template {{templateName}}. {{statusHint}}",
+      "reissueTemplateReady": "Template is active.",
+      "reissueTemplateInactive": "Template is inactive; activate it before submitting.",
+      "noRepairableDeliveryPasses": "No credentials can be repaired from failed delivery receipts.",
+      "batchRepairPassStatusSubmitted": "Repaired {{total}} credential statuses from failed receipts, {{successCount}} succeeded{{failedSuffix}}.",
+      "batchRepairPassStatusFailedSuffix": ", {{failedCount}} failed",
+      "physicalTaskCreated": "{{taskType}} task created for {{targetID}} with status {{status}}.",
+      "physicalTaskUpdated": "{{taskType}} task for {{targetID}} moved to {{status}}.",
+      "passStatusUpdated": "{{targetType}} {{targetID}} credential moved to {{status}}.",
+      "batchPassActionCompleted": "{{action}} completed: {{succeeded}} succeeded, {{failed}} failed.",
+      "alertDispatchEvaluated": "Wallet alert dispatch evaluated: {{totalAlerts}} candidates / {{dispatched}} sent / {{skipped}} skipped / {{failed}} failed.",
+      "alertRetryResult": "Alert retry finished with status {{status}}{{reasonSuffix}}.",
+      "scenarioLedgerFocused": "{{scenario}} ledger is now focused.",
+      "scenarioPresetAppliedWithTemplate": "{{scenario}} preset applied with template {{templateName}}.",
+      "scenarioPresetAppliedWithoutTemplate": "{{scenario}} preset applied. Create or select a template before issuing.",
+      "saveLinkCopied": "Save link copied for {{targetID}}.",
+      "saveLinkRefreshed": "Save link refreshed for {{targetID}}."
     },
     "warnings": {
-      "aggregateTenantLoadFailed": "aggregate tenant load failed"
+      "aggregateTenantLoadFailed": "Some tenant Wallet aggregates failed to load."
     },
     "page": {
       "eyebrow": "Credential operations",
-      "title": "MistyPass credential workspace",
+      "title": "Mistyislet credential workspace",
       "description": "Manage employee credentials, visitor passes, delivery receipts, physical card tasks, and queue exceptions in one place."
     },
     "tabs": {
-      "operations": "operations",
-      "advanced": "advanced"
+      "operations": "Operations",
+      "advanced": "Advanced"
     },
     "operations": {
       "title": "Daily issuance and status maintenance",
       "description": "Keep template selection, single or batch issuance, delivery, and credential status handling in the daily operations path.",
-      "scenarioStats": "scenario stats",
-      "scenarioTemplateReady": "scenario template ready",
-      "scenarioTemplateMissing": "scenario template missing"
+      "scenarioStats": "{{passCount}} / {{saveLinkCount}}",
+      "scenarioTemplateReady": "Template ready",
+      "scenarioTemplateMissing": "Template missing"
     },
     "cards": {
       "employeeIssuance": {
         "title": "Employee credential issuance",
         "description": "Issue mobile credentials or physical card workflows for onboarding, reissue, and long-term access.",
-        "templateReady": "template ready",
-        "templateMissing": "template missing"
+        "templateReady": "Template ready",
+        "templateMissing": "Template missing"
       },
       "visitorIssuance": {
         "title": "Visitor and temporary credentials",
         "description": "Issue QR or temporary Wallet credentials for visitors, contractors, and short-term access.",
-        "templateReady": "template ready",
-        "templateMissing": "template missing"
+        "templateReady": "Template ready",
+        "templateMissing": "Template missing"
       },
       "statusMaintenance": {
         "title": "Credential status maintenance",
         "description": "Review issued credentials and suspend, reactivate, or revoke selected passes.",
-        "stats": "stats"
+        "stats": "{{suspendedCount}} suspended / {{revocableCount}} revocable"
       },
       "deliveryWorkspace": {
         "title": "Delivery workspace",
         "description": "Handle save links, email, WhatsApp, and re-delivery so issued credentials actually reach users.",
-        "activeTemplate": "active template",
-        "noTemplate": "no template",
-        "dispatchChannels": "dispatch channels"
+        "activeTemplate": "Active template",
+        "noTemplate": "No active template",
+        "dispatchChannels": "Email / WhatsApp delivery"
       },
       "recentDelivery": {
         "title": "Recent deliveries",
         "description": "Review latest delivery tasks and channel results, prioritizing failures and missing save links.",
-        "empty": "empty"
+        "empty": "No recent delivery tasks."
       },
       "sendDelivery": {
         "title": "Send credential delivery",
         "description": "Select an issued pass and send its save link through email or WhatsApp.",
-        "passHasSaveLink": "pass has save link",
-        "passMissingSaveLink": "pass missing save link",
-        "emptyNoSaveLinks": "empty no save links",
-        "emptySelectPass": "empty select pass",
-        "emailHint": "email hint",
-        "whatsAppHint": "whats app hint"
+        "passHasSaveLink": "Pass has save link",
+        "passMissingSaveLink": "Pass is missing a save link",
+        "emptyNoSaveLinks": "No issued credentials with save links are available for delivery.",
+        "emptySelectPass": "Select an issued credential to send its save link.",
+        "emailHint": "Comma-separated email recipients.",
+        "whatsAppHint": "Comma-separated WhatsApp recipients."
       },
       "recentDeliveryReceipts": {
         "title": "Delivery receipts and recovery",
         "description": "Find retryable deliveries, status repairs, and credentials that need reissue.",
-        "recoveryStatusTitle": "recovery status title",
-        "step1Title": "step1title",
-        "step1Description": "step1description",
-        "step2Title": "step2title",
-        "step2Description": "step2description",
-        "step3Title": "step3title",
-        "step3Description": "step3description",
-        "matchRetryableByHint": "match retryable by hint",
-        "retryableCount": "retryable count",
-        "batchLimit": "batch limit",
-        "repairableAndReissueCount": "repairable and reissue count",
-        "empty": "empty",
-        "retryFromSource": "retry from source"
+        "recoveryStatusTitle": "Recovery status",
+        "step1Title": "Classify failures",
+        "step1Description": "{{failedCount}} failed deliveries: {{retryableCount}} retryable and {{nonRetryableCount}} need manual review.",
+        "step2Title": "Run recovery",
+        "step2Description": "{{retryableCount}} retries, {{repairableCount}} status repairs, and {{reissueCount}} reissue drafts are available.",
+        "step3Title": "Confirm closure",
+        "step3Description": "Return to Enterprise alerts after recovery so the receipt flow is no longer blocking closure.",
+        "matchRetryableByHint": "Filtered by {{hint}}: {{count}} retryable deliveries. ",
+        "retryableCount": "{{count}} retryable deliveries. ",
+        "batchLimit": "Batch action will process {{count}} now. ",
+        "repairableAndReissueCount": "{{repairableCount}} status repairs and {{reissueCount}} reissue drafts are available.",
+        "empty": "No delivery receipts need recovery.",
+        "retryFromSource": " · retry of {{sourceID}}"
       },
       "physicalTasks": {
         "title": "Physical card tasks",
         "description": "Create print, replacement, loss-report, and recovery tasks for employee physical cards.",
-        "lossReportHint": "loss report hint",
-        "defaultHint": "default hint",
-        "emptyNoEligiblePass": "empty no eligible pass",
-        "emptySelectPass": "empty select pass"
+        "lossReportHint": "Use loss report only for credentials that should be replaced or blocked.",
+        "defaultHint": "Create a print or reissue task for the selected physical card credential.",
+        "emptyNoEligiblePass": "No employee physical card credentials are eligible for a task.",
+        "emptySelectPass": "Select an employee physical card credential to create a task."
       },
       "recentPhysicalTasks": {
         "title": "Recent physical card tasks",
         "description": "Track physical card task status, card numbers, and last update time.",
-        "empty": "empty",
-        "passStatusLabel": "pass status label",
-        "taskID": "task id",
-        "updatedAt": "updated at",
-        "cardNumber": "card number"
+        "empty": "No recent physical card tasks.",
+        "passStatusLabel": "Credential status",
+        "taskID": "Task ID",
+        "updatedAt": "Updated at",
+        "cardNumber": "Card number"
       },
       "issuedPasses": {
         "title": "Issued credentials",
         "description": "Search credentials by person, visitor, template, and status, then apply batch maintenance actions.",
-        "matchedCount": "matched count",
-        "selectedCount": "selected count",
-        "selectionHint": "selection hint",
-        "loading": "loading",
-        "emptyNoPasses": "empty no passes",
-        "emptyFiltered": "empty filtered"
+        "matchedCount": "{{count}} matched credentials",
+        "selectedCount": "{{count}} selected in this view",
+        "selectionHint": "Select credentials to run batch maintenance.",
+        "loading": "Loading issued credentials...",
+        "emptyNoPasses": "No issued credentials are available yet.",
+        "emptyFiltered": "No credentials match the current filters."
       }
     },
     "placeholders": {
@@ -3358,14 +3745,24 @@
     },
     "advanced": {
       "title": "Advanced queues and alerts",
-      "description": "Review issuance queues, trends, DLQ, alert subscriptions, and cross-tenant risk ranking."
+      "description": "Collapsed by default for lower-frequency work: physical card tasks, alert subscriptions, queue trends, notification records, DLQ cleanup archives, and cross-tenant risk ranking.",
+      "expand": "Expand advanced operations",
+      "collapse": "Collapse advanced operations",
+      "summary": {
+        "physicalTasks": "Physical tasks",
+        "alerts": "Alerts",
+        "notifications": "Notifications",
+        "dlqArchives": "DLQ archives",
+        "subscriptionEnabled": "Subscription enabled",
+        "subscriptionDisabled": "Subscription disabled"
+      }
     },
     "dialogs": {
       "qrCode": {
         "title": "Save link QR code",
         "description": "Let users scan the Wallet save link. Refresh the save link first if it is missing.",
         "generating": "generating",
-        "empty": "empty",
+        "empty": "No save link is available for this credential.",
         "noSaveLink": "no save link"
       }
     },
@@ -3404,6 +3801,9 @@
         "enabledHint": "If disabled, only metrics dashboard remains.",
         "emailHint": "Email notification channel.",
         "whatsappHint": "Instant notification channel.",
+        "thresholdPlaceholder": "DLQ alert threshold",
+        "windowPlaceholder": "Evaluation window in seconds",
+        "cooldownPlaceholder": "Notification cooldown in seconds",
         "receiverGroups": "receiver_groups (comma-separated)",
         "lastUpdated": "Last updated: {{time}}",
         "readOnlyHint": "Current role is read-only. You can view issuance status but cannot modify subscription policy.",
@@ -3481,7 +3881,16 @@
         "submittingBatch": "Submitting...",
         "submitBatchIssue": "Submit batch issue",
         "recentBatchReceipts": "Recent batch receipts",
-        "receiptCount": "{{count}} records"
+        "receiptCount": "{{count}} records",
+        "validation": {
+          "selectTemplateRequired": "Please select an issuance template first",
+          "targetIDRequired": "Please enter an employee or visitor ID",
+          "targetIDMax": "Employee or visitor ID must be at most 128 characters",
+          "expirationInvalid": "Invalid expiration time format",
+          "selectBatchTemplateRequired": "Please select a batch issuance template first",
+          "batchTargetsRequired": "Please enter at least one employee or visitor ID",
+          "batchTargetsMax": "Batch target content is too long, please split and resubmit"
+        }
       },
       "riskOverview": {
         "pendingAnomalies": "Pending anomalies",
@@ -3518,6 +3927,7 @@
         "description": "Templates define target type, issuance scenario, and default style. You can apply scenario presets to prefill recommended name, class_id, and style_config.",
         "templateName": "Template name, e.g. HQ employee long-term pass",
         "classID": "class_id (optional)",
+        "styleConfigPlaceholder": "style_config (optional, line-based key=value)\nbrand_color=#0f766e\nlogo_variant=light",
         "templateType": "Template type",
         "employeeTemplate": "Employee pass template",
         "visitorTemplate": "Visitor / temporary pass template",
@@ -3537,7 +3947,13 @@
         "setDefault": "Set as default",
         "processing": "Processing...",
         "disable": "Disable",
-        "enable": "Enable"
+        "enable": "Enable",
+        "validation": {
+          "templateNameRequired": "Please enter template name",
+          "templateNameMax": "Template name must be at most 128 characters",
+          "classIDMax": "class_id must be at most 128 characters",
+          "styleConfigMax": "style_config is too long, please split and submit"
+        }
       }
     }
   },
@@ -3555,11 +3971,11 @@
   },
   "viewer": {
     "role": {
-      "superAdmin": "Platform admin",
-      "tenantAdmin": "Tenant admin",
-      "operator": "Operator",
-      "buildingAdmin": "Building admin",
-      "resident": "Resident"
+      "superAdmin": "Organization Admin",
+      "tenantAdmin": "Organization Admin",
+      "operator": "Place Admin",
+      "buildingAdmin": "Place Admin",
+      "resident": "Unsupported account"
     }
   }
 }

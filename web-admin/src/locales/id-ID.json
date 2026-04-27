@@ -18,12 +18,12 @@
       "failed": "Login gagal"
     },
     "hero": {
-      "badge": "Platform Akses Enterprise dan Ruang MistyPass",
+      "badge": "Platform Akses Enterprise dan Ruang Mistyislet",
       "title": "Konsol Terpadu untuk Enterprise, Gedung, dan Penerbitan Akses",
-      "description": "Mendukung admin platform, operator gedung, dan tim enterprise dengan sinkronisasi direktori, penerbitan kredensial, serta jejak audit.",
+      "description": "Dibuat untuk Organization Admin dan Place Admin dengan sinkronisasi direktori, penerbitan kredensial, serta jejak audit.",
       "pointTenant": "Isolasi data tingkat organisasi dan workbench berbasis peran",
       "pointSync": "Impor karyawan, SSO, penerbitan, dan pelacakan event",
-      "footer": "Konsol Admin MistyPass · MVP"
+      "footer": "Konsol Admin Mistyislet · MVP"
     },
     "form": {
       "title": "Masuk",
@@ -34,7 +34,7 @@
       "passwordPlaceholder": "********",
       "submit": "Masuk",
       "submitting": "Sedang masuk...",
-      "devAccounts": "Akun uji mode dev: `superadmin@mistypass.local`, `tenant.admin@sudirman.co`, `building.admin.sudirman@mistypass.local`; kata sandi `admin123`."
+      "devAccounts": "Akun tampilan mode dev: Organization Admin `organization.admin@mistypass.local` dan Place Admin `place.admin.sudirman@mistypass.local`; kata sandi `admin123`."
     }
   },
   "notFound": {
@@ -45,7 +45,7 @@
   },
   "noPermission": {
     "title": "Akun ini tidak dapat masuk ke konsol admin",
-    "description": "Akun ini memakai peran pengguna biasa. Konsol admin hanya untuk peran platform, tenant, gedung, dan operator.",
+    "description": "Akun ini tidak memiliki akses Organization Admin atau Place Admin.",
     "mobileHint": "{{email}} dapat melanjutkan lewat aplikasi mobile atau pengalaman kredensial mandiri untuk akses harian.",
     "logout": "Keluar dan ganti akun"
   },
@@ -79,7 +79,7 @@
       },
       "wallet": {
         "label": "Penerbitan",
-        "description": "Penerbitan dan status MistyPass"
+        "description": "Penerbitan dan status Mistyislet"
       },
       "gateways": {
         "label": "Gateway",
@@ -131,8 +131,8 @@
         "missing": "Belum ada gedung"
       },
       "operator": {
-        "label": "Tampilan operator",
-        "value": "Hanya scope penanganan"
+        "label": "Tampilan Place Admin",
+        "value": "Scope place hanya-baca"
       }
     },
     "restoringSession": "Memulihkan sesi saat ini..."
@@ -148,7 +148,7 @@
       "eyebrowPlatform": "Workspace Platform",
       "eyebrowBuildingAdmin": "Workspace Operasional Gedung",
       "eyebrowTenant": "Workspace Enterprise",
-      "title": "Pusat Kendali MistyPass",
+      "title": "Pusat Kendali Mistyislet",
       "descriptionPlatform": "Visibilitas real-time untuk tenant, gateway, event akses, dan postur alarm.",
       "descriptionBuildingAdmin": "Fokus pada status gedung yang ditugaskan, rasio online gateway, dan penanganan alarm tanpa mengekspos scope lain.",
       "descriptionTenant": "Fokus pada status ruang tenant saat ini, operasi penerbitan, dan penanganan keamanan.",
@@ -457,6 +457,49 @@
       "allSeverities": "Semua Level",
       "reset": "Reset Filter"
     },
+    "tabs": {
+      "queue": "Antrean Penanganan",
+      "notifications": "Notifikasi"
+    },
+    "queue": {
+      "groupCount": "{{count}} data",
+      "fields": {
+        "tenant": "Tenant",
+        "building": "Gedung",
+        "area": "Area",
+        "door": "Pintu",
+        "detectedAt": "Waktu Terdeteksi"
+      },
+      "nextAction": {
+        "acknowledge": "Konfirmasi",
+        "investigate": "Investigasi",
+        "mitigate": "Mitigasi",
+        "close": "Tutup",
+        "done": "Selesai"
+      },
+      "groups": {
+        "open": {
+          "title": "Open",
+          "description": "Alarm yang menunggu konfirmasi pertama atau sudah dikonfirmasi tetapi belum masuk investigasi.",
+          "empty": "Tidak ada alarm yang menunggu konfirmasi."
+        },
+        "investigating": {
+          "title": "Investigating",
+          "description": "Alarm yang sedang diinvestigasi atau dieskalasi dan perlu dilanjutkan ke mitigasi.",
+          "empty": "Tidak ada alarm dalam investigasi."
+        },
+        "mitigated": {
+          "title": "Mitigated",
+          "description": "Alarm yang sudah dimitigasi tetapi belum ditutup.",
+          "empty": "Tidak ada alarm mitigasi yang menunggu penutupan."
+        },
+        "closed": {
+          "title": "Closed",
+          "description": "Alarm selesai atau ditandai positif palsu.",
+          "empty": "Tidak ada alarm tertutup."
+        }
+      }
+    },
     "notificationPolicy": {
       "title": "Kebijakan Notifikasi Alarm",
       "descriptionBuildingAdmin": "Grup penerima default adalah Tim Keamanan; admin gedung bisa menambah grup piket dan memakai kanal Email/WhatsApp.",
@@ -539,7 +582,7 @@
       "legacyController": "Kontrol Legacy"
     },
     "deviceSource": {
-      "mistypassProcured": "Pengadaan MistyPass",
+      "mistypassProcured": "Pengadaan Mistyislet",
       "legacyIntegration": "Perangkat Legacy Pelanggan"
     },
     "inventoryStatus": {
@@ -585,6 +628,20 @@
       "rebootQueued": "Reboot masuk antrean ({{taskID}}), target {{gatewayID}}"
     },
     "readOnlyBoundaryHint": "Aksi yang nonaktif atau tidak tampil adalah batas izin, bukan kesalahan sistem.",
+    "disabledReasons": {
+      "commandBusy": "Perintah gateway atau pembaruan inventaris masih berjalan. Tunggu hingga selesai.",
+      "enterBatchTargets": "Pilih baris tabel atau tempel serial sebelum pembaruan batch.",
+      "enterConfigVersion": "Masukkan versi konfigurasi sebelum memublikasikan.",
+      "enterDeviceSerial": "Masukkan atau deteksi serial perangkat sebelum memasang.",
+      "inventoryAlreadyStatus": "Serial ini sudah berstatus {{status}}.",
+      "inventoryScrappedCannotFreeze": "Serial yang sudah scrap tidak dapat dibekukan; retur dahulu jika perlu masuk stok lagi.",
+      "noDeviceSlots": "Tidak ada slot perangkat terpasang tersisa pada gateway ini ({{remaining}}).",
+      "readOnly": "Peran saat ini dapat melihat operasi gateway tetapi tidak dapat mengubah perangkat, ikatan, atau perintah.",
+      "selectBoundDoor": "Pilih pintu yang sudah terikat sebelum melepas ikatan.",
+      "selectDoor": "Pilih pintu sebelum mengikatkannya ke gateway ini.",
+      "selectGateway": "Pilih gateway sebelum mengirim aksi ini.",
+      "selectTenant": "Pilih tenant sebelum registrasi atau impor inventaris."
+    },
     "header": {
       "eyebrow": "Operasi Gateway",
       "titlePlatform": "Gateway",
@@ -624,6 +681,12 @@
         "title": "Perangkat Online",
         "note": "Statistik online reader/perangkat legacy."
       }
+    },
+    "setup": {
+      "title": "Setup Gateway",
+      "description": "Tugas registrasi frekuensi rendah dilipat agar tidak bersaing dengan pusat perintah langsung.",
+      "expand": "Buka Setup",
+      "collapse": "Tutup Setup"
     },
     "register": {
       "title": "Daftarkan Gateway",
@@ -730,6 +793,13 @@
       "configVersionPlaceholder": "Versi konfigurasi",
       "publishConfig": "Publikasikan Konfigurasi",
       "reboot": "boot ulang",
+      "rebootConfirm": {
+        "title": "Konfirmasi Reboot Gateway",
+        "description": "Reboot akan menghentikan sementara heartbeat dan laporan akses perangkat pada gateway ini. Lanjutkan hanya jika lokasi dapat menerima offline singkat.",
+        "targetLabel": "Gateway target",
+        "cancel": "Batal",
+        "confirm": "Konfirmasi Reboot"
+      },
       "deviceMgmt": {
         "title": "Manajemen Perangkat Terpasang",
         "remaining": "Sisa {{remain}}/{{capacity}}",
@@ -1248,16 +1318,20 @@
   },
   "enterpriseSyncWorkspace": {
     "hints": {
-      "segmentGroupDesc": "Deskripsi grup segmen",
-      "segmentGroupDescWithSource": "Deskripsi grup segmen dengan sumber",
-      "segmentGroupName": "Nama grup segmen",
-      "segmentGroupNameWithTenant": "Nama grup segmen dengan tenant",
-      "segmentPolicyName": "Nama kebijakan segmen",
-      "segmentPolicyNameWithSource": "Nama kebijakan segmen dengan sumber",
-      "workerGroupDesc": "Deskripsi grup peringatan worker {{scope}}",
-      "workerGroupName": "Nama grup peringatan worker {{scope}}",
-      "workerPolicyGroup": "Grup kebijakan peringatan worker {{scope}}",
-      "workerPolicyName": "Nama kebijakan peringatan worker {{scope}}"
+      "segmentGroupDesc": "Grup tinjauan hasil sinkronisasi",
+      "segmentGroupDescWithSource": "Grup tinjauan hasil sinkronisasi {{source}}",
+      "segmentGroupName": "Grup kesiapan direktori",
+      "segmentGroupNameWithTenant": "Grup kesiapan direktori {{tenant}}",
+      "segmentPolicyName": "Tinjauan pengiriman kebijakan",
+      "segmentPolicyNameWithSource": "Tinjauan pengiriman kebijakan {{source}}",
+      "workerGroupDesc": "Tinjau sinyal alert worker untuk {{scope}}",
+      "workerGroupName": "Grup tinjauan worker {{scope}}",
+      "workerPolicyGroup": "Grup tinjauan worker {{scope}}",
+      "workerPolicyName": "Tindak lanjut kebijakan worker {{scope}}"
+    },
+    "executionContext": {
+      "focusHint": "Konteks eksekusi dari halaman peringatan aktif di workspace sinkronisasi ini.",
+      "returnToAlerts": "Kembali ke peringatan"
     },
     "hrisConnector": {
       "form": {
@@ -1272,9 +1346,15 @@
         "credentialRefPlaceholder": "Pilih ref credential",
         "credentialTitle": "Credential connector",
         "description": "Konfigurasikan webhook, pull, atau hybrid Talenta langsung dari workspace sinkronisasi enterprise.",
+        "disabledExistingCredentialRef": "Field override incremental dikunci saat connector memakai ref credential yang sudah ada.",
+        "disabledLoading": "Data connector HRIS masih dimuat.",
+        "disabledNoCredentialRefs": "Belum ada ref credential yang dapat dipakai ulang. Beralih untuk menyimpan secret baru terlebih dahulu.",
+        "disabledNoWebhookSecretRefs": "Belum ada ref webhook secret yang dapat dipakai ulang. Beralih untuk menyimpan secret baru terlebih dahulu.",
+        "disabledReadOnly": "Peran saat ini dapat meninjau connector HRIS tetapi tidak dapat memperbaruinya.",
+        "disabledSaving": "Penyimpanan connector sedang berjalan.",
         "employeePathLabel": "Path daftar karyawan",
         "incrementalDescription": "Talenta mendukung incremental pull secara default. Aktifkan bagian ini hanya jika tenant memerlukan override nama query param atau format timestamp.",
-        "incrementalDisabledHint": "Saat override dimatikan, MistyPass tetap memakai kontrak incremental default Talenta: updated_after, updated_before, dan rfc3339. Full reconcile terjadwal tetap berjalan.",
+        "incrementalDisabledHint": "Saat override dimatikan, Mistyislet tetap memakai kontrak incremental default Talenta: updated_after, updated_before, dan rfc3339. Full reconcile terjadwal tetap berjalan.",
         "incrementalEnabledHint": "Isi hanya field yang memang perlu dioverride. Nilai yang dibiarkan kosong akan tetap memakai kontrak incremental default Talenta.",
         "incrementalRefHint": "Connector ini memakai credential ref yang sudah ada. Incremental Talenta tetap aktif secara default; ubah vault secret hanya jika tenant ini membutuhkan query override khusus.",
         "incrementalTitle": "Override kontrak incremental",
@@ -1396,49 +1476,49 @@
       "title": "Kategori Isu Sinkronisasi"
     },
     "mainflow": {
-      "connected": "Terhubung",
+      "connected": "Semua segmen terhubung",
       "description": "Pisahkan alur dari hasil sinkronisasi ke penggunaan grup hingga pengiriman kebijakan, lalu berikan aksi prioritas.",
       "directoryUsage": {
-        "action": "Aksi Pemakaian direktori",
-        "descriptionAttention": "Deskripsi perhatian",
-        "descriptionPending": "Deskripsi tertunda",
-        "descriptionReady": "Deskripsi siap",
-        "metricPending": "Metrik tertunda",
-        "metricReady": "Metrik siap"
+        "action": "Tinjau direktori",
+        "descriptionAttention": "Karyawan sudah diimpor, tetapi grup masih perlu ditinjau sebelum kebijakan bisa ditutup.",
+        "descriptionPending": "Impor data karyawan sebelum membuat grup.",
+        "descriptionReady": "Karyawan dan grup siap untuk handoff kebijakan.",
+        "metricPending": "Belum ada data karyawan aktif.",
+        "metricReady": "{{employees}} karyawan / {{groups}} grup"
       },
       "issuanceReceipt": {
-        "action": "Aksi Resi penerbitan",
-        "descriptionAttention": "Deskripsi perhatian",
-        "descriptionPending": "Deskripsi tertunda",
-        "descriptionReady": "Deskripsi siap",
-        "metricPending": "Metrik tertunda",
-        "metricReady": "Metrik siap"
+        "action": "Tinjau penerbitan",
+        "descriptionAttention": "Kebijakan siap, tetapi penerbitan credential masih perlu tindak lanjut.",
+        "descriptionPending": "Tutup pengiriman kebijakan sebelum menerbitkan credential.",
+        "descriptionReady": "Pengiriman kebijakan sudah menerbitkan credential untuk pengguna.",
+        "metricPending": "Belum ada kebijakan yang siap untuk penerbitan.",
+        "metricReady": "{{policies}} kebijakan / {{issued}} pass terbit"
       },
       "policyDelivery": {
-        "action": "Aksi Pengiriman kebijakan",
-        "descriptionAttention": "Deskripsi perhatian",
-        "descriptionPending": "Deskripsi tertunda",
-        "descriptionReady": "Deskripsi siap",
-        "metricPending": "Metrik tertunda",
-        "metricReady": "Metrik siap"
+        "action": "Tinjau kebijakan",
+        "descriptionAttention": "Grup sudah ada, tetapi kebijakan masih perlu ditinjau sebelum penerbitan.",
+        "descriptionPending": "Buat atau tinjau grup sebelum pengiriman kebijakan.",
+        "descriptionReady": "Grup dan kebijakan akses sudah selaras untuk tenant ini.",
+        "metricPending": "Belum ada grup yang siap untuk pengiriman kebijakan.",
+        "metricReady": "{{groups}} grup / {{policies}} kebijakan"
       },
       "priority": {
         "done": {
-          "action": "Aksi Prioritas - Selesai",
-          "description": "Deskripsi Prioritas - Selesai",
-          "title": "Prioritas - Selesai"
+          "action": "Tinjau pass terbit",
+          "description": "Langkah direktori, kebijakan, dan penerbitan sudah selaras untuk sinkronisasi terbaru.",
+          "title": "Alur tertutup"
         },
         "failure": {
-          "action": "Aksi Prioritas - Kegagalan",
-          "description": "Deskripsi Prioritas - Kegagalan",
-          "title": "Prioritas - Kegagalan"
+          "action": "Tinjau penghambat",
+          "description": "Selesaikan data ditolak, nonaktif, atau gagal sebelum kebijakan dan credential bisa ditutup.",
+          "title": "Perbaiki penghambat sinkronisasi"
         },
         "pending": {
-          "description": "Deskripsi Prioritas - Tertunda",
-          "title": "Prioritas - Tertunda"
+          "description": "Selesaikan langkah direktori, kebijakan, atau penerbitan berikutnya agar alur sinkronisasi terus berjalan.",
+          "title": "Lanjutkan setup"
         }
       },
-      "priorityRank": "Peringkat prioritas",
+      "priorityRank": "Prioritas {{rank}}",
       "segment": {
         "directoryUsage": "Pemakaian direktori",
         "issuanceReceipt": "Resi penerbitan",
@@ -1463,36 +1543,36 @@
         "pendingReview": "Menunggu peninjauan",
         "syncFailures": "Kegagalan sinkronisasi"
       },
-      "latestResultSummary": "Ringkasan hasil terbaru",
-      "latestResultWithSource": "Hasil terbaru beserta sumber",
-      "noResult": "Belum ada hasil",
-      "noResultHint": "Petunjuk belum ada hasil",
+      "latestResultSummary": "Membuat {{created}}, memperbarui {{updated}}, menonaktifkan {{deactivated}}, menolak {{rejected}}",
+      "latestResultWithSource": "Hasil sinkronisasi {{source}}",
+      "noResult": "Belum ada hasil sinkronisasi",
+      "noResultHint": "Kirim sinkronisasi HRIS, SCIM, CSV, atau manual untuk memulai alur.",
       "pendingImport": "Menunggu impor",
-      "priorityAligned": "Prioritas selaras",
-      "startedEnded": "Mulai / selesai",
+      "priorityAligned": "Aksi utama mengikuti bagian sinkronisasi belum selesai dengan prioritas tertinggi.",
+      "startedEnded": "Mulai {{startedAt}} / selesai {{endedAt}}",
       "title": "Hasil Sinkron dan Langkah Berikutnya"
     },
     "pipeline": {
       "employeeDirectory": {
-        "actionReview": "Tinjau",
-        "actionView": "Lihat",
-        "helperEmpty": "Bantuan kosong",
-        "helperReady": "Bantuan siap",
+        "actionReview": "Tinjau direktori",
+        "actionView": "Lihat karyawan",
+        "helperEmpty": "Belum ada karyawan aktif yang tersedia.",
+        "helperReady": "{{count}} karyawan aktif siap.",
         "title": "Direktori karyawan"
       },
       "issuance": {
-        "actionGo": "Pergi",
-        "actionView": "Lihat",
-        "helperEmpty": "Bantuan kosong",
-        "helperReady": "Bantuan siap",
-        "title": "Penerbitan"
+        "actionGo": "Ke penerbitan",
+        "actionView": "Lihat credential terbit",
+        "helperEmpty": "Belum ada credential terbit yang tersedia.",
+        "helperReady": "{{count}} credential terbit siap.",
+        "title": "Penerbitan credential"
       },
       "policies": {
-        "actionGo": "Pergi",
-        "actionView": "Lihat",
-        "helperEmpty": "Bantuan kosong",
-        "helperReady": "Bantuan siap",
-        "title": "Kebijakan"
+        "actionGo": "Ke kebijakan",
+        "actionView": "Lihat kebijakan",
+        "helperEmpty": "Belum ada kebijakan akses yang siap.",
+        "helperReady": "{{count}} kebijakan siap.",
+        "title": "Kebijakan akses"
       },
       "primaryAction": {
         "goAlerts": "Ke peringatan",
@@ -1504,31 +1584,31 @@
         "viewIssuance": "Lihat penerbitan"
       },
       "syncResult": {
-        "actionGoAlerts": "Aksi ke peringatan",
-        "actionGoSync": "Aksi ke sinkronisasi",
-        "actionView": "Lihat",
+        "actionGoAlerts": "Tinjau penghambat sinkronisasi",
+        "actionGoSync": "Jalankan sinkronisasi",
+        "actionView": "Lihat hasil sinkronisasi",
         "helperNoJob": "Belum ada job sinkronisasi. Kirim satu job terlebih dahulu.",
         "helperWithJob": "Job terbaru: sumber {{source}}, status {{status}}, ditolak {{rejected}} data.",
         "title": "Hasil sinkronisasi"
       },
       "userGroups": {
-        "actionGo": "Pergi",
-        "actionView": "Lihat",
-        "helperEmpty": "Bantuan kosong",
-        "helperReady": "Bantuan siap",
+        "actionGo": "Ke grup",
+        "actionView": "Lihat grup",
+        "helperEmpty": "Belum ada grup pengguna yang siap.",
+        "helperReady": "{{count}} grup siap.",
         "title": "Grup pengguna"
       }
     },
     "pipelineCheck": {
-      "badgeFailure": "Lencana gagal",
-      "badgePending": "Lencana tertunda",
-      "badgeReady": "Lencana siap",
-      "fallbackByConnectivity": "Gunakan aksi cadangan berdasarkan konektivitas",
-      "fallbackByStep": "Gunakan aksi cadangan per langkah",
-      "priorityAligned": "Prioritas selaras",
-      "stepPending": "Langkah tertunda",
-      "stepReady": "Langkah siap",
-      "title": "Pemeriksaan alur"
+      "badgeFailure": "Penghambat sinkronisasi aktif",
+      "badgePending": "{{count}} langkah tertunda",
+      "badgeReady": "Alur siap",
+      "fallbackByConnectivity": "Gunakan aksi alur",
+      "fallbackByStep": "Buka langkah",
+      "priorityAligned": "Aksi berikutnya mengikuti langkah belum selesai dengan prioritas tertinggi.",
+      "stepPending": "Tertunda",
+      "stepReady": "Siap",
+      "title": "Kesiapan alur"
     },
     "quickImport": {
       "currentSource": "Sumber Saat Ini",
@@ -1538,21 +1618,21 @@
     },
     "recentResults": {
       "description": "Tinjau sumber terbaru, hasil delta, dan kegagalan tanpa keluar dari halaman kerja ini.",
-      "empty": "Belum ada data",
-      "rowActorAt": "Pelaku pada waktu",
-      "rowSummary": "Ringkasan baris",
+      "empty": "Belum ada hasil sinkronisasi terbaru.",
+      "rowActorAt": "Pelaku {{actor}} / {{at}}",
+      "rowSummary": "Membuat {{created}}, memperbarui {{updated}}, menonaktifkan {{deactivated}}, menolak {{rejected}}",
       "title": "Hasil Sinkron Terbaru"
     },
     "remediation": {
       "description": "Dorong dari penemuan isu ke aksi berikutnya dan jalur kembali ke alur direktori utama.",
-      "fallbackByStep": "Gunakan aksi cadangan per langkah",
-      "priorityHint": "Petunjuk prioritas",
+      "fallbackByStep": "Buka langkah",
+      "priorityHint": "Prioritas remediasi mengikuti alur sinkronisasi utama.",
       "title": "Siklus remediasi sinkronisasi"
     },
     "sourceOverview": {
       "description": "Lihat kualitas sinkronisasi, risiko, dan aksi berikutnya per sumber.",
-      "fallbackAction": "Aksi cadangan",
-      "latestEndedAt": "Terakhir berakhir pada",
+      "fallbackAction": "Gunakan aksi sumber",
+      "latestEndedAt": "Terakhir selesai: {{value}}",
       "title": "Ringkasan sumber sinkronisasi"
     },
     "submit": {
@@ -1581,14 +1661,14 @@
       "clear": "Bersihkan",
       "clearReviewState": "Bersihkan status peninjauan",
       "description": "Tangani peringatan worker di ruang kerja sinkronisasi, lalu arahkan kembali ke direktori, kebijakan, atau penerbitan.",
-      "empty": "Belum ada data",
+      "empty": "Tidak ada peringatan worker yang perlu ditinjau.",
       "filters": {
-        "alerting": "Sedang peringatan",
-        "all": "Semua",
-        "hot": "Risiko tinggi",
-        "stable": "Stabil"
+        "alerting": "Sedang peringatan ({{count}})",
+        "all": "Semua ({{count}})",
+        "hot": "Risiko tinggi ({{count}})",
+        "stable": "Stabil ({{count}})"
       },
-      "focusHint": "Petunjuk fokus",
+      "focusHint": "Difilter dari tautan peringatan. Tinjau sinyal worker ini sebelum membersihkan konteks.",
       "goAlerts": "Ke peringatan",
       "goDirectory": "Ke direktori",
       "goPolicies": "Ke kebijakan",
@@ -1640,8 +1720,8 @@
           "genericSync": "Sinkronisasi enterprise"
         }
       },
-      "queryPlaceholder": "Placeholder kueri",
-      "reviewHandled": "Tinjauan telah ditangani",
+      "queryPlaceholder": "Filter peringatan worker",
+      "reviewHandled": "Tinjauan {{stage}} sudah dicatat. Lanjutkan tinjauan sekunder dari peringatan.",
       "title": "Penanganan peringatan worker"
     },
     "workerReview": {
@@ -1665,36 +1745,36 @@
     },
     "approvalClosure": {
       "pending": {
-        "batchApprove": "Setujui massal",
-        "batchReject": "Tolak massal",
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan persetujuan - Tertunda"
+        "batchApprove": "Setujui tertunda ({{count}})",
+        "batchReject": "Tolak tertunda ({{count}})",
+        "descriptionEmpty": "Tidak ada persetujuan tertunda yang tersisa.",
+        "descriptionWithItems": "Tinjau atau tutup massal persetujuan JIT tertunda.",
+        "locate": "Lihat tertunda",
+        "title": "Penutupan persetujuan tertunda"
       },
       "syncFailed": {
-        "batchMarkSynced": "Tandai sinkron massal",
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan persetujuan - Sinkronisasi gagal"
+        "batchMarkSynced": "Tandai write-back tersinkron ({{count}})",
+        "descriptionEmpty": "Tidak ada write-back gagal yang perlu ditutup.",
+        "descriptionWithItems": "Perbaiki write-back gagal sebelum meninggalkan antrean persetujuan.",
+        "locate": "Lihat gagal",
+        "title": "Penutupan write-back gagal"
       },
       "syncPending": {
-        "batchMarkSynced": "Tandai sinkron massal",
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan persetujuan - Sinkronisasi berjalan"
+        "batchMarkSynced": "Tandai write-back tersinkron ({{count}})",
+        "descriptionEmpty": "Tidak ada write-back berjalan yang menunggu konfirmasi.",
+        "descriptionWithItems": "Konfirmasi write-back berjalan sebelum menutup alur persetujuan.",
+        "locate": "Lihat yang berjalan",
+        "title": "Penutupan write-back berjalan"
       }
     },
     "approvalClosureCard": {
-      "description": "Deskripsi Kartu penutupan persetujuan",
-      "title": "Kartu penutupan persetujuan"
+      "description": "Tutup persetujuan tertunda dan konfirmasi status write-back eksternal sebelum meninggalkan antrean JIT.",
+      "title": "Penutupan persetujuan"
     },
     "blockers": {
-      "description": "Deskripsi Penghambat",
-      "emptyDescription": "Deskripsi kosong",
-      "emptyTitle": "Judul kosong",
+      "description": "Item yang masih menghambat penutupan direktori, kebijakan, atau wallet.",
+      "emptyDescription": "Tidak ada penghambat persetujuan, direktori, atau wallet yang aktif.",
+      "emptyTitle": "Tidak ada penghambat penutupan",
       "goPolicies": "Ke kebijakan",
       "goWallet": "Ke wallet",
       "title": "Penghambat"
@@ -1704,43 +1784,62 @@
       "emptyDash": "-",
       "processing": "Memproses..."
     },
+    "disabledReasons": {
+      "actionBusy": "Aksi Enterprise lain sedang berjalan. Tunggu hingga selesai.",
+      "actionUnavailable": "Aksi ini tidak tersedia untuk peran atau kondisi workspace saat ini.",
+      "exporting": "Ekspor notifikasi sedang berjalan.",
+      "loading": "Data alert Enterprise masih dimuat.",
+      "noDueNotifications": "Tidak ada notifikasi alert worker yang jatuh tempo untuk retry.",
+      "noExternalSyncFailures": "Tidak ada approval dengan write-back eksternal gagal.",
+      "noExternalSyncPending": "Tidak ada approval dengan write-back eksternal tertunda.",
+      "noFailedNotifications": "Tidak ada notifikasi alert worker gagal pada tampilan saat ini.",
+      "noPendingApprovals": "Tidak ada approval JIT tertunda.",
+      "noProcessableReceipts": "Tidak ada receipt webhook HRIS berstatus ready pada tampilan saat ini.",
+      "noReplayableDLQ": "Tidak ada entri DLQ HRIS berstatus ready pada tampilan saat ini.",
+      "noRetryableNotifications": "Tidak ada notifikasi alert worker yang dapat dicoba ulang pada tampilan saat ini.",
+      "noSuppressedNotifications": "Tidak ada notifikasi alert worker yang disuppress dan dapat dipulihkan pada tampilan saat ini.",
+      "noVisibleNotifications": "Tidak ada catatan notifikasi alert worker pada tampilan saat ini.",
+      "noVisiblePendingApprovals": "Tidak ada approval JIT tertunda yang cocok dengan filter saat ini.",
+      "noVisibleSyncMarkableApprovals": "Tidak ada approval non-pending yang perlu penutupan write-back eksternal pada tampilan saat ini.",
+      "readOnly": "Peran saat ini dapat meninjau alert Enterprise tetapi tidak dapat mengubah approval, antrean, atau notifikasi."
+    },
     "count": "{{count}} data",
     "directoryClosure": {
       "deactivated": {
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan direktori - Dinonaktifkan"
+        "descriptionEmpty": "Tidak ada data karyawan nonaktif yang perlu ditinjau.",
+        "descriptionWithItems": "Tinjau karyawan nonaktif sebelum menerbitkan atau mempertahankan credential.",
+        "locate": "Lihat karyawan nonaktif",
+        "title": "Karyawan nonaktif"
       },
       "rejected": {
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan direktori - Ditolak"
+        "descriptionEmpty": "Tidak ada data sinkronisasi ditolak yang tersisa.",
+        "descriptionWithItems": "Selesaikan data ditolak sebelum penutupan kebijakan dan wallet.",
+        "locate": "Lihat data ditolak",
+        "title": "Data ditolak"
       },
       "unfinished": {
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan direktori - Belum selesai"
+        "descriptionEmpty": "Tidak ada job sinkronisasi belum selesai yang perlu ditangani.",
+        "descriptionWithItems": "Selesaikan atau periksa job sinkronisasi yang belum tertutup dengan baik.",
+        "locate": "Lihat belum selesai",
+        "title": "Penutupan direktori belum selesai"
       },
       "worker": {
-        "descriptionEmpty": "Deskripsi kosong",
-        "descriptionWithItems": "Deskripsi dengan item",
-        "locate": "Lokasi item",
-        "title": "Penutupan direktori - Worker"
+        "descriptionEmpty": "Tidak ada peringatan worker yang perlu ditindaklanjuti.",
+        "descriptionWithItems": "Tinjau peringatan worker aktif sebelum menutup pengecualian direktori.",
+        "locate": "Lihat peringatan worker",
+        "title": "Tindak lanjut worker"
       }
     },
     "directoryClosureCard": {
-      "description": "Deskripsi Kartu penutupan direktori",
-      "title": "Kartu penutupan direktori"
+      "description": "Tinjau pengecualian direktori dan arahkan tiap item ke aksi penutupan berikutnya.",
+      "title": "Penutupan direktori"
     },
     "header": {
       "description": "Alihkan berdasarkan tujuan penanganan: ringkasan, backlog persetujuan, dan pengecualian direktori.",
       "hint": {
-        "approvalBacklog": "Backlog persetujuan",
-        "directoryExceptions": "Anomali direktori",
-        "overview": "Ringkasan"
+        "approvalBacklog": "Backlog persetujuan berfokus pada keputusan JIT dan status write-back eksternal.",
+        "directoryExceptions": "Pengecualian direktori mengelompokkan kegagalan sinkronisasi, karyawan nonaktif, dan peringatan worker.",
+        "overview": "Ringkasan menampilkan aksi persetujuan, direktori, dan pemulihan berikutnya yang belum selesai."
       },
       "tabs": {
         "approvalBacklog": "Backlog Persetujuan ({{count}})",
@@ -1750,42 +1849,42 @@
       "title": "Halaman Landing Persetujuan & Pengecualian"
     },
     "hints": {
-      "sourcePrefix": "Prefiks sumber",
+      "sourcePrefix": "Tindak lanjut {{summary}}",
       "sync": "Sinkronisasi",
-      "syncReviewGroup": "Tinjauan sinkronisasi grup",
-      "syncReviewPolicy": "Tinjauan sinkronisasi kebijakan",
-      "syncTask": "Tugas sinkronisasi",
-      "syncTaskWithID": "Tugas sinkronisasi dengan ID",
-      "workerAlert": "Peringatan worker",
-      "workerAlertWithTime": "Peringatan worker dengan waktu kejadian",
-      "workerReviewGroup": "Tinjauan grup worker",
-      "workerReviewPolicy": "Tinjauan kebijakan worker"
+      "syncReviewGroup": "Tinjauan grup sinkronisasi {{source}}",
+      "syncReviewPolicy": "Tinjauan kebijakan sinkronisasi {{source}}",
+      "syncTask": "Tugas sinkronisasi {{source}}",
+      "syncTaskWithID": "Tugas sinkronisasi {{source}} {{id}}",
+      "workerAlert": "Peringatan worker {{scope}}",
+      "workerAlertWithTime": "Peringatan worker {{scope}} pada {{at}}",
+      "workerReviewGroup": "Tinjauan grup worker {{scope}}",
+      "workerReviewPolicy": "Tinjauan kebijakan worker {{scope}}"
     },
     "jitApproval": {
       "actions": {
         "approve": "Setujui",
-        "markSynced": "Tandai sinkron",
+        "markSynced": "Tandai sudah ditulis balik",
         "reject": "Tolak"
       },
-      "batchApprove": "Setujui massal",
-      "batchMarkSynced": "Tandai sinkron massal",
-      "batchReject": "Tolak massal",
-      "description": "Deskripsi Persetujuan JIT",
-      "empty": "Belum ada data",
+      "batchApprove": "Setujui tertunda ({{count}})",
+      "batchMarkSynced": "Tandai sudah ditulis balik ({{count}})",
+      "batchReject": "Tolak tertunda ({{count}})",
+      "description": "Tinjau persetujuan JIT dan status write-back sinkronisasi eksternal.",
+      "empty": "Tidak ada persetujuan JIT yang cocok dengan filter saat ini.",
       "queryPlaceholder": "Filter berdasarkan email / external_id / ID persetujuan",
-      "statusFilterTitle": "Judul filter status",
+      "statusFilterTitle": "Status persetujuan",
       "statusOptions": {
-        "all": "Semua",
-        "approved": "Disetujui",
-        "pending": "Tertunda",
-        "rejected": "Ditolak"
+        "all": "Semua ({{count}})",
+        "approved": "Disetujui ({{count}})",
+        "pending": "Tertunda ({{count}})",
+        "rejected": "Ditolak ({{count}})"
       },
       "syncOptions": {
-        "all": "Semua",
-        "failed": "Gagal",
-        "none": "Tidak ada",
-        "pending": "Tertunda",
-        "success": "Berhasil"
+        "all": "Semua ({{count}})",
+        "failed": "Gagal ({{count}})",
+        "none": "Tidak ada ({{count}})",
+        "pending": "Sedang berjalan ({{count}})",
+        "success": "Berhasil ({{count}})"
       },
       "table": {
         "actions": "Aksi",
@@ -1797,7 +1896,7 @@
       "title": "Persetujuan JIT"
     },
     "landingActions": {
-      "description": "Deskripsi Aksi lanjutan",
+      "description": "Lompat dari tampilan landing ke workspace yang memiliki aksi belum selesai berikutnya.",
       "title": "Aksi lanjutan"
     },
     "receiptRecovery": {
@@ -1806,14 +1905,14 @@
         "repair": "Perbaiki",
         "retry": "Coba lagi"
       },
-      "blockedHint": "Petunjuk terblokir",
-      "currentStatus": "Status saat ini",
-      "description": "Deskripsi Pemulihan resi",
+      "blockedHint": "Penghambat penutupan masih ada. Selesaikan isu persetujuan dan direktori sebelum mencoba backflow.",
+      "currentStatus": "Status pemulihan receipt",
+      "description": "Pulihkan backflow receipt yang gagal dan konfirmasi apakah data terdampak dapat diperbaiki.",
       "loading": "Memuat Pemulihan resi...",
-      "pendingCount": "Jumlah tertunda",
-      "queryHintEmpty": "Petunjuk kueri kosong",
-      "queryHintWithValue": "Petunjuk kueri dengan nilai",
-      "readyHint": "Petunjuk siap",
+      "pendingCount": "{{count}} penghambat",
+      "queryHintEmpty": "Tidak ada target terbatas.",
+      "queryHintWithValue": "Target terbatas: {{hint}}",
+      "readyHint": "Tidak ada penghambat persetujuan atau direktori yang tersisa untuk alur receipt ini.",
       "readyToBackflow": "Siap backflow",
       "status": {
         "attention": "Perlu perhatian",
@@ -1823,9 +1922,9 @@
       "title": "Pemulihan resi"
     },
     "recoveryActions": {
-      "blockerCount": "Jumlah penghambat",
+      "blockerCount": "{{count}} penghambat",
       "canBackflow": "Dapat backflow",
-      "description": "Deskripsi Aksi pemulihan",
+      "description": "Pilih jalur pemulihan untuk data yang dapat kembali ke alur direktori atau kebijakan.",
       "goDirectory": "Ke direktori",
       "goPolicies": "Ke kebijakan",
       "title": "Aksi pemulihan"
@@ -1866,6 +1965,185 @@
         "windowPlaceholder": "window_seconds"
       },
       "description": "Tangani job sinkronisasi dan peringatan worker secara terpusat agar tidak ada aksi siklus tertutup yang terlewat.",
+      "executionHistory": {
+        "title": "Riwayat Eksekusi Webhook",
+        "description": "Lacak catatan eksekusi pemrosesan receipt Talenta dan replay DLQ yang masuk antrean.",
+        "filters": {
+          "all": "Semua",
+          "queued": "Dalam antrean",
+          "running": "Berjalan",
+          "succeeded": "Berhasil",
+          "failed": "Gagal"
+        },
+        "kind": {
+          "receiptProcess": "Proses receipt",
+          "dlqReplay": "Replay DLQ"
+        },
+        "kindFilter": {
+          "all": "Semua jenis",
+          "receiptProcess": "Proses receipt",
+          "dlqReplay": "Replay DLQ"
+        },
+        "queueStateFilter": {
+          "all": "Semua runtime",
+          "ready": "Siap",
+          "cooldown": "Cooldown",
+          "inFlight": "Sedang berjalan",
+          "attemptLimit": "Batas percobaan",
+          "terminal": "Terminal"
+        },
+        "replayScopeFilter": {
+          "all": "Semua lineage",
+          "replayed": "Replay",
+          "workerRequired": "Perlu worker"
+        },
+        "replayWorkerRequired": "perlu",
+        "replayWorkerOptional": "tidak perlu",
+        "executionModeFilter": {
+          "all": "Semua mode",
+          "queued": "Antrean",
+          "inline": "Inline"
+        },
+        "dispatchModeFilter": {
+          "all": "Semua dispatch",
+          "workerTick": "Worker tick",
+          "workerTaskChannel": "Task channel",
+          "goroutineFallback": "Fallback goroutine"
+        },
+        "searchPlaceholder": "Cari connector, request, event, target, mode dispatch, atau error",
+        "targetStatusPlaceholder": "Filter status target secara persis, mis. processed",
+        "targetStatus": "Target {{status}}",
+        "replaying": "Replay...",
+        "replay": "Replay eksekusi gagal",
+        "openSourceExecution": "Buka eksekusi sumber",
+        "hideDetails": "Sembunyikan detail",
+        "details": "Detail",
+        "startedAt": "Mulai {{value}}",
+        "finishedAt": "Selesai {{value}}",
+        "dispatchMeta": "Actor {{requestedBy}} / audit {{auditSource}}",
+        "replayMeta": "Replay dari {{sourceExecutionID}} / worker {{workerRequirement}}",
+        "runtimeMeta": "Queue {{queueState}} / retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
+        "runtimeBadges": {
+          "cooldownRemaining": "Cooldown {{seconds}} dtk",
+          "staleInFlight": "In-flight kedaluwarsa"
+        },
+        "auditCounts": "Run {{attempts}} / requeue {{requeues}}",
+        "paginationSummary": "Memuat {{loaded}} dari {{total}} catatan eksekusi.",
+        "columns": {
+          "queuedAt": "Antrean",
+          "kind": "Jenis",
+          "dispatch": "Dispatch",
+          "status": "Status",
+          "actions": "Aksi"
+        },
+        "loading": "Memuat riwayat eksekusi...",
+        "empty": "Tidak ada riwayat eksekusi yang cocok dengan scope saat ini.",
+        "loadingMore": "Memuat lagi...",
+        "loadMore": "Muat lagi",
+        "detail": {
+          "title": "Detail eksekusi",
+          "description": "Telusuri catatan eksekusi Talenta yang masuk antrean dan simpan pilihan saat ini di URL.",
+          "filteredHint": "Catatan ini dimuat melalui execution_id dan mungkin berada di luar filter daftar saat ini.",
+          "loading": "Memuat detail eksekusi...",
+          "kind": "Jenis",
+          "timeline": "Timeline",
+          "timelineQueued": "Antrean {{value}}",
+          "timelineUpdated": "Diperbarui {{value}}",
+          "target": "Target",
+          "connector": "Connector",
+          "request": "Request",
+          "dispatch": "Dispatch",
+          "replay": "Replay",
+          "replayWorkerRequirement": "Worker {{value}}",
+          "runtime": "Runtime",
+          "attempts": "Percobaan",
+          "attemptCount": "Run {{count}}",
+          "requeueCount": "Requeue {{count}}",
+          "failureStage": "Tahap gagal",
+          "lastError": "Error terakhir",
+          "empty": "Tidak ada detail eksekusi untuk catatan ini."
+        }
+      },
+      "notificationHistory": {
+        "title": "Riwayat Notifikasi Sinkronisasi & Worker",
+        "description": "{{count}} catatan notifikasi alert worker terbaru, termasuk skip cooldown dan hasil retry.",
+        "filters": {
+          "all": "Semua",
+          "failed": "Gagal",
+          "retryable": "Bisa retry",
+          "suppressed": "Disenyapkan",
+          "dueNow": "Jatuh tempo"
+        },
+        "searchPlaceholder": "Cari worker, connector, alasan, request ID, atau error provider...",
+        "exporting": "Mengekspor...",
+        "exportVisible": "Ekspor hasil filter ({{count}})",
+        "statusSummary": {
+          "sent": "Terkirim {{count}}",
+          "failed": "Gagal {{count}}",
+          "skipped": "Dilewati {{count}}"
+        },
+        "autoRetryDueBusy": "Retry otomatis item jatuh tempo...",
+        "autoRetryDue": "Retry otomatis jatuh tempo ({{count}})",
+        "suppressVisibleBusy": "Menyenyapkan item terlihat...",
+        "suppressVisible": "Senyapkan item terlihat ({{count}})",
+        "restoreVisibleBusy": "Memulihkan item terlihat...",
+        "restoreVisible": "Pulihkan item terlihat ({{count}})",
+        "retryVisibleBusy": "Mencoba ulang item terlihat...",
+        "retryVisible": "Retry item terlihat ({{count}})",
+        "batchHint": "Aksi massal berlaku pada tampilan saat ini: retry hanya memproses kegagalan yang bisa retry dan menekan fingerprint duplikat; suppress menandai kegagalan terlihat sebagai dilewati manual; restore membuka kembali suppress manual terlihat sebagai kegagalan yang bisa retry.",
+        "columns": {
+          "time": "Waktu",
+          "worker": "Worker",
+          "countThreshold": "Jumlah / ambang",
+          "attempt": "Percobaan",
+          "channels": "Channel",
+          "receivers": "Grup penerima",
+          "status": "Status",
+          "actions": "Aksi"
+        },
+        "loading": "Memuat catatan notifikasi...",
+        "empty": "Belum ada catatan. Klik \"Dispatch now\" untuk membuat catatan.",
+        "emptyFiltered": "Tidak ada catatan notifikasi yang cocok dengan filter saat ini.",
+        "retrySource": "Retry dari {{id}}",
+        "pendingAge": {
+          "status": "Menunggu {{age}}",
+          "seconds": "{{count}} dtk",
+          "minutes": "{{count}} mnt",
+          "hours": "{{count}} jam",
+          "days": "{{count}} hari"
+        },
+        "nextRetryAt": "Retry berikutnya {{at}}",
+        "confirmAttempts": "Percobaan konfirmasi {{count}}",
+        "lastConfirmResult": "Konfirmasi terakhir {{result}}",
+        "lastConfirmAttemptAt": "Konfirmasi terakhir pada {{at}}",
+        "restoreStatus": "Pemulihan diblokir: {{status}}",
+        "retrying": "Mencoba ulang...",
+        "retry": "Retry",
+        "suppress": "Senyapkan",
+        "restoring": "Memulihkan...",
+        "restore": "Pulihkan",
+        "hideDetails": "Sembunyikan detail",
+        "details": "Detail",
+        "detailsFingerprint": "Fingerprint",
+        "detailsIdempotencyKey": "Kunci idempotensi",
+        "detailsRequestID": "Request ID",
+        "detailsSourceNotificationID": "Notifikasi sumber",
+        "detailsRestoreStatus": "Status pemulihan",
+        "detailsPendingAge": "Durasi menunggu",
+        "detailsConfirmAttempts": "Percobaan konfirmasi",
+        "detailsNextRetryAt": "Waktu retry berikutnya",
+        "detailsLastConfirmResult": "Hasil konfirmasi terakhir",
+        "detailsLastConfirmAttemptAt": "Waktu percobaan konfirmasi terakhir",
+        "detailsProviderError": "Error provider",
+        "detailsChannelResults": "Hasil channel",
+        "loadingMore": "Memuat lagi...",
+        "loadMore": "Muat lagi",
+        "restoreEligibility": {
+          "ready": "Siap dipulihkan",
+          "alreadySent": "Notifikasi yang lebih baru sudah dikirim",
+          "newerHistoryExists": "Riwayat notifikasi yang lebih baru sudah ada"
+        }
+      },
       "pendingSyncRequests": {
         "attempts": "Percobaan {{attemptCount}} kali / percobaan terakhir {{attemptedAt}}",
         "batchHint": "Proses request tenant tertunda paling awal berdasarkan urutan dibuat, maksimal 20 item per eksekusi.",
@@ -1899,7 +2177,9 @@
       "batchResult": {
         "dispatch": "Dispatch {{dispatchMode}}",
         "itemMeta": "entri {{entryID}} / tahap {{stage}} / detail {{detail}}",
+        "openExecution": "Buka eksekusi",
         "summary": "selected {{total}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
         "title": "Batch DLQ terbaru"
       },
       "empty": "Belum ada entri DLQ",
@@ -1912,12 +2192,15 @@
         "terminal": "Terminal"
       },
       "meta": "Replay {{replayCount}} kali / replay terakhir {{replayedAt}} / diperbarui {{updatedAt}}",
+      "paginationSummary": "Memuat {{loaded}} dari {{total}} entri DLQ.",
       "runtime": "Status {{replayState}} / retry berikutnya {{nextRetryAt}} / batas proses {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "Cooldown tersisa {{seconds}}d",
         "remainingAttempts": "Sisa replay {{count}}",
         "staleInFlight": "Replay sudah timeout"
       },
+      "loadingMore": "Memuat lagi...",
+      "loadMore": "Muat lagi",
       "title": "Sinkronisasi & worker - DLQ terbaru"
     },
     "webhookReceipts": {
@@ -1930,7 +2213,9 @@
       "batchResult": {
         "dispatch": "Dispatch {{dispatchMode}}",
         "itemMeta": "receipt {{receiptID}} / connector {{connector}} / detail {{detail}}",
+        "openExecution": "Buka eksekusi",
         "summary": "selected {{total}} / processed {{processed}} / skipped {{skipped}} / failed {{failed}} / dlq {{dlq}}",
+        "summaryQueued": "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
         "title": "Batch receipt terbaru"
       },
       "empty": "Belum ada entri queue receipt",
@@ -1943,12 +2228,15 @@
         "terminal": "Terminal"
       },
       "meta": "Percobaan {{attempts}} kali / percobaan terakhir {{attemptAt}} / diterima {{receivedAt}}",
+      "paginationSummary": "Memuat {{loaded}} dari {{total}} entri receipt.",
       "runtime": "Queue {{queueState}} / retry berikutnya {{nextRetryAt}} / batas proses {{processingDeadlineAt}}",
       "runtimeBadges": {
         "cooldownRemaining": "Cooldown tersisa {{seconds}}d",
         "remainingAttempts": "Sisa percobaan {{count}}",
         "staleInFlight": "Processing sudah timeout"
       },
+      "loadingMore": "Memuat lagi...",
+      "loadMore": "Muat lagi",
       "title": "Sinkronisasi & worker - Queue receipt webhook"
     },
     "pullStates": {
@@ -2005,90 +2293,101 @@
       "viewSyncResult": "Lihat hasil sinkronisasi"
     },
     "alertRecovery": {
-      "noBlockersDescription": "Deskripsi tanpa penghambat",
+      "noBlockersDescription": "Penghambat approval, sinkronisasi, alert worker, dan IDP sudah bersih. Lanjutkan aksi alur direktori berikutnya.",
       "noBlockersTitle": "Tanpa penghambat",
-      "withBlockersDescription": "Deskripsi dengan penghambat",
-      "withBlockersTitle": "Ada penghambat"
+      "withBlockersDescription": "{{blockerCount}} penghambat masih perlu ditutup sebelum jalur recovery bersih.",
+      "withBlockersTitle": "Penghambat recovery aktif"
     },
     "attention": {
       "idpNotReady": {
-        "description": "Deskripsi Item perhatian - IDP Not Ready",
-        "title": "Item perhatian - IDP Not Ready"
+        "description": "Konfigurasikan SSO sebelum pengguna mengandalkan login enterprise.",
+        "title": "Setup IDP belum siap"
       },
       "pendingApprovals": {
-        "description": "Deskripsi Item perhatian - Tertunda Approvals",
-        "title": "Item perhatian - Tertunda Approvals"
+        "description": "Tinjau persetujuan JIT tertunda agar akses direktori dapat berlanjut.",
+        "title": "Persetujuan perlu ditinjau"
       },
       "syncNeedsReview": {
-        "description": "Deskripsi Item perhatian - Sinkronisasi Needs Review",
-        "title": "Item perhatian - Sinkronisasi Needs Review"
+        "description": "Sinkronisasi terbaru memiliki data ditolak, nonaktif, atau belum selesai yang perlu ditinjau.",
+        "title": "Sinkronisasi perlu ditinjau"
       },
       "workerAlert": {
-        "description": "Deskripsi item perhatian - Peringatan worker",
-        "title": "Item perhatian - Peringatan worker"
+        "description": "Alert worker sedang aktif. Periksa tahap kegagalan sebelum mencoba ulang.",
+        "title": "Sinyal worker sinkronisasi aktif"
       }
     },
     "cards": {
       "approvalBacklog": {
-        "descriptionCleared": "Deskripsi telah bersih",
-        "descriptionPending": "Deskripsi tertunda",
-        "pendingCount": "Jumlah tertunda",
-        "returnHint": "Petunjuk kembali",
+        "descriptionCleared": "Tidak ada persetujuan JIT tertunda yang menghambat alur ini.",
+        "descriptionPending": "Persetujuan JIT tertunda perlu ditinjau sebelum direktori dan penerbitan dapat ditutup.",
+        "pendingCount": "{{count}} persetujuan tertunda",
+        "returnHint": "Kembali ke aksi workflow yang direkomendasikan setelah antrean persetujuan ditutup.",
         "title": "Backlog persetujuan"
       },
       "deactivatedEmployees": {
-        "description": "Deskripsi Karyawan dinonaktifkan",
+        "description": "Tinjau karyawan yang dinonaktifkan oleh sinkronisasi sebelum akses dan credential menyimpang.",
         "title": "Karyawan dinonaktifkan"
       },
       "directoryException": {
-        "completedButEmpty": "Selesai tetapi kosong",
-        "deactivatedEmployees": "Karyawan dinonaktifkan",
-        "returnHint": "Petunjuk kembali",
-        "stableDescription": "Deskripsi stabil",
+        "completedButEmpty": "Sinkronisasi terbaru selesai tetapi tidak menghasilkan data karyawan aktif.",
+        "deactivatedEmployees": "{{deactivated}} karyawan nonaktif perlu pembersihan akses dan credential.",
+        "returnHint": "Kembali ke aksi workflow yang direkomendasikan setelah pembersihan direktori.",
+        "stableDescription": "Tidak ada pengecualian ditolak, nonaktif, atau direktori kosong yang menghambat penutupan.",
         "title": "Anomali direktori"
       },
       "latestSyncIncomplete": {
-        "description": "Deskripsi Sinkronisasi terbaru belum selesai",
+        "description": "Sinkronisasi terbaru belum mencapai status imported yang bersih.",
         "title": "Sinkronisasi terbaru belum selesai"
       },
       "rejectedRecords": {
-        "description": "Deskripsi Catatan ditolak",
+        "description": "Data ditolak perlu ditinjau sebelum dapat masuk ke grup atau kebijakan.",
         "title": "Catatan ditolak"
       },
       "syncCompletedEmpty": {
-        "description": "Deskripsi Sinkronisasi selesai namun direktori kosong",
+        "description": "Sinkronisasi selesai tetapi tidak menghasilkan data direktori aktif.",
         "title": "Sinkronisasi selesai namun direktori kosong"
       },
       "syncOutcome": {
-        "applyPoliciesNext": "Terapkan kebijakan berikutnya",
-        "closedLoopHint": "Petunjuk closed-loop",
-        "completedEmptyDirectory": "Direktori selesai namun kosong",
-        "connectedWithIssuedPasses": "Terhubung dengan pass terbit",
-        "emptyDescription": "Deskripsi kosong",
-        "groupEmployeesNext": "Kelompokkan karyawan berikutnya",
-        "keepMoving": "Lanjutkan",
-        "needsReview": "Perlu ditinjau",
-        "readyForIssuance": "Siap diterbitkan",
-        "returnHintAfterAlert": "Petunjuk kembali setelah peringatan",
-        "returnHintAfterImport": "Petunjuk kembali setelah impor",
+        "applyPoliciesNext": "{{tenantGroupsCount}} grup siap. Buat atau tinjau kebijakan berikutnya.",
+        "closedLoopHint": "Alur sinkronisasi sudah terhubung hingga penerbitan.",
+        "completedEmptyDirectory": "Sinkronisasi terbaru selesai tetapi belum ada karyawan aktif.",
+        "connectedWithIssuedPasses": "{{issuedPassCount}} credential telah diterbitkan dari alur direktori ini.",
+        "emptyDescription": "Jalankan atau pilih sumber sinkronisasi direktori sebelum meninjau akses downstream.",
+        "groupEmployeesNext": "{{activeEmployeeCount}} karyawan aktif siap dimasukkan ke grup.",
+        "keepMoving": "Lanjutkan langkah downstream berikutnya agar alur tetap bergerak.",
+        "needsReview": "Sinkronisasi {{sourceLabel}} berstatus {{status}} dengan {{rejected}} data ditolak.",
+        "readyForIssuance": "Kebijakan siap. Lanjutkan ke penerbitan credential.",
+        "returnHintAfterAlert": "Kembali ke aksi downstream yang direkomendasikan setelah pengecualian sinkronisasi ditutup.",
+        "returnHintAfterImport": "Setelah impor, lanjutkan ke karyawan, grup, kebijakan, dan penerbitan.",
         "title": "Hasil sinkronisasi"
       }
     },
     "errors": {
-      "batchApprovalPartialFailure": "Persetujuan massal gagal sebagian",
-      "batchExternalSyncPartialFailure": "Sinkronisasi eksternal massal gagal sebagian",
+      "batchApprovalPartialFailure": "Sebagian catatan persetujuan gagal diproses. Tinjau item gagal di ledger lalu coba lagi.",
+      "batchExternalSyncPartialFailure": "Sebagian pembaruan status writeback eksternal gagal. Tinjau item gagal di ledger lalu coba lagi.",
       "batchRefreshFailed": "Penyegaran massal gagal",
       "dispatchWorkerAlertsFailed": "Gagal mengirim notifikasi alert worker",
+      "autoRetryWorkerAlertNotificationsFailed": "Gagal mencoba ulang notifikasi alert worker secara otomatis",
+      "exportWorkerAlertNotificationsFailed": "Gagal mengekspor notifikasi alert worker",
       "invalidSyncPayload": "Payload sinkronisasi tidak valid",
+      "loadWebhookDLQFailed": "Gagal memuat entri DLQ webhook",
+      "loadWebhookExecutionDetailFailed": "Gagal memuat detail eksekusi webhook",
+      "loadWebhookExecutionsFailed": "Gagal memuat riwayat eksekusi webhook",
+      "loadWebhookReceiptsFailed": "Gagal memuat receipt webhook",
+      "loadWorkerAlertNotificationsFailed": "Gagal memuat notifikasi alert worker",
       "processWebhookReceiptBatchFailed": "Gagal memproses queue receipt secara massal",
       "processWebhookReceiptBatchPartialFailure": "Sebagian pemrosesan queue receipt massal gagal",
       "reconcilePendingFailed": "Gagal merekonsiliasi sync request tertunda",
       "replayDLQBatchPartialFailure": "Sebagian replay DLQ massal gagal",
       "replayDLQFailed": "Gagal me-replay entri DLQ",
+      "restoreWorkerAlertNotificationsBatchFailed": "Gagal memulihkan notifikasi alert worker",
+      "retryWorkerAlertNotificationFailed": "Gagal mencoba ulang notifikasi alert worker",
+      "retryWorkerAlertNotificationsBatchFailed": "Gagal mencoba ulang notifikasi alert worker secara massal",
       "webhookDLQWorkerRequired": "DLQ worker belum diaktifkan, jadi replay queued worker-only belum tersedia",
       "webhookReceiptWorkerRequired": "Receipt worker belum diaktifkan, jadi pemrosesan queued worker-only belum tersedia",
       "saveWorkerAlertSubscriptionFailed": "Gagal menyimpan langganan alert worker",
       "saveTalentaConnectorFailed": "Gagal menyimpan connector Talenta",
+      "suppressWorkerAlertNotificationsBatchFailed": "Gagal menyenyapkan notifikasi alert worker",
       "submitSyncFailed": "Gagal mengirim sinkronisasi",
       "syncAtLeastOne": "Sinkronkan minimal satu item",
       "updateApprovalFailed": "Gagal memperbarui persetujuan",
@@ -2096,13 +2395,13 @@
     },
     "flowHints": {
       "firstPolicy": "Kebijakan pertama",
-      "groupDescDeactivatedCleanup": "Deskripsi grup pembersihan nonaktif",
-      "groupDescSyncDraft": "Deskripsi grup draf sinkronisasi",
-      "officePolicyTemplate": "Template kebijakan kantor"
+      "groupDescDeactivatedCleanup": "Tinjau pembersihan karyawan nonaktif dari sinkronisasi terbaru.",
+      "groupDescSyncDraft": "Grup draft sinkronisasi direktori untuk tinjauan kebijakan downstream.",
+      "officePolicyTemplate": "Kebijakan akses kantor {{groupName}}"
     },
     "header": {
       "description": "Pantau koneksi direktori, hasil sinkronisasi, keterkaitan kebijakan, dan siklus tertutup penerbitan dalam satu tampilan.",
-      "eyebrow": "Label modul",
+      "eyebrow": "Control plane direktori",
       "platform": {
         "description": "Pantau sinkronisasi direktori, alert worker, receipt HRIS, dan postur SSO lintas tenant untuk health check dan troubleshooting platform.",
         "eyebrow": "Kesehatan direktori platform",
@@ -2118,35 +2417,35 @@
     },
     "idpOutcome": {
       "clearAlertsFirst": {
-        "description": "Deskripsi Hasil IDP - Bersihkan peringatan terlebih dahulu",
-        "title": "Hasil IDP - Bersihkan peringatan terlebih dahulu"
+        "description": "Selesaikan alert sinkronisasi atau worker sebelum menganggap SSO siap.",
+        "title": "Bersihkan alert dulu"
       },
       "confirmSyncSource": {
-        "description": "Deskripsi Hasil IDP - Konfirmasi sumber sinkronisasi",
-        "title": "Hasil IDP - Konfirmasi sumber sinkronisasi"
+        "description": "Konfirmasi sumber direktori yang akan memberi data ke grup, kebijakan, dan penerbitan.",
+        "title": "Konfirmasi sumber sinkronisasi"
       },
       "goPolicyRules": {
-        "description": "Deskripsi Hasil IDP - Ke aturan kebijakan",
-        "title": "Hasil IDP - Ke aturan kebijakan"
+        "description": "Gunakan login dan sumber direktori terverifikasi untuk meninjau aturan kebijakan.",
+        "title": "Tinjau aturan kebijakan"
       },
       "groupEmployeesAfterIdp": {
-        "description": "Deskripsi Hasil IDP - Kelompokkan karyawan setelah IDP",
-        "title": "Hasil IDP - Kelompokkan karyawan setelah IDP"
+        "description": "SSO siap. Kelompokkan karyawan agar kebijakan akses dapat menargetkan mereka.",
+        "title": "Kelompokkan karyawan setelah setup IDP"
       },
       "idpClosedLoop": {
-        "description": "Deskripsi hasil IDP - Siklus tertutup IDP",
-        "title": "Hasil IDP - Siklus tertutup IDP"
+        "description": "Prasyarat SSO, direktori, kebijakan, dan penerbitan sudah selaras.",
+        "title": "Alur IDP tertutup"
       },
       "setupIdpFirst": {
-        "description": "Deskripsi Hasil IDP - Siapkan IDP terlebih dahulu",
-        "title": "Hasil IDP - Siapkan IDP terlebih dahulu"
+        "description": "Siapkan identity provider sebelum mengarahkan pengguna ke login enterprise.",
+        "title": "Siapkan IDP dulu"
       }
     },
     "kpi": {
-      "approvalsHint": "Petunjuk persetujuan",
-      "employeesHint": "Petunjuk karyawan",
-      "ssoHint": "Petunjuk SSO",
-      "syncJobsHint": "Petunjuk job sinkronisasi"
+      "approvalsHint": "Persetujuan JIT tertunda yang menunggu tinjauan.",
+      "employeesHint": "Karyawan aktif yang tersedia untuk grup, kebijakan, dan penerbitan.",
+      "ssoHint": "Status konfigurasi login enterprise saat ini.",
+      "syncJobsHint": "Job sinkronisasi direktori terbaru dalam scope tenant ini."
     },
     "labels": {
       "alerts": "peringatan",
@@ -2162,27 +2461,27 @@
       "userGroups": "Grup pengguna"
     },
     "nextAction": {
-      "cardDescription": "Deskripsi kartu",
-      "cardTitle": "Judul kartu",
+      "cardDescription": "Aksi yang direkomendasikan berdasarkan kesiapan direktori, kebijakan, dan penerbitan.",
+      "cardTitle": "Langkah berikutnya yang direkomendasikan",
       "closedLoop": {
-        "description": "Deskripsi Aksi berikutnya - Closed-loop",
-        "title": "Aksi berikutnya - Closed-loop"
+        "description": "Direktori, kebijakan, dan pass terbit sudah selaras untuk organisasi saat ini.",
+        "title": "Alur sudah tertutup"
       },
       "connectEmployees": {
-        "description": "Deskripsi Aksi berikutnya - Hubungkan karyawan",
-        "title": "Aksi berikutnya - Hubungkan karyawan"
+        "description": "Impor atau hubungkan karyawan sebelum mengonfigurasi grup dan kebijakan.",
+        "title": "Hubungkan karyawan"
       },
       "createPolicies": {
-        "description": "Deskripsi Aksi berikutnya - Buat kebijakan",
-        "title": "Aksi berikutnya - Buat kebijakan"
+        "description": "Buat kebijakan akses setelah karyawan dan grup siap.",
+        "title": "Buat kebijakan"
       },
       "goIssuance": {
-        "description": "Deskripsi Aksi berikutnya - Ke penerbitan",
-        "title": "Aksi berikutnya - Ke penerbitan"
+        "description": "Lanjutkan ke penerbitan credential setelah kebijakan siap.",
+        "title": "Ke penerbitan"
       },
       "groupEmployees": {
-        "description": "Deskripsi Aksi berikutnya - Kelompokkan karyawan",
-        "title": "Aksi berikutnya - Kelompokkan karyawan"
+        "description": "Masukkan karyawan impor ke grup agar kebijakan dapat menargetkan mereka.",
+        "title": "Kelompokkan karyawan"
       },
       "stats": {
         "groups": "Jumlah grup",
@@ -2192,46 +2491,46 @@
     },
     "quickActions": {
       "alerts": {
-        "description": "Deskripsi Aksi cepat - Peringatan"
+        "description": "Buka alert worker, receipt, dan antrean DLQ yang perlu perhatian."
       },
       "csv": {
-        "description": "Deskripsi Aksi cepat - CSV",
-        "title": "Aksi cepat - CSV"
+        "description": "Impor file karyawan CSV ketika HRIS atau SCIM belum tersambung.",
+        "title": "Impor CSV"
       },
       "hris": {
-        "description": "Deskripsi Aksi cepat - HRIS",
-        "title": "Aksi cepat - HRIS"
+        "description": "Konfigurasikan sinkronisasi HRIS untuk pembaruan direktori karyawan otomatis.",
+        "title": "Sinkronisasi HRIS"
       },
       "idp": {
-        "description": "Deskripsi Aksi cepat - IDP",
-        "title": "Aksi cepat - IDP"
+        "description": "Tinjau pengaturan SSO dan kesiapan persetujuan JIT.",
+        "title": "Login enterprise"
       }
     },
     "remediation": {
       "firstSync": {
-        "description": "Deskripsi Saran remediasi - Sinkronisasi pertama",
-        "title": "Saran remediasi - Sinkronisasi pertama"
+        "description": "Kirim job sinkronisasi pertama sebelum meninjau kesehatan direktori.",
+        "title": "Jalankan sinkronisasi pertama"
       },
       "handleRejected": {
-        "completed": "Selesai",
-        "pending": "Tertunda",
-        "title": "Saran remediasi - Tangani item ditolak"
+        "completed": "Tidak ada data ditolak yang tersisa.",
+        "pending": "{{rejected}} data ditolak perlu ditinjau.",
+        "title": "Tangani data ditolak"
       },
       "pushToPolicyAndIssuance": {
-        "noEmployees": "Tidak ada karyawan",
-        "noGroups": "Tidak ada grup",
-        "noPolicies": "Tidak ada kebijakan",
-        "readyForIssuance": "Siap diterbitkan",
-        "title": "Saran remediasi - Dorong ke kebijakan & penerbitan"
+        "noEmployees": "Impor karyawan sebelum handoff kebijakan dan penerbitan.",
+        "noGroups": "Buat grup pengguna sebelum handoff kebijakan.",
+        "noPolicies": "Buat kebijakan akses sebelum menerbitkan credential.",
+        "readyForIssuance": "Prasyarat kebijakan siap untuk penerbitan credential.",
+        "title": "Lanjutkan ke kebijakan dan penerbitan"
       },
       "reviewDeactivatedImpact": {
-        "completed": "Selesai",
-        "pending": "Tertunda",
-        "title": "Saran remediasi - Tinjau dampak nonaktif"
+        "completed": "Tidak ada pembersihan karyawan nonaktif yang tertunda.",
+        "pending": "{{deactivated}} karyawan nonaktif perlu tinjauan akses dan credential.",
+        "title": "Tinjau dampak deactivation"
       },
       "reviewLatest": {
-        "description": "Deskripsi saran remediasi - Tinjau hasil terbaru",
-        "title": "Saran remediasi - Tinjau hasil terbaru"
+        "description": "Tinjau hasil sinkronisasi terbaru dan selesaikan data paling berisiko dulu.",
+        "title": "Tinjau sinkronisasi terbaru"
       }
     },
     "status": {
@@ -2271,28 +2570,28 @@
     },
     "syncOutcome": {
       "backToEmployees": {
-        "description": "Deskripsi Hasil sinkronisasi - Kembali ke direktori karyawan",
-        "title": "Hasil sinkronisasi - Kembali ke direktori karyawan"
+        "description": "Kembali ke direktori karyawan untuk memeriksa data yang diimpor.",
+        "title": "Kembali ke karyawan"
       },
       "closedLoop": {
-        "description": "Deskripsi Hasil sinkronisasi - Closed-loop",
-        "title": "Hasil sinkronisasi - Closed-loop"
+        "description": "Sinkronisasi terbaru terhubung melalui grup, kebijakan, dan penerbitan.",
+        "title": "Alur sinkronisasi tertutup"
       },
       "createPolicies": {
-        "description": "Deskripsi Hasil sinkronisasi - Buat kebijakan",
-        "title": "Hasil sinkronisasi - Buat kebijakan"
+        "description": "Buat kebijakan agar karyawan impor mendapat akses yang tepat.",
+        "title": "Buat kebijakan"
       },
       "firstImport": {
-        "description": "Deskripsi Hasil sinkronisasi - Impor pertama",
-        "title": "Hasil sinkronisasi - Impor pertama"
+        "description": "Impor karyawan sebelum meninjau grup, kebijakan, atau credential.",
+        "title": "Mulai dengan impor"
       },
       "groupNewEmployees": {
-        "description": "Deskripsi Hasil sinkronisasi - Kelompokkan karyawan baru",
-        "title": "Hasil sinkronisasi - Kelompokkan karyawan baru"
+        "description": "Masukkan karyawan baru ke grup sebelum handoff kebijakan.",
+        "title": "Kelompokkan karyawan baru"
       },
       "reviewRejected": {
-        "description": "Deskripsi hasil sinkronisasi - Tinjau penolakan",
-        "title": "Hasil sinkronisasi - Tinjau penolakan"
+        "description": "Data ditolak perlu dikoreksi sebelum masuk ke alur direktori.",
+        "title": "Tinjau data ditolak"
       }
     },
     "syncResult": {
@@ -2311,86 +2610,86 @@
     },
     "syncSourceFeedback": {
       "backflowToDirectory": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Backflow ke direktori",
-        "title": "Umpan balik sumber sinkronisasi - Backflow ke direktori"
+        "description": "Kirim data yang sudah ditinjau kembali ke alur direktori.",
+        "title": "Backflow ke direktori"
       },
       "closedLoop": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Closed-loop",
-        "title": "Umpan balik sumber sinkronisasi - Closed-loop"
+        "description": "Sumber ini terhubung melalui langkah direktori, kebijakan, dan penerbitan.",
+        "title": "Alur sumber tertutup"
       },
       "pendingConfirm": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Menunggu konfirmasi",
-        "title": "Umpan balik sumber sinkronisasi - Menunggu konfirmasi"
+        "description": "Konfirmasi sumber ini sebelum menggunakannya sebagai feed direktori utama.",
+        "title": "Konfirmasi sumber"
       },
       "pendingFirstResult": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Menunggu hasil pertama",
-        "title": "Umpan balik sumber sinkronisasi - Menunggu hasil pertama"
+        "description": "Jalankan sinkronisasi dan tunggu hasil pertama sebelum melanjutkan.",
+        "title": "Menunggu hasil pertama"
       },
       "pendingReview": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Menunggu review",
-        "title": "Umpan balik sumber sinkronisasi - Menunggu review"
+        "description": "Tinjau data ditolak atau belum selesai dari sumber ini.",
+        "title": "Tinjau hasil sumber"
       },
       "readyForGrouping": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - Siap untuk pengelompokan",
-        "title": "Umpan balik sumber sinkronisasi - Siap untuk pengelompokan"
+        "description": "Karyawan dari sumber ini siap ditetapkan ke grup.",
+        "title": "Siap untuk pengelompokan"
       },
       "scimDeactivated": {
-        "description": "Deskripsi Umpan balik sumber sinkronisasi - SCIM dinonaktifkan",
-        "title": "Umpan balik sumber sinkronisasi - SCIM dinonaktifkan"
+        "description": "Perubahan deactivation SCIM perlu dibersihkan sebelum penutupan.",
+        "title": "Pembersihan deactivation SCIM"
       }
     },
     "syncSourceStatus": {
       "closedLoop": {
-        "description": "Deskripsi Status sumber sinkronisasi - Closed-loop"
+        "description": "Sumber terhubung melalui alur akses downstream dengan {{issuedPassCount}} credential terbit."
       },
       "deactivatedNeedsCleanup": {
-        "description": "Deskripsi Status sumber sinkronisasi - Nonaktif perlu pembersihan"
+        "description": "{{deactivated}} data nonaktif perlu dibersihkan sebelum akses dianggap tertutup."
       },
-      "metrics": "Metrik Status sumber sinkronisasi",
+      "metrics": "Membuat {{created}}, memperbarui {{updated}}, menonaktifkan {{deactivated}}, menolak {{rejected}}",
       "needsReview": {
-        "description": "Deskripsi Status sumber sinkronisasi - Perlu review"
+        "description": "Tinjau sumber ini karena status terbarunya {{status}} dengan {{rejected}} data ditolak."
       },
-      "noResult": "Belum ada hasil",
+      "noResult": "Belum ada hasil sinkronisasi",
       "pendingConfirm": {
-        "description": "Deskripsi Status sumber sinkronisasi - Menunggu konfirmasi"
+        "description": "Konfirmasi sumber sinkronisasi ini sebelum dianggap aktif."
       },
       "pendingConnect": {
-        "description": "Deskripsi Status sumber sinkronisasi - Menunggu koneksi"
+        "description": "Hubungkan sumber sinkronisasi sebelum mengimpor karyawan."
       },
       "pendingIssuance": {
-        "description": "Deskripsi Status sumber sinkronisasi - Penerbitan tertunda"
+        "description": "Penerbitan credential masih tertunda untuk data dari sumber ini."
       },
       "readyForGrouping": {
-        "description": "Deskripsi Status sumber sinkronisasi - Siap untuk pengelompokan"
+        "description": "{{activeEmployeeCount}} karyawan impor siap ditetapkan ke grup."
       },
       "readyForPolicies": {
-        "description": "Deskripsi Status sumber sinkronisasi - Siap untuk kebijakan"
+        "description": "{{tenantGroupsCount}} grup siap untuk konfigurasi kebijakan."
       }
     },
     "syncSources": {
       "csvImport": {
-        "description": "Deskripsi Sumber sinkronisasi - Impor CSV",
-        "label": "Label"
+        "description": "Unggah file CSV untuk impor karyawan sekali jalan atau fallback.",
+        "label": "Impor CSV"
       },
       "hris": {
-        "description": "Deskripsi Sumber sinkronisasi - HRIS",
-        "label": "Label"
+        "description": "Hubungkan HRIS agar direktori tetap sinkron dengan sistem sumber.",
+        "label": "HRIS"
       },
       "manual": {
-        "description": "Deskripsi Sumber sinkronisasi - Manual",
-        "label": "Label"
+        "description": "Gunakan sinkronisasi manual untuk perubahan kecil atau pengujian terkontrol.",
+        "label": "Sinkronisasi manual"
       },
       "scim": {
-        "description": "Deskripsi Sumber sinkronisasi - SCIM",
-        "label": "Label"
+        "description": "Gunakan SCIM agar perubahan lifecycle identitas terus mengalir dari IdP.",
+        "label": "SCIM"
       }
     },
     "syncSummary": {
       "approvalReviewed": "Persetujuan telah direview",
       "dlqBatchReplayCompleted": "Replay DLQ massal selesai: selected {{totalEntries}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
       "dlqBatchReplayQueued": "Replay DLQ massal sudah diantrikan: selected {{totalEntries}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}} / via {{dispatchMode}}",
-      "batchExternalSyncCompleted": "Sinkronisasi eksternal massal selesai",
-      "batchReviewCompleted": "Tinjauan massal selesai",
+      "batchExternalSyncCompleted": "Pembaruan status writeback eksternal massal selesai ({{status}}): {{successCount}} berhasil, {{failedCount}} gagal.",
+      "batchReviewCompleted": "{{decisionLabel}} massal selesai: {{successCount}} berhasil, {{failedCount}} gagal.",
       "dlqReplayCompleted": "Replay DLQ selesai",
       "dlqReplayQueued": "Replay DLQ sudah diantrikan: {{entryID}} / status {{status}} / via {{dispatchMode}}",
       "externalSyncMarked": "Sinkronisasi eksternal ditandai",
@@ -2409,6 +2708,12 @@
       },
       "talentaConnectorSaved": "Connector Talenta {{action}} dengan strategi {{syncStrategy}}.",
       "workerAlertDispatchCompleted": "Dispatch alert worker selesai: kandidat {{totalAlerts}} / terkirim {{dispatched}} / dilewati {{skipped}} / gagal {{failed}}",
+      "workerAlertNotificationAutoRetried": "Auto retry alert worker selesai: terkirim {{retried}} / gagal {{failed}} / dilewati {{skipped}} / disenyapkan {{suppressed}}",
+      "workerAlertNotificationBatchRestored": "Notifikasi alert worker dipulihkan: dipulihkan {{restored}} / dilewati {{skipped}}",
+      "workerAlertNotificationBatchRetried": "Notifikasi alert worker dicoba ulang: terkirim {{retried}} / gagal {{failed}} / dilewati {{skipped}} / disenyapkan {{suppressed}}",
+      "workerAlertNotificationBatchSuppressed": "Notifikasi alert worker disenyapkan: disenyapkan {{suppressed}} / dilewati {{skipped}}",
+      "workerAlertNotificationExported": "Notifikasi alert worker diekspor: {{count}} catatan",
+      "workerAlertNotificationRetried": "Notifikasi alert worker dicoba ulang: {{workerLabel}} / status {{status}} / percobaan {{attempt}}",
       "workerAlertSubscriptionSaved": "Langganan alert worker tersimpan: threshold {{threshold}} / window {{windowSeconds}} / cooldown {{cooldownSeconds}}"
     },
     "workflow": {
@@ -2465,53 +2770,53 @@
       "savePolicyFailed": "simpan kebijakan gagal"
     },
     "labels": {
-      "deactivatedCleanup": "dinonaktifkan pembersihan",
-      "expired": "kedaluwarsa",
-      "memberCarry": "anggota bawa",
-      "memberReview": "anggota tinjau",
-      "policyStatusActive": "kebijakan status aktif",
-      "policyStatusDraft": "kebijakan status draf",
-      "segmentHintPrefix": "segmen petunjuk awalan"
+      "deactivatedCleanup": "Pembersihan deactivation",
+      "expired": "Kedaluwarsa",
+      "memberCarry": "Anggota terbawa",
+      "memberReview": "Tinjauan anggota",
+      "policyStatusActive": "aktif",
+      "policyStatusDraft": "draft",
+      "segmentHintPrefix": "Segmen"
     },
     "summary": {
-      "acceptedTargetPrefix": "diterima target awalan",
-      "batchPolicyFlowHint": "batch kebijakan alur petunjuk",
-      "batchPolicyFlowHintWithTargets": "batch kebijakan alur petunjuk dengan target",
-      "batchPolicyStatusFailedSuffix": "batch kebijakan status gagal akhiran",
-      "batchPolicyStatusUpdated": "batch kebijakan status diperbarui",
-      "defaultGroupDescFromEnterprise": "default grup deskripsi dari enterprise",
-      "directoryLocatedGroup": "direktori ditemukan grup",
-      "directoryLocatedGroupByMember": "direktori ditemukan grup berdasarkan anggota",
-      "directoryPrefilledBySync": "direktori terisi awal berdasarkan sinkronisasi",
-      "directoryPrefilledByWorker": "direktori terisi awal berdasarkan worker",
-      "directoryPrefilledGroupHint": "direktori terisi awal grup petunjuk",
-      "directoryPrefilledStarter": "direktori terisi awal starter",
-      "flowAccepted": "alur diterima",
-      "grantCreated": "otorisasi dibuat",
-      "grantStarterApplied": "otorisasi starter diterapkan",
-      "groupCreated": "grup dibuat",
-      "groupUpdated": "grup diperbarui",
-      "hintedMemberCarriedSuffix": "dengan petunjuk anggota dibawa akhiran",
-      "hintedMemberLocatedSuffix": "dengan petunjuk anggota ditemukan akhiran",
-      "hintedMemberParenSuffix": "dengan petunjuk anggota kurung akhiran",
-      "hintedMemberWithPrefixParenSuffix": "dengan petunjuk anggota dengan awalan kurung akhiran",
-      "issuanceStageHint": "penerbitan tahap petunjuk",
-      "noPoliciesForBatchReview": "tidak ada kebijakan untuk batch tinjau",
-      "organizationSuffix": "organisasi akhiran",
-      "policyCreated": "kebijakan dibuat",
-      "policyLocated": "kebijakan ditemukan",
-      "policyLocatedEmpty": "kebijakan ditemukan kosong",
-      "policyMatchedRows": "kebijakan cocok baris",
-      "policyPrefilledByWorker": "kebijakan terisi awal berdasarkan worker",
-      "policyPrefilledName": "kebijakan terisi awal nama",
-      "policyPrefilledStarter": "kebijakan terisi awal starter",
-      "policyPrefilledStarterByHint": "kebijakan terisi awal starter berdasarkan petunjuk",
-      "policyStarterApplied": "kebijakan starter diterapkan",
-      "policyUpdated": "kebijakan diperbarui",
-      "segmentSuffix": "segmen akhiran",
-      "starterGroupsCreated": "starter grup dibuat",
-      "starterGroupsFailedSuffix": "starter grup gagal akhiran",
-      "summaryWithSegment": "ringkasan dengan segmen"
+      "acceptedTargetPrefix": "Target {{targetLabel}}. ",
+      "batchPolicyFlowHint": "{{policyCount}} kebijakan dipindahkan ke aktif. Tinjau target penerbitan berikutnya.",
+      "batchPolicyFlowHintWithTargets": "{{policyCount}} kebijakan dipindahkan ke aktif dan {{targetCount}} kemungkinan target penerbitan terdeteksi.",
+      "batchPolicyStatusFailedSuffix": ", {{failedCount}} gagal",
+      "batchPolicyStatusUpdated": "Memperbarui {{total}} kebijakan ke {{targetLabel}}: {{success}} berhasil{{failedSuffix}}.",
+      "defaultGroupDescFromEnterprise": "Grup disiapkan dari recovery direktori Enterprise.",
+      "directoryLocatedGroup": "Membuka grup {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryLocatedGroupByMember": "Menemukan grup {{groupName}} berdasarkan anggota{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledBySync": "Menyiapkan grup direktori dari {{enterpriseSyncCompactTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledByWorker": "Menyiapkan grup dari {{enterpriseWorkerCompactTail}}.",
+      "directoryPrefilledGroupHint": "Menyiapkan grup {{groupNameHint}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "directoryPrefilledStarter": "Menyiapkan starter group {{defaultGroup}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{directoryRemediationLabel}}",
+      "flowAccepted": "Menerima {{flowLabel}}{{stageLabel}} dari Enterprise.{{tenantSuffix}}{{segmentSuffix}}",
+      "grantCreated": "Grant dibuat untuk {{granteeName}}.",
+      "grantStarterApplied": "Starter grant diterapkan: {{title}}.",
+      "groupCreated": "Grup {{name}} dibuat.",
+      "groupUpdated": "Grup {{name}} diperbarui.",
+      "hintedMemberCarriedSuffix": " dengan anggota {{hintedMemberLabel}} dibawa",
+      "hintedMemberLocatedSuffix": " dengan anggota {{hintedMemberLabel}} dipilih",
+      "hintedMemberParenSuffix": " (anggota {{hintedMemberLabel}})",
+      "hintedMemberWithPrefixParenSuffix": " dengan anggota {{hintedMemberLabel}}",
+      "issuanceStageHint": "{{targetPrefix}}Lanjutkan penerbitan credential dari konteks Enterprise.",
+      "noPoliciesForBatchReview": "Tidak ada kebijakan yang cocok dengan tampilan batch review saat ini.",
+      "organizationSuffix": " Organisasi {{tenantLabel}}.",
+      "policyCreated": "Kebijakan {{name}} dibuat.",
+      "policyLocated": "Membuka kebijakan {{policyName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyLocatedEmpty": "Tidak ada kebijakan yang cocok. {{hintedMemberSuffix}}{{enterpriseSummaryTail}}",
+      "policyMatchedRows": "{{matchedCount}} baris kebijakan cocok; membuka {{policyName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledByWorker": "Menyiapkan draft kebijakan dari {{enterpriseWorkerCompactTail}}.",
+      "policyPrefilledName": "Menyiapkan draft kebijakan {{policyNameHint}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarter": "Menyiapkan starter policy untuk {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyPrefilledStarterByHint": "Menyiapkan starter policy untuk {{groupName}}{{hintedMemberSuffix}}. {{enterpriseSummaryTail}}{{policyRemediationLabel}}",
+      "policyStarterApplied": "Starter policy diterapkan untuk {{groupName}}.",
+      "policyUpdated": "Kebijakan {{name}} diperbarui.",
+      "segmentSuffix": " Segmen {{flowSegmentDescriptor}}.",
+      "starterGroupsCreated": "Membuat {{createdCount}} starter group{{failedSuffix}}.",
+      "starterGroupsFailedSuffix": ", {{failedCount}} gagal",
+      "summaryWithSegment": "{{withoutTailPunctuation}}. Segmen {{flowSegmentDescriptor}}."
     },
     "components": {
       "directorySection": {
@@ -2537,7 +2842,7 @@
         "grantsLoading": "Menghitung grant...",
         "grantsNote": "Pengunjung {{visitorGrantCount}}, kedaluwarsa {{expiredGrantCount}}.",
         "deliveryMethods": "Metode pengiriman",
-        "deliveryMethodsNote": "Pass mobile MistyPass / QR email."
+        "deliveryMethodsNote": "Pass mobile Mistyislet / QR email."
       },
       "enterpriseFlow": {
         "syncRecordLabel": "Tugas {{source}} {{jobID}}",
@@ -2580,7 +2885,7 @@
         "endDate": "Tanggal akhir",
         "deliveryMethod": "Metode pengiriman",
         "deliveryAll": "Semua metode",
-        "deliveryWallet": "Pass mobile MistyPass",
+        "deliveryWallet": "Pass mobile Mistyislet",
         "deliveryEmailQr": "Pass QR email",
         "subjectType": "Jenis subjek",
         "subjectAll": "Semua jenis subjek",
@@ -2598,7 +2903,7 @@
         "scopeArea": "wilayah",
         "scopeDoor": "Pintu",
         "deliveryMethod": "Metode pengiriman",
-        "deliveryWallet": "Pass mobile MistyPass",
+        "deliveryWallet": "Pass mobile Mistyislet",
         "deliveryEmailQr": "Pass QR email",
         "buildingOptional": "Gedung (opsional)",
         "areaOptional": "Area (opsional)",
@@ -2607,12 +2912,45 @@
         "nameLabel": "Nama",
         "namePlaceholder": "Nama penerima grant",
         "genderLabel": "Jenis kelamin",
+        "genderPlaceholder": "pria/wanita/lainnya",
         "phoneLabel": "Telepon",
+        "phonePlaceholder": "+62-xxx-xxxx-xxxx",
         "emailLabel": "surel",
+        "emailPlaceholder": "name@company.com",
         "mobileModelLabel": "Model ponsel",
+        "mobileModelPlaceholder": "Pixel 8 / iPhone 16",
         "subjectTypeLabel": "Jenis subjek",
+        "subjectTypePlaceholder": "karyawan / pengunjung / pelanggan",
         "validUntilPlaceholder": "Berlaku hingga (mis. 2026-04-11 20:00)",
-        "submit": "Buat grant"
+        "submit": "Buat grant",
+        "disabledReason": {
+          "buildingAllScope": "Gedung tidak diperlukan saat grant mencakup semua area.",
+          "areaAllScope": "Area tidak diperlukan saat grant mencakup semua area.",
+          "areaBuildingScope": "Area tidak diperlukan untuk grant tingkat gedung.",
+          "areaNeedsBuilding": "Pilih gedung sebelum memilih area.",
+          "doorScopeOnly": "Pilihan pintu hanya diperlukan untuk grant tingkat pintu.",
+          "doorNeedsArea": "Pilih area sebelum memilih pintu."
+        },
+        "validation": {
+          "buildingIdMax": "ID gedung maksimal 64 karakter.",
+          "areaIdMax": "ID area maksimal 64 karakter.",
+          "doorIdMax": "ID pintu maksimal 64 karakter.",
+          "granteeNameRequired": "Masukkan nama penerima grant.",
+          "granteeNameMax": "Nama penerima grant maksimal 64 karakter.",
+          "genderMax": "Jenis kelamin maksimal 16 karakter.",
+          "phoneRequired": "Masukkan nomor telepon.",
+          "phoneMax": "Nomor telepon maksimal 32 karakter.",
+          "emailRequired": "Masukkan surel.",
+          "emailFormat": "Format surel tidak valid.",
+          "mobileModelMax": "Model ponsel maksimal 64 karakter.",
+          "subjectTypeRequired": "Masukkan jenis subjek.",
+          "subjectTypeMax": "Jenis subjek maksimal 32 karakter.",
+          "validUntilRequired": "Masukkan waktu berlaku hingga.",
+          "validUntilFormat": "Format waktu berlaku hingga tidak valid.",
+          "buildingRequired": "Gedung wajib dipilih untuk jenis cakupan ini.",
+          "areaRequired": "Area wajib dipilih untuk jenis cakupan ini.",
+          "doorRequired": "Cakupan pintu memerlukan pintu yang dipilih."
+        }
       },
       "grantLedgerTable": {
         "columns": {
@@ -2668,7 +3006,13 @@
         "importEmployees": "Impor karyawan di Enterprise",
         "selectedMembers": "Anggota terpilih: {{count}}",
         "submitEdit": "Perbarui grup",
-        "submitCreate": "Buat grup"
+        "submitCreate": "Buat grup",
+        "validation": {
+          "groupNameRequired": "Masukkan nama grup pengguna.",
+          "groupNameMax": "Nama grup pengguna maksimal 64 karakter.",
+          "descriptionMax": "Deskripsi maksimal 128 karakter.",
+          "memberSearchMax": "Kata kunci pencarian anggota maksimal 128 karakter."
+        }
       },
       "groupLedgerTable": {
         "columns": {
@@ -2695,7 +3039,8 @@
         "descriptionPlatform": "Tinjau kesiapan, konfigurasi kebijakan, dan grant sementara per tenant; penerbitan jangka panjang dipusatkan di penerbitan pass.",
         "descriptionTenant": "Untuk organisasi saat ini, siapkan karyawan dan grup dulu, lalu kebijakan, kemudian grant pengunjung dan sementara.",
         "selectTenant": "Pilih tenant",
-        "currentOrganization": "Organisasi saat ini"
+        "currentOrganization": "Organisasi saat ini",
+        "scopeLockedDescription": "Akun ini dikunci ke satu tenant oleh peran, sehingga pergantian tenant dinonaktifkan."
       },
       "recommendation": {
         "sections": {
@@ -2741,7 +3086,7 @@
           "draft": "Draf"
         },
         "delivery": {
-          "wallet": "Pass mobile MistyPass",
+          "wallet": "Pass mobile Mistyislet",
           "emailQr": "Pass QR email"
         },
         "remaining": {
@@ -2824,7 +3169,29 @@
         "schedule": "Jadwal (mis. Sen-Jum 07:00-19:00)",
         "memberCount": "Jumlah anggota",
         "submitEdit": "Perbarui kebijakan",
-        "submitCreate": "Buat kebijakan"
+        "submitCreate": "Buat kebijakan",
+        "validation": {
+          "policyNameRequired": "Masukkan nama kebijakan.",
+          "policyNameMax": "Nama kebijakan maksimal 64 karakter.",
+          "buildingIdMax": "ID gedung maksimal 64 karakter.",
+          "areaIdMax": "ID area maksimal 64 karakter.",
+          "doorIdMax": "ID pintu maksimal 64 karakter.",
+          "scheduleMax": "Jadwal maksimal 128 karakter.",
+          "memberCountRequired": "Masukkan jumlah anggota.",
+          "memberCountMax": "Format jumlah anggota tidak valid.",
+          "memberCountInteger": "Jumlah anggota harus berupa bilangan bulat lebih besar atau sama dengan 0.",
+          "buildingRequired": "Gedung wajib dipilih untuk jenis cakupan ini.",
+          "areaRequired": "Area wajib dipilih untuk jenis cakupan ini.",
+          "doorRequired": "Cakupan pintu memerlukan pintu yang dipilih."
+        },
+        "disabledReason": {
+          "buildingAllScope": "Gedung tidak diperlukan saat kebijakan mencakup semua area.",
+          "areaAllScope": "Area tidak diperlukan saat kebijakan mencakup semua area.",
+          "areaBuildingScope": "Area tidak diperlukan untuk kebijakan tingkat gedung.",
+          "areaNeedsBuilding": "Pilih gedung sebelum memilih area.",
+          "doorScopeOnly": "Pilihan pintu hanya diperlukan untuk kebijakan tingkat pintu.",
+          "doorNeedsArea": "Pilih area sebelum memilih pintu."
+        }
       },
       "policyLedgerTable": {
         "columns": {
@@ -2964,16 +3331,16 @@
       "openLink": "buka tautan",
       "sending": "mengirim",
       "sendDelivery": "kirim pengiriman",
-      "batchRetrying": "batch mencoba ulang",
-      "batchRetryDelivery": "batch coba ulang pengiriman",
-      "repairingStatus": "memperbaiki status",
-      "batchRepairStatus": "batch perbaiki status",
+      "batchRetrying": "mencoba ulang kanal gagal",
+      "batchRetryDelivery": "coba ulang kanal gagal ({{count}})",
+      "repairingStatus": "memperbaiki status kredensial",
+      "batchRepairStatus": "perbaikan status massal ({{count}})",
       "backToEnterpriseReceiptReview": "kembali ke enterprise resi tinjau",
       "seedBatchReissueDraft": "isi awal batch terbitkan ulang draf",
       "backToEnterpriseSyncIssue": "kembali ke enterprise sinkronisasi terbitkan",
       "backToEnterpriseWorkerReview": "kembali ke enterprise worker tinjau",
       "retrying": "mencoba ulang",
-      "retryFailedDeliveryChannel": "coba ulang gagal pengiriman kanal",
+      "retryFailedDeliveryChannel": "coba ulang kanal gagal",
       "creating": "membuat",
       "createPhysicalTask": "buat fisik tugas",
       "issueEmployeePassFirst": "terbitkan karyawan pass terlebih dahulu",
@@ -3032,17 +3399,37 @@
         "pending": "Tertunda",
         "visitorTemporary": "pengunjung sementara"
       },
-      "readOnlyBoundary": "baca saja batas",
+      "readOnlyBoundary": "Peran saat ini dapat meninjau operasi Wallet tetapi tidak dapat mengubah credential.",
       "scenario": {
         "employeeMobile": "karyawan seluler",
         "employeePhysical": "karyawan fisik",
         "visitorQr": "pengunjung QR",
         "visitorTemporary": "pengunjung sementara"
       },
-      "readOnlyBoundaryOnly": "baca saja batas saja",
-      "readOnlyIntro": "baca saja pengantar",
-      "readOnlyDeliveryReceiptsOnly": "baca saja pengiriman resi saja",
-      "readOnlyPhysicalTasksOnly": "baca saja fisik tugas saja"
+      "readOnlyBoundaryOnly": "Peran read-only.",
+      "readOnlyIntro": "Peran read-only dapat melihat template, pass, receipt delivery, dan tugas kartu fisik.",
+      "readOnlyDeliveryReceiptsOnly": "Aksi recovery delivery dinonaktifkan untuk peran saat ini.",
+      "readOnlyPhysicalTasksOnly": "Aksi tugas kartu fisik dinonaktifkan untuk peran saat ini."
+    },
+    "disabledReasons": {
+      "busy": "Aksi Wallet lain masih berjalan. Tunggu hingga selesai.",
+      "deliveryInProgress": "Pengiriman sedang dikirim.",
+      "emailChannelOff": "Aktifkan Email sebelum mengedit penerima.",
+      "enterBatchTargets": "Masukkan minimal satu ID karyawan atau pengunjung sebelum mengirim penerbitan batch.",
+      "enterTargetID": "Masukkan ID karyawan atau pengunjung sebelum menerbitkan.",
+      "issuing": "Penerbitan sedang berjalan.",
+      "loading": "Data Wallet sedang dimuat atau disegarkan.",
+      "noIssueReadyTargets": "Tidak ada target Enterprise hilang yang siap diterbitkan langsung.",
+      "noMissingTargets": "Tidak ada target Enterprise hilang dalam batch prefill.",
+      "noPrefilledTargets": "Tidak ada target Enterprise prefill yang dapat dipulihkan.",
+      "noReissueTargets": "Tidak ada target pengiriman gagal yang siap untuk penerbitan ulang massal.",
+      "noRepairablePasses": "Tidak ada kredensial yang dapat diperbaiki dari resi pengiriman saat ini.",
+      "noRetryableDeliveries": "Tidak ada kanal pengiriman gagal yang dapat dicoba ulang pada tampilan saat ini.",
+      "readOnly": "Peran saat ini dapat meninjau operasi Wallet tetapi tidak dapat mengubah kredensial.",
+      "selectDeliveryPass": "Pilih kredensial yang sudah diterbitkan sebelum mengirim pengiriman.",
+      "selectPasses": "Pilih setidaknya satu kredensial pada tampilan ini sebelum menjalankan aksi massal.",
+      "selectTemplate": "Pilih template penerbitan sebelum mengirim.",
+      "whatsAppChannelOff": "Aktifkan WhatsApp sebelum mengedit penerima."
     },
     "labels": {
       "accessMedium": {
@@ -3123,207 +3510,207 @@
       "expiresAtDefaultPolicy": "kedaluwarsa pada default kebijakan"
     },
     "errors": {
-      "loadOpsFailed": "muat operasi gagal",
-      "tenantRequired": "tenant wajib",
-      "saveAlertSubscriptionFailed": "simpan peringatan langganan gagal",
-      "templateNameRequired": "templat nama wajib",
-      "createTemplateFailed": "buat templat gagal",
-      "updateTemplateStatusFailed": "perbarui templat status gagal",
-      "issueTemplateRequired": "terbitkan templat wajib",
-      "issueTargetRequired": "terbitkan target wajib",
-      "singleIssueFailed": "tunggal terbitkan gagal",
-      "batchIssueTemplateRequired": "batch terbitkan templat wajib",
-      "batchIssueTargetsRequired": "batch terbitkan target wajib",
-      "batchIssueFailed": "batch terbitkan gagal",
-      "deliveryPassRequired": "pengiriman pass wajib",
-      "deliveryChannelRequired": "pengiriman kanal wajib",
-      "deliverySubmitFailed": "pengiriman kirim gagal",
-      "deliveryRetryFailed": "pengiriman coba ulang gagal",
-      "batchRetryDeliveryFailed": "batch coba ulang pengiriman gagal",
-      "reissueTemplateMissing": "terbitkan ulang templat kurang",
-      "batchRepairPassStatusFailed": "batch perbaiki pass status gagal",
-      "physicalTaskPassRequired": "fisik tugas pass wajib",
-      "createPhysicalTaskFailed": "buat fisik tugas gagal",
-      "updatePhysicalTaskFailed": "perbarui fisik tugas gagal",
-      "updatePassStatusFailed": "perbarui pass status gagal",
-      "noActionableSelectedPasses": "tidak ada dapat ditindak terpilih pass",
-      "batchUpdatePassStatusFailed": "batch perbarui pass status gagal",
-      "dispatchAlertsFailed": "kirim peringatan gagal",
-      "retryAlertNotificationFailed": "coba ulang peringatan notifikasi gagal",
-      "refreshOpsFailed": "refresh operasi gagal",
-      "clipboardUnsupported": "clipboard tidak didukung",
-      "copySaveLinkFailed": "salin simpan tautan gagal",
-      "refreshSaveLinkFailed": "refresh simpan tautan gagal",
-      "generateQrCodeFailed": "hasilkan QR kode gagal"
+      "loadOpsFailed": "Gagal memuat operasi Wallet.",
+      "tenantRequired": "Pilih tenant sebelum menjalankan operasi Wallet.",
+      "saveAlertSubscriptionFailed": "Gagal menyimpan langganan alert.",
+      "templateNameRequired": "Nama template wajib diisi.",
+      "createTemplateFailed": "Gagal membuat template.",
+      "updateTemplateStatusFailed": "Gagal memperbarui status template.",
+      "issueTemplateRequired": "Pilih template sebelum menerbitkan credential.",
+      "issueTargetRequired": "Masukkan target ID sebelum menerbitkan credential.",
+      "singleIssueFailed": "Gagal menerbitkan credential.",
+      "batchIssueTemplateRequired": "Pilih template sebelum penerbitan batch.",
+      "batchIssueTargetsRequired": "Masukkan minimal satu target ID untuk penerbitan batch.",
+      "batchIssueFailed": "Gagal mengirim penerbitan batch.",
+      "deliveryPassRequired": "Pilih credential terbit sebelum delivery.",
+      "deliveryChannelRequired": "Pilih minimal satu kanal delivery.",
+      "deliverySubmitFailed": "Gagal mengirim delivery credential.",
+      "deliveryRetryFailed": "Gagal mencoba ulang delivery.",
+      "batchRetryDeliveryFailed": "Gagal mencoba ulang kanal delivery terpilih.",
+      "reissueTemplateMissing": "Tidak ada template reissue aktif.",
+      "batchRepairPassStatusFailed": "Gagal memperbaiki status credential secara batch.",
+      "physicalTaskPassRequired": "Pilih credential sebelum membuat tugas kartu fisik.",
+      "createPhysicalTaskFailed": "Gagal membuat tugas kartu fisik.",
+      "updatePhysicalTaskFailed": "Gagal memperbarui tugas kartu fisik.",
+      "updatePassStatusFailed": "Gagal memperbarui status credential.",
+      "noActionableSelectedPasses": "Tidak ada credential terpilih yang dapat menjalankan aksi ini.",
+      "batchUpdatePassStatusFailed": "Gagal memperbarui status credential terpilih.",
+      "dispatchAlertsFailed": "Gagal mengirim alert Wallet.",
+      "retryAlertNotificationFailed": "Gagal mencoba ulang notifikasi alert.",
+      "refreshOpsFailed": "Gagal memuat ulang operasi Wallet.",
+      "clipboardUnsupported": "Clipboard tidak tersedia di browser ini.",
+      "copySaveLinkFailed": "Gagal menyalin save link.",
+      "refreshSaveLinkFailed": "Gagal memperbarui save link.",
+      "generateQrCodeFailed": "Gagal membuat QR code."
     },
     "scenarios": {
       "employeeMobile": {
-        "templateName": "templat nama"
+        "templateName": "Credential mobile karyawan"
       },
       "visitorQr": {
-        "templateName": "templat nama"
+        "templateName": "Credential QR tamu"
       }
     },
     "summaries": {
       "enterprise": {
-        "syncRecordLabel": "sinkronisasi catatan label",
-        "syncSourceDefault": "sinkronisasi sumber default",
-        "syncStatusSuffix": "sinkronisasi status akhiran",
-        "workerAlertLabel": "worker peringatan label",
-        "currentTenant": "saat ini tenant",
-        "workerAlertThresholdSuffix": "worker peringatan ambang akhiran",
-        "flowAcceptedPrefix": "alur diterima awalan",
-        "organizationSegment": "organisasi segmen",
-        "segmentHintSegment": "segmen petunjuk segmen",
-        "recoveryConclusionSegment": "pemulihan kesimpulan segmen",
-        "targetLocatedSegment": "target ditemukan segmen",
-        "batchTargetsPrefilledSegment": "batch target terisi awal segmen",
-        "syncRecordSegment": "sinkronisasi catatan segmen",
-        "workerAlertSegment": "worker peringatan segmen",
-        "sentenceEnd": "kalimat akhir",
-        "receiptRecoveryRetryDelivery": "resi pemulihan coba ulang pengiriman",
-        "receiptRecoveryRepairStatus": "resi pemulihan perbaiki status",
-        "receiptRecoveryReviewClosed": "resi pemulihan tinjau ditutup",
-        "matchedPassesDirectDelivery": "cocok pass langsung pengiriman",
-        "noExistingPassPrefilledSingle": "tidak ada yang ada pass terisi awal tunggal",
-        "backToReceiptRecoveryLoop": "kembali ke resi pemulihan siklus",
-        "allTargetsMatched": "semua target cocok",
-        "missingTargetsSeeded": "kurang target terisi awal",
-        "noIssueReadyTargets": "tidak ada terbitkan siap target",
-        "issueReadyTargetsSeeded": "terbitkan siap target terisi awal",
-        "allPrefilledTargetsRestored": "semua terisi awal target dipulihkan"
+        "syncRecordLabel": "Job sinkronisasi {{source}} {{jobID}}{{statusSuffix}}",
+        "syncSourceDefault": "sumber terpilih",
+        "syncStatusSuffix": " / status {{status}}",
+        "workerAlertLabel": "Sinyal worker {{tenant}} {{level}}{{thresholdSuffix}}",
+        "currentTenant": "tenant saat ini",
+        "workerAlertThresholdSuffix": " / gagal {{failed}} dari {{threshold}}",
+        "flowAcceptedPrefix": "{{flowLabel}} {{stageLabel}} dibuka dari Enterprise. ",
+        "organizationSegment": "Organisasi {{tenant}}. ",
+        "segmentHintSegment": "Segmen {{segment}}. ",
+        "recoveryConclusionSegment": "Aksi recovery {{action}}. ",
+        "targetLocatedSegment": "Target {{target}} terisi otomatis. ",
+        "batchTargetsPrefilledSegment": "{{count}} target terisi otomatis, {{matched}} cocok, {{missing}} hilang. ",
+        "syncRecordSegment": "Sumber {{syncRecord}}. ",
+        "workerAlertSegment": "Sinyal worker {{workerAlert}}. ",
+        "sentenceEnd": "Tinjau draft Wallet yang terisi sebelum submit.",
+        "receiptRecoveryRetryDelivery": "Receipt recovery membuka retry delivery. {{retryableCount}} kanal dapat retry, {{repairableCount}} credential memenuhi syarat perbaikan status.",
+        "receiptRecoveryRepairStatus": "Receipt recovery membuka perbaikan status. {{repairableCount}} credential dapat diperbaiki, {{retryableCount}} kanal masih dapat retry.",
+        "receiptRecoveryReviewClosed": "Receipt recovery ditandai tertutup. {{failedCount}} catatan delivery gagal tetap terlihat untuk audit.",
+        "matchedPassesDirectDelivery": "{{count}} credential yang ada cocok dengan target Enterprise ini dan dipilih untuk tinjauan delivery.",
+        "noExistingPassPrefilledSingle": "Tidak ada credential yang cocok dengan target Enterprise ini. Draft single issue disiapkan sebagai gantinya.",
+        "backToReceiptRecoveryLoop": "Konteks receipt recovery aktif. Tinjau receipt delivery sebelum menutup alur.",
+        "allTargetsMatched": "Semua target Enterprise yang terisi otomatis sudah cocok dengan credential yang ada.",
+        "missingTargetsSeeded": "{{count}} target Enterprise yang hilang dipertahankan di draft penerbitan batch.",
+        "noIssueReadyTargets": "Belum ada target Enterprise hilang yang siap diterbitkan.",
+        "issueReadyTargetsSeeded": "{{count}} target Enterprise siap terbit diisi ke draft batch.",
+        "allPrefilledTargetsRestored": "{{count}} target Enterprise terisi otomatis dipulihkan ke draft batch."
       },
-      "templateCreated": "templat dibuat",
-      "templateStatusUpdated": "templat status diperbarui",
-      "singleIssueSubmitted": "tunggal terbitkan terkirim",
-      "batchIssueSubmitted": "batch terbitkan terkirim",
-      "deliverySubmitted": "pengiriman terkirim",
-      "reasonSuffix": "alasan akhiran",
-      "deliveryRetrySubmitted": "pengiriman coba ulang terkirim",
-      "noRetryableDeliveryChannels": "tidak ada dapat dicoba ulang pengiriman kanal",
-      "batchRetryDeliverySubmitted": "batch coba ulang pengiriman terkirim",
-      "batchRetryDeliveryFailedSuffix": "batch coba ulang pengiriman gagal akhiran",
-      "noReissueTargets": "tidak ada terbitkan ulang target",
-      "reissueDraftSeeded": "terbitkan ulang draf terisi awal",
-      "reissueTemplateReady": "terbitkan ulang templat siap",
-      "reissueTemplateInactive": "terbitkan ulang templat tidak aktif",
-      "noRepairableDeliveryPasses": "tidak ada dapat diperbaiki pengiriman pass",
-      "batchRepairPassStatusSubmitted": "batch perbaiki pass status terkirim",
-      "batchRepairPassStatusFailedSuffix": "batch perbaiki pass status gagal akhiran",
-      "physicalTaskCreated": "fisik tugas dibuat",
-      "physicalTaskUpdated": "fisik tugas diperbarui",
-      "passStatusUpdated": "pass status diperbarui",
-      "batchPassActionCompleted": "batch pass aksi selesai",
-      "alertDispatchEvaluated": "peringatan kirim dievaluasi",
-      "alertRetryResult": "peringatan coba ulang hasil",
-      "scenarioLedgerFocused": "skenario buku catatan difokuskan",
-      "scenarioPresetAppliedWithTemplate": "skenario preset diterapkan dengan templat",
-      "scenarioPresetAppliedWithoutTemplate": "skenario preset diterapkan tanpa templat",
-      "saveLinkCopied": "simpan tautan tersalin",
-      "saveLinkRefreshed": "simpan tautan diperbarui"
+      "templateCreated": "Template {{passType}} {{templateName}} dibuat.",
+      "templateStatusUpdated": "Template {{templateName}} ditandai {{status}}.",
+      "singleIssueSubmitted": "Credential {{targetType}} {{targetID}} dikirim dengan status {{status}}.",
+      "batchIssueSubmitted": "Penerbitan batch dikirim untuk {{count}} target {{targetType}} melalui {{executionMode}}.",
+      "deliverySubmitted": "Delivery untuk {{targetID}} dikirim dengan status {{status}}{{reasonSuffix}}.",
+      "reasonSuffix": " ({{reason}})",
+      "deliveryRetrySubmitted": "Retry delivery untuk {{targetID}} dikirim dengan status {{status}}{{reasonSuffix}}.",
+      "noRetryableDeliveryChannels": "Tidak ada kanal delivery yang dapat retry.",
+      "batchRetryDeliverySubmitted": "Mencoba ulang {{total}} kanal gagal, {{successCount}} berhasil{{failedSuffix}}.",
+      "batchRetryDeliveryFailedSuffix": ", {{failedCount}} gagal",
+      "noReissueTargets": "Tidak ada target reissue dari delivery yang gagal.",
+      "reissueDraftSeeded": "{{count}} target reissue diisi dengan template {{templateName}}. {{statusHint}}",
+      "reissueTemplateReady": "Template sudah aktif.",
+      "reissueTemplateInactive": "Template belum aktif; aktifkan sebelum submit.",
+      "noRepairableDeliveryPasses": "Tidak ada credential yang dapat diperbaiki dari receipt delivery gagal.",
+      "batchRepairPassStatusSubmitted": "Memperbaiki {{total}} status kredensial dari receipt gagal, {{successCount}} berhasil{{failedSuffix}}.",
+      "batchRepairPassStatusFailedSuffix": ", {{failedCount}} gagal",
+      "physicalTaskCreated": "Tugas {{taskType}} dibuat untuk {{targetID}} dengan status {{status}}.",
+      "physicalTaskUpdated": "Tugas {{taskType}} untuk {{targetID}} dipindahkan ke {{status}}.",
+      "passStatusUpdated": "Credential {{targetType}} {{targetID}} dipindahkan ke {{status}}.",
+      "batchPassActionCompleted": "{{action}} selesai: {{succeeded}} berhasil, {{failed}} gagal.",
+      "alertDispatchEvaluated": "Dispatch alert Wallet dievaluasi: {{totalAlerts}} kandidat / {{dispatched}} terkirim / {{skipped}} dilewati / {{failed}} gagal.",
+      "alertRetryResult": "Retry alert selesai dengan status {{status}}{{reasonSuffix}}.",
+      "scenarioLedgerFocused": "Ledger {{scenario}} sekarang difokuskan.",
+      "scenarioPresetAppliedWithTemplate": "Preset {{scenario}} diterapkan dengan template {{templateName}}.",
+      "scenarioPresetAppliedWithoutTemplate": "Preset {{scenario}} diterapkan. Buat atau pilih template sebelum menerbitkan.",
+      "saveLinkCopied": "Save link untuk {{targetID}} disalin.",
+      "saveLinkRefreshed": "Save link untuk {{targetID}} diperbarui."
     },
     "warnings": {
       "aggregateTenantLoadFailed": "agregasi tenant muat gagal"
     },
     "page": {
-      "eyebrow": "label atas",
-      "title": "Judul",
-      "description": "Deskripsi"
+      "eyebrow": "Operasi credential",
+      "title": "Workspace credential Mistyislet",
+      "description": "Kelola credential karyawan, pass tamu, receipt delivery, tugas kartu fisik, dan pengecualian antrean dalam satu tempat."
     },
     "tabs": {
-      "operations": "operasi",
-      "advanced": "lanjutan"
+      "operations": "Operasi",
+      "advanced": "Lanjutan"
     },
     "operations": {
-      "title": "Judul",
-      "description": "Deskripsi",
-      "scenarioStats": "skenario statistik",
-      "scenarioTemplateReady": "skenario templat siap",
-      "scenarioTemplateMissing": "skenario templat kurang"
+      "title": "Penerbitan harian dan pemeliharaan status",
+      "description": "Satukan pilihan template, penerbitan tunggal atau batch, delivery, dan pemeliharaan status credential di jalur operasi harian.",
+      "scenarioStats": "{{passCount}} credential / {{saveLinkCount}} save link",
+      "scenarioTemplateReady": "Template siap",
+      "scenarioTemplateMissing": "Template belum ada"
     },
     "cards": {
       "employeeIssuance": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "templateReady": "templat siap",
-        "templateMissing": "templat kurang"
+        "title": "Penerbitan credential karyawan",
+        "description": "Terbitkan credential mobile atau alur kartu fisik untuk onboarding, reissue, dan akses jangka panjang.",
+        "templateReady": "Template siap",
+        "templateMissing": "Template belum ada"
       },
       "visitorIssuance": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "templateReady": "templat siap",
-        "templateMissing": "templat kurang"
+        "title": "Credential tamu dan sementara",
+        "description": "Terbitkan QR atau credential Wallet sementara untuk tamu, kontraktor, dan akses jangka pendek.",
+        "templateReady": "Template siap",
+        "templateMissing": "Template belum ada"
       },
       "statusMaintenance": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "stats": "statistik"
+        "title": "Pemeliharaan status credential",
+        "description": "Tinjau credential terbit lalu suspend, aktifkan kembali, atau revoke pass terpilih.",
+        "stats": "{{suspendedCount}} suspended / {{revocableCount}} dapat direvoke"
       },
       "deliveryWorkspace": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "activeTemplate": "aktif templat",
-        "noTemplate": "tidak ada templat",
-        "dispatchChannels": "kirim kanal"
+        "title": "Workspace delivery",
+        "description": "Tangani save link, email, WhatsApp, dan re-delivery agar credential terbit benar-benar sampai ke pengguna.",
+        "activeTemplate": "Template aktif",
+        "noTemplate": "Tidak ada template aktif",
+        "dispatchChannels": "Delivery email / WhatsApp"
       },
       "recentDelivery": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "empty": "kosong"
+        "title": "Delivery terbaru",
+        "description": "Tinjau tugas delivery dan hasil kanal terbaru, prioritaskan kegagalan dan save link yang hilang.",
+        "empty": "Tidak ada tugas delivery terbaru."
       },
       "sendDelivery": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "passHasSaveLink": "pass memiliki simpan tautan",
-        "passMissingSaveLink": "pass kurang simpan tautan",
-        "emptyNoSaveLinks": "kosong tidak ada simpan tautan",
-        "emptySelectPass": "kosong pilih pass",
-        "emailHint": "surel petunjuk",
-        "whatsAppHint": "petunjuk WhatsApp"
+        "title": "Kirim delivery credential",
+        "description": "Pilih pass terbit lalu kirim save link melalui email atau WhatsApp.",
+        "passHasSaveLink": "Pass memiliki save link",
+        "passMissingSaveLink": "Pass belum memiliki save link",
+        "emptyNoSaveLinks": "Tidak ada credential terbit dengan save link yang tersedia untuk delivery.",
+        "emptySelectPass": "Pilih credential terbit untuk mengirim save link.",
+        "emailHint": "Pisahkan penerima email dengan koma.",
+        "whatsAppHint": "Pisahkan penerima WhatsApp dengan koma."
       },
       "recentDeliveryReceipts": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "recoveryStatusTitle": "pemulihan status judul",
-        "step1Title": "Langkah 1",
-        "step1Description": "Deskripsi langkah 1",
-        "step2Title": "Langkah 2",
-        "step2Description": "Deskripsi langkah 2",
-        "step3Title": "Langkah 3",
-        "step3Description": "Deskripsi langkah 3",
-        "matchRetryableByHint": "cocok dapat dicoba ulang berdasarkan petunjuk",
-        "retryableCount": "dapat dicoba ulang jumlah",
-        "batchLimit": "batch batas",
-        "repairableAndReissueCount": "dapat diperbaiki dan terbitkan ulang jumlah",
-        "empty": "kosong",
-        "retryFromSource": "coba ulang dari sumber"
+        "title": "Receipt delivery dan recovery",
+        "description": "Temukan delivery yang dapat retry, perbaikan status, dan credential yang perlu reissue.",
+        "recoveryStatusTitle": "Status recovery",
+        "step1Title": "Klasifikasikan kegagalan",
+        "step1Description": "{{failedCount}} delivery gagal: {{retryableCount}} dapat retry dan {{nonRetryableCount}} perlu tinjauan manual.",
+        "step2Title": "Jalankan recovery",
+        "step2Description": "{{retryableCount}} retry, {{repairableCount}} perbaikan status, dan {{reissueCount}} draft reissue tersedia.",
+        "step3Title": "Konfirmasi penutupan",
+        "step3Description": "Kembali ke alert Enterprise setelah recovery agar alur receipt tidak lagi menghambat penutupan.",
+        "matchRetryableByHint": "Difilter dengan {{hint}}: {{count}} delivery dapat retry. ",
+        "retryableCount": "{{count}} delivery dapat retry. ",
+        "batchLimit": "Aksi batch akan memproses {{count}} sekarang. ",
+        "repairableAndReissueCount": "{{repairableCount}} perbaikan status dan {{reissueCount}} draft reissue tersedia.",
+        "empty": "Tidak ada receipt delivery yang perlu recovery.",
+        "retryFromSource": " · retry dari {{sourceID}}"
       },
       "physicalTasks": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "lossReportHint": "hilang lapor petunjuk",
-        "defaultHint": "default petunjuk",
-        "emptyNoEligiblePass": "kosong tidak ada memenuhi syarat pass",
-        "emptySelectPass": "kosong pilih pass"
+        "title": "Tugas kartu fisik",
+        "description": "Buat tugas cetak, penggantian, laporan hilang, dan recovery untuk kartu fisik karyawan.",
+        "lossReportHint": "Gunakan laporan hilang hanya untuk credential yang perlu diganti atau diblokir.",
+        "defaultHint": "Buat tugas cetak atau reissue untuk credential kartu fisik terpilih.",
+        "emptyNoEligiblePass": "Tidak ada credential kartu fisik karyawan yang memenuhi syarat tugas.",
+        "emptySelectPass": "Pilih credential kartu fisik karyawan untuk membuat tugas."
       },
       "recentPhysicalTasks": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "empty": "kosong",
-        "passStatusLabel": "label status pass",
-        "taskID": "tugas ID",
+        "title": "Tugas kartu fisik terbaru",
+        "description": "Pantau status tugas kartu fisik, nomor kartu, dan waktu pembaruan terakhir.",
+        "empty": "Tidak ada tugas kartu fisik terbaru.",
+        "passStatusLabel": "Status credential",
+        "taskID": "ID tugas",
         "updatedAt": "Diperbarui pada",
-        "cardNumber": "kartu nomor"
+        "cardNumber": "Nomor kartu"
       },
       "issuedPasses": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "matchedCount": "cocok jumlah",
-        "selectedCount": "terpilih jumlah",
-        "selectionHint": "pilihan petunjuk",
+        "title": "Credential terbit",
+        "description": "Cari credential berdasarkan orang, tamu, template, dan status, lalu jalankan aksi pemeliharaan batch.",
+        "matchedCount": "{{count}} credential cocok",
+        "selectedCount": "{{count}} dipilih di tampilan ini",
+        "selectionHint": "Pilih credential untuk menjalankan pemeliharaan batch.",
         "loading": "Memuat...",
-        "emptyNoPasses": "kosong tidak ada pass",
-        "emptyFiltered": "kosong terfilter"
+        "emptyNoPasses": "Belum ada credential terbit.",
+        "emptyFiltered": "Tidak ada credential yang cocok dengan filter saat ini."
       }
     },
     "placeholders": {
@@ -3357,16 +3744,26 @@
       }
     },
     "advanced": {
-      "title": "Judul",
-      "description": "Deskripsi"
+      "title": "Antrean dan peringatan lanjutan",
+      "description": "Diciutkan secara bawaan untuk pekerjaan yang lebih jarang: tugas kartu fisik, langganan peringatan, tren antrean, catatan notifikasi, arsip pembersihan DLQ, dan peringkat risiko lintas tenant.",
+      "expand": "Buka operasi lanjutan",
+      "collapse": "Ciutkan operasi lanjutan",
+      "summary": {
+        "physicalTasks": "Tugas fisik",
+        "alerts": "Peringatan",
+        "notifications": "Notifikasi",
+        "dlqArchives": "Arsip DLQ",
+        "subscriptionEnabled": "Langganan aktif",
+        "subscriptionDisabled": "Langganan nonaktif"
+      }
     },
     "dialogs": {
       "qrCode": {
-        "title": "Judul",
-        "description": "Deskripsi",
-        "generating": "menghasilkan",
-        "empty": "kosong",
-        "noSaveLink": "tidak ada simpan tautan"
+        "title": "QR code save link",
+        "description": "Minta pengguna memindai save link Wallet. Perbarui save link dulu jika belum tersedia.",
+        "generating": "Membuat...",
+        "empty": "Tidak ada save link untuk credential ini.",
+        "noSaveLink": "Tidak ada save link"
       }
     },
     "components": {
@@ -3404,6 +3801,9 @@
         "enabledHint": "Jika dinonaktifkan, hanya dashboard metrik yang tersisa.",
         "emailHint": "Kanal notifikasi email.",
         "whatsappHint": "Kanal notifikasi instan.",
+        "thresholdPlaceholder": "Ambang peringatan DLQ",
+        "windowPlaceholder": "Jendela evaluasi dalam detik",
+        "cooldownPlaceholder": "Cooldown notifikasi dalam detik",
         "receiverGroups": "receiver_groups (dipisahkan koma)",
         "lastUpdated": "Terakhir diperbarui: {{time}}",
         "readOnlyHint": "Peran saat ini hanya-baca. Anda bisa melihat status penerbitan tetapi tidak dapat mengubah kebijakan langganan.",
@@ -3481,7 +3881,16 @@
         "submittingBatch": "Mengirim...",
         "submitBatchIssue": "Kirim penerbitan batch",
         "recentBatchReceipts": "Resi batch terbaru",
-        "receiptCount": "{{count}} catatan"
+        "receiptCount": "{{count}} catatan",
+        "validation": {
+          "selectTemplateRequired": "Pilih template penerbitan terlebih dahulu",
+          "targetIDRequired": "Masukkan ID karyawan atau pengunjung",
+          "targetIDMax": "ID karyawan atau pengunjung maksimal 128 karakter",
+          "expirationInvalid": "Format waktu kedaluwarsa tidak valid",
+          "selectBatchTemplateRequired": "Pilih template penerbitan batch terlebih dahulu",
+          "batchTargetsRequired": "Masukkan minimal satu ID karyawan atau pengunjung",
+          "batchTargetsMax": "Konten target batch terlalu panjang, pisahkan lalu kirim ulang"
+        }
       },
       "riskOverview": {
         "pendingAnomalies": "Anomali tertunda",
@@ -3518,6 +3927,7 @@
         "description": "Template menentukan jenis target, skenario penerbitan, dan gaya default. Anda dapat memakai preset skenario untuk mengisi otomatis nama yang direkomendasikan, class_id, dan style_config.",
         "templateName": "Nama template, contoh pass jangka panjang karyawan HQ",
         "classID": "class_id (opsional)",
+        "styleConfigPlaceholder": "style_config (opsional, satu baris key=value)\nbrand_color=#0f766e\nlogo_variant=light",
         "templateType": "Jenis template",
         "employeeTemplate": "Template pass karyawan",
         "visitorTemplate": "Template pass pengunjung / sementara",
@@ -3537,7 +3947,13 @@
         "setDefault": "Jadikan default",
         "processing": "Memproses...",
         "disable": "Nonaktifkan",
-        "enable": "Aktifkan"
+        "enable": "Aktifkan",
+        "validation": {
+          "templateNameRequired": "Masukkan nama template",
+          "templateNameMax": "Nama template maksimal 128 karakter",
+          "classIDMax": "class_id maksimal 128 karakter",
+          "styleConfigMax": "style_config terlalu panjang, pisahkan lalu kirim"
+        }
       }
     }
   },
@@ -3555,11 +3971,11 @@
   },
   "viewer": {
     "role": {
-      "superAdmin": "Admin platform",
-      "tenantAdmin": "Admin tenant",
-      "operator": "operator",
-      "buildingAdmin": "Admin gedung",
-      "resident": "Pengguna biasa"
+      "superAdmin": "Organization Admin",
+      "tenantAdmin": "Organization Admin",
+      "operator": "Place Admin",
+      "buildingAdmin": "Place Admin",
+      "resident": "Akun tidak didukung"
     }
   }
 }

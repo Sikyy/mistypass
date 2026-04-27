@@ -57,24 +57,18 @@ export function WalletAlertConfigCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("walletPage.components.alertConfig.title", { defaultValue: "Runtime window and alert parameters" })}</CardTitle>
+        <CardTitle className="text-base">{t("walletPage.components.alertConfig.title")}</CardTitle>
         <CardDescription>
           {platformViewer
-            ? t("walletPage.components.alertConfig.descriptionPlatform", {
-                defaultValue:
-                  "Supports tenant switching and overriding default window/threshold parameters. This config is for runtime window, not delivery method.",
-              })
-            : t("walletPage.components.alertConfig.descriptionTenant", {
-                defaultValue:
-                  "Runtime parameters and status window for current organization. This config is for runtime window, not delivery method.",
-              })}
+            ? t("walletPage.components.alertConfig.descriptionPlatform")
+            : t("walletPage.components.alertConfig.descriptionTenant")}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         {platformViewer ? (
           <Select value={tenantID} onValueChange={onTenantChange}>
             <SelectTrigger>
-              <SelectValue placeholder={t("walletPage.components.alertConfig.tenant", { defaultValue: "Tenant" })} />
+              <SelectValue placeholder={t("walletPage.components.alertConfig.tenant")} />
             </SelectTrigger>
             <SelectContent>
               {tenants.map((item) => (
@@ -96,14 +90,12 @@ export function WalletAlertConfigCard({
         <Input
           value={maxRetry}
           onChange={(event) => onMaxRetryChange(event.target.value)}
-          placeholder={t("walletPage.components.alertConfig.maxRetry", { defaultValue: "max_retry (empty = default)" })}
+          placeholder={t("walletPage.components.alertConfig.maxRetry")}
         />
         <Input
           value={alertThreshold}
           onChange={(event) => onAlertThresholdChange(event.target.value)}
-          placeholder={t("walletPage.components.alertConfig.dlqAlertThreshold", {
-            defaultValue: "dlq_alert_threshold (empty = default)",
-          })}
+          placeholder={t("walletPage.components.alertConfig.dlqAlertThreshold")}
         />
         <Input
           value={archiveLimit}
@@ -118,7 +110,7 @@ export function WalletAlertConfigCard({
 
         <Button onClick={onApplyFilters} disabled={loading || refreshing}>
           <RefreshCwIcon className={`mr-1.5 size-4 ${refreshing ? "animate-spin" : ""}`} />
-          {t("walletPage.components.alertConfig.refresh", { defaultValue: "Refresh" })}
+          {t("walletPage.components.alertConfig.refresh")}
         </Button>
       </CardContent>
     </Card>

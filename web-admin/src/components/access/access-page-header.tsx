@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@/components/ui/badge"
+import { ScopeLockedField } from "@/components/scope-locked-field"
 import {
   Select,
   SelectContent,
@@ -28,34 +28,32 @@ export function AccessPageHeader({
   onTenantChange,
 }: AccessPageHeaderProps) {
   const { t } = useTranslation()
+  const selectedTenantLabel =
+    tenants.find((item) => item.id === selectedTenantID)?.name ||
+    selectedTenantID ||
+    t("accessPage.components.header.currentOrganization")
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-1">
-        <p className="mp-page-eyebrow">{t("accessPage.components.header.eyebrow", { defaultValue: "Identity & access" })}</p>
+        <p className="mp-page-eyebrow">{t("accessPage.components.header.eyebrow")}</p>
         <h1 className="mp-page-title">
           {platformViewer
-            ? t("accessPage.components.header.titlePlatform", { defaultValue: "Directory, policy, and grant workspace" })
-            : t("accessPage.components.header.titleTenant", { defaultValue: "Employees, groups, policies, and temporary grants" })}
+            ? t("accessPage.components.header.titlePlatform")
+            : t("accessPage.components.header.titleTenant")}
         </h1>
         <p className="mp-page-description">
           {platformViewer
-            ? t("accessPage.components.header.descriptionPlatform", {
-                defaultValue:
-                  "Review readiness, policy setup, and temporary grants by tenant; long-term issuance is centralized in pass issuance.",
-              })
-            : t("accessPage.components.header.descriptionTenant", {
-                defaultValue:
-                  "For current organization, prepare employees/groups first, then policies, then visitor and temporary grants.",
-              })}
+            ? t("accessPage.components.header.descriptionPlatform")
+            : t("accessPage.components.header.descriptionTenant")}
         </p>
       </div>
 
       {platformViewer ? (
-        <div className="w-full lg:w-[340px]">
+        <div className="w-full lg:max-w-[340px]">
           <Select value={selectedTenantID} onValueChange={onTenantChange}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("accessPage.components.header.selectTenant", { defaultValue: "Select tenant" })} />
+            <SelectTrigger className="w-full min-w-0">
+              <SelectValue placeholder={t("accessPage.components.header.selectTenant")} />
             </SelectTrigger>
             <SelectContent>
               {tenants.map((item) => (
@@ -67,9 +65,12 @@ export function AccessPageHeader({
           </Select>
         </div>
       ) : (
-        <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-          {selectedTenantID || t("accessPage.components.header.currentOrganization", { defaultValue: "Current organization" })}
-        </Badge>
+        <ScopeLockedField
+          className="w-full lg:max-w-[340px]"
+          label={t("accessPage.components.header.currentOrganization")}
+          value={selectedTenantLabel}
+          description={t("accessPage.components.header.scopeLockedDescription")}
+        />
       )}
     </div>
   )

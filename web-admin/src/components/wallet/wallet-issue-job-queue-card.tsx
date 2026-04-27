@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useEffect, useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
@@ -19,37 +20,42 @@ import { Textarea } from "@/components/ui/textarea"
 import { type WalletIssueJob, type WalletPassTemplate } from "@/lib/api"
 
 const batchExecutionModeValues = ["inline", "queued"] as const
-const singleIssueSchema = z.object({
-  single_template_id: z.string().trim().min(1, "Please select an issuance template first"),
-  single_target_id: z
-    .string()
-    .trim()
-    .min(1, "Please enter an employee or visitor ID")
-    .max(128, "Employee or visitor ID must be at most 128 characters"),
-  single_expires_at: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), "Invalid expiration time format"),
-})
-const batchIssueSchema = z.object({
-  batch_template_id: z.string().trim().min(1, "Please select a batch issuance template first"),
-  batch_expires_at: z
-    .string()
-    .optional()
-    .or(z.literal(""))
-    .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), "Invalid expiration time format"),
-  batch_execution_mode: z.enum(batchExecutionModeValues),
-  batch_target_ids: z
-    .string()
-    .trim()
-    .min(1, "Please enter at least one employee or visitor ID")
-    .max(200000, "Batch target content is too long, please split and resubmit")
-    .refine((value) => parseBatchTargetIDs(value).length > 0, "Please enter at least one employee or visitor ID"),
-})
+function buildSingleIssueSchema(t: (key: string) => string) {
+  return z.object({
+    single_template_id: z.string().trim().min(1, t("walletPage.components.issueQueue.validation.selectTemplateRequired")),
+    single_target_id: z
+      .string()
+      .trim()
+      .min(1, t("walletPage.components.issueQueue.validation.targetIDRequired"))
+      .max(128, t("walletPage.components.issueQueue.validation.targetIDMax")),
+    single_expires_at: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), t("walletPage.components.issueQueue.validation.expirationInvalid")),
+  })
+}
 
-type SingleIssueFormValues = z.infer<typeof singleIssueSchema>
-type BatchIssueFormValues = z.infer<typeof batchIssueSchema>
+function buildBatchIssueSchema(t: (key: string) => string) {
+  return z.object({
+    batch_template_id: z.string().trim().min(1, t("walletPage.components.issueQueue.validation.selectBatchTemplateRequired")),
+    batch_expires_at: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine((value) => !value || !Number.isNaN(new Date(value).getTime()), t("walletPage.components.issueQueue.validation.expirationInvalid")),
+    batch_execution_mode: z.enum(batchExecutionModeValues),
+    batch_target_ids: z
+      .string()
+      .trim()
+      .min(1, t("walletPage.components.issueQueue.validation.batchTargetsRequired"))
+      .max(200000, t("walletPage.components.issueQueue.validation.batchTargetsMax"))
+      .refine((value) => parseBatchTargetIDs(value).length > 0, t("walletPage.components.issueQueue.validation.batchTargetsRequired")),
+  })
+}
+
+type SingleIssueFormValues = z.infer<ReturnType<typeof buildSingleIssueSchema>>
+type BatchIssueFormValues = z.infer<ReturnType<typeof buildBatchIssueSchema>>
 
 function parseBatchTargetIDs(raw: string): string[] {
   return Array.from(
@@ -185,6 +191,8 @@ export function WalletIssueJobQueueCard({
   formatDateTime,
 }: WalletIssueJobQueueCardProps) {
   const { t } = useTranslation()
+  const singleIssueSchema = useMemo(() => buildSingleIssueSchema(t), [t])
+  const batchIssueSchema = useMemo(() => buildBatchIssueSchema(t), [t])
   const singleIssueForm = useForm<SingleIssueFormValues>({
     resolver: zodResolver(singleIssueSchema),
     values: {
@@ -206,6 +214,14 @@ export function WalletIssueJobQueueCard({
   const singleExpiresAtField = singleIssueForm.register("single_expires_at")
   const batchExpiresAtField = batchIssueForm.register("batch_expires_at")
   const batchTargetIDsField = batchIssueForm.register("batch_target_ids")
+
+  useEffect(() => {
+    batchIssueForm.setValue("batch_target_ids", batchTargetIDs, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false,
+    })
+  }, [batchIssueForm, batchTargetIDs])
   const singleIssueFormError =
     singleIssueForm.formState.errors.single_template_id?.message ||
     singleIssueForm.formState.errors.single_target_id?.message ||
@@ -217,6 +233,43 @@ export function WalletIssueJobQueueCard({
     batchIssueForm.formState.errors.batch_execution_mode?.message ||
     batchIssueForm.formState.errors.batch_target_ids?.message ||
     ""
+  const formFieldDisabledReason = !writable ? t("walletPage.disabledReasons.readOnly") : ""
+  const flowActionDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : loading || refreshing
+      ? t("walletPage.disabledReasons.loading")
+      : ""
+  const keepIssueReadyDisabledReason =
+    flowActionDisabledReason ||
+    (issueReadyEnterpriseMissingTargetIDs.length === 0 ? t("walletPage.disabledReasons.noIssueReadyTargets") : "")
+  const keepMissingDisabledReason =
+    flowActionDisabledReason ||
+    (enterpriseBatchTargetStats.missingIDs.length === 0 ? t("walletPage.disabledReasons.noMissingTargets") : "")
+  const restorePrefilledDisabledReason =
+    flowActionDisabledReason ||
+    (enterpriseBatchTargetStats.targetIDs.length === 0 ? t("walletPage.disabledReasons.noPrefilledTargets") : "")
+  const singleIssueDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : issuingSingle || singleIssueForm.formState.isSubmitting
+      ? t("walletPage.disabledReasons.issuing")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : !singleTemplateID
+          ? t("walletPage.disabledReasons.selectTemplate")
+          : !singleTargetID.trim()
+            ? t("walletPage.disabledReasons.enterTargetID")
+            : ""
+  const batchIssueDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : issuingBatch || batchIssueForm.formState.isSubmitting
+      ? t("walletPage.disabledReasons.issuing")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : !batchTemplateID
+          ? t("walletPage.disabledReasons.selectTemplate")
+          : parseBatchTargetIDs(batchTargetIDs).length === 0
+            ? t("walletPage.disabledReasons.enterBatchTargets")
+            : ""
 
   async function onSubmitSingleIssueForm(values: SingleIssueFormValues) {
     await onSubmitSingleIssue({
@@ -238,12 +291,9 @@ export function WalletIssueJobQueueCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("walletPage.components.issueQueue.title", { defaultValue: "Issue now" })}</CardTitle>
+        <CardTitle className="text-base">{t("walletPage.components.issueQueue.title")}</CardTitle>
         <CardDescription>
-          {t("walletPage.components.issueQueue.description", {
-            defaultValue:
-              "Select a template first, then issue to employee or visitor. Template scenario determines mobile pass, physical-card flow, visitor QR, or temporary pass.",
-          })}
+          {t("walletPage.components.issueQueue.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -253,14 +303,11 @@ export function WalletIssueJobQueueCard({
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">
                   {t("walletPage.components.issueQueue.enterpriseHitRate", {
-                    defaultValue: "Prefilled enterprise target hit rate {{rate}}%",
                     rate: enterpriseBatchTargetStats.hitRate,
                   })}
                 </p>
                 <p className="mp-kpi-note">
                   {t("walletPage.components.issueQueue.enterprisePrefillSummary", {
-                    defaultValue:
-                      "Prefilled {{targets}} targets, matched existing passes {{matched}}, missing {{missing}}.",
                     targets: enterpriseBatchTargetStats.targetIDs.length,
                     matched: enterpriseBatchTargetStats.matchedIDs.length,
                     missing: enterpriseBatchTargetStats.missingIDs.length,
@@ -269,8 +316,6 @@ export function WalletIssueJobQueueCard({
                 {enterpriseBatchTargetStats.missingIDs.length > 0 ? (
                   <p className="mp-kpi-note">
                     {t("walletPage.components.issueQueue.enterpriseMissingBreakdown", {
-                      defaultValue:
-                        "Among missing targets: issue-ready {{issueReady}}, needs directory review {{needsDirectory}}, needs approvals/exception handling {{needsAlerts}}.",
                       issueReady: enterpriseMissingTargetBreakdown.issueReadyCount,
                       needsDirectory: enterpriseMissingTargetBreakdown.needsDirectoryCount,
                       needsAlerts: enterpriseMissingTargetBreakdown.needsAlertsCount,
@@ -284,9 +329,7 @@ export function WalletIssueJobQueueCard({
               {enterpriseMissingTargetBreakdown.rows.length > 0 ? (
                 <div className="rounded-lg border bg-background px-3 py-2">
                   <p className="text-xs font-medium">
-                    {t("walletPage.components.issueQueue.enterpriseMissingDetailsTitle", {
-                      defaultValue: "Missing target details (up to 3)",
-                    })}
+                    {t("walletPage.components.issueQueue.enterpriseMissingDetailsTitle")}
                   </p>
                   <div className="mt-1 space-y-1">
                     {enterpriseMissingTargetBreakdown.rows.slice(0, 3).map((item) => (
@@ -305,10 +348,10 @@ export function WalletIssueJobQueueCard({
                   size="sm"
                   variant="outline"
                   disabled={!writable || loading || refreshing || issueReadyEnterpriseMissingTargetIDs.length === 0}
+                  title={keepIssueReadyDisabledReason || undefined}
                   onClick={onKeepIssueReadyEnterpriseTargets}
                 >
                   {t("walletPage.components.issueQueue.keepIssueReadyOnly", {
-                    defaultValue: "Keep issue-ready targets only ({{count}})",
                     count: issueReadyEnterpriseMissingTargetIDs.length,
                   })}
                 </Button>
@@ -316,10 +359,10 @@ export function WalletIssueJobQueueCard({
                   size="sm"
                   variant="outline"
                   disabled={!writable || loading || refreshing || enterpriseBatchTargetStats.missingIDs.length === 0}
+                  title={keepMissingDisabledReason || undefined}
                   onClick={onKeepMissingEnterpriseTargets}
                 >
                   {t("walletPage.components.issueQueue.keepMissingOnly", {
-                    defaultValue: "Keep missing targets only ({{count}})",
                     count: enterpriseBatchTargetStats.missingIDs.length,
                   })}
                 </Button>
@@ -327,37 +370,36 @@ export function WalletIssueJobQueueCard({
                   size="sm"
                   variant="outline"
                   disabled={!writable || loading || refreshing}
+                  title={restorePrefilledDisabledReason || undefined}
                   onClick={onRestoreEnterpriseTargets}
                 >
                   {t("walletPage.components.issueQueue.restoreAllPrefilled", {
-                    defaultValue: "Restore all prefilled targets ({{count}})",
                     count: enterpriseBatchTargetStats.targetIDs.length,
                   })}
                 </Button>
                 {canOpenAccessReview ? (
                   <Button asChild size="sm" variant="outline">
                     <Link to={accessDirectoryReviewLink}>
-                      {t("walletPage.components.issueQueue.goDirectoryReview", { defaultValue: "Review target source in directory" })}
+                      {t("walletPage.components.issueQueue.goDirectoryReview")}
                     </Link>
                   </Button>
                 ) : null}
                 {canOpenEnterpriseReview ? (
                   <Button asChild size="sm" variant="outline">
                     <Link to={enterpriseAlertsIssueLink}>
-                      {t("walletPage.components.issueQueue.goEnterpriseSyncIssue", {
-                        defaultValue: "Back to enterprise and locate by sync anomalies",
-                      })}
+                      {t("walletPage.components.issueQueue.goEnterpriseSyncIssue")}
                     </Link>
                   </Button>
                 ) : null}
                 {canOpenEnterpriseReview && hasWorkerAlertFlowHints ? (
                   <Button asChild size="sm" variant="outline">
                     <Link to={enterpriseSyncWorkerReviewLink}>
-                      {t("walletPage.components.issueQueue.backToSyncReview", {
-                        defaultValue: "Return to import & sync review after handling",
-                      })}
+                      {t("walletPage.components.issueQueue.backToSyncReview")}
                     </Link>
                   </Button>
+                ) : null}
+                {flowActionDisabledReason ? (
+                  <p className="w-full basis-full text-xs text-muted-foreground">{flowActionDisabledReason}</p>
                 ) : null}
               </div>
             </div>
@@ -366,7 +408,7 @@ export function WalletIssueJobQueueCard({
         <div className="grid gap-4 xl:grid-cols-2">
           <form className="space-y-3 rounded-xl border bg-muted/15 p-4" onSubmit={singleIssueForm.handleSubmit(onSubmitSingleIssueForm)}>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.singleIssue", { defaultValue: "Single issue" })}</p>
+              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.singleIssue")}</p>
               <Badge variant="outline">{targetTypeLabel(singleTargetType)}</Badge>
             </div>
             <Controller
@@ -375,13 +417,14 @@ export function WalletIssueJobQueueCard({
               render={({ field }) => (
                 <Select
                   value={field.value}
+                  disabled={!writable}
                   onValueChange={(value) => {
                     field.onChange(value)
                     onSingleTemplateIDChange(value)
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("walletPage.components.issueQueue.selectTemplate", { defaultValue: "Select issuance template" })} />
+                  <SelectTrigger title={formFieldDisabledReason || undefined}>
+                    <SelectValue placeholder={t("walletPage.components.issueQueue.selectTemplate")} />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((item) => (
@@ -396,20 +439,22 @@ export function WalletIssueJobQueueCard({
             <Input
               {...singleTargetIDField}
               disabled={!writable}
+              title={formFieldDisabledReason || undefined}
               onChange={(event) => {
                 singleTargetIDField.onChange(event)
                 onSingleTargetIDChange(event.target.value)
               }}
               placeholder={
                 singleTargetType === "visitor"
-                  ? t("walletPage.components.issueQueue.visitorIDPlaceholder", { defaultValue: "Visitor ID, e.g. visitor-001" })
-                  : t("walletPage.components.issueQueue.employeeIDPlaceholder", { defaultValue: "Employee ID, e.g. user-001" })
+                  ? t("walletPage.components.issueQueue.visitorIDPlaceholder")
+                  : t("walletPage.components.issueQueue.employeeIDPlaceholder")
               }
             />
             <Input
               {...singleExpiresAtField}
               type="datetime-local"
               disabled={!writable}
+              title={formFieldDisabledReason || undefined}
               onChange={(event) => {
                 singleExpiresAtField.onChange(event)
                 onSingleExpiresAtChange(event.target.value)
@@ -419,29 +464,31 @@ export function WalletIssueJobQueueCard({
               <p className="mp-kpi-note">
                 {selectedSingleTemplate
                   ? t("walletPage.components.issueQueue.singleTemplateHint", {
-                      defaultValue:
-                        "Current template scenario: {{scenario}}. {{hint}} Leave expiration empty to keep default policy.",
                       scenario: getTemplateScenarioLabel(selectedSingleTemplate),
                       hint: getTemplateScenarioHint(selectedSingleTemplate),
                     })
-                  : t("walletPage.components.issueQueue.selectTemplateFirst", { defaultValue: "Please select a template first." })}
+                  : t("walletPage.components.issueQueue.selectTemplateFirst")}
               </p>
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!writable || issuingSingle || !singleTemplateID || loading || refreshing || singleIssueForm.formState.isSubmitting}
+                disabled={Boolean(singleIssueDisabledReason)}
+                title={singleIssueDisabledReason || undefined}
               >
                 {issuingSingle
-                  ? t("walletPage.components.issueQueue.issuingSingle", { defaultValue: "Issuing..." })
-                  : t("walletPage.components.issueQueue.issueOnePass", { defaultValue: "Issue 1 pass" })}
+                  ? t("walletPage.components.issueQueue.issuingSingle")
+                  : t("walletPage.components.issueQueue.issueOnePass")}
               </Button>
+              {singleIssueDisabledReason ? (
+                <p className="text-xs text-muted-foreground">{singleIssueDisabledReason}</p>
+              ) : null}
             </div>
             {singleIssueFormError ? <p className="text-sm text-destructive">{singleIssueFormError}</p> : null}
           </form>
 
           <form className="space-y-3 rounded-xl border bg-muted/15 p-4" onSubmit={batchIssueForm.handleSubmit(onSubmitBatchIssueForm)}>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.batchIssue", { defaultValue: "Batch issue" })}</p>
+              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.batchIssue")}</p>
               <Badge variant="outline">{targetTypeLabel(batchTargetType)}</Badge>
             </div>
             <Controller
@@ -450,13 +497,14 @@ export function WalletIssueJobQueueCard({
               render={({ field }) => (
                 <Select
                   value={field.value}
+                  disabled={!writable}
                   onValueChange={(value) => {
                     field.onChange(value)
                     onBatchTemplateIDChange(value)
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("walletPage.components.issueQueue.selectBatchTemplate", { defaultValue: "Select batch template" })} />
+                  <SelectTrigger title={formFieldDisabledReason || undefined}>
+                    <SelectValue placeholder={t("walletPage.components.issueQueue.selectBatchTemplate")} />
                   </SelectTrigger>
                   <SelectContent>
                     {templates.map((item) => (
@@ -473,6 +521,7 @@ export function WalletIssueJobQueueCard({
                 {...batchExpiresAtField}
                 type="datetime-local"
                 disabled={!writable}
+                title={formFieldDisabledReason || undefined}
                 onChange={(event) => {
                   batchExpiresAtField.onChange(event)
                   onBatchExpiresAtChange(event.target.value)
@@ -490,12 +539,12 @@ export function WalletIssueJobQueueCard({
                       onBatchExecutionModeChange(value)
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("walletPage.components.issueQueue.executionMode", { defaultValue: "Execution mode" })} />
+                    <SelectTrigger title={formFieldDisabledReason || undefined}>
+                      <SelectValue placeholder={t("walletPage.components.issueQueue.executionMode")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="queued">{t("walletPage.components.issueQueue.executionQueued", { defaultValue: "Queued" })}</SelectItem>
-                      <SelectItem value="inline">{t("walletPage.components.issueQueue.executionInline", { defaultValue: "Run immediately" })}</SelectItem>
+                      <SelectItem value="queued">{t("walletPage.components.issueQueue.executionQueued")}</SelectItem>
+                      <SelectItem value="inline">{t("walletPage.components.issueQueue.executionInline")}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -503,39 +552,40 @@ export function WalletIssueJobQueueCard({
             </div>
             <Textarea
               {...batchTargetIDsField}
+              value={batchTargetIDs}
               disabled={!writable}
+              title={formFieldDisabledReason || undefined}
               onChange={(event) => {
                 batchTargetIDsField.onChange(event)
                 onBatchTargetIDsChange(event.target.value)
               }}
-              placeholder={t("walletPage.components.issueQueue.batchTargetsPlaceholder", {
-                defaultValue: "Enter multiple employee/visitor IDs, separated by newline/comma/semicolon",
-              })}
+              placeholder={t("walletPage.components.issueQueue.batchTargetsPlaceholder")}
               rows={6}
             />
             <div className="space-y-2">
               <p className="mp-kpi-note">
                 {selectedBatchTemplate
                   ? t("walletPage.components.issueQueue.batchTemplateHint", {
-                      defaultValue: "Current template scenario: {{scenario}}. {{hint}}",
                       scenario: getTemplateScenarioLabel(selectedBatchTemplate),
                       hint: getTemplateScenarioHint(selectedBatchTemplate),
                     })
                   : t("walletPage.components.issueQueue.batchDefaultHint", {
-                      defaultValue:
-                        "Will issue using {{targetType}} templates; suitable for reissue, onboarding batch activation, and temporary batch delivery.",
                       targetType: targetTypeLabel(batchTargetType),
                     })}
               </p>
               <Button
                 type="submit"
                 className="w-full"
-                disabled={!writable || issuingBatch || !batchTemplateID || loading || refreshing || batchIssueForm.formState.isSubmitting}
+                disabled={Boolean(batchIssueDisabledReason)}
+                title={batchIssueDisabledReason || undefined}
               >
                 {issuingBatch
-                  ? t("walletPage.components.issueQueue.submittingBatch", { defaultValue: "Submitting..." })
-                  : t("walletPage.components.issueQueue.submitBatchIssue", { defaultValue: "Submit batch issue" })}
+                  ? t("walletPage.components.issueQueue.submittingBatch")
+                  : t("walletPage.components.issueQueue.submitBatchIssue")}
               </Button>
+              {batchIssueDisabledReason ? (
+                <p className="text-xs text-muted-foreground">{batchIssueDisabledReason}</p>
+              ) : null}
             </div>
             {batchIssueFormError ? <p className="text-sm text-destructive">{batchIssueFormError}</p> : null}
           </form>
@@ -544,10 +594,9 @@ export function WalletIssueJobQueueCard({
         {lastIssuedJobs.length > 0 ? (
           <div className="rounded-xl border bg-muted/10 p-4" data-testid="wallet-recent-batch-receipts">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.recentBatchReceipts", { defaultValue: "Recent batch receipts" })}</p>
+              <p className="text-sm font-medium">{t("walletPage.components.issueQueue.recentBatchReceipts")}</p>
               <Badge variant="outline">
                 {t("walletPage.components.issueQueue.receiptCount", {
-                  defaultValue: "{{count}} records",
                   count: lastIssuedJobs.length,
                 })}
               </Badge>

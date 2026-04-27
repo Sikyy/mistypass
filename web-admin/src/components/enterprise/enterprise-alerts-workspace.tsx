@@ -10,7 +10,12 @@ import {
   classifyEnterpriseSyncWorkerAlertLevel,
   describeEnterpriseSyncWorkerAlertGuidance,
 } from "@/components/enterprise/enterprise-sync-worker-alert-guidance"
+import { EnterpriseHRISDLQ } from "@/components/enterprise/enterprise-hris-dlq"
+import { EnterpriseHRISReceipts } from "@/components/enterprise/enterprise-hris-receipts"
+import { EnterpriseJITApprovalInbox } from "@/components/enterprise/enterprise-jit-approval-inbox"
+import { EnterpriseSyncExceptions } from "@/components/enterprise/enterprise-sync-exceptions"
 import { Badge } from "@/components/ui/badge"
+import { EnterpriseWorkerAlerts } from "@/components/enterprise/enterprise-worker-alerts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -402,13 +407,9 @@ export function EnterpriseAlertsWorkspace({
     const normalized = normalizeStatus(value)
     switch (normalized) {
       case "receipt_process":
-        return t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kind.receiptProcess", {
-          defaultValue: "Receipt process",
-        })
+        return t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kind.receiptProcess")
       case "dlq_replay":
-        return t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kind.dlqReplay", {
-          defaultValue: "DLQ replay",
-        })
+        return t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kind.dlqReplay")
       default:
         return formatLifecycleToken(normalized)
     }
@@ -419,12 +420,8 @@ export function EnterpriseAlertsWorkspace({
       return t("enterpriseAlertsWorkspace.common.emptyDash")
     }
     return value
-      ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayWorkerRequired", {
-          defaultValue: "required",
-        })
-      : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayWorkerOptional", {
-          defaultValue: "not required",
-        })
+      ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayWorkerRequired")
+      : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayWorkerOptional")
   }
 
   const formatWorkerAlertNotificationRestoreStatus = (value?: string) => {
@@ -433,17 +430,11 @@ export function EnterpriseAlertsWorkspace({
       case "":
         return t("enterpriseAlertsWorkspace.common.emptyDash")
       case "ready":
-        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.ready", {
-          defaultValue: "Ready to restore",
-        })
+        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.ready")
       case "already_sent":
-        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.alreadySent", {
-          defaultValue: "A newer notification was already sent",
-        })
+        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.alreadySent")
       case "newer_history_exists":
-        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.newerHistoryExists", {
-          defaultValue: "A newer notification history already exists",
-        })
+        return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreEligibility.newerHistoryExists")
       default:
         return normalized.replace(/_/g, " ")
     }
@@ -558,24 +549,20 @@ export function EnterpriseAlertsWorkspace({
     }
     if (value < 60) {
       return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.pendingAge.seconds", {
-        defaultValue: "{{count}} sec",
         count: Math.max(1, Math.floor(value)),
       })
     }
     if (value < 3600) {
       return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.pendingAge.minutes", {
-        defaultValue: "{{count}} min",
         count: Math.floor(value / 60),
       })
     }
     if (value < 86400) {
       return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.pendingAge.hours", {
-        defaultValue: "{{count}} hr",
         count: Math.floor(value / 3600),
       })
     }
     return t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.pendingAge.days", {
-      defaultValue: "{{count}} d",
       count: Math.floor(value / 86400),
     })
   }
@@ -712,9 +699,8 @@ export function EnterpriseAlertsWorkspace({
   const approvalStatusOptions = useMemo(() => {
     const dynamicStatuses = Array.from(new Set(approvals.map((item) => normalizeStatus(item.status)).filter(Boolean)))
     const preferredOrder = ["pending", "approved", "rejected"]
-    const ordered = preferredOrder.filter((status) => dynamicStatuses.includes(status))
     const extra = dynamicStatuses.filter((status) => !preferredOrder.includes(status)).sort((a, b) => a.localeCompare(b))
-    return ["all", ...ordered, ...extra]
+    return ["all", ...preferredOrder, ...extra]
   }, [approvals])
 
   const syncSourceOptions = useMemo(() => {
@@ -873,6 +859,32 @@ export function EnterpriseAlertsWorkspace({
         )
         .map((item) => item.id),
     [approvals]
+  )
+  const enterpriseReadOnlyDisabledReason = !writable
+    ? t("enterpriseAlertsWorkspace.disabledReasons.readOnly")
+    : ""
+  const approvalActionDisabledReason =
+    enterpriseReadOnlyDisabledReason ||
+    (approvalActionBusy ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : "")
+  const approvalBatchDisabledReason = (
+    actionAvailable: boolean,
+    targetCount: number,
+    emptyReasonKey: "noPendingApprovals" | "noExternalSyncFailures" | "noExternalSyncPending" | "noVisiblePendingApprovals" | "noVisibleSyncMarkableApprovals"
+  ) => {
+    if (!actionAvailable) {
+      return t("enterpriseAlertsWorkspace.disabledReasons.actionUnavailable")
+    }
+    return approvalActionDisabledReason || (targetCount === 0 ? t(`enterpriseAlertsWorkspace.disabledReasons.${emptyReasonKey}`) : "")
+  }
+  const jitBatchApprovalDisabledReason = approvalBatchDisabledReason(
+    Boolean(onBatchReviewApprovals),
+    batchPendingApprovalIDs.length,
+    "noVisiblePendingApprovals"
+  )
+  const jitBatchExternalSyncDisabledReason = approvalBatchDisabledReason(
+    Boolean(onBatchUpdateApprovalExternalSync),
+    batchSyncMarkableApprovalIDs.length,
+    "noVisibleSyncMarkableApprovals"
   )
 
   const filteredSyncJobs = useMemo(() => {
@@ -1129,37 +1141,27 @@ export function EnterpriseAlertsWorkspace({
     () => [
       {
         value: "all" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.all", {
-          defaultValue: "All",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.all"),
         count: executionHistoryCounts.all,
       },
       {
         value: "queued" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.queued", {
-          defaultValue: "Queued",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.queued"),
         count: executionHistoryCounts.queued,
       },
       {
         value: "running" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.running", {
-          defaultValue: "Running",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.running"),
         count: executionHistoryCounts.running,
       },
       {
         value: "succeeded" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.succeeded", {
-          defaultValue: "Succeeded",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.succeeded"),
         count: executionHistoryCounts.succeeded,
       },
       {
         value: "failed" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.failed", {
-          defaultValue: "Failed",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.filters.failed"),
         count: executionHistoryCounts.failed,
       },
     ],
@@ -1169,44 +1171,32 @@ export function EnterpriseAlertsWorkspace({
     () => [
       {
         value: "all" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.all", {
-          defaultValue: "All runtime",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.all"),
         count: executionHistoryQueueCounts.all,
       },
       {
         value: "ready" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.ready", {
-          defaultValue: "Ready",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.ready"),
         count: executionHistoryQueueCounts.ready,
       },
       {
         value: "cooldown" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.cooldown", {
-          defaultValue: "Cooldown",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.cooldown"),
         count: executionHistoryQueueCounts.cooldown,
       },
       {
         value: "in_flight" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.inFlight", {
-          defaultValue: "In flight",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.inFlight"),
         count: executionHistoryQueueCounts.in_flight,
       },
       {
         value: "attempt_limit" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.attemptLimit", {
-          defaultValue: "Attempt limit",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.attemptLimit"),
         count: executionHistoryQueueCounts.attempt_limit,
       },
       {
         value: "terminal" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.terminal", {
-          defaultValue: "Terminal",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.queueStateFilter.terminal"),
         count: executionHistoryQueueCounts.terminal,
       },
     ],
@@ -1216,21 +1206,15 @@ export function EnterpriseAlertsWorkspace({
     () => [
       {
         value: "all" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.all", {
-          defaultValue: "All lineage",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.all"),
       },
       {
         value: "replayed" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.replayed", {
-          defaultValue: "Replays",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.replayed"),
       },
       {
         value: "worker_required" as const,
-        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.workerRequired", {
-          defaultValue: "Worker required",
-        }),
+        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayScopeFilter.workerRequired"),
       },
     ],
     [t]
@@ -1334,6 +1318,35 @@ export function EnterpriseAlertsWorkspace({
     () => filteredDLQEntries.filter((item) => item.replay_state === "ready").map((item) => item.id),
     [filteredDLQEntries]
   )
+  const notificationActionBusy =
+    Boolean(retryingWorkerAlertNotificationID) ||
+    Boolean(retryingWorkerAlertNotificationBatch) ||
+    Boolean(restoringWorkerAlertNotificationBatch) ||
+    Boolean(suppressingWorkerAlertNotificationBatch) ||
+    Boolean(autoRetryingWorkerAlertNotifications)
+  const notificationActionDisabledReason =
+    enterpriseReadOnlyDisabledReason ||
+    (notificationHistoryLoadingState ? t("enterpriseAlertsWorkspace.disabledReasons.loading") : "") ||
+    (notificationActionBusy ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : "")
+  const notificationExportDisabledReason = notificationHistoryLoadingState
+    ? t("enterpriseAlertsWorkspace.disabledReasons.loading")
+    : exportingWorkerAlertNotifications
+      ? t("enterpriseAlertsWorkspace.disabledReasons.exporting")
+      : notificationHistoryTotal === 0
+        ? t("enterpriseAlertsWorkspace.disabledReasons.noVisibleNotifications")
+        : ""
+  const autoRetryNotificationsDisabledReason =
+    notificationActionDisabledReason ||
+    (dueWorkerAlertNotificationCount === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noDueNotifications") : "")
+  const suppressNotificationsDisabledReason =
+    notificationActionDisabledReason ||
+    (visibleFailedWorkerAlertNotificationIDs.length === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noFailedNotifications") : "")
+  const restoreNotificationsDisabledReason =
+    notificationActionDisabledReason ||
+    (visibleSuppressedWorkerAlertNotificationIDs.length === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noSuppressedNotifications") : "")
+  const retryNotificationsDisabledReason =
+    notificationActionDisabledReason ||
+    (visibleRetryableWorkerAlertNotificationIDs.length === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noRetryableNotifications") : "")
 
   const filteredPullStates = useMemo(() => {
     const normalizedScope = [workerActionScope, workerKindScope, workerLabelScope].join(" ").trim().toLowerCase()
@@ -1461,6 +1474,20 @@ export function EnterpriseAlertsWorkspace({
   const dlqRuntimeCounts = hrisWebhookDLQReplayCounts ?? derivedDLQRuntimeCounts
   const dlqTotal = hrisWebhookDLQTotal ?? hrisWebhookDLQEntries.length
   const dlqLoadingState = loading || Boolean(hrisWebhookDLQLoading)
+  const receiptActionDisabledReason =
+    enterpriseReadOnlyDisabledReason ||
+    (receiptActionBusy ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : "")
+  const receiptBatchDisabledReason =
+    receiptActionDisabledReason ||
+    (webhookReceiptLoadingState ? t("enterpriseAlertsWorkspace.disabledReasons.loading") : "") ||
+    (visibleProcessableWebhookReceiptIDs.length === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noProcessableReceipts") : "")
+  const dlqActionDisabledReason =
+    enterpriseReadOnlyDisabledReason ||
+    (dlqActionBusy ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : "")
+  const dlqBatchDisabledReason =
+    dlqActionDisabledReason ||
+    (dlqLoadingState ? t("enterpriseAlertsWorkspace.disabledReasons.loading") : "") ||
+    (visibleReplayableDLQEntryIDs.length === 0 ? t("enterpriseAlertsWorkspace.disabledReasons.noReplayableDLQ") : "")
   const dlqRuntimeFilterOptions = useMemo(
     () => [
       {
@@ -1693,7 +1720,8 @@ export function EnterpriseAlertsWorkspace({
           {
             key: "approve_pending",
             label: t("enterpriseAlertsWorkspace.approvalClosure.pending.batchApprove", { count: allPendingApprovalIDs.length }),
-            disabled: !onBatchReviewApprovals || allPendingApprovalIDs.length === 0 || approvalActionBusy,
+            disabled: Boolean(approvalBatchDisabledReason(Boolean(onBatchReviewApprovals), allPendingApprovalIDs.length, "noPendingApprovals")),
+            disabledReason: approvalBatchDisabledReason(Boolean(onBatchReviewApprovals), allPendingApprovalIDs.length, "noPendingApprovals"),
             onClick: () => {
               if (!onBatchReviewApprovals || allPendingApprovalIDs.length === 0) {
                 return
@@ -1704,7 +1732,8 @@ export function EnterpriseAlertsWorkspace({
           {
             key: "reject_pending",
             label: t("enterpriseAlertsWorkspace.approvalClosure.pending.batchReject", { count: allPendingApprovalIDs.length }),
-            disabled: !onBatchReviewApprovals || allPendingApprovalIDs.length === 0 || approvalActionBusy,
+            disabled: Boolean(approvalBatchDisabledReason(Boolean(onBatchReviewApprovals), allPendingApprovalIDs.length, "noPendingApprovals")),
+            disabledReason: approvalBatchDisabledReason(Boolean(onBatchReviewApprovals), allPendingApprovalIDs.length, "noPendingApprovals"),
             onClick: () => {
               if (!onBatchReviewApprovals || allPendingApprovalIDs.length === 0) {
                 return
@@ -1732,8 +1761,8 @@ export function EnterpriseAlertsWorkspace({
           {
             key: "mark_failed_synced",
             label: t("enterpriseAlertsWorkspace.approvalClosure.syncFailed.batchMarkSynced", { count: allFailedSyncApprovalIDs.length }),
-            disabled:
-              !onBatchUpdateApprovalExternalSync || allFailedSyncApprovalIDs.length === 0 || approvalActionBusy,
+            disabled: Boolean(approvalBatchDisabledReason(Boolean(onBatchUpdateApprovalExternalSync), allFailedSyncApprovalIDs.length, "noExternalSyncFailures")),
+            disabledReason: approvalBatchDisabledReason(Boolean(onBatchUpdateApprovalExternalSync), allFailedSyncApprovalIDs.length, "noExternalSyncFailures"),
             onClick: () => {
               if (!onBatchUpdateApprovalExternalSync || allFailedSyncApprovalIDs.length === 0) {
                 return
@@ -1761,8 +1790,8 @@ export function EnterpriseAlertsWorkspace({
           {
             key: "mark_pending_synced",
             label: t("enterpriseAlertsWorkspace.approvalClosure.syncPending.batchMarkSynced", { count: allPendingSyncApprovalIDs.length }),
-            disabled:
-              !onBatchUpdateApprovalExternalSync || allPendingSyncApprovalIDs.length === 0 || approvalActionBusy,
+            disabled: Boolean(approvalBatchDisabledReason(Boolean(onBatchUpdateApprovalExternalSync), allPendingSyncApprovalIDs.length, "noExternalSyncPending")),
+            disabledReason: approvalBatchDisabledReason(Boolean(onBatchUpdateApprovalExternalSync), allPendingSyncApprovalIDs.length, "noExternalSyncPending"),
             onClick: () => {
               if (!onBatchUpdateApprovalExternalSync || allPendingSyncApprovalIDs.length === 0) {
                 return
@@ -1778,9 +1807,11 @@ export function EnterpriseAlertsWorkspace({
     allPendingApprovalIDs,
     allPendingSyncApprovalIDs,
     approvalActionBusy,
+    approvalActionDisabledReason,
     approvals,
     onBatchReviewApprovals,
     onBatchUpdateApprovalExternalSync,
+    writable,
     t,
   ])
 
@@ -2462,11 +2493,17 @@ export function EnterpriseAlertsWorkspace({
                           size="sm"
                           variant="outline"
                           disabled={action.disabled}
+                          title={action.disabledReason || undefined}
                           onClick={action.onClick}
                         >
                           {action.label}
                         </Button>
                       ))}
+                      {item.batchActions.find((action) => action.disabledReason) ? (
+                        <p className="w-full basis-full text-xs text-muted-foreground">
+                          {item.batchActions.find((action) => action.disabledReason)?.disabledReason}
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -2544,12 +2581,10 @@ export function EnterpriseAlertsWorkspace({
         </Card>
 
         {showApprovalCards ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">{t("enterpriseAlertsWorkspace.jitApproval.title")}</CardTitle>
-              <CardDescription>{t("enterpriseAlertsWorkspace.jitApproval.description")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <EnterpriseJITApprovalInbox
+            title={t("enterpriseAlertsWorkspace.jitApproval.title")}
+            description={t("enterpriseAlertsWorkspace.jitApproval.description")}
+          >
             <div className="rounded-lg border bg-muted/15 p-3">
               <p className="text-sm font-medium">{t("enterpriseAlertsWorkspace.jitApproval.statusFilterTitle")}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -2607,7 +2642,8 @@ export function EnterpriseAlertsWorkspace({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!onBatchReviewApprovals || batchPendingApprovalIDs.length === 0 || approvalActionBusy}
+                  disabled={Boolean(jitBatchApprovalDisabledReason)}
+                  title={jitBatchApprovalDisabledReason || undefined}
                   onClick={() => {
                     if (!onBatchReviewApprovals || batchPendingApprovalIDs.length === 0) {
                       return
@@ -2620,7 +2656,8 @@ export function EnterpriseAlertsWorkspace({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!onBatchReviewApprovals || batchPendingApprovalIDs.length === 0 || approvalActionBusy}
+                  disabled={Boolean(jitBatchApprovalDisabledReason)}
+                  title={jitBatchApprovalDisabledReason || undefined}
                   onClick={() => {
                     if (!onBatchReviewApprovals || batchPendingApprovalIDs.length === 0) {
                       return
@@ -2633,7 +2670,8 @@ export function EnterpriseAlertsWorkspace({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!onBatchUpdateApprovalExternalSync || batchSyncMarkableApprovalIDs.length === 0 || approvalActionBusy}
+                  disabled={Boolean(jitBatchExternalSyncDisabledReason)}
+                  title={jitBatchExternalSyncDisabledReason || undefined}
                   onClick={() => {
                     if (!onBatchUpdateApprovalExternalSync || batchSyncMarkableApprovalIDs.length === 0) {
                       return
@@ -2643,6 +2681,11 @@ export function EnterpriseAlertsWorkspace({
                 >
                   {t("enterpriseAlertsWorkspace.jitApproval.batchMarkSynced", { count: batchSyncMarkableApprovalIDs.length })}
                 </Button>
+                {jitBatchApprovalDisabledReason || jitBatchExternalSyncDisabledReason ? (
+                  <p className="w-full basis-full text-xs text-muted-foreground">
+                    {jitBatchApprovalDisabledReason || jitBatchExternalSyncDisabledReason}
+                  </p>
+                ) : null}
               </div>
             </div>
             <Table>
@@ -2678,7 +2721,11 @@ export function EnterpriseAlertsWorkspace({
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={approvalActionID === item.id || approvalActionBusy}
+                              disabled={Boolean(approvalActionDisabledReason) || approvalActionID === item.id}
+                              title={
+                                approvalActionDisabledReason ||
+                                (approvalActionID === item.id ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : undefined)
+                              }
                               onClick={() => {
                                 void onReviewApproval(item.id, "approved")
                               }}
@@ -2690,7 +2737,11 @@ export function EnterpriseAlertsWorkspace({
                             <Button
                               size="sm"
                               variant="outline"
-                              disabled={approvalActionID === item.id || approvalActionBusy}
+                              disabled={Boolean(approvalActionDisabledReason) || approvalActionID === item.id}
+                              title={
+                                approvalActionDisabledReason ||
+                                (approvalActionID === item.id ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : undefined)
+                              }
                               onClick={() => {
                                 void onReviewApproval(item.id, "rejected")
                               }}
@@ -2707,7 +2758,11 @@ export function EnterpriseAlertsWorkspace({
                           <Button
                             size="sm"
                             variant="outline"
-                            disabled={approvalActionID === item.id || approvalActionBusy}
+                            disabled={Boolean(approvalActionDisabledReason) || approvalActionID === item.id}
+                            title={
+                              approvalActionDisabledReason ||
+                              (approvalActionID === item.id ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : undefined)
+                            }
                             onClick={() => {
                               void onUpdateApprovalExternalSync(item.id, "synced")
                             }}
@@ -2724,8 +2779,7 @@ export function EnterpriseAlertsWorkspace({
                 ))}
               </TableBody>
             </Table>
-            </CardContent>
-          </Card>
+          </EnterpriseJITApprovalInbox>
         ) : null}
 
         {showDirectoryCards ? (
@@ -2756,13 +2810,14 @@ export function EnterpriseAlertsWorkspace({
                 writable={writable}
               />
             ) : null}
-            <div className="rounded-lg border bg-muted/15 p-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">{t("enterpriseAlertsWorkspace.syncAndWorker.syncJobs.title")}</p>
+            <EnterpriseSyncExceptions
+              title={t("enterpriseAlertsWorkspace.syncAndWorker.syncJobs.title")}
+              actions={
                 <Badge variant="secondary">
                   {filteredSyncJobs.length} / {syncJobs.length}
                 </Badge>
-              </div>
+              }
+            >
               <div className="flex flex-wrap items-center gap-2">
                 {[
                   { value: "all", label: t("enterpriseAlertsWorkspace.syncAndWorker.syncJobs.filters.all", { count: syncJobCounts.all }) },
@@ -2928,11 +2983,11 @@ export function EnterpriseAlertsWorkspace({
                   <p className="text-sm text-muted-foreground">{t("enterpriseAlertsWorkspace.syncAndWorker.syncJobs.empty")}</p>
                 ) : null}
               </div>
-            </div>
+            </EnterpriseSyncExceptions>
 
-            <div className="rounded-lg border bg-muted/15 p-3 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">{t("enterpriseAlertsWorkspace.syncAndWorker.workerAlerts.title")}</p>
+            <EnterpriseWorkerAlerts
+              title={t("enterpriseAlertsWorkspace.syncAndWorker.workerAlerts.title")}
+              actions={
                 <div className="flex flex-wrap items-center gap-2">
                   {filteredWorkerAlerts.length > 0 ? (
                     <>
@@ -2957,7 +3012,8 @@ export function EnterpriseAlertsWorkspace({
                     {filteredWorkerAlerts.length} / {workerAlerts.length}
                   </Badge>
                 </div>
-              </div>
+              }
+            >
               <div className="flex flex-wrap items-center gap-2">
                 {[
                   { value: "all", label: t("enterpriseAlertsWorkspace.syncAndWorker.workerAlerts.filters.all", { count: workerCounts.all }) },
@@ -3093,13 +3149,10 @@ export function EnterpriseAlertsWorkspace({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">
-                      {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.title", {
-                        defaultValue: "Sync & Worker Notification History",
-                      })}
+                      {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.title")}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.description", {
-                        defaultValue: "Recent {{count}} worker alert notification records, including cooldown skips and retry results.",
                         count: notificationHistoryTotal,
                       })}
                     </p>
@@ -3116,33 +3169,23 @@ export function EnterpriseAlertsWorkspace({
                     [
                       {
                         value: "all",
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.all", {
-                          defaultValue: "All",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.all"),
                       },
                       {
                         value: "failed",
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.failed", {
-                          defaultValue: "Failed",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.failed"),
                       },
                       {
                         value: "retryable",
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.retryable", {
-                          defaultValue: "Retryable",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.retryable"),
                       },
                       {
                         value: "suppressed",
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.suppressed", {
-                          defaultValue: "Suppressed",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.suppressed"),
                       },
                       {
                         value: "due_now",
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.dueNow", {
-                          defaultValue: "Due now",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.filters.dueNow"),
                       },
                     ] as const
                   ).map((option) => (
@@ -3167,20 +3210,15 @@ export function EnterpriseAlertsWorkspace({
                       setNotificationHistoryQuery(event.target.value)
                     }}
                     className="h-9 w-full max-w-md"
-                    placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.searchPlaceholder", {
-                      defaultValue: "Search worker, connector, reason, request ID, provider error...",
-                    })}
+                    placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.searchPlaceholder")}
                     data-testid="enterprise-alerts-worker-notification-query"
                   />
                   <Button
                     size="sm"
                     type="button"
                     variant="outline"
-                    disabled={
-                      notificationHistoryLoadingState ||
-                      exportingWorkerAlertNotifications ||
-                      notificationHistoryTotal === 0
-                    }
+                    disabled={Boolean(notificationExportDisabledReason)}
+                    title={notificationExportDisabledReason || undefined}
                     data-testid="enterprise-alerts-worker-notification-export-visible"
                     onClick={() => {
                       if (onExportWorkerAlertNotifications) {
@@ -3194,11 +3232,8 @@ export function EnterpriseAlertsWorkspace({
                     }}
                   >
                     {exportingWorkerAlertNotifications
-                      ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.exporting", {
-                          defaultValue: "Exporting...",
-                        })
+                      ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.exporting")
                       : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.exportVisible", {
-                          defaultValue: "Export filtered ({{count}})",
                           count: notificationHistoryTotal,
                         })}
                   </Button>
@@ -3207,19 +3242,16 @@ export function EnterpriseAlertsWorkspace({
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.statusSummary.sent", {
-                        defaultValue: "Sent {{count}}",
                         count: notificationHistoryStatusCounts.sent,
                       })}
                     </Badge>
                     <Badge variant="destructive">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.statusSummary.failed", {
-                        defaultValue: "Failed {{count}}",
                         count: notificationHistoryStatusCounts.failed,
                       })}
                     </Badge>
                     <Badge variant="secondary">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.statusSummary.skipped", {
-                        defaultValue: "Skipped {{count}}",
                         count: notificationHistoryStatusCounts.skipped,
                       })}
                     </Badge>
@@ -3230,27 +3262,16 @@ export function EnterpriseAlertsWorkspace({
                         size="sm"
                         type="button"
                         variant="outline"
-                        disabled={
-                          !writable ||
-                          notificationHistoryLoadingState ||
-                          Boolean(retryingWorkerAlertNotificationID) ||
-                          retryingWorkerAlertNotificationBatch ||
-                          restoringWorkerAlertNotificationBatch ||
-                          suppressingWorkerAlertNotificationBatch ||
-                          autoRetryingWorkerAlertNotifications ||
-                          dueWorkerAlertNotificationCount === 0
-                        }
+                        disabled={Boolean(autoRetryNotificationsDisabledReason)}
+                        title={autoRetryNotificationsDisabledReason || undefined}
                         data-testid="enterprise-alerts-worker-notification-auto-retry-due"
                         onClick={() => {
                           void onAutoRetryWorkerAlertNotifications()
                         }}
                       >
                         {autoRetryingWorkerAlertNotifications
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.autoRetryDueBusy", {
-                              defaultValue: "Auto retrying due...",
-                            })
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.autoRetryDueBusy")
                           : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.autoRetryDue", {
-                              defaultValue: "Auto-retry due now ({{count}})",
                               count: dueWorkerAlertNotificationCount,
                             })}
                       </Button>
@@ -3260,27 +3281,16 @@ export function EnterpriseAlertsWorkspace({
                         size="sm"
                         type="button"
                         variant="outline"
-                        disabled={
-                          !writable ||
-                          notificationHistoryLoadingState ||
-                          Boolean(retryingWorkerAlertNotificationID) ||
-                          retryingWorkerAlertNotificationBatch ||
-                          restoringWorkerAlertNotificationBatch ||
-                          suppressingWorkerAlertNotificationBatch ||
-                          autoRetryingWorkerAlertNotifications ||
-                          visibleFailedWorkerAlertNotificationIDs.length === 0
-                        }
+                        disabled={Boolean(suppressNotificationsDisabledReason)}
+                        title={suppressNotificationsDisabledReason || undefined}
                         data-testid="enterprise-alerts-worker-notification-suppress-visible"
                         onClick={() => {
                           void onBatchSuppressWorkerAlertNotifications(visibleFailedWorkerAlertNotificationIDs)
                         }}
                       >
                         {suppressingWorkerAlertNotificationBatch
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.suppressVisibleBusy", {
-                              defaultValue: "Suppressing visible...",
-                            })
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.suppressVisibleBusy")
                           : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.suppressVisible", {
-                              defaultValue: "Suppress visible ({{count}})",
                               count: visibleFailedWorkerAlertNotificationIDs.length,
                             })}
                       </Button>
@@ -3290,27 +3300,16 @@ export function EnterpriseAlertsWorkspace({
                         size="sm"
                         type="button"
                         variant="outline"
-                        disabled={
-                          !writable ||
-                          notificationHistoryLoadingState ||
-                          Boolean(retryingWorkerAlertNotificationID) ||
-                          retryingWorkerAlertNotificationBatch ||
-                          restoringWorkerAlertNotificationBatch ||
-                          suppressingWorkerAlertNotificationBatch ||
-                          autoRetryingWorkerAlertNotifications ||
-                          visibleSuppressedWorkerAlertNotificationIDs.length === 0
-                        }
+                        disabled={Boolean(restoreNotificationsDisabledReason)}
+                        title={restoreNotificationsDisabledReason || undefined}
                         data-testid="enterprise-alerts-worker-notification-restore-visible"
                         onClick={() => {
                           void onBatchRestoreWorkerAlertNotifications(visibleSuppressedWorkerAlertNotificationIDs)
                         }}
                       >
                         {restoringWorkerAlertNotificationBatch
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreVisibleBusy", {
-                              defaultValue: "Restoring visible...",
-                            })
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreVisibleBusy")
                           : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreVisible", {
-                              defaultValue: "Restore visible ({{count}})",
                               count: visibleSuppressedWorkerAlertNotificationIDs.length,
                             })}
                       </Button>
@@ -3320,69 +3319,62 @@ export function EnterpriseAlertsWorkspace({
                         size="sm"
                         type="button"
                         variant="outline"
-                        disabled={
-                          !writable ||
-                          notificationHistoryLoadingState ||
-                          Boolean(retryingWorkerAlertNotificationID) ||
-                          retryingWorkerAlertNotificationBatch ||
-                          restoringWorkerAlertNotificationBatch ||
-                          suppressingWorkerAlertNotificationBatch ||
-                          autoRetryingWorkerAlertNotifications ||
-                          visibleRetryableWorkerAlertNotificationIDs.length === 0
-                        }
+                        disabled={Boolean(retryNotificationsDisabledReason)}
+                        title={retryNotificationsDisabledReason || undefined}
                         data-testid="enterprise-alerts-worker-notification-retry-visible"
                         onClick={() => {
                           void onBatchRetryWorkerAlertNotifications(visibleRetryableWorkerAlertNotificationIDs)
                         }}
                       >
                         {retryingWorkerAlertNotificationBatch
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retryVisibleBusy", {
-                              defaultValue: "Retrying visible...",
-                            })
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retryVisibleBusy")
                           : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retryVisible", {
-                              defaultValue: "Retry visible ({{count}})",
                               count: visibleRetryableWorkerAlertNotificationIDs.length,
                             })}
                       </Button>
                     ) : null}
                   </div>
+                  {autoRetryNotificationsDisabledReason ||
+                  suppressNotificationsDisabledReason ||
+                  restoreNotificationsDisabledReason ||
+                  retryNotificationsDisabledReason ? (
+                    <p className="w-full basis-full text-xs text-muted-foreground">
+                      {autoRetryNotificationsDisabledReason ||
+                        suppressNotificationsDisabledReason ||
+                        restoreNotificationsDisabledReason ||
+                        retryNotificationsDisabledReason}
+                    </p>
+                  ) : null}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.batchHint", {
-                    defaultValue:
-                      "Batch actions work on the current view: retry only retries retryable failures and suppresses duplicate fingerprints; suppress marks visible failures as manually skipped; restore reopens visible manual suppressions as retryable failures.",
-                  })}
+                  {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.batchHint")}
                 </p>
                 <div className="mt-3 overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.time", { defaultValue: "Time" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.worker", { defaultValue: "Worker" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.countThreshold", { defaultValue: "Count / threshold" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.attempt", { defaultValue: "Attempt" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.channels", { defaultValue: "Channels" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.receivers", { defaultValue: "Receiver groups" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.status", { defaultValue: "Status" })}</TableHead>
-                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.actions", { defaultValue: "Actions" })}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.time")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.worker")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.countThreshold")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.attempt")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.channels")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.receivers")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.status")}</TableHead>
+                        <TableHead>{t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.columns.actions")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {notificationHistoryLoadingState ? (
                         <TableRow>
                           <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loading", {
-                              defaultValue: "Loading notification records...",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loading")}
                           </TableCell>
                         </TableRow>
                       ) : null}
                       {!notificationHistoryLoadingState && workerAlertNotifications.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.empty", {
-                              defaultValue: 'No records yet. Click "Dispatch now" to create records.',
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.empty")}
                           </TableCell>
                         </TableRow>
                       ) : null}
@@ -3391,9 +3383,7 @@ export function EnterpriseAlertsWorkspace({
                       filteredWorkerAlertNotifications.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.emptyFiltered", {
-                              defaultValue: "No notification records match the current filter.",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.emptyFiltered")}
                           </TableCell>
                         </TableRow>
                       ) : null}
@@ -3432,7 +3422,6 @@ export function EnterpriseAlertsWorkspace({
                                     {item.source_notification_id ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retrySource", {
-                                          defaultValue: "Retry of {{id}}",
                                           id: item.source_notification_id,
                                         })}
                                       </p>
@@ -3463,7 +3452,6 @@ export function EnterpriseAlertsWorkspace({
                                     hasWorkerAlertNotificationPendingAge(item.pending_age_seconds) ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.pendingAge.status", {
-                                          defaultValue: "Pending {{age}}",
                                           age: formatWorkerAlertNotificationPendingAge(item.pending_age_seconds),
                                         })}
                                       </p>
@@ -3471,7 +3459,6 @@ export function EnterpriseAlertsWorkspace({
                                     {item.next_retry_at ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.nextRetryAt", {
-                                          defaultValue: "Next retry {{at}}",
                                           at: formatDateTime(item.next_retry_at),
                                         })}
                                       </p>
@@ -3479,7 +3466,6 @@ export function EnterpriseAlertsWorkspace({
                                     {typeof item.confirm_attempts === "number" ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.confirmAttempts", {
-                                          defaultValue: "Confirm attempts {{count}}",
                                           count: item.confirm_attempts,
                                         })}
                                       </p>
@@ -3487,7 +3473,6 @@ export function EnterpriseAlertsWorkspace({
                                     {item.last_confirm_result ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.lastConfirmResult", {
-                                          defaultValue: "Last confirm {{result}}",
                                           result: item.last_confirm_result,
                                         })}
                                       </p>
@@ -3495,7 +3480,6 @@ export function EnterpriseAlertsWorkspace({
                                     {item.last_confirm_attempt_at ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.lastConfirmAttemptAt", {
-                                          defaultValue: "Last confirm at {{at}}",
                                           at: formatDateTime(item.last_confirm_attempt_at),
                                         })}
                                       </p>
@@ -3522,7 +3506,6 @@ export function EnterpriseAlertsWorkspace({
                                     item.restore_status !== "ready" ? (
                                       <p className="mp-kpi-note">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoreStatus", {
-                                          defaultValue: "Restore blocked: {{status}}",
                                           status: formatWorkerAlertNotificationRestoreStatus(item.restore_status),
                                         })}
                                       </p>
@@ -3535,26 +3518,20 @@ export function EnterpriseAlertsWorkspace({
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        disabled={
-                                          !writable ||
-                                          notificationHistoryLoadingState ||
-                                          retryingWorkerAlertNotificationID === item.id ||
-                                          retryingWorkerAlertNotificationBatch ||
-                                          restoringWorkerAlertNotificationBatch ||
-                                          suppressingWorkerAlertNotificationBatch ||
-                                          autoRetryingWorkerAlertNotifications
+                                        disabled={Boolean(notificationActionDisabledReason) || retryingWorkerAlertNotificationID === item.id}
+                                        title={
+                                          notificationActionDisabledReason ||
+                                          (retryingWorkerAlertNotificationID === item.id
+                                            ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy")
+                                            : undefined)
                                         }
                                         onClick={() => {
                                           void onRetryWorkerAlertNotification(item.id)
                                         }}
                                       >
                                         {retryingWorkerAlertNotificationID === item.id
-                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retrying", {
-                                              defaultValue: "Retrying...",
-                                            })
-                                          : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retry", {
-                                              defaultValue: "Retry",
-                                            })}
+                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retrying")
+                                          : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.retry")}
                                       </Button>
                                     ) : null}
                                     {item.status === "failed" && onBatchSuppressWorkerAlertNotifications ? (
@@ -3563,22 +3540,13 @@ export function EnterpriseAlertsWorkspace({
                                         type="button"
                                         variant="outline"
                                         data-testid={`enterprise-alerts-worker-notification-suppress-${item.id}`}
-                                        disabled={
-                                          !writable ||
-                                          notificationHistoryLoadingState ||
-                                          Boolean(retryingWorkerAlertNotificationID) ||
-                                          retryingWorkerAlertNotificationBatch ||
-                                          restoringWorkerAlertNotificationBatch ||
-                                          suppressingWorkerAlertNotificationBatch ||
-                                          autoRetryingWorkerAlertNotifications
-                                        }
+                                        disabled={Boolean(notificationActionDisabledReason)}
+                                        title={notificationActionDisabledReason || undefined}
                                         onClick={() => {
                                           void onBatchSuppressWorkerAlertNotifications([item.id])
                                         }}
                                       >
-                                        {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.suppress", {
-                                          defaultValue: "Suppress",
-                                        })}
+                                        {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.suppress")}
                                       </Button>
                                     ) : null}
                                     {item.status === "skipped" &&
@@ -3590,26 +3558,15 @@ export function EnterpriseAlertsWorkspace({
                                         type="button"
                                         variant="outline"
                                         data-testid={`enterprise-alerts-worker-notification-restore-${item.id}`}
-                                        disabled={
-                                          !writable ||
-                                          notificationHistoryLoadingState ||
-                                          Boolean(retryingWorkerAlertNotificationID) ||
-                                          retryingWorkerAlertNotificationBatch ||
-                                          restoringWorkerAlertNotificationBatch ||
-                                          suppressingWorkerAlertNotificationBatch ||
-                                          autoRetryingWorkerAlertNotifications
-                                        }
+                                        disabled={Boolean(notificationActionDisabledReason)}
+                                        title={notificationActionDisabledReason || undefined}
                                         onClick={() => {
                                           void onBatchRestoreWorkerAlertNotifications([item.id])
                                         }}
                                       >
                                         {restoringWorkerAlertNotificationBatch
-                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoring", {
-                                              defaultValue: "Restoring...",
-                                            })
-                                          : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restore", {
-                                              defaultValue: "Restore",
-                                            })}
+                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restoring")
+                                          : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.restore")}
                                       </Button>
                                     ) : null}
                                     <Button
@@ -3622,12 +3579,8 @@ export function EnterpriseAlertsWorkspace({
                                       }}
                                     >
                                       {detailsExpanded
-                                        ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.hideDetails", {
-                                            defaultValue: "Hide details",
-                                          })
-                                        : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.details", {
-                                            defaultValue: "Details",
-                                          })}
+                                        ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.hideDetails")
+                                        : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.details")}
                                     </Button>
                                   </div>
                                 </TableCell>
@@ -3641,17 +3594,13 @@ export function EnterpriseAlertsWorkspace({
                                     >
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsFingerprint", {
-                                            defaultValue: "Fingerprint",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsFingerprint")}
                                         </p>
                                         <p className="break-all">{item.fingerprint || t("enterpriseAlertsWorkspace.common.emptyDash")}</p>
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsIdempotencyKey", {
-                                            defaultValue: "Idempotency key",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsIdempotencyKey")}
                                         </p>
                                         <p className="break-all">
                                           {item.idempotency_key || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -3659,17 +3608,13 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsRequestID", {
-                                            defaultValue: "Request ID",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsRequestID")}
                                         </p>
                                         <p className="break-all">{item.request_id || t("enterpriseAlertsWorkspace.common.emptyDash")}</p>
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsSourceNotificationID", {
-                                            defaultValue: "Source notification",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsSourceNotificationID")}
                                         </p>
                                         <p className="break-all">
                                           {item.source_notification_id || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -3677,9 +3622,7 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsRestoreStatus", {
-                                            defaultValue: "Restore status",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsRestoreStatus")}
                                         </p>
                                         <p className="break-all">
                                           {formatWorkerAlertNotificationRestoreStatus(item.restore_status)}
@@ -3687,33 +3630,25 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsPendingAge", {
-                                            defaultValue: "Pending age",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsPendingAge")}
                                         </p>
                                         <p>{formatWorkerAlertNotificationPendingAge(item.pending_age_seconds)}</p>
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsConfirmAttempts", {
-                                            defaultValue: "Confirm attempts",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsConfirmAttempts")}
                                         </p>
                                         <p>{item.confirm_attempts ?? t("enterpriseAlertsWorkspace.common.emptyDash")}</p>
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsNextRetryAt", {
-                                            defaultValue: "Next retry at",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsNextRetryAt")}
                                         </p>
                                         <p>{item.next_retry_at ? formatDateTime(item.next_retry_at) : t("enterpriseAlertsWorkspace.common.emptyDash")}</p>
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsLastConfirmResult", {
-                                            defaultValue: "Last confirm result",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsLastConfirmResult")}
                                         </p>
                                         <p className="break-all">
                                           {item.last_confirm_result || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -3721,9 +3656,7 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsLastConfirmAttemptAt", {
-                                            defaultValue: "Last confirm attempt at",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsLastConfirmAttemptAt")}
                                         </p>
                                         <p>
                                           {item.last_confirm_attempt_at
@@ -3733,9 +3666,7 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsProviderError", {
-                                            defaultValue: "Provider error",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsProviderError")}
                                         </p>
                                         <p className="break-all">
                                           {item.provider_error || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -3743,9 +3674,7 @@ export function EnterpriseAlertsWorkspace({
                                       </div>
                                       <div className="space-y-1 md:col-span-2">
                                         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsChannelResults", {
-                                            defaultValue: "Channel results",
-                                          })}
+                                          {t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.detailsChannelResults")}
                                         </p>
                                         {item.channel_results && item.channel_results.length > 0 ? (
                                           <div className="space-y-1">
@@ -3795,12 +3724,8 @@ export function EnterpriseAlertsWorkspace({
                       }}
                     >
                       {workerAlertNotificationLoadingMore
-                        ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loadingMore", {
-                            defaultValue: "Loading more...",
-                          })
-                        : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loadMore", {
-                            defaultValue: "Load more",
-                          })}
+                        ? t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loadingMore")
+                        : t("enterpriseAlertsWorkspace.syncAndWorker.notificationHistory.loadMore")}
                     </Button>
                   </div>
                 ) : null}
@@ -3870,14 +3795,10 @@ export function EnterpriseAlertsWorkspace({
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-medium">
-                        {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.title", {
-                          defaultValue: "Webhook execution history",
-                        })}
+                        {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.title")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.description", {
-                          defaultValue: "Track queued Talenta receipt processing and DLQ replay execution records.",
-                        })}
+                        {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.description")}
                       </p>
                     </div>
                     <Badge variant="secondary">
@@ -3889,21 +3810,15 @@ export function EnterpriseAlertsWorkspace({
                     {[
                       {
                         value: "all" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.all", {
-                          defaultValue: "All kinds",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.all"),
                       },
                       {
                         value: "receipt_process" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.receiptProcess", {
-                          defaultValue: "Receipt process",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.receiptProcess"),
                       },
                       {
                         value: "dlq_replay" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.dlqReplay", {
-                          defaultValue: "DLQ replay",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.kindFilter.dlqReplay"),
                       },
                     ].map((item) => (
                       <Button
@@ -3968,21 +3883,15 @@ export function EnterpriseAlertsWorkspace({
                     {[
                       {
                         value: "all" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.all", {
-                          defaultValue: "All modes",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.all"),
                       },
                       {
                         value: "queued" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.queued", {
-                          defaultValue: "Queued",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.queued"),
                       },
                       {
                         value: "inline" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.inline", {
-                          defaultValue: "Inline",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.executionModeFilter.inline"),
                       },
                     ].map((item) => (
                       <Button
@@ -4002,27 +3911,19 @@ export function EnterpriseAlertsWorkspace({
                     {[
                       {
                         value: "all" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.all", {
-                          defaultValue: "All dispatch",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.all"),
                       },
                       {
                         value: "worker_tick" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.workerTick", {
-                          defaultValue: "Worker tick",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.workerTick"),
                       },
                       {
                         value: "worker_task_channel" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.workerTaskChannel", {
-                          defaultValue: "Task channel",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.workerTaskChannel"),
                       },
                       {
                         value: "goroutine_fallback" as const,
-                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.goroutineFallback", {
-                          defaultValue: "Goroutine fallback",
-                        }),
+                        label: t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchModeFilter.goroutineFallback"),
                       },
                     ].map((item) => (
                       <Button
@@ -4044,18 +3945,14 @@ export function EnterpriseAlertsWorkspace({
                       onChange={(event) => {
                         setExecutionHistoryQuery(event.target.value)
                       }}
-                      placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.searchPlaceholder", {
-                        defaultValue: "Search connector, request, event, target, dispatch mode, or error",
-                      })}
+                      placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.searchPlaceholder")}
                     />
                     <Input
                       value={executionHistoryTargetStatusFilter}
                       onChange={(event) => {
                         setExecutionHistoryTargetStatusFilter(event.target.value)
                       }}
-                      placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.targetStatusPlaceholder", {
-                        defaultValue: "Filter target status exactly, e.g. processed",
-                      })}
+                      placeholder={t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.targetStatusPlaceholder")}
                     />
                   </div>
                   {selectedHRISWebhookExecutionID ? (
@@ -4067,9 +3964,7 @@ export function EnterpriseAlertsWorkspace({
                         <div className="space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-medium">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.title", {
-                                defaultValue: "Execution detail",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.title")}
                             </p>
                             <Badge variant="secondary">
                               {selectedHRISWebhookExecution?.id || selectedHRISWebhookExecutionID}
@@ -4087,16 +3982,13 @@ export function EnterpriseAlertsWorkspace({
                             {selectedHRISWebhookExecution?.target_status ? (
                               <Badge variant="outline">
                                 {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.targetStatus", {
-                                  defaultValue: "Target {{status}}",
                                   status: formatLifecycleToken(selectedHRISWebhookExecution.target_status),
                                 })}
                               </Badge>
                             ) : null}
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.description", {
-                              defaultValue: "Drill into a queued Talenta execution record and keep the current selection in the URL.",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.description")}
                           </p>
                           {selectedHRISWebhookExecutionURLHint ? (
                             <p
@@ -4108,9 +4000,7 @@ export function EnterpriseAlertsWorkspace({
                           ) : null}
                           {!selectedHRISWebhookExecutionInCurrentScope && !executionHistoryLoadingState ? (
                             <p className="text-xs text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.filteredHint", {
-                                defaultValue: "This record was loaded via execution_id and may be outside the current list filter.",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.filteredHint")}
                             </p>
                           ) : null}
                         </div>
@@ -4129,12 +4019,8 @@ export function EnterpriseAlertsWorkspace({
                               }}
                             >
                               {executionActionID === selectedHRISWebhookExecution.id
-                                ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replaying", {
-                                    defaultValue: "Replaying...",
-                                  })
-                                : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replay", {
-                                    defaultValue: "Replay failed execution",
-                                  })}
+                                ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replaying")
+                                : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replay")}
                             </Button>
                           ) : null}
                           {selectedHRISWebhookExecution ? (
@@ -4162,9 +4048,7 @@ export function EnterpriseAlertsWorkspace({
                                 )
                               }}
                             >
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.openSourceExecution", {
-                                defaultValue: "Open source execution",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.openSourceExecution")}
                             </Button>
                           ) : null}
                           {onSelectHRISWebhookExecution ? (
@@ -4177,18 +4061,14 @@ export function EnterpriseAlertsWorkspace({
                                 onSelectHRISWebhookExecution(null)
                               }}
                             >
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.hideDetails", {
-                                defaultValue: "Hide details",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.hideDetails")}
                             </Button>
                           ) : null}
                         </div>
                       </div>
                       {selectedHRISWebhookExecutionLoading ? (
                         <p className="mt-3 text-sm text-muted-foreground">
-                          {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.loading", {
-                            defaultValue: "Loading execution details...",
-                          })}
+                          {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.loading")}
                         </p>
                       ) : null}
                       {selectedHRISWebhookExecutionError ? (
@@ -4203,9 +4083,7 @@ export function EnterpriseAlertsWorkspace({
                         >
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.kind", {
-                                defaultValue: "Kind",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.kind")}
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline">
@@ -4218,40 +4096,32 @@ export function EnterpriseAlertsWorkspace({
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.timeline", {
-                                defaultValue: "Timeline",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.timeline")}
                             </p>
                             <p>
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.timelineQueued", {
-                                defaultValue: "Queued {{value}}",
                                 value: formatDateTime(selectedHRISWebhookExecution.queued_at),
                               })}
                             </p>
                             <p className="text-muted-foreground">
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.startedAt", {
-                                defaultValue: "Started {{value}}",
                                 value: formatDateTime(selectedHRISWebhookExecution.started_at),
                               })}
                             </p>
                             <p className="text-muted-foreground">
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.finishedAt", {
-                                defaultValue: "Finished {{value}}",
                                 value: formatDateTime(selectedHRISWebhookExecution.finished_at),
                               })}
                             </p>
                             <p className="text-muted-foreground">
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.timelineUpdated", {
-                                defaultValue: "Updated {{value}}",
                                 value: formatDateTime(selectedHRISWebhookExecution.updated_at),
                               })}
                             </p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.target", {
-                                defaultValue: "Target",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.target")}
                             </p>
                             <p className="break-all">
                               {selectedHRISWebhookExecution.target_id || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -4262,9 +4132,7 @@ export function EnterpriseAlertsWorkspace({
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.connector", {
-                                defaultValue: "Connector",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.connector")}
                             </p>
                             <p className="break-all">
                               {selectedHRISWebhookExecution.connector_id || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -4275,9 +4143,7 @@ export function EnterpriseAlertsWorkspace({
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.request", {
-                                defaultValue: "Request",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.request")}
                             </p>
                             <p className="break-all">
                               {selectedHRISWebhookExecution.request_id || t("enterpriseAlertsWorkspace.common.emptyDash")}
@@ -4288,9 +4154,7 @@ export function EnterpriseAlertsWorkspace({
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.dispatch", {
-                                defaultValue: "Dispatch",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.dispatch")}
                             </p>
                             <p>
                               {selectedHRISWebhookExecution.execution_mode
@@ -4304,7 +4168,6 @@ export function EnterpriseAlertsWorkspace({
                             </p>
                             <p className="break-all text-muted-foreground">
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchMeta", {
-                                defaultValue: "Actor {{requestedBy}} / audit {{auditSource}}",
                                 requestedBy:
                                   selectedHRISWebhookExecution.requested_by ||
                                   t("enterpriseAlertsWorkspace.common.emptyDash"),
@@ -4317,9 +4180,7 @@ export function EnterpriseAlertsWorkspace({
                           {selectedHRISWebhookExecution.replay_source_execution_id ? (
                             <div className="space-y-1">
                               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.replay", {
-                                  defaultValue: "Replay",
-                                })}
+                                {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.replay")}
                               </p>
                               <p className="break-all">
                                 {selectedHRISWebhookExecution.replay_source_execution_id}
@@ -4328,7 +4189,6 @@ export function EnterpriseAlertsWorkspace({
                                 {t(
                                   "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.replayWorkerRequirement",
                                   {
-                                    defaultValue: "Worker {{value}}",
                                     value: formatExecutionReplayWorkerRequirement(
                                       selectedHRISWebhookExecution.replay_require_worker
                                     ),
@@ -4340,13 +4200,10 @@ export function EnterpriseAlertsWorkspace({
                           {selectedHRISWebhookExecution.queue_state ? (
                             <div className="space-y-1">
                               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.runtime", {
-                                  defaultValue: "Runtime",
-                                })}
+                                {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.runtime")}
                               </p>
                               <p>
                                 {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeMeta", {
-                                  defaultValue: "Queue {{queueState}} / retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
                                   queueState: formatLifecycleToken(selectedHRISWebhookExecution.queue_state),
                                   nextRetryAt: formatDateTime(selectedHRISWebhookExecution.next_retry_at),
                                   processingDeadlineAt: formatDateTime(
@@ -4361,7 +4218,6 @@ export function EnterpriseAlertsWorkspace({
                                     {t(
                                       "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.cooldownRemaining",
                                       {
-                                        defaultValue: "Cooldown {{seconds}}s",
                                         seconds: selectedHRISWebhookExecution.cooldown_remaining_seconds,
                                       }
                                     )}
@@ -4370,10 +4226,7 @@ export function EnterpriseAlertsWorkspace({
                                 {selectedHRISWebhookExecution.stale_in_flight ? (
                                   <Badge variant="destructive">
                                     {t(
-                                      "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.staleInFlight",
-                                      {
-                                        defaultValue: "Stale in-flight",
-                                      }
+                                      "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.staleInFlight"
                                     )}
                                   </Badge>
                                 ) : null}
@@ -4382,28 +4235,22 @@ export function EnterpriseAlertsWorkspace({
                           ) : null}
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.attempts", {
-                                defaultValue: "Attempts",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.attempts")}
                             </p>
                             <p>
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.attemptCount", {
-                                defaultValue: "Runs {{count}}",
                                 count: selectedHRISWebhookExecution.attempt_count ?? 0,
                               })}
                             </p>
                             <p className="text-muted-foreground">
                               {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.requeueCount", {
-                                defaultValue: "Requeued {{count}}",
                                 count: selectedHRISWebhookExecution.requeue_count ?? 0,
                               })}
                             </p>
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.failureStage", {
-                                defaultValue: "Failure stage",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.failureStage")}
                             </p>
                             <p>
                               {selectedHRISWebhookExecution.failure_stage ||
@@ -4412,9 +4259,7 @@ export function EnterpriseAlertsWorkspace({
                           </div>
                           <div className="space-y-1 md:col-span-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.lastError", {
-                                defaultValue: "Last error",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.lastError")}
                             </p>
                             <p className="break-all rounded-md border bg-background/70 px-3 py-2">
                               {selectedHRISWebhookExecution.last_error ||
@@ -4424,9 +4269,7 @@ export function EnterpriseAlertsWorkspace({
                         </div>
                       ) : !selectedHRISWebhookExecutionLoading && !selectedHRISWebhookExecutionError ? (
                         <p className="mt-3 text-sm text-muted-foreground">
-                          {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.empty", {
-                            defaultValue: "No execution details are available for this record.",
-                          })}
+                          {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.detail.empty")}
                         </p>
                       ) : null}
                     </div>
@@ -4434,7 +4277,6 @@ export function EnterpriseAlertsWorkspace({
                   {executionHistoryTotalCount > hrisWebhookExecutions.length ? (
                     <p className="mt-2 text-xs text-muted-foreground">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.paginationSummary", {
-                        defaultValue: "Loaded {{loaded}} of {{total}} execution records.",
                         loaded: hrisWebhookExecutions.length,
                         total: executionHistoryTotalCount,
                       })}
@@ -4445,29 +4287,19 @@ export function EnterpriseAlertsWorkspace({
                       <TableHeader>
                         <TableRow>
                           <TableHead>
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.queuedAt", {
-                              defaultValue: "Queued",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.queuedAt")}
                           </TableHead>
                           <TableHead>
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.kind", {
-                              defaultValue: "Kind",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.kind")}
                           </TableHead>
                           <TableHead>
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.dispatch", {
-                              defaultValue: "Dispatch",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.dispatch")}
                           </TableHead>
                           <TableHead>
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.status", {
-                              defaultValue: "Status",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.status")}
                           </TableHead>
                           <TableHead>
-                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.actions", {
-                              defaultValue: "Actions",
-                            })}
+                            {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.columns.actions")}
                           </TableHead>
                         </TableRow>
                       </TableHeader>
@@ -4475,18 +4307,14 @@ export function EnterpriseAlertsWorkspace({
                         {executionHistoryLoadingState ? (
                           <TableRow>
                             <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loading", {
-                                defaultValue: "Loading execution history...",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loading")}
                             </TableCell>
                           </TableRow>
                         ) : null}
                         {!executionHistoryLoadingState && hrisWebhookExecutions.length === 0 ? (
                           <TableRow>
                             <TableCell colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
-                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.empty", {
-                                defaultValue: "No execution history matches the current scope.",
-                              })}
+                              {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.empty")}
                             </TableCell>
                           </TableRow>
                         ) : null}
@@ -4501,13 +4329,11 @@ export function EnterpriseAlertsWorkspace({
                                   <p className="text-sm">{formatDateTime(item.queued_at)}</p>
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.startedAt", {
-                                      defaultValue: "Started {{value}}",
                                       value: formatDateTime(item.started_at),
                                     })}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.finishedAt", {
-                                      defaultValue: "Finished {{value}}",
                                       value: formatDateTime(item.finished_at),
                                     })}
                                   </p>
@@ -4543,7 +4369,6 @@ export function EnterpriseAlertsWorkspace({
                                   </div>
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.dispatchMeta", {
-                                      defaultValue: "Actor {{requestedBy}} / audit {{auditSource}}",
                                       requestedBy: item.requested_by || t("enterpriseAlertsWorkspace.common.emptyDash"),
                                       auditSource: item.audit_source || t("enterpriseAlertsWorkspace.common.emptyDash"),
                                     })}
@@ -4551,7 +4376,6 @@ export function EnterpriseAlertsWorkspace({
                                   {item.replay_source_execution_id ? (
                                     <p className="mt-1 break-all text-xs text-muted-foreground">
                                       {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayMeta", {
-                                        defaultValue: "Replay of {{sourceExecutionID}} / worker {{workerRequirement}}",
                                         sourceExecutionID: item.replay_source_execution_id,
                                         workerRequirement: formatExecutionReplayWorkerRequirement(
                                           item.replay_require_worker
@@ -4562,7 +4386,6 @@ export function EnterpriseAlertsWorkspace({
                                   {item.queue_state ? (
                                     <p className="mt-1 text-xs text-muted-foreground">
                                       {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeMeta", {
-                                        defaultValue: "Queue {{queueState}} / retry {{nextRetryAt}} / deadline {{processingDeadlineAt}}",
                                         queueState: formatLifecycleToken(item.queue_state),
                                         nextRetryAt: formatDateTime(item.next_retry_at),
                                         processingDeadlineAt: formatDateTime(item.processing_deadline_at),
@@ -4577,7 +4400,6 @@ export function EnterpriseAlertsWorkspace({
                                           {t(
                                             "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.cooldownRemaining",
                                             {
-                                              defaultValue: "Cooldown {{seconds}}s",
                                               seconds: item.cooldown_remaining_seconds || 0,
                                             }
                                           )}
@@ -4586,10 +4408,7 @@ export function EnterpriseAlertsWorkspace({
                                       {item.stale_in_flight ? (
                                         <Badge variant="destructive">
                                           {t(
-                                            "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.staleInFlight",
-                                            {
-                                              defaultValue: "Stale in-flight",
-                                            }
+                                            "enterpriseAlertsWorkspace.syncAndWorker.executionHistory.runtimeBadges.staleInFlight"
                                           )}
                                         </Badge>
                                       ) : null}
@@ -4597,7 +4416,6 @@ export function EnterpriseAlertsWorkspace({
                                   ) : null}
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.auditCounts", {
-                                      defaultValue: "Runs {{attempts}} / requeued {{requeues}}",
                                       attempts: item.attempt_count ?? 0,
                                       requeues: item.requeue_count ?? 0,
                                     })}
@@ -4611,7 +4429,6 @@ export function EnterpriseAlertsWorkspace({
                                     {item.target_status ? (
                                       <Badge variant="outline">
                                         {t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.targetStatus", {
-                                          defaultValue: "Target {{status}}",
                                           status: formatLifecycleToken(item.target_status),
                                         })}
                                       </Badge>
@@ -4636,12 +4453,8 @@ export function EnterpriseAlertsWorkspace({
                                         }}
                                       >
                                         {selectedHRISWebhookExecutionID === item.id
-                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.hideDetails", {
-                                              defaultValue: "Hide details",
-                                            })
-                                          : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.details", {
-                                              defaultValue: "Details",
-                                            })}
+                                          ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.hideDetails")
+                                          : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.details")}
                                       </Button>
                                     ) : null}
                                     <Button asChild size="sm" variant="outline">
@@ -4673,40 +4486,32 @@ export function EnterpriseAlertsWorkspace({
                         }}
                       >
                         {hrisWebhookExecutionLoadingMore
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loadingMore", {
-                              defaultValue: "Loading more...",
-                            })
-                          : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loadMore", {
-                              defaultValue: "Load more",
-                            })}
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loadingMore")
+                          : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.loadMore")}
                       </Button>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="rounded-md border bg-background/70 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.title")}
-                    </p>
+                <EnterpriseHRISReceipts
+                  title={t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.title")}
+                  actions={
                     <div className="flex flex-wrap items-center gap-2">
-                      {visibleProcessableWebhookReceiptIDs.length > 0 && onBatchProcessHRISWebhookReceipts ? (
+                      {onBatchProcessHRISWebhookReceipts ? (
                         <Button
                           size="sm"
                           type="button"
                           variant="outline"
-                          disabled={receiptActionBusy}
+                          disabled={Boolean(receiptBatchDisabledReason)}
+                          title={receiptBatchDisabledReason || undefined}
                           data-testid="enterprise-alerts-webhook-receipt-process-visible"
                           onClick={() => {
                             void onBatchProcessHRISWebhookReceipts(visibleProcessableWebhookReceiptIDs)
                           }}
                         >
                           {receiptActionBusy
-                            ? t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.actions.processingVisible", {
-                                defaultValue: "Processing visible...",
-                              })
+                            ? t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.actions.processingVisible")
                             : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.actions.processVisible", {
-                                defaultValue: "Process visible ready ({{count}})",
                                 count: visibleProcessableWebhookReceiptIDs.length,
                               })}
                         </Button>
@@ -4714,8 +4519,12 @@ export function EnterpriseAlertsWorkspace({
                       <Badge variant="secondary">
                         {filteredWebhookReceipts.length} / {hrisWebhookReceipts.length}
                       </Badge>
+                      {receiptBatchDisabledReason ? (
+                        <p className="w-full basis-full text-xs text-muted-foreground">{receiptBatchDisabledReason}</p>
+                      ) : null}
                     </div>
-                  </div>
+                  }
+                >
                   <div
                     className="mt-3 flex flex-wrap items-center gap-2"
                     data-testid="enterprise-alerts-webhook-receipt-filters"
@@ -4747,7 +4556,6 @@ export function EnterpriseAlertsWorkspace({
                       data-testid="enterprise-alerts-webhook-receipt-batch-hint"
                     >
                       {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchHint", {
-                        defaultValue: "Process {{count}} ready receipt entries under the current filters.",
                         count: visibleProcessableWebhookReceiptIDs.length,
                       })}
                     </p>
@@ -4758,7 +4566,6 @@ export function EnterpriseAlertsWorkspace({
                       data-testid="enterprise-alerts-webhook-receipt-pagination-summary"
                     >
                       {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.paginationSummary", {
-                        defaultValue: "Loaded {{loaded}} of {{total}} receipt entries.",
                         loaded: hrisWebhookReceipts.length,
                         total: webhookReceiptTotal,
                       })}
@@ -4771,9 +4578,7 @@ export function EnterpriseAlertsWorkspace({
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs font-medium">
-                          {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.title", {
-                            defaultValue: "Latest receipt batch",
-                          })}
+                          {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.title")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDateTime(latestWebhookReceiptBatchProcessResult.updated_at)}
@@ -4785,15 +4590,12 @@ export function EnterpriseAlertsWorkspace({
                       >
                         {latestWebhookReceiptBatchProcessResult.execution_mode === "queued"
                           ? t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.summaryQueued", {
-                              defaultValue: "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
                               total: latestWebhookReceiptBatchProcessResult.total_receipts,
                               queued: latestWebhookReceiptBatchProcessResult.queued ?? 0,
                               skipped: latestWebhookReceiptBatchProcessResult.skipped,
                               failed: latestWebhookReceiptBatchProcessResult.failed,
                             })
                           : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.summary", {
-                              defaultValue:
-                                "selected {{total}} / processed {{processed}} / skipped {{skipped}} / failed {{failed}} / dlq {{dlq}}",
                               total: latestWebhookReceiptBatchProcessResult.total_receipts,
                               processed: latestWebhookReceiptBatchProcessResult.processed,
                               skipped: latestWebhookReceiptBatchProcessResult.skipped,
@@ -4805,7 +4607,6 @@ export function EnterpriseAlertsWorkspace({
                       latestWebhookReceiptBatchProcessResult.dispatch_mode ? (
                         <p className="mt-1 text-xs text-muted-foreground">
                           {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.dispatch", {
-                            defaultValue: "Dispatch {{dispatchMode}}",
                             dispatchMode: formatLifecycleToken(latestWebhookReceiptBatchProcessResult.dispatch_mode),
                           })}
                         </p>
@@ -4835,7 +4636,6 @@ export function EnterpriseAlertsWorkspace({
                               </div>
                               <p className="mt-1 text-muted-foreground">
                                 {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.itemMeta", {
-                                  defaultValue: "receipt {{receiptID}} / connector {{connector}} / detail {{detail}}",
                                   receiptID: item.receipt_id,
                                   connector: item.item?.connector_id || "-",
                                   detail: item.error || item.item?.last_error || item.reason || "-",
@@ -4852,9 +4652,7 @@ export function EnterpriseAlertsWorkspace({
                                       onSelectHRISWebhookExecution(item.execution_id || null)
                                     }}
                                   >
-                                    {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.openExecution", {
-                                      defaultValue: "Open execution",
-                                    })}
+                                    {t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.batchResult.openExecution")}
                                   </Button>
                                   <Badge variant="outline">{item.execution_id}</Badge>
                                 </div>
@@ -4936,16 +4734,18 @@ export function EnterpriseAlertsWorkspace({
                               size="sm"
                               variant="outline"
                               data-testid="enterprise-alerts-webhook-receipt-process"
-                              disabled={receiptActionID === item.id || receiptActionBusy}
+                              disabled={Boolean(receiptActionDisabledReason) || receiptActionID === item.id}
+                              title={
+                                receiptActionDisabledReason ||
+                                (receiptActionID === item.id ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : undefined)
+                              }
                               onClick={() => {
                                 void onProcessHRISWebhookReceipt(item.id)
                               }}
                             >
                               {receiptActionID === item.id
                                 ? t("enterpriseAlertsWorkspace.common.processing")
-                                : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.actions.process", {
-                                    defaultValue: "Process",
-                                  })}
+                                : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.actions.process")}
                             </Button>
                           ) : null}
                         </div>
@@ -4973,16 +4773,12 @@ export function EnterpriseAlertsWorkspace({
                         }}
                       >
                         {hrisWebhookReceiptLoadingMore
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.loadingMore", {
-                              defaultValue: "Loading more...",
-                            })
-                          : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.loadMore", {
-                              defaultValue: "Load more",
-                            })}
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.loadingMore")
+                          : t("enterpriseAlertsWorkspace.syncAndWorker.webhookReceipts.loadMore")}
                       </Button>
                     </div>
                   ) : null}
-                </div>
+                </EnterpriseHRISReceipts>
 
                 <div className="rounded-md border bg-background/70 p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -5041,27 +4837,25 @@ export function EnterpriseAlertsWorkspace({
                   </div>
                 </div>
 
-                <div className="rounded-md border bg-background/70 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{t("enterpriseAlertsWorkspace.syncAndWorker.dlq.title")}</p>
+                <EnterpriseHRISDLQ
+                  title={t("enterpriseAlertsWorkspace.syncAndWorker.dlq.title")}
+                  actions={
                     <div className="flex flex-wrap items-center gap-2">
-                      {visibleReplayableDLQEntryIDs.length > 0 && onBatchReplayHRISWebhookDLQ ? (
+                      {onBatchReplayHRISWebhookDLQ ? (
                         <Button
                           size="sm"
                           type="button"
                           variant="outline"
-                          disabled={dlqActionBusy}
+                          disabled={Boolean(dlqBatchDisabledReason)}
+                          title={dlqBatchDisabledReason || undefined}
                           data-testid="enterprise-alerts-hris-dlq-replay-visible"
                           onClick={() => {
                             void onBatchReplayHRISWebhookDLQ(visibleReplayableDLQEntryIDs)
                           }}
                         >
                           {dlqActionBusy
-                            ? t("enterpriseAlertsWorkspace.syncAndWorker.dlq.actions.replayingVisible", {
-                                defaultValue: "Replaying visible...",
-                              })
+                            ? t("enterpriseAlertsWorkspace.syncAndWorker.dlq.actions.replayingVisible")
                             : t("enterpriseAlertsWorkspace.syncAndWorker.dlq.actions.replayVisible", {
-                                defaultValue: "Replay visible ({{count}})",
                                 count: visibleReplayableDLQEntryIDs.length,
                               })}
                         </Button>
@@ -5069,8 +4863,12 @@ export function EnterpriseAlertsWorkspace({
                       <Badge variant="secondary">
                         {filteredDLQEntries.length} / {hrisWebhookDLQEntries.length}
                       </Badge>
+                      {dlqBatchDisabledReason ? (
+                        <p className="w-full basis-full text-xs text-muted-foreground">{dlqBatchDisabledReason}</p>
+                      ) : null}
                     </div>
-                  </div>
+                  }
+                >
                   <div className="mt-3 flex flex-wrap items-center gap-2" data-testid="enterprise-alerts-hris-dlq-filters">
                     {dlqRuntimeFilterOptions.map((item) => {
                       const active = item.replayState
@@ -5096,7 +4894,6 @@ export function EnterpriseAlertsWorkspace({
                   {visibleReplayableDLQEntryIDs.length > 0 ? (
                     <p className="mt-2 text-xs text-muted-foreground" data-testid="enterprise-alerts-hris-dlq-batch-hint">
                       {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchHint", {
-                        defaultValue: "Replay up to {{count}} visible DLQ entries under the current filters.",
                         count: visibleReplayableDLQEntryIDs.length,
                       })}
                     </p>
@@ -5107,7 +4904,6 @@ export function EnterpriseAlertsWorkspace({
                       data-testid="enterprise-alerts-hris-dlq-pagination-summary"
                     >
                       {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.paginationSummary", {
-                        defaultValue: "Loaded {{loaded}} of {{total}} DLQ entries.",
                         loaded: hrisWebhookDLQEntries.length,
                         total: dlqTotal,
                       })}
@@ -5120,9 +4916,7 @@ export function EnterpriseAlertsWorkspace({
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs font-medium">
-                          {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.title", {
-                            defaultValue: "Latest DLQ batch",
-                          })}
+                          {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.title")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDateTime(latestWebhookDLQBatchReplayResult.updated_at)}
@@ -5134,14 +4928,12 @@ export function EnterpriseAlertsWorkspace({
                       >
                         {latestWebhookDLQBatchReplayResult.execution_mode === "queued"
                           ? t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.summaryQueued", {
-                              defaultValue: "selected {{total}} / queued {{queued}} / skipped {{skipped}} / failed {{failed}}",
                               total: latestWebhookDLQBatchReplayResult.total_entries,
                               queued: latestWebhookDLQBatchReplayResult.queued ?? 0,
                               skipped: latestWebhookDLQBatchReplayResult.skipped,
                               failed: latestWebhookDLQBatchReplayResult.failed,
                             })
                           : t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.summary", {
-                              defaultValue: "selected {{total}} / replayed {{replayed}} / skipped {{skipped}} / failed {{failed}}",
                               total: latestWebhookDLQBatchReplayResult.total_entries,
                               replayed: latestWebhookDLQBatchReplayResult.replayed,
                               skipped: latestWebhookDLQBatchReplayResult.skipped,
@@ -5152,7 +4944,6 @@ export function EnterpriseAlertsWorkspace({
                       latestWebhookDLQBatchReplayResult.dispatch_mode ? (
                         <p className="mt-1 text-xs text-muted-foreground">
                           {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.dispatch", {
-                            defaultValue: "Dispatch {{dispatchMode}}",
                             dispatchMode: formatLifecycleToken(latestWebhookDLQBatchReplayResult.dispatch_mode),
                           })}
                         </p>
@@ -5182,7 +4973,6 @@ export function EnterpriseAlertsWorkspace({
                               </div>
                               <p className="mt-1 text-muted-foreground">
                                 {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.itemMeta", {
-                                  defaultValue: "entry {{entryID}} / stage {{stage}} / detail {{detail}}",
                                   entryID: item.entry_id,
                                   stage: item.item?.failure_stage || "-",
                                   detail: item.error || item.item?.error || item.reason || "-",
@@ -5199,9 +4989,7 @@ export function EnterpriseAlertsWorkspace({
                                       onSelectHRISWebhookExecution(item.execution_id || null)
                                     }}
                                   >
-                                    {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.openExecution", {
-                                      defaultValue: "Open execution",
-                                    })}
+                                    {t("enterpriseAlertsWorkspace.syncAndWorker.dlq.batchResult.openExecution")}
                                   </Button>
                                   <Badge variant="outline">{item.execution_id}</Badge>
                                 </div>
@@ -5280,7 +5068,11 @@ export function EnterpriseAlertsWorkspace({
                               size="sm"
                               variant="outline"
                               data-testid="enterprise-alerts-hris-dlq-replay"
-                              disabled={dlqActionID === item.id || dlqActionBusy}
+                              disabled={Boolean(dlqActionDisabledReason) || dlqActionID === item.id}
+                              title={
+                                dlqActionDisabledReason ||
+                                (dlqActionID === item.id ? t("enterpriseAlertsWorkspace.disabledReasons.actionBusy") : undefined)
+                              }
                               onClick={() => {
                                 void onReplayHRISWebhookDLQ(item.id)
                               }}
@@ -5315,18 +5107,14 @@ export function EnterpriseAlertsWorkspace({
                         }}
                       >
                         {hrisWebhookDLQLoadingMore
-                          ? t("enterpriseAlertsWorkspace.syncAndWorker.dlq.loadingMore", {
-                              defaultValue: "Loading more...",
-                            })
-                          : t("enterpriseAlertsWorkspace.syncAndWorker.dlq.loadMore", {
-                              defaultValue: "Load more",
-                            })}
+                          ? t("enterpriseAlertsWorkspace.syncAndWorker.dlq.loadingMore")
+                          : t("enterpriseAlertsWorkspace.syncAndWorker.dlq.loadMore")}
                       </Button>
                     </div>
                   ) : null}
-                </div>
+                </EnterpriseHRISDLQ>
               </div>
-            </div>
+            </EnterpriseWorkerAlerts>
             </CardContent>
           </Card>
         ) : null}

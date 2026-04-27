@@ -57,6 +57,26 @@ function parseReceiverGroups(raw: string): string[] {
   )
 }
 
+function normalizeChannels(raw: unknown) {
+  if (Array.isArray(raw)) {
+    return {
+      email: raw.includes("email"),
+      whatsapp: raw.includes("whatsapp"),
+    }
+  }
+  if (raw && typeof raw === "object") {
+    const channels = raw as Partial<EnterpriseSyncWorkerAlertSubscription["channels"]>
+    return {
+      email: Boolean(channels.email),
+      whatsapp: Boolean(channels.whatsapp),
+    }
+  }
+  return {
+    email: true,
+    whatsapp: false,
+  }
+}
+
 export function EnterpriseSyncWorkerAlertSubscriptionCard({
   dispatching,
   formatDateTime,
@@ -80,13 +100,14 @@ export function EnterpriseSyncWorkerAlertSubscriptionCard({
     if (!subscription) {
       return
     }
-    setEnabled(subscription.enabled)
-    setEmailEnabled(subscription.channels.email)
-    setWhatsAppEnabled(subscription.channels.whatsapp)
-    setThreshold(String(subscription.worker_alert_threshold))
-    setWindowSeconds(String(subscription.window_seconds))
-    setCooldownSeconds(String(subscription.cooldown_seconds))
-    setReceiverGroups((subscription.receiver_groups ?? ["security"]).join(", "))
+    const channels = normalizeChannels(subscription.channels)
+    setEnabled(typeof subscription.enabled === "boolean" ? subscription.enabled : true)
+    setEmailEnabled(channels.email)
+    setWhatsAppEnabled(channels.whatsapp)
+    setThreshold(String(subscription.worker_alert_threshold ?? 3))
+    setWindowSeconds(String(subscription.window_seconds ?? 900))
+    setCooldownSeconds(String(subscription.cooldown_seconds ?? 900))
+    setReceiverGroups((subscription.receiver_groups?.length ? subscription.receiver_groups : ["security"]).join(", "))
     setDraftError("")
   }, [subscription])
 

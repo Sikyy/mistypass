@@ -28,13 +28,13 @@ export function AccessSectionsTabs({
     <Tabs value={activeSection} onValueChange={(value) => onSectionChange(value as AccessSection)} className="space-y-4">
       <TabsList className="grid w-full max-w-2xl grid-cols-3">
         <TabsTrigger value="directory">
-          {t("accessPage.components.sectionsTabs.directory", { defaultValue: "Employees & groups" })}
+          {t("accessPage.components.sectionsTabs.directory")}
         </TabsTrigger>
         <TabsTrigger value="policies">
-          {t("accessPage.components.sectionsTabs.policies", { defaultValue: "Access policies" })}
+          {t("accessPage.components.sectionsTabs.policies")}
         </TabsTrigger>
         <TabsTrigger value="grants">
-          {t("accessPage.components.sectionsTabs.grants", { defaultValue: "Temporary & visitor grants" })}
+          {t("accessPage.components.sectionsTabs.grants")}
         </TabsTrigger>
       </TabsList>
 

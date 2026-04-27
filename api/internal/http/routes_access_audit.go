@@ -29,6 +29,9 @@ func (s *server) listUsers(w http.ResponseWriter, r *http.Request) {
 	if buildingScope != nil {
 		items = filterUsersByScope(items, buildingScope)
 	}
+	if placeID := strings.TrimSpace(r.URL.Query().Get("place_id")); placeID != "" {
+		items = filterUsersByScope(items, map[string]struct{}{placeID: {}})
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
 	})

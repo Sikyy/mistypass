@@ -6,7 +6,7 @@ type MistyIslandMarkProps = {
   title?: string
 }
 
-export function MistyIslandMark({ className, markClassName, title = "MistyPass" }: MistyIslandMarkProps) {
+export function MistyIslandMark({ className, markClassName, title = "Mistyislet" }: MistyIslandMarkProps) {
   return (
     <div className={cn("relative inline-flex items-center justify-center", className)} aria-label={title}>
       <div className="absolute inset-0 rounded-full bg-white/20 blur-xl" aria-hidden />

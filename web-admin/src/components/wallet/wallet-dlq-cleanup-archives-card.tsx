@@ -31,10 +31,9 @@ export function WalletDlqCleanupArchivesCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("walletPage.components.dlqArchives.title", { defaultValue: "Advanced cleanup archives" })}</CardTitle>
+        <CardTitle className="text-base">{t("walletPage.components.dlqArchives.title")}</CardTitle>
         <CardDescription>
           {t("walletPage.components.dlqArchives.description", {
-            defaultValue: "Recent {{count}} cleanup records (newest first).",
             count: archives.length,
           })}
         </CardDescription>
@@ -43,25 +42,25 @@ export function WalletDlqCleanupArchivesCard({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("walletPage.components.dlqArchives.columns.time", { defaultValue: "Time" })}</TableHead>
-              <TableHead>{t("walletPage.components.dlqArchives.columns.actor", { defaultValue: "Actor" })}</TableHead>
-              <TableHead>{t("walletPage.components.dlqArchives.columns.filters", { defaultValue: "Filters" })}</TableHead>
-              <TableHead>{t("walletPage.components.dlqArchives.columns.result", { defaultValue: "Cleanup result" })}</TableHead>
-              <TableHead>{t("walletPage.components.dlqArchives.columns.jobs", { defaultValue: "Processed jobs" })}</TableHead>
+              <TableHead>{t("walletPage.components.dlqArchives.columns.time")}</TableHead>
+              <TableHead>{t("walletPage.components.dlqArchives.columns.actor")}</TableHead>
+              <TableHead>{t("walletPage.components.dlqArchives.columns.filters")}</TableHead>
+              <TableHead>{t("walletPage.components.dlqArchives.columns.result")}</TableHead>
+              <TableHead>{t("walletPage.components.dlqArchives.columns.jobs")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                  {t("walletPage.components.dlqArchives.loading", { defaultValue: "Loading archive records..." })}
+                  {t("walletPage.components.dlqArchives.loading")}
                 </TableCell>
               </TableRow>
             ) : null}
             {!loading && archives.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  {t("walletPage.components.dlqArchives.empty", { defaultValue: "No cleanup archive records yet." })}
+                  {t("walletPage.components.dlqArchives.empty")}
                 </TableCell>
               </TableRow>
             ) : null}
@@ -92,7 +91,7 @@ export function WalletDlqCleanupArchivesCard({
                     ) : (
                       <span className="inline-flex items-center gap-1">
                         <AlertTriangleIcon className="size-3" />
-                        {t("walletPage.components.dlqArchives.none", { defaultValue: "None" })}
+                        {t("walletPage.components.dlqArchives.none")}
                       </span>
                     )}
                   </TableCell>

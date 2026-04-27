@@ -143,27 +143,23 @@ function formatWorkerAlertFailureAge(seconds: number, t: TFunction) {
   if (normalized < 60) {
     return t("enterpriseSyncWorkspace.workerAlerts.guidance.duration.seconds", {
       count: normalized,
-      defaultValue: "{{count}} sec",
     })
   }
   const minutes = Math.floor(normalized / 60)
   if (minutes < 60) {
     return t("enterpriseSyncWorkspace.workerAlerts.guidance.duration.minutes", {
       count: minutes,
-      defaultValue: "{{count}} min",
     })
   }
   const hours = Math.floor(minutes / 60)
   if (hours < 48) {
     return t("enterpriseSyncWorkspace.workerAlerts.guidance.duration.hours", {
       count: hours,
-      defaultValue: "{{count}} hr",
     })
   }
   const days = Math.floor(hours / 24)
   return t("enterpriseSyncWorkspace.workerAlerts.guidance.duration.days", {
     count: days,
-    defaultValue: "{{count}} day",
   })
 }
 

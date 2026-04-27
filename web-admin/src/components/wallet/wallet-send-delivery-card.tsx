@@ -83,6 +83,25 @@ export function WalletSendDeliveryCard({
   walletScenarioLabel,
 }: WalletSendDeliveryCardProps) {
   const { t } = useTranslation()
+  const deliverySubmitDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : dispatchingDelivery
+      ? t("walletPage.disabledReasons.deliveryInProgress")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : !deliveryPassID
+          ? t("walletPage.disabledReasons.selectDeliveryPass")
+          : ""
+  const emailInputDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : !deliveryEmailEnabled
+      ? t("walletPage.disabledReasons.emailChannelOff")
+      : ""
+  const whatsAppInputDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : !deliveryWhatsAppEnabled
+      ? t("walletPage.disabledReasons.whatsAppChannelOff")
+      : ""
 
   return (
     <Card>
@@ -105,7 +124,7 @@ export function WalletSendDeliveryCard({
                   onDeliveryPassIDChange(value)
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0">
                   <SelectValue placeholder={t("walletPage.placeholders.deliveryPass")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -124,8 +143,8 @@ export function WalletSendDeliveryCard({
 
           {selectedDeliveryPass ? (
             <div className="rounded-xl border bg-muted/10 px-4 py-3 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">{selectedDeliveryPass.target_id}</span>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="min-w-0 break-words font-medium">{selectedDeliveryPass.target_id}</span>
                 <Badge variant={passStatusVariant(selectedDeliveryPass.status)}>
                   {passStatusLabel(selectedDeliveryPass.status)}
                 </Badge>
@@ -191,6 +210,7 @@ export function WalletSendDeliveryCard({
                     <Switch
                       checked={field.value}
                       disabled={!writable}
+                      title={!writable ? t("walletPage.disabledReasons.readOnly") : undefined}
                       onCheckedChange={(checked) => {
                         field.onChange(checked)
                         onDeliveryEmailEnabledChange(checked)
@@ -203,6 +223,7 @@ export function WalletSendDeliveryCard({
                 {...deliveryEmailRecipientsField}
                 rows={4}
                 disabled={!writable || !deliveryEmailEnabled}
+                title={emailInputDisabledReason || undefined}
                 onChange={(event) => {
                   deliveryEmailRecipientsField.onChange(event)
                   onDeliveryEmailRecipientsChange(event.target.value)
@@ -227,6 +248,7 @@ export function WalletSendDeliveryCard({
                     <Switch
                       checked={field.value}
                       disabled={!writable}
+                      title={!writable ? t("walletPage.disabledReasons.readOnly") : undefined}
                       onCheckedChange={(checked) => {
                         field.onChange(checked)
                         onDeliveryWhatsAppEnabledChange(checked)
@@ -239,6 +261,7 @@ export function WalletSendDeliveryCard({
                 {...deliveryWhatsAppRecipientsField}
                 rows={4}
                 disabled={!writable || !deliveryWhatsAppEnabled}
+                title={whatsAppInputDisabledReason || undefined}
                 onChange={(event) => {
                   deliveryWhatsAppRecipientsField.onChange(event)
                   onDeliveryWhatsAppRecipientsChange(event.target.value)
@@ -259,6 +282,7 @@ export function WalletSendDeliveryCard({
                 !deliveryPassID ||
                 passDeliveryForm.formState.isSubmitting
               }
+              title={deliverySubmitDisabledReason || undefined}
             >
               {dispatchingDelivery ? t("walletPage.actions.sending") : t("walletPage.actions.sendDelivery")}
             </Button>
@@ -267,6 +291,9 @@ export function WalletSendDeliveryCard({
                 {t("walletPage.hints.readOnlyDeliveryReceiptsOnly")}
                 {readOnlyBoundaryHint}
               </span>
+            ) : null}
+            {writable && deliverySubmitDisabledReason ? (
+              <span className="mp-kpi-note">{deliverySubmitDisabledReason}</span>
             ) : null}
           </div>
 

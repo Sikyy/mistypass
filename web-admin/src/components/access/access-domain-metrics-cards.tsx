@@ -80,7 +80,7 @@ export function AccessDomainMetricsCards({
           </CardTitle>
         </CardHeader>
         <CardContent className="mp-kpi-note">
-          {t("accessPage.components.metrics.deliveryMethodsNote", { defaultValue: "MistyPass mobile pass / email QR." })}
+          {t("accessPage.components.metrics.deliveryMethodsNote", { defaultValue: "Mistyislet mobile pass / email QR." })}
         </CardContent>
       </Card>
     </div>

@@ -436,6 +436,31 @@ export function EnterpriseHRISConnectorPanel({
     form.formState.errors.updated_after_param?.message ||
     form.formState.errors.webhook_secret_ref?.message ||
     form.formState.errors.webhook_secret_value?.message
+  const formDisabledReason = !writable
+    ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledReadOnly")
+    : loading
+      ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledLoading")
+      : saving
+        ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledSaving")
+        : ""
+  const credentialRefDisabledReason =
+    formDisabledReason ||
+    (credentialSecrets.length === 0
+      ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledNoCredentialRefs")
+      : "")
+  const webhookSecretRefDisabledReason =
+    formDisabledReason ||
+    (webhookSecrets.length === 0
+      ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledNoWebhookSecretRefs")
+      : "")
+  const incrementalDisabledReason =
+    formDisabledReason ||
+    (credentialMode === "existing_ref"
+      ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledExistingCredentialRef")
+      : "")
+  const submitDisabledReason =
+    formDisabledReason ||
+    (form.formState.isSubmitting ? t("enterpriseSyncWorkspace.hrisConnector.form.disabledSaving") : "")
 
   async function onSubmit(values: TalentaConnectorFormValues) {
     const input: TalentaConnectorSaveInput = {
@@ -645,7 +670,7 @@ export function EnterpriseHRISConnectorPanel({
                   name="status"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger disabled={!writable || loading || saving}>
+                      <SelectTrigger disabled={Boolean(formDisabledReason)} title={formDisabledReason || undefined}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -663,7 +688,7 @@ export function EnterpriseHRISConnectorPanel({
                   name="sync_strategy"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger disabled={!writable || loading || saving}>
+                      <SelectTrigger disabled={Boolean(formDisabledReason)} title={formDisabledReason || undefined}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -690,7 +715,7 @@ export function EnterpriseHRISConnectorPanel({
                   name="credential_mode"
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-[220px]" disabled={!writable || loading || saving}>
+                      <SelectTrigger className="w-[220px]" disabled={Boolean(formDisabledReason)} title={formDisabledReason || undefined}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -714,7 +739,7 @@ export function EnterpriseHRISConnectorPanel({
                     name="credential_ref"
                     render={({ field }) => (
                       <Select value={field.value || undefined} onValueChange={field.onChange}>
-                        <SelectTrigger disabled={!writable || loading || saving || credentialSecrets.length === 0}>
+                        <SelectTrigger disabled={Boolean(credentialRefDisabledReason)} title={credentialRefDisabledReason || undefined}>
                           <SelectValue
                             placeholder={t("enterpriseSyncWorkspace.hrisConnector.form.credentialRefPlaceholder")}
                           />
@@ -752,7 +777,8 @@ export function EnterpriseHRISConnectorPanel({
                           onBlur={field.onBlur}
                           onChange={field.onChange}
                           placeholder="mekari-client-id"
-                          disabled={!writable || loading || saving}
+                          disabled={Boolean(formDisabledReason)}
+                          title={formDisabledReason || undefined}
                         />
                       )}
                     />
@@ -777,7 +803,8 @@ export function EnterpriseHRISConnectorPanel({
                               ? t("enterpriseSyncWorkspace.hrisConnector.form.clientSecretOptional")
                               : "mekari-client-secret"
                           }
-                          disabled={!writable || loading || saving}
+                          disabled={Boolean(formDisabledReason)}
+                          title={formDisabledReason || undefined}
                         />
                       )}
                     />
@@ -799,7 +826,8 @@ export function EnterpriseHRISConnectorPanel({
                               onBlur={field.onBlur}
                               onChange={field.onChange}
                               placeholder="https://api.mekari.com"
-                              disabled={!writable || loading || saving}
+                              disabled={Boolean(formDisabledReason)}
+                              title={formDisabledReason || undefined}
                             />
                           )}
                         />
@@ -819,7 +847,8 @@ export function EnterpriseHRISConnectorPanel({
                               onBlur={field.onBlur}
                               onChange={field.onChange}
                               placeholder="/v2/talenta/v2/employee"
-                              disabled={!writable || loading || saving}
+                              disabled={Boolean(formDisabledReason)}
+                              title={formDisabledReason || undefined}
                             />
                           )}
                         />
@@ -840,7 +869,8 @@ export function EnterpriseHRISConnectorPanel({
                               onChange={field.onChange}
                               inputMode="numeric"
                               placeholder="20"
-                              disabled={!writable || loading || saving}
+                              disabled={Boolean(formDisabledReason)}
+                              title={formDisabledReason || undefined}
                             />
                           )}
                         />
@@ -867,7 +897,8 @@ export function EnterpriseHRISConnectorPanel({
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
-                        disabled={!writable || loading || saving || credentialMode === "existing_ref"}
+                        disabled={Boolean(incrementalDisabledReason)}
+                        title={incrementalDisabledReason || undefined}
                       />
                     )}
                   />
@@ -896,7 +927,8 @@ export function EnterpriseHRISConnectorPanel({
                             onBlur={field.onBlur}
                             onChange={field.onChange}
                             placeholder="updated_after"
-                            disabled={!writable || loading || saving || credentialMode === "existing_ref"}
+                            disabled={Boolean(incrementalDisabledReason)}
+                            title={incrementalDisabledReason || undefined}
                           />
                         )}
                       />
@@ -916,7 +948,8 @@ export function EnterpriseHRISConnectorPanel({
                             onBlur={field.onBlur}
                             onChange={field.onChange}
                             placeholder="updated_before"
-                            disabled={!writable || loading || saving || credentialMode === "existing_ref"}
+                            disabled={Boolean(incrementalDisabledReason)}
+                            title={incrementalDisabledReason || undefined}
                           />
                         )}
                       />
@@ -936,7 +969,8 @@ export function EnterpriseHRISConnectorPanel({
                             onBlur={field.onBlur}
                             onChange={field.onChange}
                             placeholder={t("enterpriseSyncWorkspace.hrisConnector.form.timestampFormatPlaceholder")}
-                            disabled={!writable || loading || saving || credentialMode === "existing_ref"}
+                            disabled={Boolean(incrementalDisabledReason)}
+                            title={incrementalDisabledReason || undefined}
                           />
                         )}
                       />
@@ -960,7 +994,7 @@ export function EnterpriseHRISConnectorPanel({
                     name="webhook_secret_mode"
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="w-[220px]" disabled={!writable || loading || saving}>
+                        <SelectTrigger className="w-[220px]" disabled={Boolean(formDisabledReason)} title={formDisabledReason || undefined}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -991,7 +1025,7 @@ export function EnterpriseHRISConnectorPanel({
                       name="webhook_secret_ref"
                       render={({ field }) => (
                         <Select value={field.value || undefined} onValueChange={field.onChange}>
-                          <SelectTrigger disabled={!writable || loading || saving || webhookSecrets.length === 0}>
+                          <SelectTrigger disabled={Boolean(webhookSecretRefDisabledReason)} title={webhookSecretRefDisabledReason || undefined}>
                             <SelectValue
                               placeholder={t("enterpriseSyncWorkspace.hrisConnector.form.webhookSecretRefPlaceholder")}
                             />
@@ -1024,7 +1058,8 @@ export function EnterpriseHRISConnectorPanel({
                           onChange={field.onChange}
                           type="password"
                           placeholder="mekari-webhook-secret"
-                          disabled={!writable || loading || saving}
+                          disabled={Boolean(formDisabledReason)}
+                          title={formDisabledReason || undefined}
                         />
                       )}
                     />
@@ -1038,6 +1073,9 @@ export function EnterpriseHRISConnectorPanel({
               <p className="mp-kpi-note">{t("enterpriseSyncWorkspace.hrisConnector.form.readonlyHint")}</p>
             ) : null}
             {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
+            {submitDisabledReason ? (
+              <p className="mp-kpi-note">{submitDisabledReason}</p>
+            ) : null}
             {saveErrorGuidance ? (
               <div
                 className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 space-y-3"
@@ -1079,7 +1117,7 @@ export function EnterpriseHRISConnectorPanel({
               </div>
             ) : null}
             <div className="flex justify-end">
-              <Button type="submit" disabled={!writable || loading || saving || form.formState.isSubmitting}>
+              <Button type="submit" disabled={Boolean(submitDisabledReason)} title={submitDisabledReason || undefined}>
                 {saving
                   ? t("enterpriseSyncWorkspace.hrisConnector.form.saving")
                   : talentaConnector

@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
@@ -23,74 +24,76 @@ type AccessPolicyOption = {
 
 const accessPolicyScopeTypeValues = ["all", "building", "area", "door"] as const
 const accessPolicyStatusValues = ["active", "inactive", "draft"] as const
-const accessPolicyFormSchema = z
-  .object({
-    policy_name: z
-      .string()
-      .trim()
-      .min(1, "Please enter a policy name")
-      .max(64, "Policy name must be at most 64 characters"),
-    policy_scope_type: z.enum(accessPolicyScopeTypeValues),
-    policy_status: z.enum(accessPolicyStatusValues),
-    policy_building_id: z
-      .string()
-      .trim()
-      .max(64, "Building ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    policy_area_id: z
-      .string()
-      .trim()
-      .max(64, "Area ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    policy_door_id: z
-      .string()
-      .trim()
-      .max(64, "Door ID must be at most 64 characters")
-      .optional()
-      .or(z.literal("")),
-    policy_schedule: z
-      .string()
-      .trim()
-      .max(128, "Schedule must be at most 128 characters")
-      .optional()
-      .or(z.literal("")),
-    policy_members: z
-      .string()
-      .trim()
-      .min(1, "Please enter member count")
-      .max(10, "Invalid member count format")
-      .refine((value) => {
-        const parsed = Number.parseInt(value, 10)
-        return Number.isFinite(parsed) && parsed >= 0
-      }, "Member count must be an integer greater than or equal to 0"),
-  })
-  .superRefine((values, context) => {
-    if (values.policy_scope_type !== "all" && !values.policy_building_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["policy_building_id"],
-        message: "Building is required for this scope type",
-      })
-    }
-    if ((values.policy_scope_type === "area" || values.policy_scope_type === "door") && !values.policy_area_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["policy_area_id"],
-        message: "Area is required for this scope type",
-      })
-    }
-    if (values.policy_scope_type === "door" && !values.policy_door_id?.trim()) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["policy_door_id"],
-        message: "Door scope requires a selected door",
-      })
-    }
-  })
+function buildAccessPolicyFormSchema(t: (key: string) => string) {
+  return z
+    .object({
+      policy_name: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.policyForm.validation.policyNameRequired"))
+        .max(64, t("accessPage.components.policyForm.validation.policyNameMax")),
+      policy_scope_type: z.enum(accessPolicyScopeTypeValues),
+      policy_status: z.enum(accessPolicyStatusValues),
+      policy_building_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.policyForm.validation.buildingIdMax"))
+        .optional()
+        .or(z.literal("")),
+      policy_area_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.policyForm.validation.areaIdMax"))
+        .optional()
+        .or(z.literal("")),
+      policy_door_id: z
+        .string()
+        .trim()
+        .max(64, t("accessPage.components.policyForm.validation.doorIdMax"))
+        .optional()
+        .or(z.literal("")),
+      policy_schedule: z
+        .string()
+        .trim()
+        .max(128, t("accessPage.components.policyForm.validation.scheduleMax"))
+        .optional()
+        .or(z.literal("")),
+      policy_members: z
+        .string()
+        .trim()
+        .min(1, t("accessPage.components.policyForm.validation.memberCountRequired"))
+        .max(10, t("accessPage.components.policyForm.validation.memberCountMax"))
+        .refine((value) => {
+          const parsed = Number.parseInt(value, 10)
+          return Number.isFinite(parsed) && parsed >= 0
+        }, t("accessPage.components.policyForm.validation.memberCountInteger")),
+    })
+    .superRefine((values, context) => {
+      if (values.policy_scope_type !== "all" && !values.policy_building_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["policy_building_id"],
+          message: t("accessPage.components.policyForm.validation.buildingRequired"),
+        })
+      }
+      if ((values.policy_scope_type === "area" || values.policy_scope_type === "door") && !values.policy_area_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["policy_area_id"],
+          message: t("accessPage.components.policyForm.validation.areaRequired"),
+        })
+      }
+      if (values.policy_scope_type === "door" && !values.policy_door_id?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["policy_door_id"],
+          message: t("accessPage.components.policyForm.validation.doorRequired"),
+        })
+      }
+    })
+}
 
-type AccessPolicyFormValues = z.infer<typeof accessPolicyFormSchema>
+type AccessPolicyFormValues = z.infer<ReturnType<typeof buildAccessPolicyFormSchema>>
 
 type AccessPolicyFormProps = {
   areaID: string
@@ -151,6 +154,7 @@ export function AccessPolicyForm({
   status,
 }: AccessPolicyFormProps) {
   const { t } = useTranslation()
+  const accessPolicyFormSchema = useMemo(() => buildAccessPolicyFormSchema(t), [t])
   const policyForm = useForm<AccessPolicyFormValues>({
     resolver: zodResolver(accessPolicyFormSchema),
     values: {
@@ -177,6 +181,22 @@ export function AccessPolicyForm({
     policyForm.formState.errors.policy_schedule?.message ||
     policyForm.formState.errors.policy_members?.message ||
     ""
+  const buildingDisabledReason =
+    scopeType === "all" ? t("accessPage.components.policyForm.disabledReason.buildingAllScope") : undefined
+  const areaDisabledReason =
+    scopeType === "all"
+      ? t("accessPage.components.policyForm.disabledReason.areaAllScope")
+      : scopeType === "building"
+        ? t("accessPage.components.policyForm.disabledReason.areaBuildingScope")
+        : !buildingID
+          ? t("accessPage.components.policyForm.disabledReason.areaNeedsBuilding")
+          : undefined
+  const doorDisabledReason =
+    scopeType !== "door"
+      ? t("accessPage.components.policyForm.disabledReason.doorScopeOnly")
+      : !areaID
+        ? t("accessPage.components.policyForm.disabledReason.doorNeedsArea")
+        : undefined
 
   function onSubmitPolicyForm(values: AccessPolicyFormValues) {
     onSubmit({
@@ -196,13 +216,11 @@ export function AccessPolicyForm({
       <CardHeader>
         <CardTitle className="text-base">
           {isEditing
-            ? t("accessPage.components.policyForm.titleEdit", { defaultValue: "Edit policy" })
-            : t("accessPage.components.policyForm.titleCreate", { defaultValue: "Create policy" })}
+            ? t("accessPage.components.policyForm.titleEdit")
+            : t("accessPage.components.policyForm.titleCreate")}
         </CardTitle>
         <CardDescription>
-          {t("accessPage.components.policyForm.description", {
-            defaultValue: "Keep access rules as an independent layer scoped to building/area/door.",
-          })}
+          {t("accessPage.components.policyForm.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -213,10 +231,10 @@ export function AccessPolicyForm({
               policyNameField.onChange(event)
               onNameChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.policyForm.policyName", { defaultValue: "Policy name" })}
+            placeholder={t("accessPage.components.policyForm.policyName")}
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             <Controller
               control={policyForm.control}
               name="policy_scope_type"
@@ -228,14 +246,14 @@ export function AccessPolicyForm({
                     onScopeTypeChange(value)
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("accessPage.components.policyForm.scopeType", { defaultValue: "Scope type" })} />
+                  <SelectTrigger className="w-full min-w-0">
+                    <SelectValue placeholder={t("accessPage.components.policyForm.scopeType")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">{t("accessPage.components.policyForm.scopeAll", { defaultValue: "All areas" })}</SelectItem>
-                    <SelectItem value="building">{t("accessPage.components.policyForm.scopeBuilding", { defaultValue: "Building" })}</SelectItem>
-                    <SelectItem value="area">{t("accessPage.components.policyForm.scopeArea", { defaultValue: "Area" })}</SelectItem>
-                    <SelectItem value="door">{t("accessPage.components.policyForm.scopeDoor", { defaultValue: "Door" })}</SelectItem>
+                    <SelectItem value="all">{t("accessPage.components.policyForm.scopeAll")}</SelectItem>
+                    <SelectItem value="building">{t("accessPage.components.policyForm.scopeBuilding")}</SelectItem>
+                    <SelectItem value="area">{t("accessPage.components.policyForm.scopeArea")}</SelectItem>
+                    <SelectItem value="door">{t("accessPage.components.policyForm.scopeDoor")}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -251,13 +269,13 @@ export function AccessPolicyForm({
                     onStatusChange(value)
                   }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("accessPage.components.policyForm.status", { defaultValue: "Status" })} />
+                  <SelectTrigger className="w-full min-w-0">
+                    <SelectValue placeholder={t("accessPage.components.policyForm.status")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">{t("accessPage.components.policyForm.statusActive", { defaultValue: "Active" })}</SelectItem>
-                    <SelectItem value="inactive">{t("accessPage.components.policyForm.statusInactive", { defaultValue: "Inactive" })}</SelectItem>
-                    <SelectItem value="draft">{t("accessPage.components.policyForm.statusDraft", { defaultValue: "Draft" })}</SelectItem>
+                    <SelectItem value="active">{t("accessPage.components.policyForm.statusActive")}</SelectItem>
+                    <SelectItem value="inactive">{t("accessPage.components.policyForm.statusInactive")}</SelectItem>
+                    <SelectItem value="draft">{t("accessPage.components.policyForm.statusDraft")}</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -275,8 +293,12 @@ export function AccessPolicyForm({
                   onBuildingIDChange(value)
                 }}
               >
-                <SelectTrigger disabled={scopeType === "all"}>
-                  <SelectValue placeholder={t("accessPage.components.policyForm.buildingOptional", { defaultValue: "Building (optional)" })} />
+                <SelectTrigger
+                  className="w-full min-w-0"
+                  disabled={scopeType === "all"}
+                  title={buildingDisabledReason}
+                >
+                  <SelectValue placeholder={t("accessPage.components.policyForm.buildingOptional")} />
                 </SelectTrigger>
                 <SelectContent>
                   {buildingOptions.map((item) => (
@@ -300,8 +322,12 @@ export function AccessPolicyForm({
                   onAreaIDChange(value)
                 }}
               >
-                <SelectTrigger disabled={scopeType === "all" || scopeType === "building" || !buildingID}>
-                  <SelectValue placeholder={t("accessPage.components.policyForm.areaOptional", { defaultValue: "Area (optional)" })} />
+                <SelectTrigger
+                  className="w-full min-w-0"
+                  disabled={scopeType === "all" || scopeType === "building" || !buildingID}
+                  title={areaDisabledReason}
+                >
+                  <SelectValue placeholder={t("accessPage.components.policyForm.areaOptional")} />
                 </SelectTrigger>
                 <SelectContent>
                   {areaOptions.map((item) => (
@@ -325,8 +351,12 @@ export function AccessPolicyForm({
                   onDoorIDChange(value)
                 }}
               >
-                <SelectTrigger disabled={scopeType !== "door" || !areaID}>
-                  <SelectValue placeholder={t("accessPage.components.policyForm.doorOptional", { defaultValue: "Door (optional)" })} />
+                <SelectTrigger
+                  className="w-full min-w-0"
+                  disabled={scopeType !== "door" || !areaID}
+                  title={doorDisabledReason}
+                >
+                  <SelectValue placeholder={t("accessPage.components.policyForm.doorOptional")} />
                 </SelectTrigger>
                 <SelectContent>
                   {doorOptions.map((item) => (
@@ -341,7 +371,6 @@ export function AccessPolicyForm({
 
           <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
             {t("accessPage.components.policyForm.currentScope", {
-              defaultValue: "Current scope: {{scopeSummaryLabel}}",
               scopeSummaryLabel,
             })}
           </div>
@@ -352,9 +381,7 @@ export function AccessPolicyForm({
               policyScheduleField.onChange(event)
               onScheduleChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.policyForm.schedule", {
-              defaultValue: "Schedule (e.g. Mon-Fri 07:00-19:00)",
-            })}
+            placeholder={t("accessPage.components.policyForm.schedule")}
           />
           <Input
             {...policyMembersField}
@@ -362,12 +389,12 @@ export function AccessPolicyForm({
               policyMembersField.onChange(event)
               onMembersChange(event.target.value)
             }}
-            placeholder={t("accessPage.components.policyForm.memberCount", { defaultValue: "Member count" })}
+            placeholder={t("accessPage.components.policyForm.memberCount")}
           />
           <Button type="submit" className="w-full" disabled={policyForm.formState.isSubmitting}>
             {isEditing
-              ? t("accessPage.components.policyForm.submitEdit", { defaultValue: "Update policy" })
-              : t("accessPage.components.policyForm.submitCreate", { defaultValue: "Create policy" })}
+              ? t("accessPage.components.policyForm.submitEdit")
+              : t("accessPage.components.policyForm.submitCreate")}
           </Button>
           {policyFormError ? <p className="text-sm text-destructive">{policyFormError}</p> : null}
         </form>

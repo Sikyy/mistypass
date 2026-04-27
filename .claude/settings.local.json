@@ -5,7 +5,15 @@
       "Bash(ls:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "WebFetch(domain:www.kisi.io)",
+      "WebFetch(domain:docs.kisi.io)",
+      "WebFetch(domain:www.getkisi.com)",
+      "WebFetch(domain:api.getkisi.com)",
+      "WebSearch",
+      "WebFetch(domain:help.kisi.io)",
+      "Bash(file:*)",
+      "Bash(mv /tmp/reform-plan-trimmed.md /Users/siky/code/MistyPass/MISTYPASS-ROLE-BASED-UI-REFORM-PLAN.md)"
     ]
   }
 }

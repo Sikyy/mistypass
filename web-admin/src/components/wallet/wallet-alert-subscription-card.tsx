@@ -63,52 +63,71 @@ export function WalletAlertSubscriptionCard({
   onSaveAlertSubscription,
 }: WalletAlertSubscriptionCardProps) {
   const { t } = useTranslation()
+  const readOnlyDisabledReason = !writable ? t("walletPage.disabledReasons.readOnly") : undefined
+  const dispatchDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : dispatchingAlerts
+      ? t("walletPage.disabledReasons.busy")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : undefined
+  const saveDisabledReason = !writable
+    ? t("walletPage.disabledReasons.readOnly")
+    : savingSubscription
+      ? t("walletPage.disabledReasons.busy")
+      : loading || refreshing
+        ? t("walletPage.disabledReasons.loading")
+        : undefined
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{t("walletPage.components.alertSubscription.title", { defaultValue: "Issuance alert subscription" })}</CardTitle>
+        <CardTitle className="text-base">{t("walletPage.components.alertSubscription.title")}</CardTitle>
         <CardDescription>
-          {t("walletPage.components.alertSubscription.description", {
-            defaultValue:
-              "Issuance alert subscription config for current organization. Platform admins can switch tenants; tenant admins can maintain local policy directly.",
-          })}
+          {t("walletPage.components.alertSubscription.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid gap-3 md:grid-cols-3">
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium">{t("walletPage.components.alertSubscription.enabled", { defaultValue: "Enable subscription" })}</p>
-              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.enabledHint", { defaultValue: "If disabled, only metrics dashboard remains." })}</p>
+          <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2">
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium">{t("walletPage.components.alertSubscription.enabled")}</p>
+              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.enabledHint")}</p>
             </div>
-            <Switch checked={subscriptionEnabled} disabled={!writable} onCheckedChange={onSubscriptionEnabledChange} />
+            <Switch
+              checked={subscriptionEnabled}
+              disabled={!writable}
+              title={readOnlyDisabledReason}
+              onCheckedChange={onSubscriptionEnabledChange}
+            />
           </div>
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-            <div className="space-y-0.5">
+          <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2">
+            <div className="min-w-0 space-y-0.5">
               <p className="inline-flex items-center gap-1 text-sm font-medium">
                 <MailIcon className="size-3.5" />
                 Email
               </p>
-              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.emailHint", { defaultValue: "Email notification channel." })}</p>
+              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.emailHint")}</p>
             </div>
             <Switch
               checked={subscriptionEmailEnabled}
               disabled={!writable}
+              title={readOnlyDisabledReason}
               onCheckedChange={onSubscriptionEmailEnabledChange}
             />
           </div>
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-            <div className="space-y-0.5">
+          <div className="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-muted/20 px-3 py-2">
+            <div className="min-w-0 space-y-0.5">
               <p className="inline-flex items-center gap-1 text-sm font-medium">
                 <MessageCircleIcon className="size-3.5" />
                 WhatsApp
               </p>
-              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.whatsappHint", { defaultValue: "Instant notification channel." })}</p>
+              <p className="mp-kpi-note">{t("walletPage.components.alertSubscription.whatsappHint")}</p>
             </div>
             <Switch
               checked={subscriptionWhatsAppEnabled}
               disabled={!writable}
+              title={readOnlyDisabledReason}
               onCheckedChange={onSubscriptionWhatsAppEnabledChange}
             />
           </div>
@@ -118,28 +137,30 @@ export function WalletAlertSubscriptionCard({
           <Input
             value={subscriptionThreshold}
             disabled={!writable}
+            title={readOnlyDisabledReason}
             onChange={(event) => onSubscriptionThresholdChange(event.target.value)}
-            placeholder="dlq_alert_threshold"
+            placeholder={t("walletPage.components.alertSubscription.thresholdPlaceholder")}
           />
           <Input
             value={subscriptionWindowSeconds}
             disabled={!writable}
+            title={readOnlyDisabledReason}
             onChange={(event) => onSubscriptionWindowSecondsChange(event.target.value)}
-            placeholder="window_seconds"
+            placeholder={t("walletPage.components.alertSubscription.windowPlaceholder")}
           />
           <Input
             value={subscriptionCooldownSeconds}
             disabled={!writable}
+            title={readOnlyDisabledReason}
             onChange={(event) => onSubscriptionCooldownSecondsChange(event.target.value)}
-            placeholder="cooldown_seconds"
+            placeholder={t("walletPage.components.alertSubscription.cooldownPlaceholder")}
           />
           <Input
             value={subscriptionReceiverGroups}
             disabled={!writable}
+            title={readOnlyDisabledReason}
             onChange={(event) => onSubscriptionReceiverGroupsChange(event.target.value)}
-            placeholder={t("walletPage.components.alertSubscription.receiverGroups", {
-              defaultValue: "receiver_groups (comma-separated)",
-            })}
+            placeholder={t("walletPage.components.alertSubscription.receiverGroups")}
           />
         </div>
 
@@ -147,37 +168,38 @@ export function WalletAlertSubscriptionCard({
           <div className="space-y-1">
             <p className="mp-kpi-note">
               {t("walletPage.components.alertSubscription.lastUpdated", {
-                defaultValue: "Last updated: {{time}}",
                 time: formatDateTime(subscription?.updated_at),
               })}
             </p>
             {!writable ? (
               <p className="mp-kpi-note">
-                {t("walletPage.components.alertSubscription.readOnlyHint", {
-                  defaultValue: "Current role is read-only. You can view issuance status but cannot modify subscription policy.",
-                })}
+                {t("walletPage.components.alertSubscription.readOnlyHint")}
                 {readOnlyBoundaryHint}
               </p>
             ) : null}
             {dispatchSummary ? <p className="text-xs text-emerald-700">{dispatchSummary}</p> : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={onDispatchAlertsNow}
               disabled={loading || refreshing || dispatchingAlerts || !writable}
+              title={dispatchDisabledReason}
             >
               {dispatchingAlerts
-                ? t("walletPage.components.alertSubscription.dispatching", { defaultValue: "Sending..." })
-                : t("walletPage.components.alertSubscription.dispatchNow", { defaultValue: "Evaluate and notify now" })}
+                ? t("walletPage.components.alertSubscription.dispatching")
+                : t("walletPage.components.alertSubscription.dispatchNow")}
             </Button>
             <Button
+              className="w-full sm:w-auto"
               onClick={onSaveAlertSubscription}
               disabled={loading || refreshing || savingSubscription || !writable}
+              title={saveDisabledReason}
             >
               {savingSubscription
-                ? t("walletPage.components.alertSubscription.saving", { defaultValue: "Saving..." })
-                : t("walletPage.components.alertSubscription.savePolicy", { defaultValue: "Save subscription policy" })}
+                ? t("walletPage.components.alertSubscription.saving")
+                : t("walletPage.components.alertSubscription.savePolicy")}
             </Button>
           </div>
         </div>

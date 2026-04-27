@@ -948,7 +948,7 @@ test("enterprise idp outcome should go to wallet when directory/policy are ready
   const outcomeCard = page.getByTestId("enterprise-idp-outcome")
   await expect(outcomeCard).toBeVisible()
 
-  const outcomeAction = outcomeCard.getByRole("link", { name: "去凭证发放" })
+  const outcomeAction = outcomeCard.getByRole("link", { name: "前往钱包" })
   await expect(outcomeAction).toBeVisible()
   await outcomeAction.click()
   await expect(page).toHaveURL(/\/wallet\?/)
@@ -1019,7 +1019,7 @@ test("enterprise alerts receipt recovery repair and closed links should keep con
   await login(page)
   await page.goto("/enterprise?segment_hint=receipt_recovery&segment_status_hint=attention&approval_query_hint=target-99#alerts")
 
-  const repairLink = page.getByRole("link", { name: "结论：继续状态修复" })
+  const repairLink = page.getByRole("link", { name: "修复" })
   await expect(repairLink).toBeVisible()
   const repairHref = await repairLink.getAttribute("href")
   expect(repairHref).toBeTruthy()
@@ -1031,7 +1031,7 @@ test("enterprise alerts receipt recovery repair and closed links should keep con
   expect(repairURL.searchParams.get("target_hint")).toBe("target-99")
   expect(repairURL.searchParams.get("target_id")).toBe("target-99")
 
-  const closedLink = page.getByRole("link", { name: "结论：复核已收口" })
+  const closedLink = page.getByRole("link", { name: "已闭环" })
   await expect(closedLink).toBeVisible()
   const closedHref = await closedLink.getAttribute("href")
   expect(closedHref).toBeTruthy()
@@ -1068,10 +1068,10 @@ test("enterprise alerts receipt recovery explicit ready hint should keep badge w
 
   const recoveryCard = page.getByTestId("enterprise-alerts-receipt-recovery")
   await expect(recoveryCard).toBeVisible()
-  await expect(recoveryCard.getByText("已承接")).toBeVisible()
-  await expect(recoveryCard.getByText("1 个待处理项")).toBeVisible()
+  await expect(recoveryCard.getByText("就绪")).toBeVisible()
+  await expect(recoveryCard.getByText("1 个阻塞项")).toBeVisible()
 
-  await recoveryCard.getByRole("link", { name: "结论：继续重发失败通道" }).click()
+  await recoveryCard.getByRole("link", { name: "重试" }).click()
   await expect(page).toHaveURL(/\/wallet\?/)
   const nextURL = new URL(page.url())
   expect(nextURL.searchParams.get("segment_hint")).toBe("receipt_recovery")
@@ -1089,10 +1089,10 @@ test("enterprise alerts receipt recovery explicit pending hint should fallback r
 
   const recoveryCard = page.getByTestId("enterprise-alerts-receipt-recovery")
   await expect(recoveryCard).toBeVisible()
-  await expect(recoveryCard.getByText("待补齐")).toBeVisible()
-  await expect(recoveryCard.getByText("可回发放页收口")).toBeVisible()
+  await expect(recoveryCard.getByText("待处理")).toBeVisible()
+  await expect(recoveryCard.getByText("可回流")).toBeVisible()
 
-  await recoveryCard.getByRole("link", { name: "结论：继续重发失败通道" }).click()
+  await recoveryCard.getByRole("link", { name: "重试" }).click()
   await expect(page).toHaveURL(/\/wallet\?/)
   const nextURL = new URL(page.url())
   expect(nextURL.searchParams.get("segment_hint")).toBe("receipt_recovery")
@@ -1128,7 +1128,7 @@ test("enterprise sync worker review link should keep review context hints", asyn
 
   const workerReview = page.getByTestId("enterprise-sync-worker-review")
   await expect(workerReview).toBeVisible()
-  await expect(workerReview).toContainText("已从凭证发放回流到导入与同步")
+  await expect(workerReview).toContainText("发放 复核已记录")
 
   const reviewAlertsLink = page.getByTestId("enterprise-sync-worker-review-alerts-link")
   await expect(reviewAlertsLink).toBeVisible()
@@ -1191,7 +1191,7 @@ test("wallet receipt recovery action hint should show retry recommendation summa
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&segment_hint=receipt_recovery&segment_status_hint=attention&receipt_recovery_action_hint=retry_delivery"
   )
 
-  await expect(page.getByText("来源：企业页复核结论。建议继续重发失败通道：当前可批量重发 1 条，可修复状态 1 张。")).toBeVisible()
+  await expect(page.getByText("已从回执恢复打开投递重试。1 个通道可重试，1 张凭证可修复状态。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" }).first()).toBeVisible()
   await expect(page.getByRole("button", { name: "批量状态修复（1）" }).first()).toBeVisible()
 })
@@ -1241,7 +1241,7 @@ test("wallet receipt recovery action hint should show repair recommendation summ
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&segment_hint=receipt_recovery&segment_status_hint=attention&receipt_recovery_action_hint=repair_pass_status"
   )
 
-  await expect(page.getByText("来源：企业页复核结论。建议继续状态修复：当前可修复状态 1 张，可批量重发 1 条。")).toBeVisible()
+  await expect(page.getByText("已从回执恢复打开状态修复。1 张凭证可修复，1 个通道仍可重试。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量状态修复（1）" }).first()).toBeVisible()
 })
 
@@ -1291,7 +1291,7 @@ test("wallet receipt recovery action hint should show review closed summary", as
   )
 
   await expect(
-    page.getByText("来源：企业页复核结论。复核已收口：当前失败回执 1 条，若仍需处理可继续重发或状态修复。")
+    page.getByText("回执恢复已标记为闭环。1 条失败投递记录仍会保留用于审计。")
   ).toBeVisible()
 })
 
@@ -1303,7 +1303,7 @@ test("wallet receipt recovery flow without action hint should show matched-targe
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&segment_hint=receipt_recovery&segment_status_hint=attention&target_id=emp-1"
   )
 
-  await expect(page.getByText("来源：企业页。已命中 1 条目标凭证，已直达外部投递对象，可直接补发或重发失败通道。")).toBeVisible()
+  await expect(page.getByText("已有 1 张凭证匹配此 Enterprise 目标，已选中用于投递复核。")).toBeVisible()
 })
 
 test("wallet receipt recovery flow without action hint should show fallback guidance when no target hints", async ({ page }) => {
@@ -1312,7 +1312,7 @@ test("wallet receipt recovery flow without action hint should show fallback guid
   await login(page)
   await page.goto("/wallet?from=enterprise&flow=sync_to_access&stage=issuance&segment_hint=receipt_recovery&segment_status_hint=attention")
 
-  await expect(page.getByText("来源：企业页。已回流到回执失败恢复闭环，请在“最近外部投递回执”继续重发或状态修复。")).toBeVisible()
+  await expect(page.getByText("回执恢复上下文已启用。闭环前请先复核投递回执。")).toBeVisible()
 })
 
 test("wallet receipt recovery review link should carry enterprise segment hints", async ({ page }) => {
@@ -1360,7 +1360,7 @@ test("wallet receipt recovery review link should carry enterprise segment hints"
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&segment_hint=receipt_recovery&target_id=emp-recovery-link-1"
   )
 
-  const reviewLink = page.getByRole("link", { name: "回企业页复核回执失败" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
   const href = await reviewLink.getAttribute("href")
   expect(href).toBeTruthy()
@@ -1441,7 +1441,7 @@ test("enterprise receipt recovery roundtrip should keep target hints across repe
   expect(firstWalletURL.searchParams.get("target_id")).toBe("emp-recovery-roundtrip")
   expect(firstWalletURL.searchParams.get("target_hint")).toBe("emp-recovery-roundtrip")
 
-  const reviewLink = page.getByRole("link", { name: "回企业页复核回执失败" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
   await reviewLink.click()
 
@@ -1480,9 +1480,9 @@ test("wallet receipt recovery missing-target roundtrip should keep explicit targ
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&segment_hint=receipt_recovery&segment_status_hint=attention&target_id=emp-recovery-missing&target_hint=emp-recovery-missing"
   )
 
-  await expect(page.getByText("来源：企业页。未找到该对象的既有凭证，已预填单发对象，可直接创建补发。")).toBeVisible()
+  await expect(page.getByText("没有现有凭证匹配此 Enterprise 目标，已改为准备单笔发放草稿。")).toBeVisible()
 
-  const reviewLink = page.getByRole("link", { name: "回企业页复核回执失败" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
   await reviewLink.click()
 
@@ -1554,7 +1554,7 @@ test("wallet receipt recovery retry then close roundtrip should keep ready statu
   await expect(page.getByText("已批量重发 1 条失败通道，成功 1 条。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（0）" })).toHaveCount(2)
 
-  const reviewLink = page.getByRole("link", { name: "回企业页复核回执失败" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
   await reviewLink.click()
 
@@ -1565,7 +1565,7 @@ test("wallet receipt recovery retry then close roundtrip should keep ready statu
   expect(enterpriseURL.searchParams.get("target_hint")).toBe("emp-recovery-ready-roundtrip")
   expect(enterpriseURL.searchParams.get("approval_query_hint")).toBe("emp-recovery-ready-roundtrip")
 
-  const closeBackflowLink = page.getByRole("link", { name: "结论：复核已收口" })
+  const closeBackflowLink = page.getByRole("link", { name: "已闭环" })
   await expect(closeBackflowLink).toBeVisible()
   await closeBackflowLink.click()
 
@@ -1575,7 +1575,7 @@ test("wallet receipt recovery retry then close roundtrip should keep ready statu
   expect(walletClosedURL.searchParams.get("target_id")).toBe("emp-recovery-ready-roundtrip")
   expect(walletClosedURL.searchParams.get("target_hint")).toBe("emp-recovery-ready-roundtrip")
   await expect(
-    page.getByText("来源：企业页复核结论。复核已收口：当前失败回执 0 条，若仍需处理可继续重发或状态修复。")
+    page.getByText("回执恢复已标记为闭环。0 条失败投递记录仍会保留用于审计。")
   ).toBeVisible()
 })
 
@@ -1631,7 +1631,7 @@ test("wallet receipt recovery repair roundtrip should keep attention status and 
   await expect(page.getByRole("button", { name: "批量状态修复（0）" })).toHaveCount(2)
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 
-  const reviewLink = page.getByRole("link", { name: "回企业页复核回执失败" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
   await reviewLink.click()
 
@@ -1642,7 +1642,7 @@ test("wallet receipt recovery repair roundtrip should keep attention status and 
   expect(enterpriseURL.searchParams.get("target_hint")).toBe("emp-recovery-repair-roundtrip")
   expect(enterpriseURL.searchParams.get("approval_query_hint")).toBe("emp-recovery-repair-roundtrip")
 
-  const repairBackflowLink = page.getByRole("link", { name: "结论：继续状态修复" })
+  const repairBackflowLink = page.getByRole("link", { name: "修复" })
   await expect(repairBackflowLink).toBeVisible()
   await repairBackflowLink.click()
 
@@ -1651,7 +1651,7 @@ test("wallet receipt recovery repair roundtrip should keep attention status and 
   expect(walletRepairURL.searchParams.get("segment_status_hint")).toBe("ready")
   expect(walletRepairURL.searchParams.get("target_id")).toBe("emp-recovery-repair-roundtrip")
   expect(walletRepairURL.searchParams.get("target_hint")).toBe("emp-recovery-repair-roundtrip")
-  await expect(page.getByText("来源：企业页复核结论。建议继续状态修复：")).toBeVisible()
+  await expect(page.getByText("已从回执恢复打开状态修复。")).toBeVisible()
 })
 
 test("enterprise alerts batch approval should update pending count and show success summary", async ({ page }) => {
@@ -1682,14 +1682,16 @@ test("enterprise alerts batch approval should update pending count and show succ
   await login(page)
   await page.goto("/enterprise?alerts_view_hint=approval_backlog#alerts")
 
-  const batchApproveButton = page.getByRole("button", { name: "批量批准 pending（2）" })
+  const approvalInbox = page.getByTestId("enterprise-jit-approval-inbox")
+  await expect(approvalInbox).toBeVisible()
+  const batchApproveButton = approvalInbox.getByRole("button", { name: "通过待审批项（2）" })
   await expect(batchApproveButton).toBeVisible()
   await batchApproveButton.click()
 
   await expect(page.getByText("批量批准完成：成功 2 条，失败 0 条。")).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量批准 pending（0）" })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（\d+）$/ })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: /^approved（2）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: "通过待审批项（0）" })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^待处理（0）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^已批准（2）$/ })).toBeVisible()
 })
 
 test("enterprise alerts batch approval should keep failed pending records and show partial failure summary", async ({ page }) => {
@@ -1721,15 +1723,16 @@ test("enterprise alerts batch approval should keep failed pending records and sh
   await login(page)
   await page.goto("/enterprise?alerts_view_hint=approval_backlog#alerts")
 
-  const batchApproveButton = page.getByRole("button", { name: "批量批准 pending（2）" })
+  const approvalInbox = page.getByTestId("enterprise-jit-approval-inbox")
+  const batchApproveButton = approvalInbox.getByRole("button", { name: "通过待审批项（2）" })
   await expect(batchApproveButton).toBeVisible()
   await batchApproveButton.click()
 
   await expect(page.getByText("批量批准完成：成功 1 条，失败 1 条。")).toBeVisible()
   await expect(page.getByText("部分审批记录处理失败，请在台账中复核失败项后重试。")).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量批准 pending（1）" })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（1）$/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^approved（1）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: "通过待审批项（1）" })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^待处理（1）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^已批准（1）$/ })).toBeVisible()
 })
 
 test("enterprise alerts single approval action should keep pending state when review api fails", async ({ page }) => {
@@ -1767,7 +1770,7 @@ test("enterprise alerts single approval action should keep pending state when re
 
   await expect(page.getByText("mock approval review failed: approval-single-review-fail")).toBeVisible()
   await expect(targetRow.getByRole("button", { name: "批准" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量批准 pending（2）" })).toBeVisible()
+  await expect(page.getByTestId("enterprise-jit-approval-inbox").getByRole("button", { name: "通过待审批项（2）" })).toBeVisible()
 })
 
 test("enterprise alerts single approval action should update counts when review api succeeds", async ({ page }) => {
@@ -1802,9 +1805,9 @@ test("enterprise alerts single approval action should update counts when review 
   await expect(targetRow).toBeVisible()
   await targetRow.getByRole("button", { name: "批准" }).click()
 
-  await expect(page.getByText("审批 approval-single-approve-ok 已批准，并已刷新当前企业目录状态。")).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（1）$/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^approved（1）$/ })).toBeVisible()
+  await expect(page.getByText("审批已复核")).toBeVisible()
+  await expect(page.getByRole("button", { name: /^待处理（1）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^已批准（1）$/ })).toBeVisible()
   await expect(targetRow.getByText("approved")).toBeVisible()
 })
 
@@ -1836,14 +1839,15 @@ test("enterprise alerts batch reject should update pending count and show succes
   await login(page)
   await page.goto("/enterprise?alerts_view_hint=approval_backlog#alerts")
 
-  const batchRejectButton = page.getByRole("button", { name: "批量拒绝 pending（2）" })
+  const approvalInbox = page.getByTestId("enterprise-jit-approval-inbox")
+  const batchRejectButton = approvalInbox.getByRole("button", { name: "拒绝待审批项（2）" })
   await expect(batchRejectButton).toBeVisible()
   await batchRejectButton.click()
 
   await expect(page.getByText("批量拒绝完成：成功 2 条，失败 0 条。")).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量拒绝 pending（0）" })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（\d+）$/ })).toHaveCount(0)
-  await expect(page.getByRole("button", { name: /^rejected（2）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: "拒绝待审批项（0）" })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^待处理（0）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^已拒绝（2）$/ })).toBeVisible()
 })
 
 test("enterprise alerts single reject action should keep pending state when review api fails", async ({ page }) => {
@@ -1881,7 +1885,7 @@ test("enterprise alerts single reject action should keep pending state when revi
 
   await expect(page.getByText("mock approval review failed: approval-single-reject-fail")).toBeVisible()
   await expect(targetRow.getByRole("button", { name: "拒绝" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量拒绝 pending（2）" })).toBeVisible()
+  await expect(page.getByTestId("enterprise-jit-approval-inbox").getByRole("button", { name: "拒绝待审批项（2）" })).toBeVisible()
 })
 
 test("enterprise alerts single reject action should update counts when review api succeeds", async ({ page }) => {
@@ -1916,9 +1920,9 @@ test("enterprise alerts single reject action should update counts when review ap
   await expect(targetRow).toBeVisible()
   await targetRow.getByRole("button", { name: "拒绝" }).click()
 
-  await expect(page.getByText("审批 approval-single-reject-ok 已拒绝，并已刷新当前企业目录状态。")).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（1）$/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^rejected（1）$/ })).toBeVisible()
+  await expect(page.getByText("审批已复核")).toBeVisible()
+  await expect(page.getByRole("button", { name: /^待处理（1）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^已拒绝（1）$/ })).toBeVisible()
   await expect(targetRow.getByText("rejected")).toBeVisible()
 })
 
@@ -1951,14 +1955,15 @@ test("enterprise alerts batch reject should preserve pending records and show al
   await login(page)
   await page.goto("/enterprise?alerts_view_hint=approval_backlog#alerts")
 
-  const batchRejectButton = page.getByRole("button", { name: "批量拒绝 pending（2）" })
+  const approvalInbox = page.getByTestId("enterprise-jit-approval-inbox")
+  const batchRejectButton = approvalInbox.getByRole("button", { name: "拒绝待审批项（2）" })
   await expect(batchRejectButton).toBeVisible()
   await batchRejectButton.click()
 
   await expect(page.getByText("批量拒绝完成：成功 0 条，失败 2 条。")).toBeVisible()
   await expect(page.getByText("部分审批记录处理失败，请在台账中复核失败项后重试。")).toBeVisible()
-  await expect(page.getByRole("button", { name: "批量拒绝 pending（2）" })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^pending（2）$/ })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: "拒绝待审批项（2）" })).toBeVisible()
+  await expect(approvalInbox.getByRole("button", { name: /^待处理（2）$/ })).toBeVisible()
 })
 
 test("enterprise alerts batch approval should only process filtered pending subset", async ({ page }) => {
@@ -2000,14 +2005,14 @@ test("enterprise alerts batch approval should only process filtered pending subs
   const approvalQueryInput = page.getByPlaceholder("按邮箱 / external_id / 审批ID筛选")
   await approvalQueryInput.fill("focus.batch.approve")
 
-  const batchApproveButton = page.getByRole("button", { name: "批量批准 pending（1）" })
+  const batchApproveButton = page.getByRole("button", { name: "通过待审批项（1）" })
   await expect(batchApproveButton).toBeVisible()
   await batchApproveButton.click()
 
   await expect(page.getByText("批量批准完成：成功 1 条，失败 0 条。")).toBeVisible()
   await page.getByRole("button", { name: "清空" }).click()
-  await expect(page.getByRole("button", { name: /^pending（1）$/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^approved（2）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^待处理（1）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^已批准（2）$/ })).toBeVisible()
 })
 
 test("enterprise alerts batch reject should only process filtered pending subset", async ({ page }) => {
@@ -2049,14 +2054,14 @@ test("enterprise alerts batch reject should only process filtered pending subset
   const approvalQueryInput = page.getByPlaceholder("按邮箱 / external_id / 审批ID筛选")
   await approvalQueryInput.fill("focus.batch.reject")
 
-  const batchRejectButton = page.getByRole("button", { name: "批量拒绝 pending（1）" })
+  const batchRejectButton = page.getByRole("button", { name: "拒绝待审批项（1）" })
   await expect(batchRejectButton).toBeVisible()
   await batchRejectButton.click()
 
   await expect(page.getByText("批量拒绝完成：成功 1 条，失败 0 条。")).toBeVisible()
   await page.getByRole("button", { name: "清空" }).click()
-  await expect(page.getByRole("button", { name: /^pending（1）$/ })).toBeVisible()
-  await expect(page.getByRole("button", { name: /^rejected（2）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^待处理（1）$/ })).toBeVisible()
+  await expect(page.getByRole("button", { name: /^已拒绝（2）$/ })).toBeVisible()
 })
 
 test("enterprise alerts batch external sync mark should clear failed count and show success summary", async ({ page }) => {
@@ -2178,7 +2183,7 @@ test("enterprise alerts single external sync mark should update counts when api 
   await expect(targetRow).toBeVisible()
   await targetRow.getByRole("button", { name: "标记已回写" }).click()
 
-  await expect(page.getByText("审批 approval-single-sync-ok 外部回写已标记为 synced。")).toBeVisible()
+  await expect(page.getByText("外部同步已标记")).toBeVisible()
   await expect(page.getByRole("button", { name: "失败（0）" })).toBeVisible()
   await expect(page.getByRole("button", { name: "成功（2）" })).toBeVisible()
   await expect(targetRow.getByRole("button", { name: "标记已回写" })).toHaveCount(0)
@@ -2374,7 +2379,7 @@ test("enterprise sync mainflow issuance segment link should carry wallet segment
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const issuanceSegmentLink = page.getByRole("link", { name: "去凭证发放承接" }).first()
+  const issuanceSegmentLink = page.getByTestId("enterprise-sync-mainflow-issuance_receipt-link")
   await expect(issuanceSegmentLink).toBeVisible()
   await issuanceSegmentLink.click()
 
@@ -2398,7 +2403,7 @@ test("enterprise sync mainflow directory segment link should carry pending statu
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const directorySegmentLink = page.getByRole("link", { name: "去员工与用户组承接" }).first()
+  const directorySegmentLink = page.getByTestId("enterprise-sync-mainflow-directory_usage-link")
   await expect(directorySegmentLink).toBeVisible()
   await directorySegmentLink.click()
 
@@ -2415,7 +2420,7 @@ test("enterprise sync mainflow directory segment link should carry access direct
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const directorySegmentLink = page.getByRole("link", { name: "去员工与用户组承接" }).first()
+  const directorySegmentLink = page.getByTestId("enterprise-sync-mainflow-directory_usage-link")
   await expect(directorySegmentLink).toBeVisible()
   await directorySegmentLink.click()
 
@@ -2440,7 +2445,7 @@ test("enterprise sync mainflow policy segment link should carry pending status w
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const policySegmentLink = page.getByRole("link", { name: "去权限策略承接" }).first()
+  const policySegmentLink = page.getByTestId("enterprise-sync-mainflow-policy_delivery-link")
   await expect(policySegmentLink).toBeVisible()
   await policySegmentLink.click()
 
@@ -2457,7 +2462,7 @@ test("enterprise sync mainflow policy segment link should carry access policy hi
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const policySegmentLink = page.getByRole("link", { name: "去权限策略承接" }).first()
+  const policySegmentLink = page.getByTestId("enterprise-sync-mainflow-policy_delivery-link")
   await expect(policySegmentLink).toBeVisible()
   await policySegmentLink.click()
 
@@ -2482,7 +2487,7 @@ test("enterprise sync mainflow issuance segment link should carry pending status
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const issuanceSegmentLink = page.getByRole("link", { name: "去凭证发放承接" }).first()
+  const issuanceSegmentLink = page.getByTestId("enterprise-sync-mainflow-issuance_receipt-link")
   await expect(issuanceSegmentLink).toBeVisible()
   await issuanceSegmentLink.click()
 
@@ -2499,7 +2504,7 @@ test("enterprise sync mainflow issuance segment link should carry ready status w
   await login(page)
   await page.goto("/enterprise#sync")
 
-  const issuanceSegmentLink = page.getByRole("link", { name: "去凭证发放承接" }).first()
+  const issuanceSegmentLink = page.getByTestId("enterprise-sync-mainflow-issuance_receipt-link")
   await expect(issuanceSegmentLink).toBeVisible()
   await issuanceSegmentLink.click()
 
@@ -2539,7 +2544,7 @@ test("wallet worker review backflow link should keep worker hints and navigate t
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&worker_filter_hint=hot&worker_query_hint=tenant-sudirman&worker_alert_level=hot&worker_alert_tenant_id=tenant-sudirman&worker_alert_failed=8&worker_alert_threshold=4"
   )
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
 
   const href = await reviewLink.getAttribute("href")
@@ -2560,7 +2565,7 @@ test("wallet worker review backflow link should keep worker hints and navigate t
   await reviewLink.click()
   await expect(page).toHaveURL(/\/enterprise\?.*#sync$/)
   await expect(page.getByTestId("enterprise-sync-worker-review")).toBeVisible()
-  await expect(page.getByText("已从凭证发放回流到导入与同步")).toBeVisible()
+  await expect(page.getByText("发放 复核已记录")).toBeVisible()
 })
 
 test("wallet worker review roundtrip should keep worker hints across sync and alerts hops", async ({ page }) => {
@@ -2589,14 +2594,14 @@ test("wallet worker review roundtrip should keep worker hints across sync and al
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&worker_filter_hint=hot&worker_query_hint=tenant-sudirman&worker_alert_level=hot&worker_alert_tenant_id=tenant-sudirman&worker_alert_failed=8&worker_alert_threshold=4"
   )
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   await reviewLink.click()
 
   await expect(page).toHaveURL(/\/enterprise\?.*#sync$/)
   const syncReviewCard = page.getByTestId("enterprise-sync-worker-review")
   await expect(syncReviewCard).toBeVisible()
-  await expect(syncReviewCard).toContainText("已从凭证发放回流到导入与同步")
+  await expect(syncReviewCard).toContainText("发放 复核已记录")
 
   const reviewAlertsLink = page.getByTestId("enterprise-sync-worker-review-alerts-link")
   await expect(reviewAlertsLink).toBeVisible()
@@ -2650,7 +2655,7 @@ test("enterprise sync worker review reset link should clear review hints and kee
 
   const reviewCard = page.getByTestId("enterprise-sync-worker-review")
   await expect(reviewCard).toBeVisible()
-  const resetLink = page.getByRole("link", { name: "清除本次回流状态" })
+  const resetLink = page.getByRole("link", { name: "清空复核状态" })
   await expect(resetLink).toBeVisible()
 
   const href = await resetLink.getAttribute("href")
@@ -2667,7 +2672,7 @@ test("enterprise sync worker review reset link should clear review hints and kee
   await resetLink.click()
   await expect(page).toHaveURL(/\/enterprise\?.*#sync$/)
   await expect(page.getByTestId("enterprise-sync-worker-review")).toHaveCount(0)
-  await expect(page.getByText("已按 worker 告警线索定位到导入与同步工作区")).toBeVisible()
+  await expect(page.getByText("当前从告警链接进入。清空上下文前，请先复核这个 Worker 信号。")).toBeVisible()
 })
 
 test("enterprise sync worker review alerts link should reflect updated filter and query before hop", async ({ page }) => {
@@ -2697,7 +2702,7 @@ test("enterprise sync worker review alerts link should reflect updated filter an
   )
 
   await page.getByRole("button", { name: /全部（/ }).click()
-  await page.getByPlaceholder("按租户 / failed / threshold 筛选").fill("tenant-updated")
+  await page.getByPlaceholder("筛选 Worker 告警").fill("tenant-updated")
 
   const reviewAlertsLink = page.getByTestId("enterprise-sync-worker-review-alerts-link")
   await expect(reviewAlertsLink).toBeVisible()
@@ -2714,7 +2719,7 @@ test("enterprise sync worker review alerts link should reflect updated filter an
 
   await reviewAlertsLink.click()
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("tenant-updated")
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("tenant-updated")
 })
 
 test("enterprise sync worker scoped alerts link after reset should keep worker metrics hints", async ({ page }) => {
@@ -2743,10 +2748,10 @@ test("enterprise sync worker scoped alerts link after reset should keep worker m
     "/enterprise?sync_focus_hint=worker_alert&worker_filter_hint=hot&worker_query_hint=tenant-sudirman&worker_review_stage_hint=issuance&worker_review_status_hint=handled#sync"
   )
 
-  await page.getByRole("link", { name: "清除本次回流状态" }).click()
+  await page.getByRole("link", { name: "清空复核状态" }).click()
   await expect(page.getByTestId("enterprise-sync-worker-review")).toHaveCount(0)
 
-  const scopedAlertsLink = page.getByRole("link", { name: "去审批与异常处理" }).first()
+  const scopedAlertsLink = page.getByRole("link", { name: "前往告警" }).first()
   await expect(scopedAlertsLink).toBeVisible()
   await scopedAlertsLink.click()
 
@@ -2787,7 +2792,7 @@ test("enterprise sync worker scoped wallet link should keep hints and expose rev
   await login(page)
   await page.goto("/enterprise?sync_focus_hint=worker_alert&worker_filter_hint=hot&worker_query_hint=tenant-sudirman#sync")
 
-  const scopedWalletLink = page.getByRole("link", { name: "处理后去凭证发放" }).first()
+  const scopedWalletLink = page.getByTestId("enterprise-sync-worker-alert-wallet-link").first()
   await expect(scopedWalletLink).toBeVisible()
   await scopedWalletLink.click()
 
@@ -2802,7 +2807,7 @@ test("enterprise sync worker scoped wallet link should keep hints and expose rev
   expect(walletURL.searchParams.get("worker_alert_threshold")).toBe("4")
   expect(walletURL.searchParams.get("template_hint")).toBe("employee")
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   const reviewHref = await reviewLink.getAttribute("href")
   expect(reviewHref).toBeTruthy()
@@ -2870,7 +2875,7 @@ test("wallet alerts issue link should keep sync and worker hints then prefill en
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_id=emp-alert-target&sync_category=rejected&sync_source=hris&sync_job_id=job-rejected-target&worker_filter_hint=hot&worker_query_hint=job-rejected-target&worker_alert_level=hot&worker_alert_tenant_id=tenant-sudirman"
   )
 
-  const alertsIssueLink = page.getByRole("link", { name: "回企业页并按同步异常定位" }).first()
+  const alertsIssueLink = page.getByRole("link", { name: "返回企业页按同步异常定位" }).first()
   await expect(alertsIssueLink).toBeVisible()
 
   const href = await alertsIssueLink.getAttribute("href")
@@ -2888,8 +2893,8 @@ test("wallet alerts issue link should keep sync and worker hints then prefill en
 
   await alertsIssueLink.click()
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByText("目录异常落地页聚焦未完成同步、rejected、停用影响与 worker 告警。")).toBeVisible()
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("job-rejected-target")
+  await expect(page.getByText("目录异常汇总同步失败、停用员工和 Worker 告警。")).toBeVisible()
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("job-rejected-target")
   await expect(page.getByText("job-rejected-target")).toBeVisible()
   await expect(page.getByText("job-other")).toHaveCount(0)
 })
@@ -2988,7 +2993,7 @@ test("wallet repair action should preserve alerts and worker backflow hints for 
   await repairButtons.first().click()
   await expect(page.getByText("已按失败回执批量修复 1 张凭证状态，成功 1 张。")).toBeVisible()
 
-  const alertsIssueLink = page.getByRole("link", { name: "回企业页并按同步异常定位" }).first()
+  const alertsIssueLink = page.getByRole("link", { name: "返回企业页按同步异常定位" }).first()
   await expect(alertsIssueLink).toBeVisible()
   const alertsHref = await alertsIssueLink.getAttribute("href")
   expect(alertsHref).toBeTruthy()
@@ -3003,7 +3008,7 @@ test("wallet repair action should preserve alerts and worker backflow hints for 
   expect(alertsURL.searchParams.get("worker_filter_hint")).toBe("hot")
   expect(alertsURL.searchParams.get("worker_query_hint")).toBe("job-repair-followup")
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   const reviewHref = await reviewLink.getAttribute("href")
   expect(reviewHref).toBeTruthy()
@@ -3025,7 +3030,7 @@ test("wallet repair action should preserve alerts and worker backflow hints for 
   await reviewAlertsLink.click()
 
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("job-repair-followup")
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("job-repair-followup")
   await expect(page.getByText("job-repair-followup")).toBeVisible()
   await expect(page.getByText("job-repair-other")).toHaveCount(0)
 })
@@ -3156,7 +3161,7 @@ test("wallet retry partial failure should preserve alerts and worker backflow hi
   await retryButtons.first().click()
   await expect(page.getByText("已批量重发 2 条失败通道，成功 1 条，失败 1 条。")).toBeVisible()
 
-  const alertsIssueLink = page.getByRole("link", { name: "回企业页并按同步异常定位" }).first()
+  const alertsIssueLink = page.getByRole("link", { name: "返回企业页按同步异常定位" }).first()
   await expect(alertsIssueLink).toBeVisible()
   const alertsHref = await alertsIssueLink.getAttribute("href")
   expect(alertsHref).toBeTruthy()
@@ -3170,7 +3175,7 @@ test("wallet retry partial failure should preserve alerts and worker backflow hi
   expect(alertsURL.searchParams.get("worker_filter_hint")).toBe("hot")
   expect(alertsURL.searchParams.get("worker_query_hint")).toBe("job-retry-followup")
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   const reviewHref = await reviewLink.getAttribute("href")
   expect(reviewHref).toBeTruthy()
@@ -3192,7 +3197,7 @@ test("wallet retry partial failure should preserve alerts and worker backflow hi
   await reviewAlertsLink.click()
 
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("job-retry-followup")
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("job-retry-followup")
   await expect(page.getByText("job-retry-followup")).toBeVisible()
   await expect(page.getByText("job-retry-other")).toHaveCount(0)
 })
@@ -3323,7 +3328,7 @@ test("wallet repair partial failure should preserve alerts and worker backflow h
   await repairButtons.first().click()
   await expect(page.getByText("已按失败回执批量修复 2 张凭证状态，成功 1 张，失败 1 张。")).toBeVisible()
 
-  const alertsIssueLink = page.getByRole("link", { name: "回企业页并按同步异常定位" }).first()
+  const alertsIssueLink = page.getByRole("link", { name: "返回企业页按同步异常定位" }).first()
   await expect(alertsIssueLink).toBeVisible()
   const alertsHref = await alertsIssueLink.getAttribute("href")
   expect(alertsHref).toBeTruthy()
@@ -3337,7 +3342,7 @@ test("wallet repair partial failure should preserve alerts and worker backflow h
   expect(alertsURL.searchParams.get("worker_filter_hint")).toBe("hot")
   expect(alertsURL.searchParams.get("worker_query_hint")).toBe("job-repair-partial-followup")
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   const reviewHref = await reviewLink.getAttribute("href")
   expect(reviewHref).toBeTruthy()
@@ -3359,7 +3364,7 @@ test("wallet repair partial failure should preserve alerts and worker backflow h
   await reviewAlertsLink.click()
 
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("job-repair-partial-followup")
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("job-repair-partial-followup")
   await expect(page.getByText("job-repair-partial-followup")).toBeVisible()
   await expect(page.getByText("job-repair-partial-other")).toHaveCount(0)
 })
@@ -3425,16 +3430,16 @@ test("wallet batch issue failure should keep enterprise alerts and worker review
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_ids=emp-batch-fail-hit,emp-batch-fail-missing&sync_category=rejected&sync_source=hris&sync_job_id=job-batch-fail-followup&worker_filter_hint=hot&worker_query_hint=job-batch-fail-followup&worker_alert_level=hot&worker_alert_tenant_id=tenant-sudirman&worker_alert_failed=5&worker_alert_threshold=4"
   )
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   await expect(batchTargetInput).toHaveValue("emp-batch-fail-missing")
 
   await page.getByRole("button", { name: "提交批量发放" }).click()
   await expect(batchTargetInput).toHaveValue("emp-batch-fail-missing")
   await expect(page.getByText("最近批量回执")).toHaveCount(0)
-  await expect(page.getByText(/^已提交 \d+ 个员工对象，执行模式为/)).toHaveCount(0)
+  await expect(page.getByText(/^已通过 .* 提交 \d+ 个 .* 目标的批量发放。/)).toHaveCount(0)
 
-  const alertsIssueLink = page.getByRole("link", { name: "回企业页并按同步异常定位" }).first()
+  const alertsIssueLink = page.getByRole("link", { name: "返回企业页按同步异常定位" }).first()
   await expect(alertsIssueLink).toBeVisible()
   const alertsHref = await alertsIssueLink.getAttribute("href")
   expect(alertsHref).toBeTruthy()
@@ -3447,7 +3452,7 @@ test("wallet batch issue failure should keep enterprise alerts and worker review
   expect(alertsURL.searchParams.get("worker_filter_hint")).toBe("hot")
   expect(alertsURL.searchParams.get("worker_query_hint")).toBe("job-batch-fail-followup")
 
-  const reviewLink = page.getByRole("link", { name: "处理完成后回导入与同步复核" }).first()
+  const reviewLink = page.getByRole("link", { name: "返回到 企业 Worker 复核" }).first()
   await expect(reviewLink).toBeVisible()
   const reviewHref = await reviewLink.getAttribute("href")
   expect(reviewHref).toBeTruthy()
@@ -3460,7 +3465,7 @@ test("wallet batch issue failure should keep enterprise alerts and worker review
 
   await alertsIssueLink.click()
   await expect(page).toHaveURL(/\/enterprise\?.*#alerts$/)
-  await expect(page.getByPlaceholder("按任务ID / 来源 / actor / 租户筛选")).toHaveValue("job-batch-fail-followup")
+  await expect(page.getByPlaceholder("按任务ID / 来源 / 执行人 / 租户筛选")).toHaveValue("job-batch-fail-followup")
   await expect(page.getByText("job-batch-fail-followup")).toBeVisible()
 })
 
@@ -3570,7 +3575,7 @@ test("wallet batch retry should follow enterprise target hint and only process m
   await login(page)
   await page.goto("/wallet?from=enterprise&target_id=emp-filter-a")
 
-  await expect(page.getByText("按对象线索“emp-filter-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-filter-a 筛选后有 1 条可重试投递。")).toBeVisible()
   const retryButtonsBefore = page.getByRole("button", { name: "批量重发失败通道（1）" })
   await expect(retryButtonsBefore).toHaveCount(2)
   await retryButtonsBefore.first().click()
@@ -3786,7 +3791,7 @@ test("wallet batch repair should follow enterprise target hint and only process 
   await login(page)
   await page.goto("/wallet?from=enterprise&target_id=emp-repair-filter-a")
 
-  await expect(page.getByText("按对象线索“emp-repair-filter-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-repair-filter-a 筛选后有 1 条可重试投递。")).toBeVisible()
   const repairButtonsBefore = page.getByRole("button", { name: "批量状态修复（1）" })
   await expect(repairButtonsBefore).toHaveCount(2)
   await repairButtonsBefore.first().click()
@@ -3948,7 +3953,7 @@ test("wallet batch repair then retry should keep counters aligned in same enterp
   await login(page)
   await page.goto("/wallet?from=enterprise&target_id=emp-chain-a")
 
-  await expect(page.getByText("按对象线索“emp-chain-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-chain-a 筛选后有 1 条可重试投递。")).toBeVisible()
   const repairButtonsBefore = page.getByRole("button", { name: "批量状态修复（1）" })
   await expect(repairButtonsBefore).toHaveCount(2)
   await repairButtonsBefore.first().click()
@@ -4037,7 +4042,7 @@ test("wallet batch retry then repair should keep counters aligned after retry pa
   await login(page)
   await page.goto("/wallet?from=enterprise&target_id=emp-chain-retry")
 
-  await expect(page.getByText("按对象线索“emp-chain-retry”可匹配 2 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-chain-retry 筛选后有 2 条可重试投递。")).toBeVisible()
   const retryButtonsBefore = page.getByRole("button", { name: "批量重发失败通道（2）" })
   await expect(retryButtonsBefore).toHaveCount(2)
   await retryButtonsBefore.first().click()
@@ -4141,9 +4146,9 @@ test("wallet batch retry should support manual pass query split without enterpri
   await login(page)
   await page.goto("/wallet")
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
   await passQueryInput.fill("emp-manual-retry-split-a")
-  await expect(page.getByText("按对象线索“emp-manual-retry-split-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-manual-retry-split-a 筛选后有 1 条可重试投递。")).toBeVisible()
 
   const retryButtons = page.getByRole("button", { name: "批量重发失败通道（1）" })
   await expect(retryButtons).toHaveCount(2)
@@ -4152,7 +4157,7 @@ test("wallet batch retry should support manual pass query split without enterpri
   await expect(page.getByText("已批量重发 1 条失败通道，成功 1 条。")).toBeVisible()
 
   await passQueryInput.fill("")
-  await expect(page.getByText("当前可重发失败通道 1 条。")).toBeVisible()
+  await expect(page.getByText("当前有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
 
@@ -4228,9 +4233,9 @@ test("wallet batch repair should support manual pass query split without enterpr
   await login(page)
   await page.goto("/wallet")
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
   await passQueryInput.fill("emp-manual-repair-split-a")
-  await expect(page.getByText("按对象线索“emp-manual-repair-split-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-manual-repair-split-a 筛选后有 1 条可重试投递。")).toBeVisible()
 
   const repairButtons = page.getByRole("button", { name: "批量状态修复（1）" })
   await expect(repairButtons).toHaveCount(2)
@@ -4314,27 +4319,27 @@ test("wallet seed batch draft should support manual pass query split without ent
   await login(page)
   await page.goto("/wallet")
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
 
   await passQueryInput.fill("emp-manual-draft-split-a")
-  await expect(page.getByText("按对象线索“emp-manual-draft-split-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-manual-draft-split-a 筛选后有 1 条可重试投递。")).toBeVisible()
 
-  const seedDraftSplitButton = page.getByRole("button", { name: "写入批量补发草稿（1）" })
+  const seedDraftSplitButton = page.getByRole("button", { name: "填充批量补发草稿（1）" })
   await expect(seedDraftSplitButton).toBeVisible()
   await seedDraftSplitButton.click()
 
-  await expect(page.getByText("已将 1 个失败对象写入批量补发草稿")).toBeVisible()
+  await expect(page.getByText("已用模板 总部员工移动凭证 填入 1 个补发目标。模板已启用。")).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-manual-draft-split-a")
 
   await passQueryInput.fill("")
-  await expect(page.getByText("当前可重发失败通道 2 条。")).toBeVisible()
+  await expect(page.getByText("当前有 2 条可重试投递。")).toBeVisible()
 
-  const seedDraftAllButton = page.getByRole("button", { name: "写入批量补发草稿（2）" })
+  const seedDraftAllButton = page.getByRole("button", { name: "填充批量补发草稿（2）" })
   await expect(seedDraftAllButton).toBeVisible()
   await seedDraftAllButton.click()
 
-  await expect(page.getByText("已将 2 个失败对象写入批量补发草稿")).toBeVisible()
+  await expect(page.getByText("已用模板 总部员工移动凭证 填入 2 个补发目标。模板已启用。")).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-manual-draft-split-a\nemp-manual-draft-split-b")
 })
 
@@ -4381,13 +4386,12 @@ test("wallet seed batch draft should prefill targets and show summary", async ({
   await login(page)
   await page.goto("/wallet")
 
-  const seedDraftButton = page.getByRole("button", { name: "写入批量补发草稿（1）" })
+  const seedDraftButton = page.getByRole("button", { name: "填充批量补发草稿（1）" })
   await expect(seedDraftButton).toBeVisible()
   await seedDraftButton.click()
 
-  await expect(page.getByText("已将 1 个失败对象写入批量补发草稿")).toBeVisible()
-  await expect(page.getByText("可直接提交批量发放。")).toBeVisible()
-  await expect(page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")).toHaveValue("emp-draft-1")
+  await expect(page.getByText("已用模板 总部员工移动凭证 填入 1 个补发目标。模板已启用。")).toBeVisible()
+  await expect(page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")).toHaveValue("emp-draft-1")
 })
 
 test("wallet enterprise batch draft restore should recover prefilled targets after missing-only filter", async ({ page }) => {
@@ -4420,17 +4424,17 @@ test("wallet enterprise batch draft restore should recover prefilled targets aft
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_ids=emp-hit-1,emp-missing-1"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
-  await expect(page.getByRole("button", { name: "仅保留未命中对象（1）" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "恢复全部预填对象（2）" })).toBeVisible()
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
+  await expect(page.getByRole("button", { name: "仅保留缺失目标（1）" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "恢复全部预填目标（2）" })).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-hit-1\nemp-missing-1")
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
-  await expect(page.getByText("来源：企业页。已将未命中的 1 个对象写入批量发放草稿，可直接继续补发。")).toBeVisible()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
+  await expect(page.getByText("1 个缺失 Enterprise 目标已保留在批量发放草稿中。")).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-missing-1")
 
-  await page.getByRole("button", { name: "恢复全部预填对象（2）" }).click()
-  await expect(page.getByText("来源：企业页。已恢复全部 2 个预填对象到批量发放草稿。")).toBeVisible()
+  await page.getByRole("button", { name: "恢复全部预填目标（2）" }).click()
+  await expect(page.getByText("2 个预填 Enterprise 目标已恢复到批量草稿。")).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-hit-1\nemp-missing-1")
 })
 
@@ -4464,17 +4468,17 @@ test("wallet enterprise missing-only draft should submit batch issue and clear d
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_ids=emp-enterprise-hit-1,emp-enterprise-missing-1"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
   await expect(submitBatchButton).toBeEnabled()
   await expect(batchTargetInput).toHaveValue("emp-enterprise-hit-1\nemp-enterprise-missing-1")
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
-  await expect(page.getByText("来源：企业页。已将未命中的 1 个对象写入批量发放草稿，可直接继续补发。")).toBeVisible()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
+  await expect(page.getByText("1 个缺失 Enterprise 目标已保留在批量发放草稿中。")).toBeVisible()
   await expect(batchTargetInput).toHaveValue("emp-enterprise-missing-1")
 
   await submitBatchButton.click()
-  await expect(page.getByText("已提交 1 个员工对象，执行模式为 queued。")).toBeVisible()
+  await expect(page.getByText("已通过 queued 提交 1 个 用户 目标的批量发放。")).toBeVisible()
   await expect(page.getByText("最近批量回执")).toBeVisible()
   await expect(page.getByTestId("wallet-recent-batch-target").first()).toHaveText("emp-enterprise-missing-1")
   await expect(batchTargetInput).toHaveValue("")
@@ -4511,17 +4515,17 @@ test("wallet enterprise missing-only draft should keep draft when batch issue su
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_ids=emp-enterprise-hit-2,emp-enterprise-missing-2"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
   await expect(submitBatchButton).toBeEnabled()
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-enterprise-missing-2")
   await submitBatchButton.click()
 
   await expect(batchTargetInput).toHaveValue("emp-enterprise-missing-2")
   await expect(page.getByText("最近批量回执")).toHaveCount(0)
-  await expect(page.getByText(/^已提交 \d+ 个员工对象，执行模式为/)).toHaveCount(0)
+  await expect(page.getByText(/^已通过 .* 提交 \d+ 个 .* 目标的批量发放。/)).toHaveCount(0)
 })
 
 test("wallet enterprise mixed target hints should keep retry filter stable when toggling missing-only draft", async ({
@@ -4600,16 +4604,16 @@ test("wallet enterprise mixed target hints should keep retry filter stable when 
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_id=emp-mixed-filter-a&target_ids=emp-mixed-filter-a,emp-mixed-filter-b,emp-mixed-filter-missing"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   await expect(batchTargetInput).toHaveValue("emp-mixed-filter-a\nemp-mixed-filter-b\nemp-mixed-filter-missing")
-  await expect(page.getByText("按对象线索“emp-mixed-filter-a”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-mixed-filter-a 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-mixed-filter-missing")
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 
-  await page.getByRole("button", { name: "恢复全部预填对象（3）" }).click()
+  await page.getByRole("button", { name: "恢复全部预填目标（3）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-mixed-filter-a\nemp-mixed-filter-b\nemp-mixed-filter-missing")
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
@@ -4677,9 +4681,9 @@ test("wallet enterprise mixed target hints should support retry then missing-onl
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_id=emp-mixed-flow-retry&target_ids=emp-mixed-flow-hit,emp-mixed-flow-missing"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   await expect(batchTargetInput).toHaveValue("emp-mixed-flow-hit\nemp-mixed-flow-missing")
-  await expect(page.getByText("按对象线索“emp-mixed-flow-retry”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-mixed-flow-retry 筛选后有 1 条可重试投递。")).toBeVisible()
 
   const retryButtonsBefore = page.getByRole("button", { name: "批量重发失败通道（1）" })
   await expect(retryButtonsBefore).toHaveCount(2)
@@ -4687,13 +4691,13 @@ test("wallet enterprise mixed target hints should support retry then missing-onl
   await expect(page.getByText("已批量重发 1 条失败通道，成功 1 条。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（0）" })).toHaveCount(2)
 
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-mixed-flow-missing")
 
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
   await expect(submitBatchButton).toBeEnabled()
   await submitBatchButton.click()
-  await expect(page.getByText("已提交 1 个员工对象，执行模式为 queued。")).toBeVisible()
+  await expect(page.getByText("已通过 queued 提交 1 个 用户 目标的批量发放。")).toBeVisible()
   await expect(page.getByTestId("wallet-recent-batch-target").first()).toHaveText("emp-mixed-flow-missing")
   await expect(batchTargetInput).toHaveValue("")
 })
@@ -4801,7 +4805,7 @@ test("wallet enterprise target hints should prioritize target_id over target_ema
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_id=emp-priority-id&target_email=emp-priority-email&target_name=emp-priority-name"
   )
 
-  await expect(page.getByText("按对象线索“emp-priority-id”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-priority-id 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
 
@@ -4881,10 +4885,10 @@ test("wallet enterprise target hints should fallback to target_email before targ
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_email=emp-fallback-email&target_name=emp-fallback-name&target_ids=emp-fallback-email,emp-fallback-missing"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
-  await expect(page.getByText("按对象线索“emp-fallback-email”可匹配 1 条可重发失败通道。")).toBeVisible()
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
+  await expect(page.getByText("按 emp-fallback-email 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-fallback-missing")
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
@@ -4965,10 +4969,10 @@ test("wallet enterprise target hints should fallback to target_name when target_
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_name=emp-fallback-name-only&target_ids=emp-fallback-name-only,emp-fallback-name-missing"
   )
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
-  await expect(page.getByText("按对象线索“emp-fallback-name-only”可匹配 1 条可重发失败通道。")).toBeVisible()
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
+  await expect(page.getByText("按 emp-fallback-name-only 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-fallback-name-missing")
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
@@ -5047,9 +5051,9 @@ test("wallet enterprise target hints should keep target_name priority over targe
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_name=emp-name-priority&target_hint=emp-hint-fallback"
   )
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
   await expect(passQueryInput).toHaveValue("emp-name-priority")
-  await expect(page.getByText("按对象线索“emp-name-priority”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-name-priority 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
 
@@ -5127,12 +5131,12 @@ test("wallet enterprise target hints should use target_hint when other target hi
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_hint=emp-hint-only&target_ids=emp-hint-only,emp-hint-only-missing"
   )
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   await expect(passQueryInput).toHaveValue("emp-hint-only")
-  await expect(page.getByText("按对象线索“emp-hint-only”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-hint-only 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
-  await page.getByRole("button", { name: "仅保留未命中对象（1）" }).click()
+  await page.getByRole("button", { name: "仅保留缺失目标（1）" }).click()
   await expect(batchTargetInput).toHaveValue("emp-hint-only-missing")
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
@@ -5211,9 +5215,9 @@ test("wallet enterprise target hints should keep target_id priority when target_
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_hint=user&target_id=emp-hint-user-primary"
   )
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
   await expect(passQueryInput).toHaveValue("emp-hint-user-primary")
-  await expect(page.getByText("按对象线索“emp-hint-user-primary”可匹配 1 条可重发失败通道。")).toBeVisible()
+  await expect(page.getByText("按 emp-hint-user-primary 筛选后有 1 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（1）" })).toHaveCount(2)
 })
 
@@ -5291,7 +5295,7 @@ test("wallet enterprise target hints should not use target_hint visitor as retry
   await login(page)
   await page.goto("/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_hint=visitor")
 
-  await expect(page.getByText("当前可重发失败通道 2 条。")).toBeVisible()
+  await expect(page.getByText("当前有 2 条可重试投递。")).toBeVisible()
   await expect(page.getByRole("button", { name: "批量重发失败通道（2）" })).toHaveCount(2)
 })
 
@@ -5369,9 +5373,9 @@ test("wallet enterprise target hints should not treat target_hint user as object
   await login(page)
   await page.goto("/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_hint=user")
 
-  await expect(page.getByText("来源：企业页。已承接")).toBeVisible()
-  await expect(page.getByText("当前可重发失败通道 2 条。")).toBeVisible()
-  await expect(page.getByText("未找到该对象的既有凭证，已预填单发对象，可直接创建补发。")).toHaveCount(0)
+  await expect(page.getByText("已从 Enterprise 打开")).toBeVisible()
+  await expect(page.getByText("当前有 2 条可重试投递。")).toBeVisible()
+  await expect(page.getByText("没有现有凭证匹配此 Enterprise 目标，已改为准备单笔发放草稿。")).toHaveCount(0)
 })
 
 test("wallet manual pass query should persist after enterprise-hint actions without being overwritten", async ({
@@ -5421,7 +5425,7 @@ test("wallet manual pass query should persist after enterprise-hint actions with
     "/wallet?from=enterprise&flow=sync_to_access&stage=issuance&tenant_id=tenant-sudirman&target_id=emp-query-persist"
   )
 
-  const passQueryInput = page.getByPlaceholder("搜索员工/访客 ID、模板名、对象 ID 或状态")
+  const passQueryInput = page.getByPlaceholder("凭证搜索")
   await expect(passQueryInput).toHaveValue("emp-query-persist")
   await passQueryInput.fill("manual-query-overwrite-check")
 
@@ -5440,14 +5444,16 @@ test("wallet batch issue submit should show summary and recent receipts", async 
   await login(page)
   await page.goto("/wallet")
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
-  await expect(submitBatchButton).toBeEnabled()
+  await expect(submitBatchButton).toBeDisabled()
+  await expect(submitBatchButton).toHaveAttribute("title", "先输入至少一个员工或访客 ID，再提交批量发放。")
 
   await batchTargetInput.fill("emp-batch-1\nemp-batch-2")
+  await expect(submitBatchButton).toBeEnabled()
   await submitBatchButton.click()
 
-  await expect(page.getByText("已提交 2 个员工对象，执行模式为 queued。")).toBeVisible()
+  await expect(page.getByText("已通过 queued 提交 2 个 用户 目标的批量发放。")).toBeVisible()
   await expect(page.getByText("最近批量回执")).toBeVisible()
   await expect(page.getByText("emp-batch-1", { exact: true }).first()).toBeVisible()
   await expect(page.getByText("emp-batch-2", { exact: true }).first()).toBeVisible()
@@ -5464,14 +5470,16 @@ test("wallet batch issue mixed result should show failed receipt error badge", a
   await login(page)
   await page.goto("/wallet")
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
-  await expect(submitBatchButton).toBeEnabled()
+  await expect(submitBatchButton).toBeDisabled()
+  await expect(submitBatchButton).toHaveAttribute("title", "先输入至少一个员工或访客 ID，再提交批量发放。")
 
   await batchTargetInput.fill("emp-batch-mixed-success\nemp-batch-mixed-failed")
+  await expect(submitBatchButton).toBeEnabled()
   await submitBatchButton.click()
 
-  await expect(page.getByText("已提交 2 个员工对象，执行模式为 queued。")).toBeVisible()
+  await expect(page.getByText("已通过 queued 提交 2 个 用户 目标的批量发放。")).toBeVisible()
   const receiptBoard = page.getByTestId("wallet-recent-batch-receipts")
   await expect(receiptBoard).toBeVisible()
 
@@ -5497,14 +5505,16 @@ test("wallet batch issue submit failure should show api error", async ({ page })
   await login(page)
   await page.goto("/wallet")
 
-  const batchTargetInput = page.getByPlaceholder("输入多个员工或访客 ID，支持换行、逗号、分号分隔")
+  const batchTargetInput = page.getByPlaceholder("输入多个员工/访客 ID，支持换行、逗号、分号分隔")
   const submitBatchButton = page.getByRole("button", { name: "提交批量发放" })
-  await expect(submitBatchButton).toBeEnabled()
+  await expect(submitBatchButton).toBeDisabled()
+  await expect(submitBatchButton).toHaveAttribute("title", "先输入至少一个员工或访客 ID，再提交批量发放。")
 
   await batchTargetInput.fill("emp-batch-failed-1")
+  await expect(submitBatchButton).toBeEnabled()
   await submitBatchButton.click()
 
   await expect(batchTargetInput).toHaveValue("emp-batch-failed-1")
   await expect(page.getByText("最近批量回执")).toHaveCount(0)
-  await expect(page.getByText(/^已提交 \d+ 个员工对象，执行模式为/)).toHaveCount(0)
+  await expect(page.getByText(/^已通过 .* 提交 \d+ 个 .* 目标的批量发放。/)).toHaveCount(0)
 })

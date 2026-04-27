@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScopeLockedField } from "@/components/scope-locked-field"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -874,15 +875,20 @@ export function SpacesPage({ token, viewer }: SpacesPageProps) {
             </div>
           </div>
         ) : (
-          <Badge variant="outline" className="w-fit rounded-full px-3 py-1">
-            {buildingAdmin
-              ? missingBuildingScope
-                ? t("spaces.tenant.badge.unassignedScope")
-                : buildings.length > 0
-                  ? t("spaces.tenant.badge.assignedBuildings", { count: buildings.length })
-                  : t("spaces.tenant.badge.currentScope")
-              : selectedTenantID || t("spaces.tenant.badge.currentTenant")}
-          </Badge>
+          <ScopeLockedField
+            className="w-full lg:max-w-sm"
+            icon={<Building2Icon className="size-4" />}
+            label={buildingAdmin ? t("app.scope.building.label") : t("app.scope.tenant.label")}
+            value={
+              buildingAdmin
+                ? missingBuildingScope
+                  ? t("spaces.tenant.badge.unassignedScope")
+                  : buildings.length > 0
+                    ? t("spaces.tenant.badge.assignedBuildings", { count: buildings.length })
+                    : t("spaces.tenant.badge.currentScope")
+                : selectedTenantID || t("spaces.tenant.badge.currentTenant")
+            }
+          />
         )}
       </div>
 

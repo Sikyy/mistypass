@@ -39,7 +39,7 @@ export function GatewaySearchCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto]">
           <div className="relative">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
             <Input
@@ -65,7 +65,7 @@ export function GatewaySearchCard({
               <SelectItem value="offline">{t("gateways.status.offline")}</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={onResetFilters}>
+          <Button variant="outline" className="w-full lg:w-auto" onClick={onResetFilters}>
             {t("gateways.search.reset")}
           </Button>
         </div>

@@ -1254,7 +1254,9 @@ export function EnterpriseSyncWorkspace({
                   <p className="mt-1 text-xs text-muted-foreground">{item.metric}</p>
                   <div className="mt-3">
                     <Button asChild size="sm" variant="outline">
-                      <Link to={item.to}>{item.actionLabel}</Link>
+                      <Link to={item.to} data-testid={`enterprise-sync-mainflow-${item.hint}-link`}>
+                        {item.actionLabel}
+                      </Link>
                     </Button>
                   </div>
                 </div>
@@ -1392,16 +1394,12 @@ export function EnterpriseSyncWorkspace({
               data-testid="enterprise-sync-execution-context"
             >
               <p className="text-xs text-muted-foreground">
-                {t("enterpriseSyncWorkspace.executionContext.focusHint", {
-                  defaultValue: "Execution context from alerts is active in this sync workspace.",
-                })}
+                {t("enterpriseSyncWorkspace.executionContext.focusHint")}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Button asChild size="sm" variant="outline">
                   <Link to={executionReviewAlertsLink} data-testid="enterprise-sync-execution-context-alerts-link">
-                    {t("enterpriseSyncWorkspace.executionContext.returnToAlerts", {
-                      defaultValue: "Return to alerts",
-                    })}
+                    {t("enterpriseSyncWorkspace.executionContext.returnToAlerts")}
                   </Link>
                 </Button>
               </div>
@@ -1508,7 +1506,9 @@ export function EnterpriseSyncWorkspace({
                       <Link to={scopedLinks.policies}>{t("enterpriseSyncWorkspace.workerAlerts.goPolicies")}</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={scopedLinks.wallet}>{t("enterpriseSyncWorkspace.workerAlerts.goWallet")}</Link>
+                      <Link to={scopedLinks.wallet} data-testid="enterprise-sync-worker-alert-wallet-link">
+                        {t("enterpriseSyncWorkspace.workerAlerts.goWallet")}
+                      </Link>
                     </Button>
                   </div>
                 </div>

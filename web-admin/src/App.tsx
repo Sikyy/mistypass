@@ -58,6 +58,8 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RoleScopeBanner } from "@/components/role-scope-banner"
+import { HomePage } from "@/features/home/pages/home-page"
+import { isKisiPreviewRoute } from "@/features/kisi-shell/navigation"
 import { listAlarms, type CurrentUser } from "@/lib/api"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/context/auth-context"
@@ -325,7 +327,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                 <MistyIslandMark className="size-10 shrink-0" markClassName="h-9 w-12" />
                 <div className="min-w-0 group-data-[collapsible=icon]:hidden">
                   <p className="text-[11px] font-semibold tracking-[0.22em] text-sidebar-foreground/55 uppercase">
-                    MistyPass
+                    Mistyislet
                   </p>
                   <p className="truncate text-sm font-semibold">{t("app.shell.title")}</p>
                 </div>
@@ -569,7 +571,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/login" element={<Navigate to="/home" replace />} />
                 <Route path="*" element={<NotFoundPage authenticated />} />
               </Routes>
             </Suspense>
@@ -583,12 +585,14 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
 export default function App() {
   const { t } = useTranslation()
   const { token, viewer, bootstrapping, logout } = useAuth()
+  const location = useLocation()
 
   if (!token) {
     return (
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/home" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<NotFoundPage authenticated={false} />} />
         </Routes>
       </Suspense>
@@ -609,6 +613,16 @@ export default function App() {
         <NoPermissionPage viewer={viewer} onLogout={logout} />
       </Suspense>
     )
+  }
+
+  if (location.pathname === "/login") {
+    return <Navigate to="/home" replace />
+  }
+
+  const usesKisiPreviewShell = isKisiPreviewRoute(location.pathname)
+
+  if (usesKisiPreviewShell) {
+    return <HomePage token={token} viewer={viewer} onLogout={logout} />
   }
 
   return <AppShell token={token} viewer={viewer} onLogout={logout} />

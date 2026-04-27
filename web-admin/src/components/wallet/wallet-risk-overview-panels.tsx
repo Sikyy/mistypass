@@ -74,7 +74,7 @@ export function WalletRiskOverviewPanels({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>{t("walletPage.components.riskOverview.pendingAnomalies", { defaultValue: "Pending anomalies" })}</CardDescription>
+            <CardDescription>{t("walletPage.components.riskOverview.pendingAnomalies")}</CardDescription>
             <CardTitle className="flex items-center gap-2 text-2xl">
               {loading ? "--" : (metrics?.summary.dlq ?? 0)}
               <ShieldAlertIcon className="size-4 text-amber-500" />
@@ -82,7 +82,6 @@ export function WalletRiskOverviewPanels({
           </CardHeader>
           <CardContent className="mp-kpi-note">
             {t("walletPage.components.riskOverview.thresholdHits", {
-              defaultValue: "Threshold hits: {{count}}",
               count: loading ? "--" : safeAlertItems.length,
             })}
           </CardContent>
@@ -90,20 +89,19 @@ export function WalletRiskOverviewPanels({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>{t("walletPage.components.riskOverview.retryableAnomalies", { defaultValue: "Retryable anomalies" })}</CardDescription>
+            <CardDescription>{t("walletPage.components.riskOverview.retryableAnomalies")}</CardDescription>
             <CardTitle className="text-2xl">{loading ? "--" : (metrics?.summary.retryable_failed ?? 0)}</CardTitle>
           </CardHeader>
-          <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.retryableHint", { defaultValue: "`status=failed` and retryable automatically." })}</CardContent>
+          <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.retryableHint")}</CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>{t("walletPage.components.riskOverview.windowCreated", { defaultValue: "Created in window" })}</CardDescription>
+            <CardDescription>{t("walletPage.components.riskOverview.windowCreated")}</CardDescription>
             <CardTitle className="text-2xl">{loading ? "--" : (metrics?.window.created ?? 0)}</CardTitle>
           </CardHeader>
           <CardContent className="mp-kpi-note">
             {t("walletPage.components.riskOverview.windowCreatedHint", {
-              defaultValue: "Unified count for employee/visitor/temporary passes in latest {{duration}}.",
               duration: loading ? "--" : formatDurationSeconds(metrics?.window.window_seconds),
             })}
           </CardContent>
@@ -111,7 +109,7 @@ export function WalletRiskOverviewPanels({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>{t("walletPage.components.riskOverview.statusUpdates", { defaultValue: "Issuance status updates" })}</CardDescription>
+            <CardDescription>{t("walletPage.components.riskOverview.statusUpdates")}</CardDescription>
             <CardTitle className="flex items-center gap-2 text-2xl">
               {loading ? "--" : (metrics?.window.updated ?? 0)}
               <WalletCardsIcon className="size-4 text-cyan-500" />
@@ -119,7 +117,6 @@ export function WalletRiskOverviewPanels({
           </CardHeader>
           <CardContent className="mp-kpi-note">
             {t("walletPage.components.riskOverview.statusUpdatesHint", {
-              defaultValue: "Success {{success}} / Failed {{failed}} / DLQ {{dlq}}",
               success: loading ? "--" : (metrics?.window.success ?? 0),
               failed: loading ? "--" : (metrics?.window.failed ?? 0),
               dlq: loading ? "--" : (metrics?.window.dlq ?? 0),
@@ -133,64 +130,64 @@ export function WalletRiskOverviewPanels({
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>{t("walletPage.components.riskOverview.crossTenantTotal", { defaultValue: "Cross-tenant total jobs" })}</CardDescription>
+                <CardDescription>{t("walletPage.components.riskOverview.crossTenantTotal")}</CardDescription>
                 <CardTitle className="text-2xl">{loading ? "--" : aggregateStats.total}</CardTitle>
               </CardHeader>
-              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantTotalHint", { defaultValue: "Tenant-level aggregate for current query window." })}</CardContent>
+              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantTotalHint")}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>{t("walletPage.components.riskOverview.crossTenantFailed", { defaultValue: "Cross-tenant failed" })}</CardDescription>
+                <CardDescription>{t("walletPage.components.riskOverview.crossTenantFailed")}</CardDescription>
                 <CardTitle className="text-2xl">{loading ? "--" : aggregateStats.failed}</CardTitle>
               </CardHeader>
-              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantFailedHint", { defaultValue: "Aggregate across all tenants with `status=failed`." })}</CardContent>
+              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantFailedHint")}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>{t("walletPage.components.riskOverview.crossTenantDlq", { defaultValue: "Cross-tenant DLQ" })}</CardDescription>
+                <CardDescription>{t("walletPage.components.riskOverview.crossTenantDlq")}</CardDescription>
                 <CardTitle className="text-2xl">{loading ? "--" : aggregateStats.dlq}</CardTitle>
               </CardHeader>
-              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantDlqHint", { defaultValue: "Aggregate across all tenants with `status=dlq`." })}</CardContent>
+              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantDlqHint")}</CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>{t("walletPage.components.riskOverview.crossTenantAlertTenants", { defaultValue: "Tenants hitting threshold" })}</CardDescription>
+                <CardDescription>{t("walletPage.components.riskOverview.crossTenantAlertTenants")}</CardDescription>
                 <CardTitle className="text-2xl">{loading ? "--" : aggregateStats.alertTenants}</CardTitle>
               </CardHeader>
-              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantAlertTenantsHint", { defaultValue: "Count of tenants where `alerts.length` > 0." })}</CardContent>
+              <CardContent className="mp-kpi-note">{t("walletPage.components.riskOverview.crossTenantAlertTenantsHint")}</CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">{t("walletPage.components.riskOverview.rankingTitle", { defaultValue: "Cross-tenant issuance risk ranking" })}</CardTitle>
-              <CardDescription>{t("walletPage.components.riskOverview.rankingDescription", { defaultValue: "Sort by anomaly backlog and failures descending to prioritize high-risk tenants." })}</CardDescription>
+              <CardTitle className="text-base">{t("walletPage.components.riskOverview.rankingTitle")}</CardTitle>
+              <CardDescription>{t("walletPage.components.riskOverview.rankingDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.tenant", { defaultValue: "Tenant" })}</TableHead>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.total", { defaultValue: "Total jobs" })}</TableHead>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.failed", { defaultValue: "Failed" })}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.tenant")}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.total")}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.failed")}</TableHead>
                     <TableHead>DLQ</TableHead>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.retryableFailed", { defaultValue: "Retryable failed" })}</TableHead>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.alerts", { defaultValue: "Alerts" })}</TableHead>
-                    <TableHead>{t("walletPage.components.riskOverview.columns.updatedAt", { defaultValue: "Updated at" })}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.retryableFailed")}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.alerts")}</TableHead>
+                    <TableHead>{t("walletPage.components.riskOverview.columns.updatedAt")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                        {t("walletPage.components.riskOverview.loadingAggregates", { defaultValue: "Loading cross-tenant aggregates..." })}
+                        {t("walletPage.components.riskOverview.loadingAggregates")}
                       </TableCell>
                     </TableRow>
                   ) : null}
                   {!loading && tenantAggregates.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                        {t("walletPage.components.riskOverview.emptyAggregates", { defaultValue: "No cross-tenant aggregate data." })}
+                        {t("walletPage.components.riskOverview.emptyAggregates")}
                       </TableCell>
                     </TableRow>
                   ) : null}

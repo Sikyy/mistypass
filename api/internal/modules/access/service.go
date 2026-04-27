@@ -25,10 +25,58 @@ var ErrUserEmailRequired = errors.New("user email is required")
 var ErrInvalidUserStatus = errors.New("invalid user status")
 var ErrUserGroupNameRequired = errors.New("user group name is required")
 var ErrUserGroupNotFound = errors.New("user group not found")
+var ErrTeamNameRequired = errors.New("team name is required")
+var ErrTeamNotFound = errors.New("team not found")
+var ErrTeamIDRequired = errors.New("team_id is required")
+var ErrInvalidTeamMemberType = errors.New("invalid team member type")
+var ErrTeamMemberIDRequired = errors.New("member_id is required")
 var ErrDeliveryMethodInvalid = errors.New("invalid delivery method")
 var ErrGranteeNameRequired = errors.New("grantee_name is required")
 var ErrGranteeEmailRequired = errors.New("grantee_email is required")
 var ErrGranteePhoneRequired = errors.New("grantee_phone is required")
+var ErrRoleIDRequired = errors.New("role_id is required")
+var ErrRoleNotFound = errors.New("role not found")
+var ErrRoleAssignmentNotFound = errors.New("role assignment not found")
+var ErrInvalidRoleScope = errors.New("invalid role applies_to scope")
+var ErrInvalidAssigneeType = errors.New("invalid assignee type")
+var ErrAppliesToIDRequired = errors.New("applies_to_id is required")
+var ErrAssigneeIDRequired = errors.New("assignee_id is required")
+
+type Role struct {
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	AppliesTo   string          `json:"applies_to"`
+	Description string          `json:"description,omitempty"`
+	Permissions map[string]bool `json:"permissions"`
+	BuiltIn     bool            `json:"built_in"`
+}
+
+type RoleAssignment struct {
+	ID            string    `json:"id"`
+	TenantID      string    `json:"tenant_id"`
+	RoleID        string    `json:"role_id"`
+	AppliesToType string    `json:"applies_to_type"`
+	AppliesToID   string    `json:"applies_to_id"`
+	AssigneeType  string    `json:"assignee_type"`
+	AssigneeID    string    `json:"assignee_id"`
+	AssigneeEmail string    `json:"assignee_email,omitempty"`
+	ValidFrom     string    `json:"valid_from,omitempty"`
+	ValidUntil    string    `json:"valid_until,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type RoleAssignmentInput struct {
+	TenantID      string
+	RoleID        string
+	AppliesToType string
+	AppliesToID   string
+	AssigneeType  string
+	AssigneeID    string
+	AssigneeEmail string
+	ValidFrom     string
+	ValidUntil    string
+}
 
 type Policy struct {
 	ID         string    `json:"id"`
@@ -80,6 +128,33 @@ type UserGroup struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type Team struct {
+	ID           string    `json:"id"`
+	ResourceType string    `json:"resource_type"`
+	TenantID     string    `json:"tenant_id"`
+	Name         string    `json:"name"`
+	Scope        string    `json:"scope"`
+	PlaceID      string    `json:"place_id,omitempty"`
+	Description  string    `json:"description,omitempty"`
+	Source       string    `json:"source,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type TeamMembership struct {
+	ID           string    `json:"id"`
+	ResourceType string    `json:"resource_type"`
+	TenantID     string    `json:"tenant_id"`
+	TeamID       string    `json:"team_id"`
+	MemberType   string    `json:"member_type"`
+	MemberID     string    `json:"member_id"`
+	MemberEmail  string    `json:"member_email,omitempty"`
+	MemberName   string    `json:"member_name,omitempty"`
+	Source       string    `json:"source,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type TemporaryAccess struct {
 	ID                string    `json:"id"`
 	TenantID          string    `json:"tenant_id"`
@@ -126,6 +201,9 @@ type stateSnapshot struct {
 	Policies        []Policy          `json:"policies"`
 	TemporaryAccess []TemporaryAccess `json:"temporary_access"`
 	VisitorPasses   []VisitorPass     `json:"visitor_passes"`
+	RoleAssignments []RoleAssignment  `json:"role_assignments"`
+	Teams           []Team            `json:"teams"`
+	TeamMemberships []TeamMembership  `json:"team_memberships"`
 }
 
 type Service struct {
@@ -135,6 +213,9 @@ type Service struct {
 	policies        []Policy
 	temporaryAccess []TemporaryAccess
 	visitorPasses   []VisitorPass
+	roleAssignments []RoleAssignment
+	teams           []Team
+	teamMemberships []TeamMembership
 	stateStore      StateStore
 }
 
@@ -303,6 +384,134 @@ func NewService() *Service {
 				CreatedAt:      now,
 			},
 		},
+		teams: []Team{
+			{
+				ID:           "team_engineering_jkt",
+				ResourceType: "Team",
+				TenantID:     "tenant_demo_jakarta",
+				Name:         "Engineering Team",
+				Scope:        "place",
+				PlaceID:      "building_demo_001",
+				Description:  "Office engineering staff managed through directory sync",
+				Source:       "SCIM group: engineering",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+			{
+				ID:           "team_operations_jkt",
+				ResourceType: "Team",
+				TenantID:     "tenant_demo_jakarta",
+				Name:         "Operations Team",
+				Scope:        "place",
+				PlaceID:      "building_demo_001",
+				Description:  "Building operations and facility support",
+				Source:       "Manual",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+			{
+				ID:           "team_factory_security",
+				ResourceType: "Team",
+				TenantID:     "tenant_demo_factory",
+				Name:         "Factory Security Team",
+				Scope:        "place",
+				PlaceID:      "building_demo_003",
+				Description:  "Plant security operators and emergency response",
+				Source:       "Manual",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		teamMemberships: []TeamMembership{
+			{
+				ID:           "tm_engineering_andri",
+				ResourceType: "TeamMembership",
+				TenantID:     "tenant_demo_jakarta",
+				TeamID:       "team_engineering_jkt",
+				MemberType:   "User",
+				MemberID:     "usr_1001",
+				MemberEmail:  "andri.pratama@mistypass.local",
+				MemberName:   "Andri Pratama",
+				Source:       "SCIM",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+			{
+				ID:           "tm_operations_admin",
+				ResourceType: "TeamMembership",
+				TenantID:     "tenant_demo_jakarta",
+				TeamID:       "team_operations_jkt",
+				MemberType:   "User",
+				MemberID:     "usr_place_admin_sudirman_001",
+				MemberEmail:  "place.admin.sudirman@mistypass.local",
+				MemberName:   "Sudirman Place Admin",
+				Source:       "Manual",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+			{
+				ID:           "tm_factory_rina",
+				ResourceType: "TeamMembership",
+				TenantID:     "tenant_demo_factory",
+				TeamID:       "team_factory_security",
+				MemberType:   "User",
+				MemberID:     "usr_1002",
+				MemberEmail:  "rina.hartono@mistypass.local",
+				MemberName:   "Rina Hartono",
+				Source:       "Manual",
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		roleAssignments: []RoleAssignment{
+			{
+				ID:            "ra_org_admin_jkt_001",
+				TenantID:      "tenant_demo_jakarta",
+				RoleID:        "role_organization_admin",
+				AppliesToType: "Organization",
+				AppliesToID:   "tenant_demo_jakarta",
+				AssigneeType:  "User",
+				AssigneeID:    "usr_organization_admin_jkt_001",
+				AssigneeEmail: "organization.admin@mistypass.local",
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
+			{
+				ID:            "ra_place_admin_sudirman_001",
+				TenantID:      "tenant_demo_jakarta",
+				RoleID:        "role_place_admin",
+				AppliesToType: "Place",
+				AppliesToID:   "building_demo_001",
+				AssigneeType:  "User",
+				AssigneeID:    "usr_place_admin_sudirman_001",
+				AssigneeEmail: "place.admin.sudirman@mistypass.local",
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
+			{
+				ID:            "ra_engineering_group_access_001",
+				TenantID:      "tenant_demo_jakarta",
+				RoleID:        "role_group_access",
+				AppliesToType: "Group",
+				AppliesToID:   "ug_common_office_jkt",
+				AssigneeType:  "Team",
+				AssigneeID:    "team_engineering_jkt",
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
+			{
+				ID:            "ra_org_admin_fct_001",
+				TenantID:      "tenant_demo_factory",
+				RoleID:        "role_organization_admin",
+				AppliesToType: "Organization",
+				AppliesToID:   "tenant_demo_factory",
+				AssigneeType:  "User",
+				AssigneeID:    "usr_tenant_admin_fct_001",
+				AssigneeEmail: "tenant.admin@factory.local",
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
+		},
 	}
 }
 
@@ -313,6 +522,105 @@ func NewServiceWithStateStore(store StateStore) (*Service, error) {
 		return nil, err
 	}
 	return svc, nil
+}
+
+func (s *Service) ListRoles() []Role {
+	return builtInRoles()
+}
+
+func (s *Service) ListRoleAssignments(tenantID string) []RoleAssignment {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	filterTenantID := strings.TrimSpace(tenantID)
+	items := make([]RoleAssignment, 0, len(s.roleAssignments))
+	for i := range s.roleAssignments {
+		if filterTenantID != "" && s.roleAssignments[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.roleAssignments[i])
+	}
+	return items
+}
+
+func (s *Service) CreateRoleAssignment(input RoleAssignmentInput) (RoleAssignment, error) {
+	normalized, err := normalizeRoleAssignmentInput(input)
+	if err != nil {
+		return RoleAssignment{}, err
+	}
+
+	id, err := accessID("ra_")
+	if err != nil {
+		return RoleAssignment{}, err
+	}
+
+	now := time.Now().UTC()
+	record := RoleAssignment{
+		ID:            id,
+		TenantID:      normalized.TenantID,
+		RoleID:        normalized.RoleID,
+		AppliesToType: normalized.AppliesToType,
+		AppliesToID:   normalized.AppliesToID,
+		AssigneeType:  normalized.AssigneeType,
+		AssigneeID:    normalized.AssigneeID,
+		AssigneeEmail: normalizeEmail(normalized.AssigneeEmail),
+		ValidFrom:     strings.TrimSpace(normalized.ValidFrom),
+		ValidUntil:    strings.TrimSpace(normalized.ValidUntil),
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	s.mu.Lock()
+	s.roleAssignments = append([]RoleAssignment{record}, s.roleAssignments...)
+	if err := s.persistLocked(); err != nil {
+		s.mu.Unlock()
+		return RoleAssignment{}, err
+	}
+	s.mu.Unlock()
+
+	return record, nil
+}
+
+func (s *Service) UpdateRoleAssignment(tenantID, assignmentID string, input RoleAssignmentInput) (RoleAssignment, error) {
+	nextID := strings.TrimSpace(assignmentID)
+	if nextID == "" {
+		return RoleAssignment{}, ErrRoleAssignmentNotFound
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+	input.TenantID = firstNonEmpty(input.TenantID, filterTenantID)
+	normalized, err := normalizeRoleAssignmentInput(input)
+	if err != nil {
+		return RoleAssignment{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.roleAssignments {
+		if s.roleAssignments[i].ID != nextID {
+			continue
+		}
+		if filterTenantID != "" && s.roleAssignments[i].TenantID != filterTenantID {
+			return RoleAssignment{}, ErrRoleAssignmentNotFound
+		}
+
+		s.roleAssignments[i].TenantID = normalized.TenantID
+		s.roleAssignments[i].RoleID = normalized.RoleID
+		s.roleAssignments[i].AppliesToType = normalized.AppliesToType
+		s.roleAssignments[i].AppliesToID = normalized.AppliesToID
+		s.roleAssignments[i].AssigneeType = normalized.AssigneeType
+		s.roleAssignments[i].AssigneeID = normalized.AssigneeID
+		s.roleAssignments[i].AssigneeEmail = normalizeEmail(normalized.AssigneeEmail)
+		s.roleAssignments[i].ValidFrom = strings.TrimSpace(normalized.ValidFrom)
+		s.roleAssignments[i].ValidUntil = strings.TrimSpace(normalized.ValidUntil)
+		s.roleAssignments[i].UpdatedAt = time.Now().UTC()
+		if err := s.persistLocked(); err != nil {
+			return RoleAssignment{}, err
+		}
+		return s.roleAssignments[i], nil
+	}
+
+	return RoleAssignment{}, ErrRoleAssignmentNotFound
 }
 
 func (s *Service) ListUsers(tenantID string) []AccessUser {
@@ -677,6 +985,36 @@ func (s *Service) ListUserGroups(tenantID string) []UserGroup {
 			continue
 		}
 		items = append(items, s.userGroups[i])
+	}
+	return items
+}
+
+func (s *Service) ListTeams(tenantID string) []Team {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	filterTenantID := strings.TrimSpace(tenantID)
+	items := make([]Team, 0, len(s.teams))
+	for i := range s.teams {
+		if filterTenantID != "" && s.teams[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.teams[i])
+	}
+	return items
+}
+
+func (s *Service) ListTeamMemberships(tenantID string) []TeamMembership {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	filterTenantID := strings.TrimSpace(tenantID)
+	items := make([]TeamMembership, 0, len(s.teamMemberships))
+	for i := range s.teamMemberships {
+		if filterTenantID != "" && s.teamMemberships[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.teamMemberships[i])
 	}
 	return items
 }
@@ -1067,6 +1405,9 @@ func (s *Service) restoreFromStateStore() error {
 			Policies:        clonePolicies(s.policies),
 			TemporaryAccess: cloneTemporaryAccess(s.temporaryAccess),
 			VisitorPasses:   cloneVisitorPasses(s.visitorPasses),
+			RoleAssignments: cloneRoleAssignments(s.roleAssignments),
+			Teams:           cloneTeams(s.teams),
+			TeamMemberships: cloneTeamMemberships(s.teamMemberships),
 		})
 	}
 
@@ -1076,6 +1417,15 @@ func (s *Service) restoreFromStateStore() error {
 	s.policies = clonePolicies(snapshot.Policies)
 	s.temporaryAccess = cloneTemporaryAccess(snapshot.TemporaryAccess)
 	s.visitorPasses = cloneVisitorPasses(snapshot.VisitorPasses)
+	if len(snapshot.RoleAssignments) > 0 {
+		s.roleAssignments = cloneRoleAssignments(snapshot.RoleAssignments)
+	}
+	if len(snapshot.Teams) > 0 {
+		s.teams = cloneTeams(snapshot.Teams)
+	}
+	if len(snapshot.TeamMemberships) > 0 {
+		s.teamMemberships = cloneTeamMemberships(snapshot.TeamMemberships)
+	}
 	s.mu.Unlock()
 	return nil
 }
@@ -1090,6 +1440,9 @@ func (s *Service) persistLocked() error {
 		Policies:        clonePolicies(s.policies),
 		TemporaryAccess: cloneTemporaryAccess(s.temporaryAccess),
 		VisitorPasses:   cloneVisitorPasses(s.visitorPasses),
+		RoleAssignments: cloneRoleAssignments(s.roleAssignments),
+		Teams:           cloneTeams(s.teams),
+		TeamMemberships: cloneTeamMemberships(s.teamMemberships),
 	})
 }
 
@@ -1135,6 +1488,198 @@ func cloneVisitorPasses(items []VisitorPass) []VisitorPass {
 		output = append(output, items[i])
 	}
 	return output
+}
+
+func cloneRoleAssignments(items []RoleAssignment) []RoleAssignment {
+	output := make([]RoleAssignment, 0, len(items))
+	for i := range items {
+		output = append(output, items[i])
+	}
+	return output
+}
+
+func cloneTeams(items []Team) []Team {
+	output := make([]Team, 0, len(items))
+	for i := range items {
+		output = append(output, items[i])
+	}
+	return output
+}
+
+func cloneTeamMemberships(items []TeamMembership) []TeamMembership {
+	output := make([]TeamMembership, 0, len(items))
+	for i := range items {
+		output = append(output, items[i])
+	}
+	return output
+}
+
+func builtInRoles() []Role {
+	return []Role{
+		{
+			ID:          "role_organization_admin",
+			Name:        "Organization Admin",
+			AppliesTo:   "Organization",
+			Description: "Manage organization users, places, access, credentials, integrations, and reports.",
+			Permissions: map[string]bool{
+				"places_read":            true,
+				"places_write":           true,
+				"locks_read":             true,
+				"locks_write":            true,
+				"locks_unlock":           true,
+				"users_read":             true,
+				"users_write":            true,
+				"groups_read":            true,
+				"groups_write":           true,
+				"teams_read":             true,
+				"teams_write":            true,
+				"team_memberships_read":  true,
+				"team_memberships_write": true,
+				"roles_read":             true,
+				"role_assignments_read":  true,
+				"role_assignments_write": true,
+				"shares_read":            true,
+				"shares_write":           true,
+				"cards_read":             true,
+				"cards_write":            true,
+				"integrations_read":      true,
+				"integrations_write":     true,
+				"reports_read":           true,
+			},
+			BuiltIn: true,
+		},
+		{
+			ID:          "role_place_admin",
+			Name:        "Place Admin",
+			AppliesTo:   "Place",
+			Description: "Manage assigned place users, groups, locks, hardware, and local events.",
+			Permissions: map[string]bool{
+				"places_read":            true,
+				"locks_read":             true,
+				"locks_write":            true,
+				"locks_unlock":           true,
+				"users_read":             true,
+				"users_write":            true,
+				"groups_read":            true,
+				"groups_write":           true,
+				"teams_read":             true,
+				"team_memberships_read":  true,
+				"role_assignments_read":  true,
+				"role_assignments_write": true,
+				"shares_read":            true,
+				"shares_write":           true,
+				"events_read":            true,
+			},
+			BuiltIn: true,
+		},
+		{
+			ID:          "role_group_access",
+			Name:        "Group Access",
+			AppliesTo:   "Group",
+			Description: "Grant access through a group without creating a management persona.",
+			Permissions: map[string]bool{
+				"locks_read":   true,
+				"locks_unlock": true,
+			},
+			BuiltIn: true,
+		},
+	}
+}
+
+func normalizeRoleAssignmentInput(input RoleAssignmentInput) (RoleAssignmentInput, error) {
+	nextTenantID := strings.TrimSpace(input.TenantID)
+	if nextTenantID == "" {
+		return RoleAssignmentInput{}, ErrTenantIDRequired
+	}
+
+	nextRoleID := strings.TrimSpace(input.RoleID)
+	if nextRoleID == "" {
+		return RoleAssignmentInput{}, ErrRoleIDRequired
+	}
+	role, exists := roleByID(nextRoleID)
+	if !exists {
+		return RoleAssignmentInput{}, ErrRoleNotFound
+	}
+
+	nextAppliesToType, err := normalizeRoleScope(input.AppliesToType)
+	if err != nil {
+		return RoleAssignmentInput{}, err
+	}
+	if role.AppliesTo != nextAppliesToType {
+		return RoleAssignmentInput{}, ErrInvalidRoleScope
+	}
+
+	nextAppliesToID := strings.TrimSpace(input.AppliesToID)
+	if nextAppliesToID == "" {
+		return RoleAssignmentInput{}, ErrAppliesToIDRequired
+	}
+
+	nextAssigneeType, err := normalizeAssigneeType(input.AssigneeType)
+	if err != nil {
+		return RoleAssignmentInput{}, err
+	}
+	nextAssigneeID := strings.TrimSpace(input.AssigneeID)
+	if nextAssigneeID == "" {
+		return RoleAssignmentInput{}, ErrAssigneeIDRequired
+	}
+
+	return RoleAssignmentInput{
+		TenantID:      nextTenantID,
+		RoleID:        nextRoleID,
+		AppliesToType: nextAppliesToType,
+		AppliesToID:   nextAppliesToID,
+		AssigneeType:  nextAssigneeType,
+		AssigneeID:    nextAssigneeID,
+		AssigneeEmail: strings.TrimSpace(input.AssigneeEmail),
+		ValidFrom:     strings.TrimSpace(input.ValidFrom),
+		ValidUntil:    strings.TrimSpace(input.ValidUntil),
+	}, nil
+}
+
+func roleByID(roleID string) (Role, bool) {
+	nextRoleID := strings.TrimSpace(roleID)
+	for _, role := range builtInRoles() {
+		if role.ID == nextRoleID {
+			return role, true
+		}
+	}
+	return Role{}, false
+}
+
+func normalizeRoleScope(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "organization":
+		return "Organization", nil
+	case "place":
+		return "Place", nil
+	case "group":
+		return "Group", nil
+	default:
+		return "", ErrInvalidRoleScope
+	}
+}
+
+func normalizeAssigneeType(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "user":
+		return "User", nil
+	case "team":
+		return "Team", nil
+	case "guest":
+		return "Guest", nil
+	default:
+		return "", ErrInvalidAssigneeType
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for i := range values {
+		value := strings.TrimSpace(values[i])
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func accessID(prefix string) (string, error) {

@@ -672,7 +672,7 @@ export function EventsPage({ token, viewer }: EventsPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-[180px_220px_minmax(0,1fr)_auto]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,180px)_minmax(0,220px)_minmax(16rem,1fr)_auto]">
             <Select
               value={timeRange}
               onValueChange={(value) => {
@@ -734,9 +734,10 @@ export function EventsPage({ token, viewer }: EventsPageProps) {
                 }
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap">
               <Button
                 variant="outline"
+                className="w-full lg:w-auto"
                 onClick={() => {
                   setQuery("")
                   setTimeRange("24h")
@@ -753,6 +754,7 @@ export function EventsPage({ token, viewer }: EventsPageProps) {
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-full lg:w-auto"
                   onClick={() => setShowAdvancedFilters((current) => !current)}
                   aria-expanded={showAdvancedFilters}
                 >
@@ -774,7 +776,7 @@ export function EventsPage({ token, viewer }: EventsPageProps) {
           </div>
           {platformViewer && showAdvancedFilters ? (
             <div className="mt-4 rounded-xl border bg-muted/10 p-3">
-              <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
                 <Select
                   value={tenantFilter}
                   onValueChange={(value) => {

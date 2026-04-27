@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type ColumnDef, type SortingState, type VisibilityState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowUpDownIcon, BellRingIcon, FilterIcon, MailIcon, MessageCircleIcon, SirenIcon, SlidersHorizontalIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { ArrowUpDownIcon, BellRingIcon, CheckCircle2Icon, FilterIcon, MailIcon, MessageCircleIcon, SirenIcon, SlidersHorizontalIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -25,11 +25,11 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableCellText,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ListPagination } from "@/components/ui/list-pagination"
 import {
   consumeServerSentEvents,
@@ -58,6 +58,25 @@ type AlarmWorkflowStatus =
   | "resolved"
 
 const DEFAULT_NOTIFY_GROUP = "__default_security_group__"
+
+type AlarmQueueGroupID = "open" | "investigating" | "mitigated" | "closed"
+
+const alarmQueueGroups: Array<{
+  id: AlarmQueueGroupID
+  statusSet: Array<Alarm["status"]>
+}> = [
+  { id: "open", statusSet: ["open", "acknowledged"] },
+  { id: "investigating", statusSet: ["investigating", "escalated"] },
+  { id: "mitigated", statusSet: ["mitigated"] },
+  { id: "closed", statusSet: ["resolved", "false_positive"] },
+]
+
+const severityOrder: Record<Alarm["severity"], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+}
 
 function severityVariant(severity: Alarm["severity"]) {
   switch (severity) {
@@ -120,14 +139,44 @@ function statusLabel(status: Alarm["status"], t: (key: string) => string) {
   }
 }
 
-const statusOptions: AlarmWorkflowStatus[] = [
-  "acknowledged",
-  "investigating",
-  "mitigated",
-  "escalated",
-  "false_positive",
-  "resolved",
-]
+function nextAlarmAction(status: Alarm["status"]): AlarmWorkflowStatus | null {
+  switch (status) {
+    case "open":
+      return "acknowledged"
+    case "acknowledged":
+      return "investigating"
+    case "investigating":
+    case "escalated":
+      return "mitigated"
+    case "mitigated":
+      return "resolved"
+    default:
+      return null
+  }
+}
+
+function nextAlarmActionLabel(status: AlarmWorkflowStatus, t: (key: string) => string) {
+  switch (status) {
+    case "acknowledged":
+      return t("alarms.queue.nextAction.acknowledge")
+    case "investigating":
+      return t("alarms.queue.nextAction.investigate")
+    case "mitigated":
+      return t("alarms.queue.nextAction.mitigate")
+    case "resolved":
+      return t("alarms.queue.nextAction.close")
+    default:
+      return statusLabel(status, t)
+  }
+}
+
+function sortAlarmsForQueue(a: Alarm, b: Alarm) {
+  const severityDelta = severityOrder[a.severity] - severityOrder[b.severity]
+  if (severityDelta !== 0) {
+    return severityDelta
+  }
+  return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+}
 
 type NotificationLog = {
   id: string
@@ -187,7 +236,6 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
   const missingBuildingScope = buildingAdmin && viewerBuildingIDs.size === 0
   const [error, setError] = useState("")
   const [updatingAlarmID, setUpdatingAlarmID] = useState<string | null>(null)
-  const [pendingStatus, setPendingStatus] = useState<Record<string, AlarmWorkflowStatus>>({})
   const [notifyGroups, setNotifyGroups] = useState<string[]>([DEFAULT_NOTIFY_GROUP])
   const [notifyGroupDraft, setNotifyGroupDraft] = useState(DEFAULT_NOTIFY_GROUP)
   const [notifyEmail, setNotifyEmail] = useState(true)
@@ -198,8 +246,6 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
   const [severityFilter, setSeverityFilter] = useState<"all" | Alarm["severity"]>("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
-  const [alarmSorting, setAlarmSorting] = useState<SortingState>([])
-  const [alarmColumnVisibility, setAlarmColumnVisibility] = useState<VisibilityState>({})
   const [notificationPage, setNotificationPage] = useState(1)
   const [notificationPageSize, setNotificationPageSize] = useState(25)
   const [notificationSorting, setNotificationSorting] = useState<SortingState>([])
@@ -288,166 +334,17 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
   }, [alarms, query, severityFilter, statusFilter, tenantByID])
   const renderNotifyGroupLabel = (group: string) =>
     group === DEFAULT_NOTIFY_GROUP ? t("alarms.notificationPolicy.defaultGroupLabel") : group
-  const alarmColumns = useMemo<ColumnDef<Alarm>[]>(
-    () => {
-      const definition: ColumnDef<Alarm>[] = [
-        {
-          id: "id",
-          accessorKey: "id",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.id")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => <TableCellText className="max-w-[12rem] font-medium">{row.original.id}</TableCellText>,
-        },
-        {
-          id: "type",
-          accessorKey: "type",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.type")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => <TableCellText className="max-w-[12rem]">{row.original.type}</TableCellText>,
-        },
-        {
-          id: "location",
-          accessorKey: "location",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.location")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => <TableCellText className="max-w-[16rem]">{row.original.location}</TableCellText>,
-        },
-        {
-          id: "severity",
-          accessorKey: "severity",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.severity")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <Badge variant={severityVariant(row.original.severity)}>
-              {severityLabel(row.original.severity, t)}
-            </Badge>
-          ),
-        },
-        {
-          id: "status",
-          accessorKey: "status",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.status")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <Badge variant={statusVariant(row.original.status)}>
-              {statusLabel(row.original.status, t)}
-            </Badge>
-          ),
-        },
-        {
-          id: "created_at",
-          accessorKey: "created_at",
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.createdAt")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => new Date(row.original.created_at).toLocaleString(i18n.language),
-        },
-        {
-          id: "actions",
-          header: () => <span className="block text-right">{t("alarms.table.actions")}</span>,
-          enableSorting: false,
-          enableHiding: false,
-          cell: ({ row }) => (
-            <div className="inline-flex items-center gap-2">
-              <Select
-                value={pendingStatus[row.original.id] ?? row.original.status}
-                onValueChange={(value) => {
-                  setPendingStatus((current) => ({
-                    ...current,
-                    [row.original.id]: value as AlarmWorkflowStatus,
-                  }))
-                }}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder={t("alarms.table.statusPlaceholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {statusLabel(status, t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={updatingAlarmID === row.original.id}
-                onClick={() => {
-                  void applyStatus(row.original.id)
-                }}
-              >
-                {t("alarms.table.update")}
-              </Button>
-            </div>
-          ),
-        },
-      ]
-      if (platformViewer) {
-        definition.splice(1, 0, {
-          id: "tenant",
-          accessorFn: (row) => tenantByID.get(row.tenant_id)?.name ?? row.tenant_id,
-          header: ({ column }) => (
-            <Button variant="ghost" className="-ml-2 h-8 px-2" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-              {t("alarms.table.tenant")}
-              <ArrowUpDownIcon className="ml-1.5 size-3.5" />
-            </Button>
-          ),
-          cell: ({ row }) => <TableCellText className="max-w-[13rem]">{tenantByID.get(row.original.tenant_id)?.name ?? row.original.tenant_id}</TableCellText>,
-        })
-      }
-      return definition
-    },
-    [pendingStatus, platformViewer, tenantByID, updatingAlarmID, t, i18n.language]
+  const groupedAlarmQueues = useMemo(
+    () =>
+      alarmQueueGroups.map((group) => ({
+        ...group,
+        alarms: filteredAlarms
+          .filter((alarm) => group.statusSet.includes(alarm.status))
+          .slice()
+          .sort(sortAlarmsForQueue),
+      })),
+    [filteredAlarms]
   )
-  const alarmsTable = useReactTable({
-    columns: alarmColumns,
-    data: filteredAlarms,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getRowId: (row) => row.id,
-    state: {
-      columnVisibility: alarmColumnVisibility,
-      sorting: alarmSorting,
-    },
-    onColumnVisibilityChange: setAlarmColumnVisibility,
-    onSortingChange: setAlarmSorting,
-  })
-  const visibleAlarmColumnCount = alarmsTable.getVisibleLeafColumns().length
-  const alarmToggleableColumns = alarmsTable.getAllLeafColumns().filter((column) => column.getCanHide())
-  const alarmColumnLabels: Record<string, string> = {
-    created_at: t("alarms.table.createdAt"),
-    id: t("alarms.table.id"),
-    location: t("alarms.table.location"),
-    severity: t("alarms.table.severity"),
-    status: t("alarms.table.status"),
-    tenant: t("alarms.table.tenant"),
-    type: t("alarms.table.type"),
-  }
   const notificationMaxPage = Math.max(1, Math.ceil(notificationLogs.length / notificationPageSize))
   const notificationColumns = useMemo<ColumnDef<NotificationLog>[]>(
     () => [
@@ -645,11 +542,7 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
     }
   }
 
-  async function applyStatus(alarmID: string) {
-    const status = pendingStatus[alarmID]
-    if (!status) {
-      return
-    }
+  async function applyStatus(alarmID: string, status: AlarmWorkflowStatus) {
     setUpdatingAlarmID(alarmID)
     setError("")
     try {
@@ -661,6 +554,80 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
     } finally {
       setUpdatingAlarmID(null)
     }
+  }
+
+  function renderAlarmCard(alarm: Alarm) {
+    const nextStatus = nextAlarmAction(alarm.status)
+    const tenantLabel = tenantByID.get(alarm.tenant_id)?.name ?? alarm.tenant_id
+
+    return (
+      <Card key={alarm.id} data-testid="alarm-card">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="break-all font-medium">{alarm.id}</span>
+                <Badge variant={severityVariant(alarm.severity)}>
+                  {severityLabel(alarm.severity, t)}
+                </Badge>
+                <Badge variant={statusVariant(alarm.status)}>
+                  {statusLabel(alarm.status, t)}
+                </Badge>
+              </div>
+              <div className="min-w-0">
+                <p className="break-words text-sm font-medium">{alarm.type}</p>
+                <p className="mt-1 break-words text-sm text-muted-foreground">{alarm.location}</p>
+              </div>
+              <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-4">
+                {platformViewer ? (
+                  <div className="min-w-0">
+                    <p className="mp-kpi-note">{t("alarms.queue.fields.tenant")}</p>
+                    <p className="mt-1 break-all text-foreground">{tenantLabel}</p>
+                  </div>
+                ) : null}
+                <div className="min-w-0">
+                  <p className="mp-kpi-note">{t("alarms.queue.fields.building")}</p>
+                  <p className="mt-1 break-all text-foreground">{alarm.building_id}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="mp-kpi-note">{t("alarms.queue.fields.area")}</p>
+                  <p className="mt-1 break-all text-foreground">{alarm.area_id}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="mp-kpi-note">{t("alarms.queue.fields.door")}</p>
+                  <p className="mt-1 break-all text-foreground">{alarm.door_id}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="mp-kpi-note">{t("alarms.queue.fields.detectedAt")}</p>
+                  <p className="mt-1 break-words text-foreground">
+                    {new Date(alarm.created_at).toLocaleString(i18n.language)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+              {nextStatus ? (
+                <Button
+                  type="button"
+                  disabled={updatingAlarmID === alarm.id}
+                  onClick={() => {
+                    void applyStatus(alarm.id, nextStatus)
+                  }}
+                >
+                  <CheckCircle2Icon className="mr-1.5 size-4" />
+                  {nextAlarmActionLabel(nextStatus, t)}
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" disabled>
+                  <CheckCircle2Icon className="mr-1.5 size-4" />
+                  {t("alarms.queue.nextAction.done")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -721,325 +688,318 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("alarms.filter.title")}</CardTitle>
-          <CardDescription>
-            {platformViewer
-              ? t("alarms.filter.descriptionPlatform")
-              : buildingAdmin
-                ? t("alarms.filter.descriptionBuildingAdmin")
-                : t("alarms.filter.descriptionDefault")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-[1fr_220px_220px_auto]">
-            <div className="relative">
-              <FilterIcon className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value)
-                  setPage(1)
-                }}
-                className="pl-8"
-                aria-label={platformViewer ? t("alarms.filter.searchPlaceholderPlatform") : t("alarms.filter.searchPlaceholderDefault")}
-                placeholder={platformViewer ? t("alarms.filter.searchPlaceholderPlatform") : t("alarms.filter.searchPlaceholderDefault")}
-              />
-            </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(value: "all" | Alarm["status"]) => {
-                setStatusFilter(value)
-                setPage(1)
-              }}
-            >
-              <SelectTrigger aria-label={t("alarms.filter.statusAriaLabel")}>
-                <SelectValue placeholder={t("alarms.filter.statusPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("alarms.filter.allStatuses")}</SelectItem>
-                <SelectItem value="open">{statusLabel("open", t)}</SelectItem>
-                <SelectItem value="acknowledged">{statusLabel("acknowledged", t)}</SelectItem>
-                <SelectItem value="investigating">{statusLabel("investigating", t)}</SelectItem>
-                <SelectItem value="mitigated">{statusLabel("mitigated", t)}</SelectItem>
-                <SelectItem value="escalated">{statusLabel("escalated", t)}</SelectItem>
-                <SelectItem value="resolved">{statusLabel("resolved", t)}</SelectItem>
-                <SelectItem value="false_positive">{statusLabel("false_positive", t)}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={severityFilter}
-              onValueChange={(value: "all" | Alarm["severity"]) => {
-                setSeverityFilter(value)
-                setPage(1)
-              }}
-            >
-              <SelectTrigger aria-label={t("alarms.filter.severityAriaLabel")}>
-                <SelectValue placeholder={t("alarms.filter.severityPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("alarms.filter.allSeverities")}</SelectItem>
-                <SelectItem value="critical">{severityLabel("critical", t)}</SelectItem>
-                <SelectItem value="high">{severityLabel("high", t)}</SelectItem>
-                <SelectItem value="medium">{severityLabel("medium", t)}</SelectItem>
-                <SelectItem value="low">{severityLabel("low", t)}</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setQuery("")
-                setStatusFilter("all")
-                setSeverityFilter("all")
-                setPage(1)
-              }}
-            >
-              {t("alarms.filter.reset")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="queue" className="space-y-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 bg-transparent sm:w-fit">
+          <TabsTrigger value="queue" className="py-2.5">
+            {t("alarms.tabs.queue")}
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="py-2.5">
+            {t("alarms.tabs.notifications")}
+          </TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("alarms.notificationPolicy.title")}</CardTitle>
-          <CardDescription>
-            {buildingAdmin
-              ? t("alarms.notificationPolicy.descriptionBuildingAdmin")
-              : t("alarms.notificationPolicy.descriptionDefault")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto]">
-            <Select value={notifyGroupDraft} onValueChange={setNotifyGroupDraft}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("alarms.notificationPolicy.selectGroupPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {notifyGroupOptions.map((group) => (
-                  <SelectItem key={group} value={group}>
-                    {renderNotifyGroupLabel(group)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                addNotifyGroup(notifyGroupDraft)
-              }}
-            >
-              {t("alarms.notificationPolicy.addGroup")}
-            </Button>
-            <Button
-              type="button"
-              variant={notifyEmail ? "default" : "outline"}
-              onClick={() => {
-                setNotifyEmail((current) => !current)
-              }}
-            >
-              <MailIcon className="mr-1.5 size-4" />
-              {t("alarms.notificationPolicy.channel.email")}
-            </Button>
-            <Button
-              type="button"
-              variant={notifyWhatsApp ? "default" : "outline"}
-              onClick={() => {
-                setNotifyWhatsApp((current) => !current)
-              }}
-            >
-              <MessageCircleIcon className="mr-1.5 size-4" />
-              {t("alarms.notificationPolicy.channel.whatsApp")}
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {notifyGroups.map((group) => (
-              <Badge key={group} variant="secondary" className="inline-flex items-center gap-1">
-                {renderNotifyGroupLabel(group)}
-                <button
-                  type="button"
-                  className="rounded p-0.5 hover:bg-muted-foreground/10"
-                  onClick={() => {
-                    removeNotifyGroup(group)
+        <TabsContent value="queue" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("alarms.filter.title")}</CardTitle>
+              <CardDescription>
+                {platformViewer
+                  ? t("alarms.filter.descriptionPlatform")
+                  : buildingAdmin
+                    ? t("alarms.filter.descriptionBuildingAdmin")
+                    : t("alarms.filter.descriptionDefault")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,220px)_minmax(0,220px)_auto]">
+                <div className="relative">
+                  <FilterIcon className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                  <Input
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value)
+                      setPage(1)
+                    }}
+                    className="pl-8"
+                    aria-label={platformViewer ? t("alarms.filter.searchPlaceholderPlatform") : t("alarms.filter.searchPlaceholderDefault")}
+                    placeholder={platformViewer ? t("alarms.filter.searchPlaceholderPlatform") : t("alarms.filter.searchPlaceholderDefault")}
+                  />
+                </div>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    setStatusFilter(value as "all" | Alarm["status"])
+                    setPage(1)
                   }}
                 >
-                  <XIcon className="size-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-          <p className="mp-kpi-note">
-            {t("alarms.notificationPolicy.note")}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("alarms.list.title")}</CardTitle>
-          <CardDescription>
-            {platformViewer
-              ? t("alarms.list.matchedPlatform", { count: filteredAlarms.length })
-              : t("alarms.list.matchedDefault", { count: filteredAlarms.length })}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {error || queryError ? (
-            <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error || queryError}
-            </div>
-          ) : null}
-
-          <div className="mb-3">
-            <div className="mb-2 flex justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="outline" size="sm">
-                    <SlidersHorizontalIcon className="mr-1.5 size-4" />
-                    {t("alarms.list.columnDisplay")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {alarmToggleableColumns.map((column) => (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
-                    >
-                      {alarmColumnLabels[column.id] || column.id}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-            <ListPagination
-              page={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={setPageSize}
-              hasNextPage={hasNextPage}
-              disabled={loading}
-            />
-          </div>
-
-          <Table>
-            <TableHeader>
-              {alarmsTable.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={visibleAlarmColumnCount} className="py-10 text-center text-muted-foreground">
-                    {t("alarms.list.loading")}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-              {!loading && filteredAlarms.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleAlarmColumnCount} className="py-8 text-center text-muted-foreground">
-                    {missingBuildingScope
-                      ? t("alarms.list.empty.missingScope")
-                      : hasActiveFilters
-                        ? t("alarms.list.empty.filtered")
-                      : buildingAdmin
-                        ? t("alarms.list.empty.buildingScope")
-                        : t("alarms.list.empty.default")}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-              {!loading &&
-                alarmsTable.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("alarms.notificationLogs.title")}</CardTitle>
-          <CardDescription>{t("alarms.notificationLogs.description")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" variant="outline" size="sm">
-                  <SlidersHorizontalIcon className="mr-1.5 size-4" />
-                  {t("alarms.notificationLogs.columnDisplay")}
+                  <SelectTrigger aria-label={t("alarms.filter.statusAriaLabel")}>
+                    <SelectValue placeholder={t("alarms.filter.statusPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("alarms.filter.allStatuses")}</SelectItem>
+                    <SelectItem value="open">{statusLabel("open", t)}</SelectItem>
+                    <SelectItem value="acknowledged">{statusLabel("acknowledged", t)}</SelectItem>
+                    <SelectItem value="investigating">{statusLabel("investigating", t)}</SelectItem>
+                    <SelectItem value="mitigated">{statusLabel("mitigated", t)}</SelectItem>
+                    <SelectItem value="escalated">{statusLabel("escalated", t)}</SelectItem>
+                    <SelectItem value="resolved">{statusLabel("resolved", t)}</SelectItem>
+                    <SelectItem value="false_positive">{statusLabel("false_positive", t)}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={severityFilter}
+                  onValueChange={(value) => {
+                    setSeverityFilter(value as "all" | Alarm["severity"])
+                    setPage(1)
+                  }}
+                >
+                  <SelectTrigger aria-label={t("alarms.filter.severityAriaLabel")}>
+                    <SelectValue placeholder={t("alarms.filter.severityPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("alarms.filter.allSeverities")}</SelectItem>
+                    <SelectItem value="critical">{severityLabel("critical", t)}</SelectItem>
+                    <SelectItem value="high">{severityLabel("high", t)}</SelectItem>
+                    <SelectItem value="medium">{severityLabel("medium", t)}</SelectItem>
+                    <SelectItem value="low">{severityLabel("low", t)}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  className="w-full lg:w-auto"
+                  onClick={() => {
+                    setQuery("")
+                    setStatusFilter("all")
+                    setSeverityFilter("all")
+                    setPage(1)
+                  }}
+                >
+                  {t("alarms.filter.reset")}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {notificationToggleableColumns.map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
-                  >
-                    {notificationColumnLabels[column.id] || column.id}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-base font-medium">{t("alarms.list.title")}</h2>
+                <p className="text-sm text-muted-foreground">
+                  {platformViewer
+                    ? t("alarms.list.matchedPlatform", { count: filteredAlarms.length })
+                    : t("alarms.list.matchedDefault", { count: filteredAlarms.length })}
+                </p>
+              </div>
+              <ListPagination
+                page={page}
+                onPageChange={setPage}
+                pageSize={pageSize}
+                onPageSizeChange={setPageSize}
+                hasNextPage={hasNextPage}
+                disabled={loading}
+              />
+            </div>
+
+            {error || queryError ? (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error || queryError}
+              </div>
+            ) : null}
+
+            {loading ? (
+              <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                {t("alarms.list.loading")}
+              </div>
+            ) : null}
+
+            {!loading && filteredAlarms.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                {missingBuildingScope
+                  ? t("alarms.list.empty.missingScope")
+                  : hasActiveFilters
+                    ? t("alarms.list.empty.filtered")
+                    : buildingAdmin
+                      ? t("alarms.list.empty.buildingScope")
+                      : t("alarms.list.empty.default")}
+              </div>
+            ) : null}
+
+            {!loading && filteredAlarms.length > 0
+              ? groupedAlarmQueues.map((group) => (
+                  <section key={group.id} className="space-y-3">
+                    <div className="flex flex-col gap-2 border-b pb-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-medium">{t(`alarms.queue.groups.${group.id}.title`)}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {t(`alarms.queue.groups.${group.id}.description`)}
+                        </p>
+                      </div>
+                      <Badge variant="outline">{t("alarms.queue.groupCount", { count: group.alarms.length })}</Badge>
+                    </div>
+                    {group.alarms.length > 0 ? (
+                      <div className="grid gap-3">
+                        {group.alarms.map((alarm) => renderAlarmCard(alarm))}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                        {t(`alarms.queue.groups.${group.id}.empty`)}
+                      </div>
+                    )}
+                  </section>
+                ))
+              : null}
           </div>
-          <ListPagination
-            page={notificationPage}
-            onPageChange={setNotificationPage}
-            pageSize={notificationPageSize}
-            onPageSizeChange={setNotificationPageSize}
-            hasNextPage={notificationTable.getCanNextPage()}
-            disabled={notificationLogs.length === 0}
-          />
-          <Table>
-            <TableHeader>
-              {notificationTable.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("alarms.notificationPolicy.title")}</CardTitle>
+              <CardDescription>
+                {buildingAdmin
+                  ? t("alarms.notificationPolicy.descriptionBuildingAdmin")
+                  : t("alarms.notificationPolicy.descriptionDefault")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+                <Select value={notifyGroupDraft} onValueChange={setNotifyGroupDraft}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("alarms.notificationPolicy.selectGroupPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {notifyGroupOptions.map((group) => (
+                      <SelectItem key={group} value={group}>
+                        {renderNotifyGroupLabel(group)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full lg:w-auto"
+                  onClick={() => {
+                    addNotifyGroup(notifyGroupDraft)
+                  }}
+                >
+                  {t("alarms.notificationPolicy.addGroup")}
+                </Button>
+                <Button
+                  type="button"
+                  variant={notifyEmail ? "default" : "outline"}
+                  className="w-full lg:w-auto"
+                  onClick={() => {
+                    setNotifyEmail((current) => !current)
+                  }}
+                >
+                  <MailIcon className="mr-1.5 size-4" />
+                  {t("alarms.notificationPolicy.channel.email")}
+                </Button>
+                <Button
+                  type="button"
+                  variant={notifyWhatsApp ? "default" : "outline"}
+                  className="w-full lg:w-auto"
+                  onClick={() => {
+                    setNotifyWhatsApp((current) => !current)
+                  }}
+                >
+                  <MessageCircleIcon className="mr-1.5 size-4" />
+                  {t("alarms.notificationPolicy.channel.whatsApp")}
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {notifyGroups.map((group) => (
+                  <Badge key={group} variant="secondary" className="inline-flex items-center gap-1">
+                    {renderNotifyGroupLabel(group)}
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-muted-foreground/10"
+                      onClick={() => {
+                        removeNotifyGroup(group)
+                      }}
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <p className="mp-kpi-note">
+                {t("alarms.notificationPolicy.note")}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("alarms.notificationLogs.title")}</CardTitle>
+              <CardDescription>{t("alarms.notificationLogs.description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-end">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="sm">
+                      <SlidersHorizontalIcon className="mr-1.5 size-4" />
+                      {t("alarms.notificationLogs.columnDisplay")}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {notificationToggleableColumns.map((column) => (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(checked) => column.toggleVisibility(Boolean(checked))}
+                      >
+                        {notificationColumnLabels[column.id] || column.id}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <ListPagination
+                page={notificationPage}
+                onPageChange={setNotificationPage}
+                pageSize={notificationPageSize}
+                onPageSizeChange={setNotificationPageSize}
+                hasNextPage={notificationTable.getCanNextPage()}
+                disabled={notificationLogs.length === 0}
+              />
+              <Table>
+                <TableHeader>
+                  {notificationTable.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {notificationLogs.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleNotificationColumnCount} className="py-6 text-center text-muted-foreground">
-                    {t("alarms.notificationLogs.empty")}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-              {notificationTable.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+                </TableHeader>
+                <TableBody>
+                  {notificationLogs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={visibleNotificationColumnCount} className="py-6 text-center text-muted-foreground">
+                        {t("alarms.notificationLogs.empty")}
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
+                  {notificationTable.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
                   ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

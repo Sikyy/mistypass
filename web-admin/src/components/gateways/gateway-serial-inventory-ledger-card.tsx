@@ -155,8 +155,34 @@ export function GatewaySerialInventoryLedgerCard({
   const manualBatchSerialNumbers = useMemo(() => parseBatchSerialNumbers(watchedBatchSerials || ""), [watchedBatchSerials])
   const batchTargetSerialNumbersLength =
     manualBatchSerialNumbers.length > 0 ? manualBatchSerialNumbers.length : selectedInventorySerialNumbersLength
+  const batchUpdateDisabledReason = commandBusy
+    ? t("gateways.disabledReasons.commandBusy")
+    : batchUpdateForm.formState.isSubmitting
+      ? t("gateways.disabledReasons.commandBusy")
+      : !tenantID.trim()
+        ? t("gateways.disabledReasons.selectTenant")
+        : batchTargetSerialNumbersLength === 0
+          ? t("gateways.disabledReasons.enterBatchTargets")
+          : ""
   const columns = useMemo<ColumnDef<GatewaySerialInventoryItem>[]>(
     () => {
+      function rowStatusActionDisabledReason(
+        item: GatewaySerialInventoryItem,
+        targetStatus: "available" | "frozen" | "scrapped"
+      ) {
+        if (commandBusy) {
+          return t("gateways.disabledReasons.commandBusy")
+        }
+        if (item.status === targetStatus) {
+          return t("gateways.disabledReasons.inventoryAlreadyStatus", {
+            status: serialInventoryStatusLabel(targetStatus),
+          })
+        }
+        if (targetStatus === "frozen" && item.status === "scrapped") {
+          return t("gateways.disabledReasons.inventoryScrappedCannotFreeze")
+        }
+        return ""
+      }
       const definition: ColumnDef<GatewaySerialInventoryItem>[] = [
         {
           id: "serial_number",
@@ -259,40 +285,48 @@ export function GatewaySerialInventoryLedgerCard({
           header: () => t("gateways.inventoryLedger.table.actions"),
           enableSorting: false,
           enableHiding: false,
-          cell: ({ row }) => (
-            <div className="flex flex-wrap gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={commandBusy || row.original.status === "available"}
-                onClick={() => {
-                  onUpdateSerialInventoryStatus(row.original, "available")
-                }}
-              >
-                {t("gateways.inventoryLedger.actions.available")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={commandBusy || row.original.status === "frozen" || row.original.status === "scrapped"}
-                onClick={() => {
-                  onUpdateSerialInventoryStatus(row.original, "frozen")
-                }}
-              >
-                {t("gateways.inventoryLedger.actions.frozen")}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={commandBusy || row.original.status === "scrapped"}
-                onClick={() => {
-                  onUpdateSerialInventoryStatus(row.original, "scrapped")
-                }}
-              >
-                {t("gateways.inventoryLedger.actions.scrapped")}
-              </Button>
-            </div>
-          ),
+          cell: ({ row }) => {
+            const returnDisabledReason = rowStatusActionDisabledReason(row.original, "available")
+            const freezeDisabledReason = rowStatusActionDisabledReason(row.original, "frozen")
+            const scrapDisabledReason = rowStatusActionDisabledReason(row.original, "scrapped")
+            return (
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={Boolean(returnDisabledReason)}
+                  title={returnDisabledReason || undefined}
+                  onClick={() => {
+                    onUpdateSerialInventoryStatus(row.original, "available")
+                  }}
+                >
+                  {t("gateways.inventoryLedger.actions.available")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={Boolean(freezeDisabledReason)}
+                  title={freezeDisabledReason || undefined}
+                  onClick={() => {
+                    onUpdateSerialInventoryStatus(row.original, "frozen")
+                  }}
+                >
+                  {t("gateways.inventoryLedger.actions.frozen")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  disabled={Boolean(scrapDisabledReason)}
+                  title={scrapDisabledReason || undefined}
+                  onClick={() => {
+                    onUpdateSerialInventoryStatus(row.original, "scrapped")
+                  }}
+                >
+                  {t("gateways.inventoryLedger.actions.scrapped")}
+                </Button>
+              </div>
+            )
+          },
         })
       }
       return definition
@@ -435,7 +469,8 @@ export function GatewaySerialInventoryLedgerCard({
               <Button
                 type="submit"
                 variant="secondary"
-                disabled={commandBusy || batchUpdateForm.formState.isSubmitting || !tenantID.trim() || batchTargetSerialNumbersLength === 0}
+                disabled={Boolean(batchUpdateDisabledReason)}
+                title={batchUpdateDisabledReason || undefined}
               >
                 {t("gateways.inventoryLedger.batch.submit")}
               </Button>
@@ -457,6 +492,9 @@ export function GatewaySerialInventoryLedgerCard({
                 selected: selectedInventorySerialNumbersLength,
               })}
             </p>
+            {batchUpdateDisabledReason ? (
+              <p className="text-xs text-muted-foreground">{batchUpdateDisabledReason}</p>
+            ) : null}
             {batchFormError ? (
               <p className="text-sm text-destructive">{batchFormError}</p>
             ) : null}

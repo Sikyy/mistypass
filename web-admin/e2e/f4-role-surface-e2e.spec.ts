@@ -577,14 +577,18 @@ test("building_admin should update alarm workflow and write notification logs", 
   await login(page, viewer.email)
 
   await page.goto("/alarms")
-  const row = page.getByRole("row").filter({ has: page.getByText("alarm-scope-1") })
-  await row.getByRole("combobox").click()
-  await page.getByRole("option", { name: "已确认" }).click()
-  await row.getByRole("button", { name: "更新" }).click()
+  await expect(page.getByRole("heading", { name: "Open" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Investigating" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Mitigated" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Closed" })).toBeVisible()
+  const card = page.getByTestId("alarm-card").filter({ hasText: "alarm-scope-1" })
+  await card.getByRole("button", { name: "确认" }).click()
 
-  await expect(row.getByRole("combobox")).toContainText("已确认")
+  await expect(card.getByText("已确认")).toBeVisible()
+  await page.getByRole("tab", { name: "通知配置" }).click()
   await expect(page.getByText("暂无通知记录，更新任一告警状态后会自动写入。")).toHaveCount(0)
-  await expect(page.getByText("email")).toBeVisible()
+  await expect(page.getByRole("cell", { name: "alarm-scope-1" }).first()).toBeVisible()
+  await expect(page.getByRole("cell", { name: "邮件" }).first()).toBeVisible()
   expect(counters.alarmStatusUpdates).toBe(1)
 })
 
@@ -960,12 +964,11 @@ test("building_admin alarm status update failure should show api error and keep 
   await login(page, viewer.email)
 
   await page.goto("/alarms")
-  const row = page.getByRole("row").filter({ has: page.getByText("alarm-scope-fail") })
-  await row.getByRole("combobox").click()
-  await page.getByRole("option", { name: "已确认" }).click()
-  await row.getByRole("button", { name: "更新" }).click()
+  const card = page.getByTestId("alarm-card").filter({ hasText: "alarm-scope-fail" })
+  await card.getByRole("button", { name: "确认" }).click()
 
   await expect(page.getByText("mock alarm status update failed: alarm-scope-fail")).toBeVisible()
+  await page.getByRole("tab", { name: "通知配置" }).click()
   await expect(page.getByText("暂无通知记录，更新任一告警状态后会自动写入。")).toBeVisible()
   expect(counters.alarmStatusCalls).toBe(1)
   expect(counters.alarmStatusUpdates).toBe(0)
@@ -1096,6 +1099,8 @@ test("building_admin reboot failure should show api error", async ({ page }) => 
 
   await page.goto("/gateways")
   await page.getByRole("button", { name: "重启" }).click()
+  await expect(page.getByRole("dialog", { name: "确认重启网关" })).toBeVisible()
+  await page.getByRole("button", { name: "确认重启" }).click()
   await expect(page.getByText("mock reboot failed: gw-reboot-fail")).toBeVisible()
 })
 

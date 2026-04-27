@@ -110,6 +110,18 @@ export function GatewaySerialInventoryIngestCard({
     singleImportForm.formState.errors.batch_code?.message ||
     ""
   const csvFormError = csvImportForm.formState.errors.csv_content?.message || ""
+  const inventorySubmitDisabledReason = submitting
+    ? t("gateways.disabledReasons.commandBusy")
+    : !tenantID.trim()
+      ? t("gateways.disabledReasons.selectTenant")
+      : ""
+  const singleImportDisabledReason =
+    inventorySubmitDisabledReason ||
+    (singleImportForm.formState.isSubmitting ? t("gateways.disabledReasons.commandBusy") : "")
+  const csvImportDisabledReason =
+    inventorySubmitDisabledReason ||
+    (csvImportForm.formState.isSubmitting ? t("gateways.disabledReasons.commandBusy") : "")
+  const exportDisabledReason = commandBusy ? t("gateways.disabledReasons.commandBusy") : ""
 
   async function onSubmitSingleImport(values: SingleImportFormValues) {
     const succeeded = await onImportSerialInventory({
@@ -175,9 +187,16 @@ export function GatewaySerialInventoryIngestCard({
                 {...singleImportForm.register("batch_code")}
                 placeholder={t("gateways.inventoryIngest.batchCodePlaceholder")}
               />
-              <Button type="submit" disabled={submitting || singleImportForm.formState.isSubmitting || !tenantID.trim()}>
+              <Button
+                type="submit"
+                disabled={Boolean(singleImportDisabledReason)}
+                title={singleImportDisabledReason || undefined}
+              >
                 {submitting ? t("gateways.inventoryIngest.importSubmitting") : t("gateways.inventoryIngest.importSubmit")}
               </Button>
+              {singleImportDisabledReason ? (
+                <p className="text-xs text-muted-foreground md:col-span-4">{singleImportDisabledReason}</p>
+              ) : null}
               {singleFormError ? (
                 <p className="text-sm text-destructive md:col-span-4">{singleFormError}</p>
               ) : null}
@@ -192,12 +211,28 @@ export function GatewaySerialInventoryIngestCard({
                 }
               />
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="submit" variant="secondary" disabled={submitting || csvImportForm.formState.isSubmitting || !tenantID.trim()}>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={Boolean(csvImportDisabledReason)}
+                  title={csvImportDisabledReason || undefined}
+                >
                   {submitting ? t("gateways.inventoryIngest.csvSubmitting") : t("gateways.inventoryIngest.csvSubmit")}
                 </Button>
-                <Button type="button" variant="outline" disabled={commandBusy} onClick={onExportSerialInventoryCSV}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={Boolean(exportDisabledReason)}
+                  title={exportDisabledReason || undefined}
+                  onClick={onExportSerialInventoryCSV}
+                >
                   {t("gateways.inventoryIngest.exportCsv")}
                 </Button>
+                {csvImportDisabledReason || exportDisabledReason ? (
+                  <p className="w-full basis-full text-xs text-muted-foreground">
+                    {csvImportDisabledReason || exportDisabledReason}
+                  </p>
+                ) : null}
               </div>
               {csvFormError ? (
                 <p className="text-sm text-destructive">{csvFormError}</p>
@@ -208,13 +243,22 @@ export function GatewaySerialInventoryIngestCard({
             </form>
           </>
         ) : (
-          <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-3">
             <p className="text-sm text-muted-foreground">
               {t("gateways.inventoryIngest.readonlyHint", { hint: readOnlyBoundaryHint })}
             </p>
-            <Button type="button" variant="outline" disabled={commandBusy} onClick={onExportSerialInventoryCSV}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(exportDisabledReason)}
+              title={exportDisabledReason || undefined}
+              onClick={onExportSerialInventoryCSV}
+            >
               {t("gateways.inventoryIngest.exportCsv")}
             </Button>
+            {exportDisabledReason ? (
+              <p className="w-full basis-full text-xs text-muted-foreground">{exportDisabledReason}</p>
+            ) : null}
           </div>
         )}
         <p className="mp-kpi-note">

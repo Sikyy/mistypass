@@ -1607,6 +1607,15 @@ func buildDemoUsers() []userRecord {
 		},
 		{
 			User: User{
+				ID:       "usr_organization_admin_jkt_001",
+				Email:    "organization.admin@mistypass.local",
+				Role:     "tenant_admin",
+				TenantID: "tenant_demo_jakarta",
+			},
+			Password: "admin123",
+		},
+		{
+			User: User{
 				ID:       "usr_operator_jkt_001",
 				Email:    "ops.jkt.01@mistypass.local",
 				Role:     "operator",
@@ -1618,6 +1627,16 @@ func buildDemoUsers() []userRecord {
 			User: User{
 				ID:          "usr_building_admin_jkt_001",
 				Email:       "building.admin.sudirman@mistypass.local",
+				Role:        "building_admin",
+				TenantID:    "tenant_demo_jakarta",
+				BuildingIDs: []string{"building_demo_001"},
+			},
+			Password: "admin123",
+		},
+		{
+			User: User{
+				ID:          "usr_place_admin_sudirman_001",
+				Email:       "place.admin.sudirman@mistypass.local",
 				Role:        "building_admin",
 				TenantID:    "tenant_demo_jakarta",
 				BuildingIDs: []string{"building_demo_001"},

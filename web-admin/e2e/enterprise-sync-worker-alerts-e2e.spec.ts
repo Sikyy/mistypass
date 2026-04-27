@@ -230,6 +230,62 @@ async function mockEnterpriseWorkerAlertFlow(
     webhookReceipts = [...webhookReceipts, ...(options.extraWebhookReceipts as typeof webhookReceipts)]
   }
 
+  let hrisWebhookExecutions = [
+    {
+      id: "exec-receipt-talenta-1",
+      tenant_id: viewer.tenant_id,
+      kind: "receipt_process",
+      target_id: "receipt-talenta-1",
+      receipt_id: "receipt-talenta-1",
+      connector_id: "connector-talenta",
+      vendor: "talenta",
+      request_id: "wh-req-001",
+      event_type: "talenta.employee.detail.created",
+      failure_stage: "merge",
+      execution_mode: "queued",
+      dispatch_mode: "worker_tick",
+      status: "failed",
+      target_status: "failed",
+      requested_by: "enterprise.sync.worker",
+      audit_source: "hris_webhook_receipt_worker",
+      queue_state: "terminal",
+      attempt_count: 2,
+      requeue_count: 1,
+      last_error: "employee merge target missing",
+      queued_at: "2026-04-22T09:15:00Z",
+      started_at: "2026-04-22T09:16:00Z",
+      finished_at: "2026-04-22T09:18:00Z",
+      updated_at: "2026-04-22T09:18:00Z",
+    },
+    {
+      id: "exec-dlq-talenta-1",
+      tenant_id: viewer.tenant_id,
+      kind: "dlq_replay",
+      target_id: "dlq-talenta-1",
+      receipt_id: "receipt-talenta-1",
+      connector_id: "connector-talenta",
+      vendor: "talenta",
+      request_id: "wh-req-001",
+      event_type: "talenta.employee.detail.created",
+      failure_stage: "merge",
+      execution_mode: "queued",
+      dispatch_mode: "worker_task_channel",
+      status: "queued",
+      target_status: "dlq",
+      requested_by: "tenant.admin@sudirman.co",
+      audit_source: "enterprise_alerts",
+      replay_require_worker: true,
+      queue_state: "cooldown",
+      next_retry_at: "2026-04-22T10:07:00Z",
+      cooldown_remaining_seconds: 420,
+      stale_in_flight: false,
+      attempt_count: 1,
+      requeue_count: 1,
+      queued_at: "2026-04-22T09:30:00Z",
+      updated_at: "2026-04-22T09:30:00Z",
+    },
+  ]
+
   if (options?.extraDLQEntries?.length) {
     dlqEntries = [...dlqEntries, ...(options.extraDLQEntries as typeof dlqEntries)]
   }
@@ -258,6 +314,23 @@ async function mockEnterpriseWorkerAlertFlow(
     in_flight: items.filter((item) => item.replay_state === "in_flight").length,
     attempt_limit: items.filter((item) => item.replay_state === "attempt_limit").length,
     terminal: items.filter((item) => item.replay_state === "terminal").length,
+  })
+
+  const buildHRISWebhookExecutionStatusCounts = (items: typeof hrisWebhookExecutions) => ({
+    all: items.length,
+    queued: items.filter((item) => item.status === "queued").length,
+    running: items.filter((item) => item.status === "running").length,
+    succeeded: items.filter((item) => item.status === "succeeded").length,
+    failed: items.filter((item) => item.status === "failed").length,
+  })
+
+  const buildHRISWebhookExecutionQueueCounts = (items: typeof hrisWebhookExecutions) => ({
+    all: items.length,
+    ready: items.filter((item) => item.queue_state === "ready").length,
+    cooldown: items.filter((item) => item.queue_state === "cooldown").length,
+    in_flight: items.filter((item) => item.queue_state === "in_flight").length,
+    attempt_limit: items.filter((item) => item.queue_state === "attempt_limit").length,
+    terminal: items.filter((item) => item.queue_state === "terminal").length,
   })
 
   const listWebhookReceiptPayload = (url: URL) => {
@@ -360,6 +433,91 @@ async function mockEnterpriseWorkerAlertFlow(
       next_offset: safeOffset + safeLimit < filteredItems.length ? safeOffset + safeLimit : undefined,
       has_more: safeOffset + safeLimit < filteredItems.length,
       replay_counts: buildDLQReplayCounts(baseItems),
+    }
+  }
+
+  const listHRISWebhookExecutionPayload = (url: URL) => {
+    const tenantID = url.searchParams.get("tenant_id")?.trim() || ""
+    const connectorID = url.searchParams.get("connector_id")?.trim() || ""
+    const kind = url.searchParams.get("kind")?.trim() || ""
+    const status = url.searchParams.get("status")?.trim() || ""
+    const queueState = url.searchParams.get("queue_state")?.trim() || ""
+    const replayScope = url.searchParams.get("replay_scope")?.trim() || ""
+    const executionMode = url.searchParams.get("execution_mode")?.trim() || ""
+    const dispatchMode = url.searchParams.get("dispatch_mode")?.trim() || ""
+    const targetStatus = url.searchParams.get("target_status")?.trim() || ""
+    const query = url.searchParams.get("q")?.trim() || ""
+    const offset = Number(url.searchParams.get("offset") || "0")
+    const limit = Number(url.searchParams.get("limit") || "50")
+
+    const baseItems = hrisWebhookExecutions.filter((item) => {
+      if (tenantID && item.tenant_id !== tenantID) {
+        return false
+      }
+      if (connectorID && item.connector_id !== connectorID) {
+        return false
+      }
+      return matchesSearch(
+        [
+          item.id,
+          item.tenant_id,
+          item.kind,
+          item.target_id,
+          item.receipt_id || "",
+          item.connector_id || "",
+          item.vendor || "",
+          item.request_id || "",
+          item.event_type || "",
+          item.failure_stage || "",
+          item.execution_mode || "",
+          item.dispatch_mode || "",
+          item.status,
+          item.target_status || "",
+          item.queue_state || "",
+          item.last_error || "",
+        ],
+        query
+      )
+    })
+    const filteredItems = baseItems.filter((item) => {
+      if (kind && item.kind !== kind) {
+        return false
+      }
+      if (status && item.status !== status) {
+        return false
+      }
+      if (queueState && item.queue_state !== queueState) {
+        return false
+      }
+      if (replayScope === "replayed" && !item.replay_source_execution_id) {
+        return false
+      }
+      if (replayScope === "worker_required" && !item.replay_require_worker) {
+        return false
+      }
+      if (executionMode && item.execution_mode !== executionMode) {
+        return false
+      }
+      if (dispatchMode && item.dispatch_mode !== dispatchMode) {
+        return false
+      }
+      if (targetStatus && item.target_status !== targetStatus) {
+        return false
+      }
+      return true
+    })
+    const safeOffset = Number.isFinite(offset) && offset > 0 ? offset : 0
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 50
+    const pagedItems = filteredItems.slice(safeOffset, safeOffset + safeLimit)
+    return {
+      items: pagedItems,
+      total: filteredItems.length,
+      offset: safeOffset,
+      limit: safeLimit,
+      next_offset: safeOffset + safeLimit < filteredItems.length ? safeOffset + safeLimit : undefined,
+      has_more: safeOffset + safeLimit < filteredItems.length,
+      status_counts: buildHRISWebhookExecutionStatusCounts(baseItems),
+      queue_counts: buildHRISWebhookExecutionQueueCounts(baseItems),
     }
   }
 
@@ -1056,6 +1214,23 @@ async function mockEnterpriseWorkerAlertFlow(
       return
     }
 
+    if (path === "/api/v1/enterprise/hris-webhook-executions" && method === "GET") {
+      await fulfillJson(route, listHRISWebhookExecutionPayload(url))
+      return
+    }
+
+    const executionDetailMatch = path.match(/^\/api\/v1\/enterprise\/hris-webhook-executions\/([^/]+)$/)
+    if (executionDetailMatch && method === "GET") {
+      const executionID = executionDetailMatch[1]
+      const item = hrisWebhookExecutions.find((execution) => execution.id === executionID)
+      if (!item) {
+        await fulfillJson(route, { error: "execution not found" }, 404)
+        return
+      }
+      await fulfillJson(route, { item })
+      return
+    }
+
     const receiptProcessMatch = path.match(/^\/api\/v1\/enterprise\/hris-webhook-receipts\/([^/]+)\/process$/)
     if (receiptProcessMatch && method === "POST") {
       const receiptID = receiptProcessMatch[1]
@@ -1661,6 +1836,10 @@ test("enterprise worker alert link bridges sync and alerts workspaces", async ({
   await expect(page).toHaveURL(/#alerts$/)
   await expect(page.getByTestId("enterprise-alerts-tab-directory-exceptions")).toBeVisible()
   await expect(page.getByTestId("enterprise-alerts-sync-worker-card")).toBeVisible()
+  await expect(page.getByTestId("enterprise-sync-exceptions")).toBeVisible()
+  await expect(page.getByTestId("enterprise-worker-alerts")).toBeVisible()
+  await expect(page.getByTestId("enterprise-hris-receipts")).toBeVisible()
+  await expect(page.getByTestId("enterprise-hris-dlq")).toBeVisible()
   await expect(page.getByTestId("enterprise-alerts-worker-alert-scope")).toBeVisible()
   await expect(page.getByTestId("enterprise-alerts-directory-query")).toHaveValue(viewer.tenant_id)
   await expect(page.getByTestId("enterprise-alerts-worker-alert-item")).toHaveCount(1)
@@ -1992,7 +2171,10 @@ test("enterprise alerts can batch process visible ready Talenta receipts", async
     "talenta.employee.transfer.cancelled"
   )
   await expect(page.getByTestId("enterprise-alerts-webhook-receipt-batch-result-item")).toContainText("queued")
-  await expect(page.getByTestId("enterprise-alerts-webhook-receipt-process-visible")).toHaveCount(0)
+  const disabledProcessVisibleButton = page.getByTestId("enterprise-alerts-webhook-receipt-process-visible")
+  await expect(disabledProcessVisibleButton).toBeVisible()
+  await expect(disabledProcessVisibleButton).toBeDisabled()
+  await expect(disabledProcessVisibleButton).toHaveAttribute("title", "当前视图没有 ready 状态的 HRIS webhook receipt。")
   await expect(page.getByTestId("enterprise-alerts-webhook-receipt-empty")).toBeVisible()
   await expect(page.getByTestId("enterprise-alerts-webhook-receipt-filter-ready")).toContainText("0")
   await expect(page.getByTestId("enterprise-alerts-webhook-receipt-filter-in_flight")).toContainText("2")
@@ -2056,7 +2238,10 @@ test("enterprise alerts can batch replay visible Talenta DLQ entries", async ({ 
     "talenta.employee.transfer.cancelled"
   )
   await expect(page.getByTestId("enterprise-alerts-hris-dlq-batch-result-item").first()).toContainText("queued")
-  await expect(page.getByTestId("enterprise-alerts-hris-dlq-replay-visible")).toHaveCount(0)
+  const disabledReplayVisibleButton = page.getByTestId("enterprise-alerts-hris-dlq-replay-visible")
+  await expect(disabledReplayVisibleButton).toBeVisible()
+  await expect(disabledReplayVisibleButton).toBeDisabled()
+  await expect(disabledReplayVisibleButton).toHaveAttribute("title", "当前视图没有 ready 状态的 HRIS DLQ 条目。")
   await expect(page.getByTestId("enterprise-alerts-hris-dlq-replay")).toHaveCount(0)
   await expect(page.getByTestId("enterprise-alerts-hris-dlq-filter-ready")).toContainText("0")
   await expect(page.getByTestId("enterprise-alerts-hris-dlq-filter-in_flight")).toContainText("1")
@@ -2169,7 +2354,7 @@ test("enterprise alerts filters due worker notifications and exports visible csv
   await page.getByTestId("enterprise-alerts-worker-notification-query").fill("provider_timeout")
   await expect(notificationHistory.getByTestId("enterprise-alerts-worker-notification-row")).toHaveCount(1)
   await expect(page.getByTestId("enterprise-alerts-worker-notification-export-visible")).toHaveText(
-    "Export filtered (1)"
+    "导出筛选结果（1）"
   )
 
   await page.getByTestId("enterprise-alerts-worker-notification-export-visible").click()
@@ -2214,12 +2399,12 @@ test("enterprise alerts auto retries due worker notifications", async ({ page })
   const notificationHistory = page.getByTestId("enterprise-alerts-worker-notification-history")
   await expect(notificationHistory).toBeVisible()
   await expect(page.getByTestId("enterprise-alerts-worker-notification-auto-retry-due")).toHaveText(
-    "Auto-retry due now (1)"
+    "自动重试到期项（1）"
   )
 
   await page.getByTestId("enterprise-alerts-worker-notification-auto-retry-due").click()
 
-  await expect(page.getByText(/Worker alert auto retry completed/)).toBeVisible()
+  await expect(page.getByText("Worker 告警自动重试完成：已发送 1 / 失败 0 / 跳过 0 / 已静默 0")).toBeVisible()
   const pullRow = notificationHistory
     .getByTestId("enterprise-alerts-worker-notification-row")
     .filter({ hasText: "Talenta Pull Worker" })
@@ -2227,7 +2412,7 @@ test("enterprise alerts auto retries due worker notifications", async ({ page })
   await expect(pullRow).toContainText("sent")
   await expect(pullRow).toContainText("2")
   await expect(page.getByTestId("enterprise-alerts-worker-notification-auto-retry-due")).toHaveText(
-    "Auto-retry due now (0)"
+    "自动重试到期项（0）"
   )
 })
 
@@ -2239,7 +2424,7 @@ test("enterprise alerts retries visible worker notifications in batch", async ({
 
   const notificationHistory = page.getByTestId("enterprise-alerts-worker-notification-history")
   await expect(notificationHistory).toBeVisible()
-  await expect(page.getByTestId("enterprise-alerts-worker-notification-retry-visible")).toHaveText("Retry visible (1)")
+  await expect(page.getByTestId("enterprise-alerts-worker-notification-retry-visible")).toHaveText("重试可见项（1）")
 
   await page.getByTestId("enterprise-alerts-worker-notification-retry-visible").click()
 
@@ -2260,7 +2445,7 @@ test("enterprise alerts suppresses visible failed worker notifications in batch"
 
   const notificationHistory = page.getByTestId("enterprise-alerts-worker-notification-history")
   await expect(notificationHistory).toBeVisible()
-  await expect(page.getByTestId("enterprise-alerts-worker-notification-suppress-visible")).toHaveText("Suppress visible (1)")
+  await expect(page.getByTestId("enterprise-alerts-worker-notification-suppress-visible")).toHaveText("静默可见项（1）")
 
   await page.getByTestId("enterprise-alerts-worker-notification-suppress-visible").click()
 
@@ -2283,13 +2468,13 @@ test("enterprise alerts restores visible manually suppressed worker notification
   await expect(notificationHistory).toBeVisible()
 
   await page.getByTestId("enterprise-alerts-worker-notification-suppress-visible").click()
-  await expect(page.getByTestId("enterprise-alerts-worker-notification-filter-suppressed")).toHaveText("Suppressed (1)")
+  await expect(page.getByTestId("enterprise-alerts-worker-notification-filter-suppressed")).toHaveText("已静默 (1)")
 
   await page.getByTestId("enterprise-alerts-worker-notification-filter-suppressed").click()
-  await expect(page.getByTestId("enterprise-alerts-worker-notification-restore-visible")).toHaveText("Restore visible (1)")
+  await expect(page.getByTestId("enterprise-alerts-worker-notification-restore-visible")).toHaveText("恢复可见项（1）")
 
   await page.getByTestId("enterprise-alerts-worker-notification-restore-visible").click()
-  await expect(page.getByText("Worker alert notifications restored: 1 restored / 0 skipped")).toBeVisible()
+  await expect(page.getByText("Worker 告警通知已恢复：恢复 1 / 跳过 0")).toBeVisible()
   await page.getByTestId("enterprise-alerts-worker-notification-filter-all").click()
 
   const pullRow = notificationHistory

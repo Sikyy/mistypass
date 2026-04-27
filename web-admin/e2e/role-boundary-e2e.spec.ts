@@ -25,6 +25,44 @@ async function fulfillJson(route: Route, payload: unknown, status = 200) {
   })
 }
 
+function buildEmptyWalletMetrics(tenantID: string) {
+  const now = "2026-04-16T00:00:00Z"
+  return {
+    tenant_id: tenantID,
+    max_retry: 3,
+    dlq_alert_threshold: 20,
+    summary: {
+      tenant_id: tenantID,
+      max_retry: 3,
+      total: 0,
+      pending: 0,
+      processing: 0,
+      success: 0,
+      failed: 0,
+      dlq: 0,
+      retryable_failed: 0,
+      non_retryable_failed: 0,
+      error_code_breakdown: {},
+      updated_at: now,
+    },
+    window: {
+      window_seconds: 900,
+      since: now,
+      until: now,
+      created: 0,
+      updated: 0,
+      pending: 0,
+      processing: 0,
+      success: 0,
+      failed: 0,
+      dlq: 0,
+      error_code_breakdown: {},
+    },
+    alerts: [],
+    updated_at: now,
+  }
+}
+
 async function setupApiMocks(page: Page, viewer: MockViewer) {
   const loginResponse = buildLoginResponse(viewer)
   await page.route("**/api/v1/**", async (route) => {
@@ -63,6 +101,43 @@ async function setupApiMocks(page: Page, viewer: MockViewer) {
           direction: "flat",
           last_report_at: "2026-04-16T00:00:00Z",
         },
+      })
+      return
+    }
+
+    if (path === "/api/v1/wallet/jobs/metrics" && method === "GET") {
+      const tenantID = url.searchParams.get("tenant_id") || viewer.tenant_id
+      await fulfillJson(route, buildEmptyWalletMetrics(tenantID))
+      return
+    }
+
+    if (path === "/api/v1/wallet/jobs/metrics/trend" && method === "GET") {
+      const tenantID = url.searchParams.get("tenant_id") || viewer.tenant_id
+      await fulfillJson(route, {
+        ...buildEmptyWalletMetrics(tenantID),
+        window_seconds: 900,
+        bucket_seconds: 75,
+        bucket_count: 12,
+        since: "2026-04-16T00:00:00Z",
+        until: "2026-04-16T00:00:00Z",
+        buckets: [],
+      })
+      return
+    }
+
+    if (path === "/api/v1/wallet/jobs/alert-subscription" && method === "GET") {
+      await fulfillJson(route, {
+        tenant_id: url.searchParams.get("tenant_id") || viewer.tenant_id,
+        enabled: false,
+        dlq_alert_threshold: 20,
+        window_seconds: 900,
+        cooldown_seconds: 900,
+        channels: {
+          email: true,
+          whatsapp: false,
+        },
+        receiver_groups: ["security"],
+        updated_at: "2026-04-16T00:00:00Z",
       })
       return
     }
@@ -219,6 +294,32 @@ test("building_admin should be redirected by enterprise/access/wallet route guar
   await expect(page).toHaveURL(/\/dashboard$/)
 })
 
+test("wallet should keep advanced operations collapsed behind the daily issuance path", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-tenant-admin-wallet-advanced",
+    email: "tenant.admin.wallet.advanced@sudirman.co",
+    role: "tenant_admin",
+    tenant_id: "tenant-sudirman",
+    building_ids: ["building-1"],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await page.goto("/wallet")
+  await expect(page.getByTestId("wallet-operations-workspace")).toBeVisible()
+  await expect(page.getByTestId("wallet-advanced-workspace")).toBeVisible()
+  await expect(page.getByRole("tab", { name: "高级" })).toHaveCount(0)
+  await expect(page.getByTestId("wallet-advanced-content")).toHaveCount(0)
+
+  const toggle = page.getByTestId("wallet-advanced-toggle")
+  await expect(toggle).toHaveText(/展开高级运营/)
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await toggle.click()
+  await expect(toggle).toHaveText(/收起高级运营/)
+  await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByTestId("wallet-advanced-content")).toBeVisible()
+})
+
 test("operator should see read-only boundary hints on gateways page", async ({ page }) => {
   const viewer: MockViewer = {
     id: "user-operator-readonly",
@@ -237,6 +338,28 @@ test("operator should see read-only boundary hints on gateways page", async ({ p
   await expect(
     page.getByText("当前角色无网关写权限，仅可查看状态。按钮禁用或缺失属于权限边界，不是系统异常。")
   ).toBeVisible()
+})
+
+test("tenant_admin gateways should keep setup registration folded by default", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-tenant-admin-gateway-density",
+    email: "tenant.admin.gateway.density@sudirman.co",
+    role: "tenant_admin",
+    tenant_id: "tenant-sudirman",
+    building_ids: ["building-1"],
+  }
+  await setupApiMocks(page, viewer)
+  await login(page, viewer.email)
+
+  await page.goto("/gateways")
+  await expect(page.getByText("网关配置入口")).toBeVisible()
+  await expect(page.getByText("注册网关")).toHaveCount(0)
+
+  const toggle = page.getByRole("button", { name: "展开配置" })
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await toggle.click()
+  await expect(page.getByRole("button", { name: "收起配置" })).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByText("注册网关")).toBeVisible()
 })
 
 test("operator should be redirected by enterprise route guard", async ({ page }) => {

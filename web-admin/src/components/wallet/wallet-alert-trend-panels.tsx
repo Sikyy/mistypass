@@ -45,11 +45,10 @@ export function WalletAlertTrendPanels({
         <CardHeader>
           <CardTitle className="inline-flex items-center gap-2 text-base">
             <TrendingUpIcon className="size-4 text-cyan-500" />
-            {t("walletPage.components.alertTrend.title", { defaultValue: "Issuance runtime trend" })}
+            {t("walletPage.components.alertTrend.title")}
           </CardTitle>
           <CardDescription>
             {t("walletPage.components.alertTrend.description", {
-              defaultValue: "Window {{window}}, bucket {{bucket}}, total {{count}} buckets.",
               window: loading ? "--" : formatDurationSeconds(metricsTrend?.window_seconds),
               bucket: loading ? "--" : formatDurationSeconds(metricsTrend?.bucket_seconds),
               count: loading ? "--" : (metricsTrend?.bucket_count ?? 0),
@@ -59,12 +58,12 @@ export function WalletAlertTrendPanels({
         <CardContent className="space-y-3">
           {loading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {t("walletPage.components.alertTrend.loading", { defaultValue: "Loading trend data..." })}
+              {t("walletPage.components.alertTrend.loading")}
             </div>
           ) : null}
           {!loading && (!metricsTrend || metricsTrend.buckets.length === 0) ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {t("walletPage.components.alertTrend.empty", { defaultValue: "No trend data in current window." })}
+              {t("walletPage.components.alertTrend.empty")}
             </div>
           ) : null}
           {!loading &&
@@ -114,10 +113,9 @@ export function WalletAlertTrendPanels({
       <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("walletPage.components.alertTrend.thresholdTitle", { defaultValue: "Issuance anomaly thresholds" })}</CardTitle>
+            <CardTitle className="text-base">{t("walletPage.components.alertTrend.thresholdTitle")}</CardTitle>
             <CardDescription>
               {t("walletPage.components.alertTrend.thresholdDescription", {
-                defaultValue: "Current threshold: {{threshold}} (`dlq_alert_threshold`)",
                 threshold: loading ? "--" : (metrics?.dlq_alert_threshold ?? 0),
               })}
             </CardDescription>
@@ -126,25 +124,25 @@ export function WalletAlertTrendPanels({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t("walletPage.components.alertTrend.columns.type", { defaultValue: "Type" })}</TableHead>
-                  <TableHead>{t("walletPage.components.alertTrend.columns.errorCode", { defaultValue: "Error code" })}</TableHead>
-                  <TableHead>{t("walletPage.components.alertTrend.columns.count", { defaultValue: "Count" })}</TableHead>
-                  <TableHead>{t("walletPage.components.alertTrend.columns.threshold", { defaultValue: "Threshold" })}</TableHead>
-                  <TableHead>{t("walletPage.components.alertTrend.columns.status", { defaultValue: "Status" })}</TableHead>
+                  <TableHead>{t("walletPage.components.alertTrend.columns.type")}</TableHead>
+                  <TableHead>{t("walletPage.components.alertTrend.columns.errorCode")}</TableHead>
+                  <TableHead>{t("walletPage.components.alertTrend.columns.count")}</TableHead>
+                  <TableHead>{t("walletPage.components.alertTrend.columns.threshold")}</TableHead>
+                  <TableHead>{t("walletPage.components.alertTrend.columns.status")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
-                      {t("walletPage.components.alertTrend.loadingAlerts", { defaultValue: "Loading alerts..." })}
+                      {t("walletPage.components.alertTrend.loadingAlerts")}
                     </TableCell>
                   </TableRow>
                 ) : null}
                 {!loading && safeAlertItems.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                      {t("walletPage.components.alertTrend.emptyAlerts", { defaultValue: "No threshold-hit alerts." })}
+                      {t("walletPage.components.alertTrend.emptyAlerts")}
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -158,8 +156,8 @@ export function WalletAlertTrendPanels({
                       <TableCell>
                         <Badge variant={item.count >= item.threshold ? "destructive" : "outline"}>
                           {item.count >= item.threshold
-                            ? t("walletPage.components.alertTrend.overThreshold", { defaultValue: "Over threshold" })
-                            : t("walletPage.components.alertTrend.normal", { defaultValue: "Normal" })}
+                            ? t("walletPage.components.alertTrend.overThreshold")
+                            : t("walletPage.components.alertTrend.normal")}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -171,10 +169,9 @@ export function WalletAlertTrendPanels({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("walletPage.components.alertTrend.topErrorsTitle", { defaultValue: "Failure reason distribution (Top 5)" })}</CardTitle>
+            <CardTitle className="text-base">{t("walletPage.components.alertTrend.topErrorsTitle")}</CardTitle>
             <CardDescription>
               {t("walletPage.components.alertTrend.topErrorsDescription", {
-                defaultValue: "Statistics range: {{since}} - {{until}}",
                 since: loading ? "--" : formatDateTime(metrics?.window.since),
                 until: loading ? "--" : formatDateTime(metrics?.window.until),
               })}
@@ -183,12 +180,12 @@ export function WalletAlertTrendPanels({
           <CardContent className="space-y-2">
             {loading ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                {t("walletPage.components.alertTrend.loadingErrorCodes", { defaultValue: "Loading error code distribution..." })}
+                {t("walletPage.components.alertTrend.loadingErrorCodes")}
               </div>
             ) : null}
             {!loading && windowErrorCodeRows.length === 0 ? (
               <div className="py-8 text-center text-sm text-muted-foreground">
-                {t("walletPage.components.alertTrend.emptyErrorCodes", { defaultValue: "No error codes in current window." })}
+                {t("walletPage.components.alertTrend.emptyErrorCodes")}
               </div>
             ) : null}
             {!loading &&

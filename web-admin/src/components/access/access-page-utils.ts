@@ -36,7 +36,7 @@ export function policyStatusLabel(status: string) {
 export function deliveryLabel(method: string) {
   switch (method) {
     case "wallet":
-      return t("accessPage.components.utils.delivery.wallet", "MistyPass mobile pass")
+      return t("accessPage.components.utils.delivery.wallet", "Mistyislet mobile pass")
     case "email_qr":
       return t("accessPage.components.utils.delivery.emailQr", "Email QR pass")
     default:

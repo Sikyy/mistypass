@@ -94,7 +94,7 @@ export function buildAccessSectionsOverview({
       title: t("accessPage.components.recommendation.sections.grants.title", "Temporary & visitor grants"),
       description: t(
         "accessPage.components.recommendation.sections.grants.description",
-        "Handle short-term grants, visitor access, and temporary email-QR / MistyPass issuance."
+        "Handle short-term grants, visitor access, and temporary email-QR / Mistyislet issuance."
       ),
       metric: loading
         ? "--"

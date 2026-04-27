@@ -12,7 +12,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TableCellText } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useLocation } from "react-router-dom"
 import {
   activateWalletPass,
@@ -71,7 +70,6 @@ import { WalletIssuedPassesCard } from "@/components/wallet/wallet-issued-passes
 import { WalletOperationsOverviewCards } from "@/components/wallet/wallet-operations-overview-cards"
 import { WalletPassQrDialog } from "@/components/wallet/wallet-pass-qr-dialog"
 import { WalletPageOverview } from "@/components/wallet/wallet-page-overview"
-import { WalletPhysicalCardTasksSection } from "@/components/wallet/wallet-physical-card-tasks-section"
 import { WalletSendDeliveryCard } from "@/components/wallet/wallet-send-delivery-card"
 import { WalletTemplateManagerCard } from "@/components/wallet/wallet-template-manager-card"
 import {
@@ -2758,19 +2756,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
         }}
       />
 
-      <Tabs defaultValue="operations" className="space-y-4">
-        <div className="rounded-xl border bg-muted/15 p-1">
-          <TabsList className="grid h-auto w-full grid-cols-2 bg-transparent">
-            <TabsTrigger value="operations" className="py-2.5">
-              {t("walletPage.tabs.operations")}
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="py-2.5">
-              {t("walletPage.tabs.advanced")}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="operations" className="space-y-4">
+      <div className="space-y-4" data-testid="wallet-operations-workspace">
           <div className="rounded-xl border bg-muted/15 px-4 py-3">
             <p className="text-sm font-medium">{t("walletPage.operations.title")}</p>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -2830,7 +2816,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             }}
           />
 
-          <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <WalletTemplateManagerCard
               writable={writable}
               readOnlyBoundaryHint={readOnlyBoundaryHint}
@@ -2934,7 +2920,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             deliveryHint={(pass, template) => deliveryHint(t, pass, template)}
           />
 
-          <div className="grid gap-4 xl:grid-cols-[0.98fr_1.02fr]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)]">
             <WalletSendDeliveryCard
               writable={writable}
               loading={loading}
@@ -3012,42 +2998,6 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             />
           </div>
 
-          <WalletPhysicalCardTasksSection
-            writable={writable}
-            loading={loading}
-            refreshing={refreshing}
-            creatingPhysicalCardTask={creatingPhysicalCardTask}
-            updatingPhysicalCardTaskID={updatingPhysicalCardTaskID}
-            readOnlyBoundaryHint={readOnlyBoundaryHint}
-            physicalTaskPassID={physicalTaskPassID}
-            physicalTaskType={physicalTaskType}
-            employeeCardEligiblePasses={employeeCardEligiblePasses}
-            selectedPhysicalTaskPass={selectedPhysicalTaskPass}
-            selectedPhysicalTaskTemplate={selectedPhysicalTaskTemplate}
-            recentPhysicalCardTasks={recentPhysicalCardTasks}
-            passByID={passByID}
-            templateByID={templateByID}
-            physicalCardTaskForm={physicalCardTaskForm}
-            physicalTaskCardNumberField={physicalTaskCardNumberField}
-            physicalTaskNoteField={physicalTaskNoteField}
-            physicalCardTaskFormError={physicalCardTaskFormError}
-            onPhysicalTaskPassIDChange={setPhysicalTaskPassID}
-            onPhysicalTaskTypeChange={setPhysicalTaskType}
-            onPhysicalTaskCardNumberChange={setPhysicalTaskCardNumber}
-            onPhysicalTaskNoteChange={setPhysicalTaskNote}
-            onSubmit={onSubmitPhysicalCardTaskForm}
-            onFocusEmployeePhysicalScenario={() => focusPassScenario("employee_physical")}
-            onOpenPassQrDialog={openPassQrDialog}
-            onAdvancePhysicalCardTask={advancePhysicalCardTask}
-            passStatusVariant={passStatusVariant}
-            passStatusLabel={(status) => passStatusLabel(t, status)}
-            walletScenarioLabel={(pass, template) => walletScenarioLabel(t, inferPassScenario(pass, template))}
-            physicalTaskStatusVariant={physicalCardTaskStatusVariant}
-            physicalTaskStatusLabel={(status) => physicalCardTaskStatusLabel(t, status)}
-            nextPhysicalTaskActions={(task) => nextPhysicalCardTaskActions(t, task)}
-            formatDateTime={formatDateTime}
-          />
-
           <WalletIssuedPassesCard
             templates={templates}
             passTable={passTable}
@@ -3082,9 +3032,44 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
               void updateSelectedPasses(action)
             }}
           />
-        </TabsContent>
+      </div>
 
         <WalletAdvancedWorkspace
+          physicalCardTasksSectionProps={{
+            writable,
+            loading,
+            refreshing,
+            creatingPhysicalCardTask,
+            updatingPhysicalCardTaskID,
+            readOnlyBoundaryHint,
+            physicalTaskPassID,
+            physicalTaskType,
+            employeeCardEligiblePasses,
+            selectedPhysicalTaskPass,
+            selectedPhysicalTaskTemplate,
+            recentPhysicalCardTasks,
+            passByID,
+            templateByID,
+            physicalCardTaskForm,
+            physicalTaskCardNumberField,
+            physicalTaskNoteField,
+            physicalCardTaskFormError,
+            onPhysicalTaskPassIDChange: setPhysicalTaskPassID,
+            onPhysicalTaskTypeChange: setPhysicalTaskType,
+            onPhysicalTaskCardNumberChange: setPhysicalTaskCardNumber,
+            onPhysicalTaskNoteChange: setPhysicalTaskNote,
+            onSubmit: onSubmitPhysicalCardTaskForm,
+            onFocusEmployeePhysicalScenario: () => focusPassScenario("employee_physical"),
+            onOpenPassQrDialog: openPassQrDialog,
+            onAdvancePhysicalCardTask: advancePhysicalCardTask,
+            passStatusVariant,
+            passStatusLabel: (status) => passStatusLabel(t, status),
+            walletScenarioLabel: (pass, template) => walletScenarioLabel(t, inferPassScenario(pass, template)),
+            physicalTaskStatusVariant: physicalCardTaskStatusVariant,
+            physicalTaskStatusLabel: (status) => physicalCardTaskStatusLabel(t, status),
+            nextPhysicalTaskActions: (task) => nextPhysicalCardTaskActions(t, task),
+            formatDateTime,
+          }}
           alertSubscriptionCardProps={{
             writable,
             readOnlyBoundaryHint,
@@ -3157,7 +3142,6 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             formatDurationSeconds,
           }}
         />
-	      </Tabs>
 
       <WalletPassQrDialog
         open={qrDialogOpen}

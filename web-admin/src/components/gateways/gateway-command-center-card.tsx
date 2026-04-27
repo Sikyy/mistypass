@@ -1,9 +1,19 @@
 import { Plug2Icon, RefreshCwIcon, SendIcon, ShieldEllipsisIcon, UnplugIcon } from "lucide-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -157,6 +167,7 @@ export function GatewayCommandCenterCard({
   commandStatusVariant,
 }: GatewayCommandCenterCardProps) {
   const { t } = useTranslation()
+  const [rebootConfirmOpen, setRebootConfirmOpen] = useState(false)
   const gatewayScopeLabel = selectedGatewayRecord
     ? platformViewer
       ? t("gateways.commandCenter.scope.platform", {
@@ -168,6 +179,32 @@ export function GatewayCommandCenterCard({
         ? t("gateways.commandCenter.scope.buildingAdmin")
         : t("gateways.commandCenter.scope.tenant")
     : ""
+  const deviceSlotLabel = t("gateways.commandCenter.deviceMgmt.remaining", {
+    remain: selectedGatewayRemainSlots,
+    capacity: selectedGatewayRecord?.device_capacity ?? 0,
+  })
+  const commandBusyDisabledReason = commandBusy ? t("gateways.disabledReasons.commandBusy") : ""
+  const commandActionDisabledReason = !gatewayOpsEditable
+    ? t("gateways.disabledReasons.readOnly")
+    : commandBusyDisabledReason || (!selectedGateway ? t("gateways.disabledReasons.selectGateway") : "")
+  const bindDoorDisabledReason =
+    commandActionDisabledReason || (!selectedDoorID ? t("gateways.disabledReasons.selectDoor") : "")
+  const unbindDoorDisabledReason =
+    commandActionDisabledReason || (!selectedBoundDoorID ? t("gateways.disabledReasons.selectBoundDoor") : "")
+  const publishConfigDisabledReason =
+    commandActionDisabledReason || (!configVersion.trim() ? t("gateways.disabledReasons.enterConfigVersion") : "")
+  const rebootDisabledReason = commandActionDisabledReason
+  const deviceFieldDisabledReason = !gatewayOpsEditable ? t("gateways.disabledReasons.readOnly") : ""
+  const mountDeviceDisabledReason =
+    commandActionDisabledReason ||
+    (selectedGatewayRemainSlots <= 0
+      ? t("gateways.disabledReasons.noDeviceSlots", {
+          remaining: deviceSlotLabel,
+        })
+      : !deviceSerialNumber.trim()
+        ? t("gateways.disabledReasons.enterDeviceSerial")
+        : "")
+  const probeLegacyDisabledReason = commandActionDisabledReason
 
   return (
     <Card>
@@ -203,7 +240,7 @@ export function GatewayCommandCenterCard({
           </Select>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
           <Select value={selectedDoorID} onValueChange={onSelectedDoorIDChange}>
             <SelectTrigger>
               <SelectValue placeholder={t("gateways.commandCenter.bindDoorPlaceholder")} />
@@ -216,12 +253,21 @@ export function GatewayCommandCenterCard({
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" disabled={commandBusy || !gatewayOpsEditable} onClick={onBindDoor}>
+          <Button
+            variant="outline"
+            className="w-full lg:w-auto"
+            disabled={Boolean(bindDoorDisabledReason)}
+            title={bindDoorDisabledReason || undefined}
+            onClick={onBindDoor}
+          >
             <ShieldEllipsisIcon className="mr-1.5 size-4" />
             {t("gateways.commandCenter.bindDoor")}
           </Button>
+          {bindDoorDisabledReason ? (
+            <p className="lg:col-span-2 text-xs text-muted-foreground">{bindDoorDisabledReason}</p>
+          ) : null}
         </div>
-        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
           <Select value={selectedBoundDoorID} onValueChange={onSelectedBoundDoorIDChange}>
             <SelectTrigger>
               <SelectValue placeholder={t("gateways.commandCenter.unbindDoorPlaceholder")} />
@@ -234,10 +280,19 @@ export function GatewayCommandCenterCard({
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" disabled={commandBusy || !gatewayOpsEditable} onClick={onUnbindDoor}>
+          <Button
+            variant="outline"
+            className="w-full lg:w-auto"
+            disabled={Boolean(unbindDoorDisabledReason)}
+            title={unbindDoorDisabledReason || undefined}
+            onClick={onUnbindDoor}
+          >
             <UnplugIcon className="mr-1.5 size-4" />
             {t("gateways.commandCenter.unbindDoor")}
           </Button>
+          {unbindDoorDisabledReason ? (
+            <p className="lg:col-span-2 text-xs text-muted-foreground">{unbindDoorDisabledReason}</p>
+          ) : null}
         </div>
         {selectedGatewayRecord ? (
           <p className="mp-kpi-note">
@@ -254,22 +309,78 @@ export function GatewayCommandCenterCard({
           <p className="mp-kpi-note">{t("gateways.commandCenter.noAvailableDoors")}</p>
         ) : null}
 
-        <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
           <Input
             value={configVersion}
             onChange={(event) => onConfigVersionChange(event.target.value)}
             placeholder={t("gateways.commandCenter.configVersionPlaceholder")}
             disabled={!gatewayOpsEditable}
+            title={deviceFieldDisabledReason || undefined}
           />
-          <Button variant="secondary" disabled={commandBusy || !gatewayOpsEditable} onClick={onPublishConfig}>
+          <Button
+            variant="secondary"
+            className="w-full lg:w-auto"
+            disabled={Boolean(publishConfigDisabledReason)}
+            title={publishConfigDisabledReason || undefined}
+            onClick={onPublishConfig}
+          >
             <SendIcon className="mr-1.5 size-4" />
             {t("gateways.commandCenter.publishConfig")}
           </Button>
-          <Button variant="outline" disabled={commandBusy || !gatewayOpsEditable} onClick={onRebootGateway}>
+          <Button
+            variant="outline"
+            className="w-full lg:w-auto"
+            disabled={Boolean(rebootDisabledReason)}
+            title={rebootDisabledReason || undefined}
+            onClick={() => setRebootConfirmOpen(true)}
+          >
             <RefreshCwIcon className="mr-1.5 size-4" />
             {t("gateways.commandCenter.reboot")}
           </Button>
+          {publishConfigDisabledReason || rebootDisabledReason ? (
+            <p className="lg:col-span-3 text-xs text-muted-foreground">
+              {publishConfigDisabledReason || rebootDisabledReason}
+            </p>
+          ) : null}
         </div>
+
+        <Dialog open={rebootConfirmOpen} onOpenChange={setRebootConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("gateways.commandCenter.rebootConfirm.title")}</DialogTitle>
+              <DialogDescription>
+                {t("gateways.commandCenter.rebootConfirm.description")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-lg border border-card-task-border bg-[#fafafa] px-3 py-2">
+              <p className="text-xs font-medium uppercase text-[#62636a]">
+                {t("gateways.commandCenter.rebootConfirm.targetLabel")}
+              </p>
+              <p className="mt-1 text-sm font-medium text-[#17171c]">
+                {selectedGatewayRecord?.id ?? selectedGateway}
+              </p>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="interaction">
+                  {t("gateways.commandCenter.rebootConfirm.cancel")}
+                </Button>
+              </DialogClose>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={Boolean(rebootDisabledReason)}
+                title={rebootDisabledReason || undefined}
+                onClick={() => {
+                  setRebootConfirmOpen(false)
+                  onRebootGateway()
+                }}
+              >
+                {t("gateways.commandCenter.rebootConfirm.confirm")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           {commandLog}
@@ -279,10 +390,7 @@ export function GatewayCommandCenterCard({
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium text-muted-foreground">{t("gateways.commandCenter.deviceMgmt.title")}</p>
             <Badge variant={selectedGatewayRemainSlots > 0 ? "outline" : "destructive"}>
-              {t("gateways.commandCenter.deviceMgmt.remaining", {
-                remain: selectedGatewayRemainSlots,
-                capacity: selectedGatewayRecord?.device_capacity ?? 0,
-              })}
+              {deviceSlotLabel}
             </Badge>
           </div>
           <p className="mp-kpi-note">
@@ -291,15 +399,16 @@ export function GatewayCommandCenterCard({
               total: selectedGatewayDevices.length,
             })}
           </p>
-          <div className="grid gap-2 md:grid-cols-[1.1fr_0.8fr_0.8fr_0.8fr_0.8fr_auto]">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_auto]">
             <Input
               value={deviceSerialNumber}
               onChange={(event) => onDeviceSerialNumberChange(event.target.value)}
               placeholder={t("gateways.commandCenter.deviceMgmt.serialPlaceholder")}
               disabled={!gatewayOpsEditable}
+              title={deviceFieldDisabledReason || undefined}
             />
-            <Select value={deviceKind} onValueChange={(value: GatewayDeviceKind) => onDeviceKindChange(value)}>
-              <SelectTrigger>
+            <Select value={deviceKind} disabled={!gatewayOpsEditable} onValueChange={(value: GatewayDeviceKind) => onDeviceKindChange(value)}>
+              <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                 <SelectValue placeholder={t("gateways.commandCenter.deviceMgmt.kindPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -311,8 +420,8 @@ export function GatewayCommandCenterCard({
                 <SelectItem value="legacy_controller">{t("gateways.deviceKind.legacyController")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={deviceSource} onValueChange={(value: GatewayDeviceSource) => onDeviceSourceChange(value)}>
-              <SelectTrigger>
+            <Select value={deviceSource} disabled={!gatewayOpsEditable} onValueChange={(value: GatewayDeviceSource) => onDeviceSourceChange(value)}>
+              <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                 <SelectValue placeholder={t("gateways.commandCenter.deviceMgmt.sourcePlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -320,8 +429,8 @@ export function GatewayCommandCenterCard({
                 <SelectItem value="legacy_integration">{t("gateways.deviceSource.legacyIntegration")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={deviceStatus} onValueChange={(value: "online" | "offline") => onDeviceStatusChange(value)}>
-              <SelectTrigger>
+            <Select value={deviceStatus} disabled={!gatewayOpsEditable} onValueChange={(value: "online" | "offline") => onDeviceStatusChange(value)}>
+              <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                 <SelectValue placeholder={t("gateways.commandCenter.deviceMgmt.statusPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -329,8 +438,8 @@ export function GatewayCommandCenterCard({
                 <SelectItem value="offline">{t("gateways.status.offline")}</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={deviceProtocol} onValueChange={(value: GatewayDeviceProtocol) => onDeviceProtocolChange(value)}>
-              <SelectTrigger>
+            <Select value={deviceProtocol} disabled={!gatewayOpsEditable} onValueChange={(value: GatewayDeviceProtocol) => onDeviceProtocolChange(value)}>
+              <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                 <SelectValue placeholder={t("gateways.commandCenter.deviceMgmt.protocolPlaceholder")} />
               </SelectTrigger>
               <SelectContent>
@@ -344,22 +453,29 @@ export function GatewayCommandCenterCard({
             </Select>
             <Button
               variant="outline"
-              disabled={commandBusy || selectedGatewayRemainSlots <= 0 || !gatewayOpsEditable}
+              className="w-full md:col-span-2 xl:col-span-1 xl:w-auto"
+              disabled={Boolean(mountDeviceDisabledReason)}
+              title={mountDeviceDisabledReason || undefined}
               onClick={onRegisterGatewayDevice}
             >
               <Plug2Icon className="mr-1.5 size-4" />
               {t("gateways.commandCenter.deviceMgmt.mountDevice")}
             </Button>
+            {mountDeviceDisabledReason ? (
+              <p className="md:col-span-2 xl:col-span-6 text-xs text-muted-foreground">{mountDeviceDisabledReason}</p>
+            ) : null}
           </div>
           {deviceProtocol === "rs485" ? (
-            <div className="grid gap-2 md:grid-cols-5">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               <Input
                 value={rs485BaudRate}
                 onChange={(event) => onRS485BaudRateChange(event.target.value)}
                 placeholder="baud_rate (9600)"
+                disabled={!gatewayOpsEditable}
+                title={deviceFieldDisabledReason || undefined}
               />
-              <Select value={rs485Parity} onValueChange={(value: "none" | "even" | "odd") => onRS485ParityChange(value)}>
-                <SelectTrigger>
+              <Select value={rs485Parity} disabled={!gatewayOpsEditable} onValueChange={(value: "none" | "even" | "odd") => onRS485ParityChange(value)}>
+                <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                   <SelectValue placeholder="parity" />
                 </SelectTrigger>
                 <SelectContent>
@@ -368,8 +484,8 @@ export function GatewayCommandCenterCard({
                   <SelectItem value="odd">odd</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={String(rs485StopBits)} onValueChange={(value: string) => onRS485StopBitsChange(value === "2" ? 2 : 1)}>
-                <SelectTrigger>
+              <Select value={String(rs485StopBits)} disabled={!gatewayOpsEditable} onValueChange={(value: string) => onRS485StopBitsChange(value === "2" ? 2 : 1)}>
+                <SelectTrigger title={deviceFieldDisabledReason || undefined}>
                   <SelectValue placeholder="stop_bits" />
                 </SelectTrigger>
                 <SelectContent>
@@ -381,16 +497,26 @@ export function GatewayCommandCenterCard({
                 value={rs485Address}
                 onChange={(event) => onRS485AddressChange(event.target.value)}
                 placeholder="device_address (1..247)"
+                disabled={!gatewayOpsEditable}
+                title={deviceFieldDisabledReason || undefined}
               />
               <Input
                 value={rs485TimeoutMS}
                 onChange={(event) => onRS485TimeoutMSChange(event.target.value)}
                 placeholder="timeout_ms (100..5000)"
+                disabled={!gatewayOpsEditable}
+                title={deviceFieldDisabledReason || undefined}
               />
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="secondary" size="sm" disabled={commandBusy || !gatewayOpsEditable} onClick={onProbeLegacyDevices}>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={Boolean(probeLegacyDisabledReason)}
+              title={probeLegacyDisabledReason || undefined}
+              onClick={onProbeLegacyDevices}
+            >
               {t("gateways.commandCenter.deviceMgmt.probeLegacy")}
             </Button>
             {legacyProbeCandidates.map((item) => (
@@ -405,6 +531,9 @@ export function GatewayCommandCenterCard({
                 {item}
               </Button>
             ))}
+            {probeLegacyDisabledReason ? (
+              <p className="w-full basis-full text-xs text-muted-foreground">{probeLegacyDisabledReason}</p>
+            ) : null}
           </div>
           <Table>
             <TableHeader>

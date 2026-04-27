@@ -45,39 +45,39 @@ export function AccessGrantFilterBar({
   const { t } = useTranslation()
 
   return (
-    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[1fr_1fr_220px_220px_180px_auto]">
+    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,220px)_minmax(0,220px)_minmax(0,180px)_auto]">
       <Input
         type="date"
         value={dateFrom}
         onChange={(event) => onDateFromChange(event.target.value)}
-        placeholder={t("accessPage.components.grantFilterBar.startDate", { defaultValue: "Start date" })}
+        placeholder={t("accessPage.components.grantFilterBar.startDate")}
       />
       <Input
         type="date"
         value={dateTo}
         onChange={(event) => onDateToChange(event.target.value)}
-        placeholder={t("accessPage.components.grantFilterBar.endDate", { defaultValue: "End date" })}
+        placeholder={t("accessPage.components.grantFilterBar.endDate")}
       />
       <Select value={methodFilter} onValueChange={onMethodChange}>
-        <SelectTrigger>
-          <SelectValue placeholder={t("accessPage.components.grantFilterBar.deliveryMethod", { defaultValue: "Delivery method" })} />
+        <SelectTrigger className="w-full min-w-0">
+          <SelectValue placeholder={t("accessPage.components.grantFilterBar.deliveryMethod")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{t("accessPage.components.grantFilterBar.deliveryAll", { defaultValue: "All methods" })}</SelectItem>
+          <SelectItem value="all">{t("accessPage.components.grantFilterBar.deliveryAll")}</SelectItem>
           <SelectItem value="wallet">
-            {t("accessPage.components.grantFilterBar.deliveryWallet", { defaultValue: "MistyPass mobile pass" })}
+            {t("accessPage.components.grantFilterBar.deliveryWallet")}
           </SelectItem>
           <SelectItem value="email_qr">
-            {t("accessPage.components.grantFilterBar.deliveryEmailQr", { defaultValue: "Email QR pass" })}
+            {t("accessPage.components.grantFilterBar.deliveryEmailQr")}
           </SelectItem>
         </SelectContent>
       </Select>
       <Select value={passTypeFilter} onValueChange={onPassTypeChange}>
-        <SelectTrigger>
-          <SelectValue placeholder={t("accessPage.components.grantFilterBar.subjectType", { defaultValue: "Subject type" })} />
+        <SelectTrigger className="w-full min-w-0">
+          <SelectValue placeholder={t("accessPage.components.grantFilterBar.subjectType")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{t("accessPage.components.grantFilterBar.subjectAll", { defaultValue: "All subject types" })}</SelectItem>
+          <SelectItem value="all">{t("accessPage.components.grantFilterBar.subjectAll")}</SelectItem>
           {passTypeOptions.map((item) => (
             <SelectItem key={item} value={item}>
               {item}
@@ -86,20 +86,20 @@ export function AccessGrantFilterBar({
         </SelectContent>
       </Select>
       <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger>
-          <SelectValue placeholder={t("accessPage.components.grantFilterBar.status", { defaultValue: "Grant status" })} />
+        <SelectTrigger className="w-full min-w-0">
+          <SelectValue placeholder={t("accessPage.components.grantFilterBar.status")} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">{t("accessPage.components.grantFilterBar.statusAll", { defaultValue: "All statuses" })}</SelectItem>
-          <SelectItem value="active">{t("accessPage.components.grantFilterBar.statusActive", { defaultValue: "Active" })}</SelectItem>
+          <SelectItem value="all">{t("accessPage.components.grantFilterBar.statusAll")}</SelectItem>
+          <SelectItem value="active">{t("accessPage.components.grantFilterBar.statusActive")}</SelectItem>
           <SelectItem value="expiring_soon">
-            {t("accessPage.components.grantFilterBar.statusExpiringSoon", { defaultValue: "Expiring within 24h" })}
+            {t("accessPage.components.grantFilterBar.statusExpiringSoon")}
           </SelectItem>
-          <SelectItem value="expired">{t("accessPage.components.grantFilterBar.statusExpired", { defaultValue: "Expired" })}</SelectItem>
+          <SelectItem value="expired">{t("accessPage.components.grantFilterBar.statusExpired")}</SelectItem>
         </SelectContent>
       </Select>
-      <Button variant="outline" onClick={onReset}>
-        {t("accessPage.components.grantFilterBar.clearFilters", { defaultValue: "Clear filters" })}
+      <Button variant="outline" className="w-full xl:w-auto" onClick={onReset}>
+        {t("accessPage.components.grantFilterBar.clearFilters")}
       </Button>
     </div>
   )
