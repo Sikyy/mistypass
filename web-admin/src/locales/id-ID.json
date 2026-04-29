@@ -516,7 +516,13 @@
       "activeUsers": "Pengguna Aktif",
       "openAlerts": "Peringatan Terbuka",
       "recentActivity": "Aktivitas Lokasi Terbaru",
-      "noActivity": "Tidak ada aktivitas lokasi."
+      "noActivity": "Tidak ada aktivitas lokasi.",
+      "dailyUsage": "Penggunaan lokasi harian",
+      "date": "Tanggal",
+      "unlockCount": "# buka kunci",
+      "uniqueUsersCol": "# pengguna unik",
+      "occupancy": "% okupansi",
+      "unlockHeatmap": "Heatmap buka kunci pengguna unik"
     },
     "eventHistory": {
       "title": "Riwayat Event",

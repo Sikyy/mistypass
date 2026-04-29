@@ -516,7 +516,13 @@
       "activeUsers": "活跃用户",
       "openAlerts": "待处理告警",
       "recentActivity": "最近场所活动",
-      "noActivity": "暂无场所活动。"
+      "noActivity": "暂无场所活动。",
+      "dailyUsage": "每日场所使用情况",
+      "date": "日期",
+      "unlockCount": "开锁次数",
+      "uniqueUsersCol": "独立用户数",
+      "occupancy": "占用率",
+      "unlockHeatmap": "独立用户开锁热力图"
     },
     "eventHistory": {
       "title": "事件历史",

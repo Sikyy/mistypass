@@ -516,7 +516,13 @@
       "activeUsers": "Active Users",
       "openAlerts": "Open Alerts",
       "recentActivity": "Recent Place Activity",
-      "noActivity": "No recent place activity."
+      "noActivity": "No recent place activity.",
+      "dailyUsage": "Daily place usage",
+      "date": "Date",
+      "unlockCount": "# unlocks",
+      "uniqueUsersCol": "# unique users",
+      "occupancy": "% occupancy",
+      "unlockHeatmap": "Unique users unlock heatmap"
     },
     "eventHistory": {
       "title": "Event History",
