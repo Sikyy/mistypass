@@ -1123,7 +1123,7 @@ export function CredentialsAdaptedPage({
                 </tr>
               ))}
               {visibleRows.length === 0 ? (
-                <MistyisletEmptyTableRow colSpan={6}>No {activeTab.toLowerCase()} credentials match this view.</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>{t("kisi.credentials.noMatch")}</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>

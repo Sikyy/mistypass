@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -56,6 +57,7 @@ function statusMessage(error: unknown) {
 }
 
 function AccessLinkDetail({ result }: { result: GroupLinkVerification }) {
+  const { t } = useTranslation()
   const link = result.group_link
   const details = [
     ["Access group", link.group_name || link.group_id],
@@ -72,8 +74,8 @@ function AccessLinkDetail({ result }: { result: GroupLinkVerification }) {
         <div className="flex items-start gap-3">
           <CheckCircle2Icon className="mt-0.5 size-5 shrink-0" />
           <div>
-            <p className="font-semibold text-emerald-50">Access link verified</p>
-            <p className="mt-1 text-emerald-100/80">This invitation is active and ready for the linked group.</p>
+            <p className="font-semibold text-emerald-50">{t("kisi.accessLink.verified")}</p>
+            <p className="mt-1 text-emerald-100/80">{t("kisi.accessLink.verifiedDesc")}</p>
           </div>
         </div>
       </div>
@@ -91,6 +93,7 @@ function AccessLinkDetail({ result }: { result: GroupLinkVerification }) {
 }
 
 export function AccessLinkClaimPage() {
+  const { t } = useTranslation()
   const params = useParams<{ token?: string }>()
   const [searchParams] = useSearchParams()
   const urlToken = useMemo(
@@ -129,7 +132,7 @@ export function AccessLinkClaimPage() {
             <MistyIslandMark className="size-12" markClassName="h-10 w-14" />
             <div>
               <p className="text-[11px] font-semibold uppercase text-muted-foreground">Mistyislet</p>
-              <p className="text-sm text-foreground">Access Link</p>
+              <p className="text-sm text-foreground">{t("kisi.accessLink.accessLink")}</p>
             </div>
           </div>
           <Button
@@ -152,7 +155,7 @@ export function AccessLinkClaimPage() {
               Secure access verification
             </div>
             <div className="space-y-4">
-              <h1 className="max-w-xl text-4xl font-semibold leading-tight text-foreground md:text-5xl">Claim shared access</h1>
+              <h1 className="max-w-xl text-4xl font-semibold leading-tight text-foreground md:text-5xl">{t("kisi.accessLink.claimTitle")}</h1>
               <p className="max-w-lg text-sm leading-6 text-muted-foreground">
                 Verify an access link before it is added to a group invitation record.
               </p>
@@ -171,7 +174,7 @@ export function AccessLinkClaimPage() {
           <div className="rounded-[6px] border border-white/10 bg-card p-5 shadow-2xl shadow-black/30">
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="access-link-token">Access token</Label>
+                <Label htmlFor="access-link-token">{t("kisi.accessLink.accessToken")}</Label>
                 <Input
                   id="access-link-token"
                   value={manualToken}
@@ -204,7 +207,7 @@ export function AccessLinkClaimPage() {
                   <div className="flex items-start gap-3">
                     <XCircleIcon className="mt-0.5 size-5 shrink-0" />
                     <div>
-                      <p className="font-semibold">Access link unavailable</p>
+                      <p className="font-semibold">{t("kisi.accessLink.unavailable")}</p>
                       <p className="mt-1 text-destructive/80">{statusMessage(verificationQuery.error)}</p>
                     </div>
                   </div>

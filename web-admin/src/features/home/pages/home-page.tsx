@@ -211,12 +211,13 @@ async function loadHomeSummary(token: string, viewer: CurrentUser): Promise<Home
 }
 
 function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: boolean }) {
+  const { t } = useTranslation()
   return (
     <section className="rounded-[6px] border border-[#e1e3e8] bg-white">
       <div className="flex items-center justify-between border-b border-[#eceef2] px-6 py-5">
         <div>
-          <h2 className="text-lg font-semibold text-[#17171c]">Recent Activity</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">Latest access, alarm, and device signals.</p>
+          <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.home.recentActivity")}</h2>
+          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.recentDesc")}</p>
         </div>
         <Clock3Icon className="hidden size-5 text-[#9a9ca7] sm:block" />
       </div>
@@ -253,8 +254,8 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
         ) : (
           <div className="px-6 py-12 text-center">
             <MessageSquareIcon className="mx-auto size-8 text-[#9a9ca7]" />
-            <p className="mt-3 text-sm font-semibold text-[#17171c]">No recent activity</p>
-            <p className="mt-1 text-sm text-[#6f717c]">New access events and alarms will appear here.</p>
+            <p className="mt-3 text-sm font-semibold text-[#17171c]">{t("kisi.home.noActivity")}</p>
+            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.noActivity")}</p>
           </div>
         )}
       </div>
@@ -362,8 +363,8 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
       <section className="mt-8 rounded-[6px] border border-[#e1e3e8] bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[#17171c]">Quick Actions</h2>
-            <p className="mt-1 text-sm text-[#6f717c]">Common organization tasks for access operations.</p>
+            <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.home.quickActions")}</h2>
+            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.quickDesc")}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quickActions.map((action) => {

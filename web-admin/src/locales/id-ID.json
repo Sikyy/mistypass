@@ -393,6 +393,15 @@
       "scheduledReports": "Laporan Terjadwal",
       "addSchedule": "Tambah Jadwal"
     },
+    "accessLink": {
+      "verified": "Tautan akses terverifikasi",
+      "verifiedDesc": "Undangan ini aktif dan siap untuk grup yang ditautkan.",
+      "accessLink": "Tautan Akses",
+      "claimTitle": "Klaim akses bersama",
+      "accessToken": "Token akses",
+      "unavailable": "Tautan akses tidak tersedia",
+      "change": "Ubah"
+    },
     "home": {
       "welcome": "Selamat datang, {{name}}",
       "onlineGates": "Gerbang Online",

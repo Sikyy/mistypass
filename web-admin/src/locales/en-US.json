@@ -393,6 +393,15 @@
       "scheduledReports": "Scheduled Reports",
       "addSchedule": "Add Schedule"
     },
+    "accessLink": {
+      "verified": "Access link verified",
+      "verifiedDesc": "This invitation is active and ready for the linked group.",
+      "accessLink": "Access Link",
+      "claimTitle": "Claim shared access",
+      "accessToken": "Access token",
+      "unavailable": "Access link unavailable",
+      "change": "Change"
+    },
     "home": {
       "welcome": "Welcome back, {{name}}",
       "onlineGates": "Online Gates",

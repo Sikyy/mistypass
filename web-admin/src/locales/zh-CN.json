@@ -393,6 +393,15 @@
       "scheduledReports": "定时报表",
       "addSchedule": "添加排程"
     },
+    "accessLink": {
+      "verified": "访问链接已验证",
+      "verifiedDesc": "此邀请处于活跃状态，可用于关联的组。",
+      "accessLink": "访问链接",
+      "claimTitle": "领取共享访问",
+      "accessToken": "访问令牌",
+      "unavailable": "访问链接不可用",
+      "change": "更改"
+    },
     "home": {
       "welcome": "欢迎回来，{{name}}",
       "onlineGates": "在线网关",
