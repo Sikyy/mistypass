@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -681,9 +682,9 @@ export function HardwareAdaptedPage({
             </div>
             <SettingToggleRows
               rows={[
-                ["Remote commands", true, "Allow place admins to restart or resync this device.", ServerIcon],
-                ["Automatic firmware updates", true, "Install approved firmware during the maintenance window.", CloudIcon],
-                ["Diagnostics upload", false, "Upload detailed diagnostic bundles for support review.", FileTextIcon],
+                [i18next.t("common.permissions"), true, i18next.t("kisi.hardware.description"), ServerIcon],
+                [i18next.t("common.settings"), true, i18next.t("kisi.hardware.description"), CloudIcon],
+                [i18next.t("common.settings"), false, i18next.t("kisi.hardware.description"), FileTextIcon],
               ]}
             />
           </>

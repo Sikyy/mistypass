@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { BarChart3Icon, BellIcon, ChevronDownIcon, ShieldCheckIcon } from "lucide-react"
@@ -23,7 +24,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
       ]
     : title === "Intrusion Detection"
       ? [
-          ["Door forced open", "Enabled", "Notify admins immediately"],
+          [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), i18next.t("kisi.orgSetup.description")],
           ["Reader tamper", "Enabled", "Create high severity alert"],
           ["After-hours access", "Review", "Route to reports"],
         ]
@@ -72,7 +73,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
             <SettingToggleRows
               rows={[
                 [`Enable ${title}`, title !== "Elevators", `Turn on ${title.toLowerCase()} workflows for this place.`, ShieldCheckIcon],
-                ["Notify place admins", true, "Route relevant alerts to this place's admin group.", BellIcon],
+                [i18next.t("kisi.orgSetup.notifications"), true, i18next.t("kisi.orgSetup.description"), BellIcon],
                 ["Include in reports", true, "Expose this area in place analytics and exports.", BarChart3Icon],
               ]}
             />

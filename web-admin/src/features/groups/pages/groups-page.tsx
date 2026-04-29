@@ -123,7 +123,7 @@ export function GroupsAdaptedPage({
     {
       key: "login_enabled",
       title: i18next.t("common.permissions"),
-      description: "If enabled, users may access using Mistyislet mobile and web apps.",
+      description: i18next.t("kisi.groups.permDesc"),
       enabled: currentGroup?.loginEnabled ?? true,
       icon: CreditCardIcon,
     },
@@ -143,8 +143,8 @@ export function GroupsAdaptedPage({
     },
     {
       key: "tap_to_access_restriction_enabled",
-      title: "Tap To Access Restriction",
-      description: "Require reader unlock instead of remote app unlock.",
+      title: i18next.t("kisi.groups.restrictions"),
+      description: i18next.t("kisi.groups.permDesc"),
       enabled: Boolean(currentGroup?.tapToAccessRestrictionEnabled),
       icon: DoorOpenIcon,
     },

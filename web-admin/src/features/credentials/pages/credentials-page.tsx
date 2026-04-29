@@ -1405,7 +1405,7 @@ export function CredentialsAdaptedPage({
                     disabled={!canDispatchDelivery || deliveryMutation.isPending}
                     className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                   >
-                    {deliveryMutation.isPending ? "Sending..." : "Send Credential"}
+                    {deliveryMutation.isPending ? t("common.saving") : t("kisi.credentials.issue")}
                   </Button>
                 </form>
                 <div className="mt-4 space-y-2">

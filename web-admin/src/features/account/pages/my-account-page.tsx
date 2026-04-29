@@ -245,7 +245,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.security")}</p>
             </div>
             {[
-              ["Multi-factor authentication", true, "Require an additional verification step at sign-in."],
+              [i18next.t("common.permissions"), true, i18next.t("kisi.myAccount.description")],
               ["Trusted device prompt", true, "Remember this browser after successful MFA."],
               ["Recovery codes", false, "Generate backup access codes for emergency sign-in."],
             ].map(([title, enabled, description]) => (

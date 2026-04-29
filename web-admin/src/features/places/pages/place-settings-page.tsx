@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -223,9 +224,9 @@ export function PlaceSettingsAdaptedPage({
             <PanelHeader title={t("common.permissions")} description={t("kisi.floors.description")} />
             <SettingToggleRows
               rows={[
-                ["Allow mobile unlocks", true, "Users with valid Access Rights can unlock from mobile apps.", CreditCardIcon],
-                ["Require reader unlock for sensitive doors", true, "Apply reader-required mode to high-security groups.", DoorOpenIcon],
-                ["Suspend new users by default", false, "Require admin approval before newly synced users can unlock.", UsersIcon],
+                [i18next.t("common.permissions"), true, i18next.t("kisi.floors.description"), CreditCardIcon],
+                [i18next.t("common.permissions"), true, i18next.t("kisi.floors.description"), DoorOpenIcon],
+                [i18next.t("common.permissions"), false, i18next.t("kisi.floors.description"), UsersIcon],
               ]}
             />
           </>
@@ -255,8 +256,8 @@ export function PlaceSettingsAdaptedPage({
             <PanelHeader title={t("kisi.orgSetup.notifications")} description={t("kisi.floors.description")} />
             <SettingToggleRows
               rows={[
-                ["Door forced open", true, "Notify place admins and security channel immediately.", BellIcon],
-                ["Device offline", true, "Notify after five minutes without heartbeat.", ServerIcon],
+                [i18next.t("kisi.orgSetup.notifications"), true, i18next.t("kisi.floors.description"), BellIcon],
+                [i18next.t("kisi.orgSetup.notifications"), true, i18next.t("kisi.floors.description"), ServerIcon],
                 ["Access denied spike", true, "Create a review item when denial thresholds are exceeded.", AlertCircleIcon],
               ]}
             />
@@ -270,7 +271,7 @@ export function PlaceSettingsAdaptedPage({
               {[
                 ["Export place audit log", "Generate CSV for unlocks, denials, and admin changes."],
                 ["Rotate device secrets", "Force all gateways and readers to refresh credentials."],
-                ["Lock down place", "Send a lockdown command to all locks in this place."],
+                [i18next.t("kisi.doors.lockdown"), i18next.t("kisi.floors.description")],
                 ["Cancel lockdown", "Cancel the current place-wide lockdown command."],
               ].map((row, index) => (
                 <div key={row[0]} className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">

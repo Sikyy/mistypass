@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -361,7 +362,7 @@ export function FloorsAdaptedPage({
                   />
                 </label>
                 <FormField label={t("common.description")} value={selectedFloor?.description ?? "No areas mapped yet"} />
-                <FormField label={t("common.group")} value="Engineering Team access" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+                <FormField label={t("common.group")} value={i18next.t("common.group")} trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
                 <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
               </div>
             </>
@@ -469,9 +470,9 @@ export function FloorsAdaptedPage({
               <PanelHeader title={t("common.settings")} description={t("kisi.floors.description")} />
               <SettingToggleRows
                 rows={[
-                  ["Apply new doors to default group", true, "New doors on this floor inherit the selected default group.", KeyRoundIcon],
-                  ["Alert on offline reader", true, "Notify place admins if any floor reader goes offline.", BellIcon],
-                  ["Show in occupancy reports", false, "Include this floor in capacity management once enabled.", BarChart3Icon],
+                  [i18next.t("common.permissions"), true, "New doors on this floor inherit the selected default group.", KeyRoundIcon],
+                  [i18next.t("kisi.orgSetup.notifications"), true, "Notify place admins if any floor reader goes offline.", BellIcon],
+                  [i18next.t("kisi.reports.title"), false, "Include this floor in capacity management once enabled.", BarChart3Icon],
                 ]}
               />
             </>

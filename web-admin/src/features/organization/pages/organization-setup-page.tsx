@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -454,7 +455,7 @@ export function OrganizationSetupAdaptedPage({
       setAlertPolicyError("")
       await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
     },
-    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy update failed"),
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : i18next.t("kisi.orgSetup.description")),
   })
 
   const createAlertPolicyMutation = useMutation({
@@ -464,7 +465,7 @@ export function OrganizationSetupAdaptedPage({
         throw new Error("tenant_id is required")
       }
       if (createAlertPolicyDraft.enabled && !createAlertPolicyDraft.email && !createAlertPolicyDraft.whatsapp) {
-        throw new Error("Alert policy needs at least one notification channel")
+        throw new Error(i18next.t("kisi.orgSetup.description"))
       }
       if (createAlertPolicyCategory === "custom" && !createAlertPolicyDraft.trigger.trim()) {
         throw new Error("Custom policy trigger is required")
@@ -497,7 +498,7 @@ export function OrganizationSetupAdaptedPage({
       setAlertPolicyError("")
       await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
     },
-    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy create failed"),
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : i18next.t("kisi.orgSetup.description")),
   })
 
   const previewAlertPolicyConditionMutation = useMutation({
@@ -541,7 +542,7 @@ export function OrganizationSetupAdaptedPage({
       setAlertPolicyError("")
       await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
     },
-    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy delete failed"),
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : i18next.t("kisi.orgSetup.description")),
   })
 
   const saveIntegrationMutation = useMutation({
@@ -599,19 +600,19 @@ export function OrganizationSetupAdaptedPage({
   const fallbackAlertRows: AlertPolicyRow[] =
     activeTab === "Notifications"
       ? [
-          ["Security channel", "Enabled", "Send high severity events to #security-ops", "success"],
-          ["Place admin email", "Enabled", "Email assigned Place Admins for place-scoped alerts", "success"],
+          [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "Send high severity events to #security-ops", "success"],
+          [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "Email assigned Place Admins for place-scoped alerts", "success"],
           ["Weekly digest", "Review", "Summarize non-urgent access trends every Monday", "warning"],
         ]
       : activeTab === "Escalation"
         ? [
-            ["Door forced open", "Enabled", "Escalate after 2 minutes without acknowledgement", "success"],
-            ["Gateway offline", "Enabled", "Escalate to hardware owner after 10 minutes", "success"],
+            [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "Escalate after 2 minutes without acknowledgement", "success"],
+            [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "Escalate to hardware owner after 10 minutes", "success"],
             ["Repeated access denied", "Review", "Escalate after 3 denied attempts in 10 minutes", "warning"],
           ]
         : [
-            ["Door forced open", "Enabled", "High severity, notify security team immediately", "success"],
-            ["Gateway offline", "Enabled", "Notify place admins after 5 minutes", "success"],
+            [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "High severity, notify security team immediately", "success"],
+            [i18next.t("kisi.orgSetup.notifications"), i18next.t("common.enabled"), "Notify place admins after 5 minutes", "success"],
             ["Repeated access denied", "Review", "Create review item after threshold is met", "warning"],
           ]
   const liveAlertRows = liveAlertPolicyRows(alertPoliciesQuery.data ?? [], activeTab)
@@ -634,7 +635,7 @@ export function OrganizationSetupAdaptedPage({
           ? [
               ["Personal API keys", "Available", "Manage user-scoped keys in My Account", "info"],
               ["Service tokens", "Reserved", "Backend API scope for automation", "info"],
-              ["Rate limits", "Ready", "Apply per-tenant API protection", "success"],
+              [i18next.t("common.permissions"), i18next.t("common.active"), "Apply per-tenant API protection", "success"],
             ]
           : [
               ["SSO", "Connected", "SAML identity provider for admin sign-in", "success"],
@@ -738,7 +739,7 @@ export function OrganizationSetupAdaptedPage({
                 rows={[
                   ["Register gateway after creation", true, "Create an onboarding slot for the first gateway.", ServerIcon],
                   ["Enable reader inventory", true, "Track controller and reader serials from day one.", CreditCardIcon],
-                  ["Require firmware baseline", false, "Block activation until devices report approved firmware.", CloudIcon],
+                  [i18next.t("common.permissions"), false, i18next.t("kisi.orgSetup.description"), CloudIcon],
                 ]}
               />
             ) : null}
@@ -1046,17 +1047,17 @@ export function OrganizationSetupAdaptedPage({
               {activeTab === "Communication" ? (
                 <SettingToggleRows
                   rows={[
-                    ["Send account invites", true, "Email users when they are invited to access this organization.", UsersIcon],
-                    ["Notify admins about access changes", true, "Send admin-visible updates when Access Rights are changed.", BellIcon],
-                    ["Weekly operations digest", false, "Send a weekly summary of places, alerts, and access trends.", BarChart3Icon],
+                    [i18next.t("common.email"), true, i18next.t("kisi.orgSetup.description"), UsersIcon],
+                    [i18next.t("kisi.orgSetup.notifications"), true, i18next.t("kisi.orgSetup.description"), BellIcon],
+                    [i18next.t("kisi.reports.title"), false, i18next.t("kisi.orgSetup.description"), BarChart3Icon],
                   ]}
                 />
               ) : activeTab === "Security" ? (
                 <SettingToggleRows
                   rows={[
-                    ["Require MFA for admins", true, "Apply stronger sign-in requirements to Organization Admins.", ShieldCheckIcon],
-                    ["Allow WebAuthn", false, "Let users enroll hardware security keys.", KeyRoundIcon],
-                    ["Block unmanaged API keys", true, "Require API keys to be created from the approved account workflow.", CloudIcon],
+                    [i18next.t("common.permissions"), true, i18next.t("kisi.orgSetup.description"), ShieldCheckIcon],
+                    [i18next.t("common.permissions"), false, i18next.t("kisi.orgSetup.description"), KeyRoundIcon],
+                    [i18next.t("common.permissions"), true, i18next.t("kisi.orgSetup.description"), CloudIcon],
                   ]}
                 />
               ) : activeTab === "Advanced" ? (

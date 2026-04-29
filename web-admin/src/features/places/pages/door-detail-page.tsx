@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -505,8 +506,8 @@ export function DoorDetailAdaptedPage({
             />
             <div className="divide-y divide-[#eceef2]">
               {[
-                ["Service Personnel", "Weekdays 08:00-18:00", "Primary device + geofence"],
-                ["Facilities 24/7", "Always", "Reader required"],
+                [i18next.t("common.group"), "08:00-18:00", i18next.t("common.permissions")],
+                [i18next.t("common.group"), "24/7", i18next.t("common.reader")],
               ].map((row) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_190px_1fr] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{row[0]}</span>
@@ -561,9 +562,9 @@ export function DoorDetailAdaptedPage({
             <PanelHeader title={t("common.permissions")} description={t("kisi.doors.permDesc")} />
             <SettingToggleRows
               rows={[
-                ["Remote unlock", true, "Allow authorized admins to unlock this door from the dashboard.", DoorOpenIcon],
-                ["Reader unlock required after hours", true, "Require local reader interaction outside business hours.", KeyRoundIcon],
-                ["Lockdown eligible", true, "Include this door in place-level lockdown actions.", ShieldCheckIcon],
+                [i18next.t("kisi.doors.remoteUnlock"), true, "Allow authorized admins to unlock this door from the dashboard.", DoorOpenIcon],
+                [i18next.t("kisi.doors.readerAfterHours"), true, "Require local reader interaction outside business hours.", KeyRoundIcon],
+                [i18next.t("kisi.doors.lockdownEligible"), true, "Include this door in place-level lockdown actions.", ShieldCheckIcon],
               ]}
             />
           </>

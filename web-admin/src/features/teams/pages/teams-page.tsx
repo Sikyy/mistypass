@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -581,7 +582,7 @@ export function TeamsAdaptedPage({
             <SettingToggleRows
               rows={[
                 ["Sync from SCIM", true, "Maintain team membership from the connected directory.", ShieldCheckIcon],
-                ["Auto-share access", true, "Apply assigned Access Rights when a user joins this team.", KeyRoundIcon],
+                [i18next.t("kisi.teams.autoShare"), true, i18next.t("kisi.teams.settingsDesc"), KeyRoundIcon],
                 ["Remove access on leave", true, "Revoke team-based Access Rights when membership is removed.", Trash2Icon],
               ]}
             />
@@ -621,11 +622,11 @@ export function TeamsAdaptedPage({
         title={t("kisi.teams.removeTeamMember")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteMembershipTarget?.name ?? "this member"}</span>{" "}
+            This removes <span className="font-semibold text-[#17171c]">{deleteMembershipTarget?.name ?? t("common.members")}</span>{" "}
             from {selectedTeam?.name ?? "this team"}.
           </>
         }
-        confirmLabel="Remove member"
+        confirmLabel={t("kisi.teams.removeMember")}
         pending={deleteMembershipMutation.isPending}
         disabled={!canMutate || !deleteMembershipTarget}
         destructive
