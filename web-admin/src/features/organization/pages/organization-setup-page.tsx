@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircleIcon,
@@ -306,6 +307,7 @@ export function OrganizationSetupAdaptedPage({
   token: string
   viewer: CurrentUser
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const normalized = title.toLowerCase()
   const isCreatePlace = normalized.includes("create")
@@ -315,7 +317,7 @@ export function OrganizationSetupAdaptedPage({
   const isSettings = normalized.includes("settings")
   const isSsoScim = normalized.includes("sso")
   const tabs = isAlertPolicies
-    ? ["Policies", "Notifications", "Escalation"]
+    ? [t("kisi.orgSetup.policies"), t("kisi.orgSetup.notifications"), t("kisi.orgSetup.escalation")]
     : isIntegrations
       ? ["Directory", "Webhooks", "MQTT", "Device API"]
       : isSsoScim
@@ -678,9 +680,9 @@ export function OrganizationSetupAdaptedPage({
               ? "Create Place"
               : isAlertPolicies
                 ? saveAlertPoliciesMutation.isPending
-                  ? "Saving..."
-                  : "Save Policies"
-                : "Save Changes"}
+                  ? t("kisi.orgSetup.saving")
+                  : t("kisi.orgSetup.savePolicies")
+                : t("kisi.orgSetup.saveChanges")}
           </Button>
         }
       >
@@ -1323,7 +1325,7 @@ export function OrganizationSetupAdaptedPage({
                 disabled={saveIntegrationMutation.isPending || (Boolean(editingIntegrationID) && integrationDetailQuery.isPending)}
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
-                {saveIntegrationMutation.isPending ? "Saving..." : editingIntegrationID ? "Save Integration" : "Add Integration"}
+                {saveIntegrationMutation.isPending ? t("kisi.orgSetup.saving") : editingIntegrationID ? "Save Integration" : "Add Integration"}
               </Button>
             </SheetFooter>
           </form>

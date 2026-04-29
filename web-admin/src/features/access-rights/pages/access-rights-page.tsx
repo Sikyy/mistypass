@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarClockIcon, CheckIcon, EyeIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
@@ -142,8 +143,9 @@ export function AccessRightsAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const tabs = ["Groups", "Places", "Teams", "Users", "Access Links"]
+  const tabs = [t("kisi.accessRights.groups"), t("kisi.accessRights.places"), t("kisi.accessRights.teams"), t("kisi.accessRights.users"), t("kisi.accessRights.accessLinks")]
   const [activeTab, setActiveTab] = useState("Places")
   const [query, setQuery] = useState("")
   const [shareAccessOpen, setShareAccessOpen] = useState(false)
@@ -618,7 +620,7 @@ export function AccessRightsAdaptedPage({
         breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Access Rights"] : ["Home", "Access Rights"]}
         title="Access Rights"
         count={resourceQuery.isPending ? "--" : accessRights.length}
-        description="Share access by connecting users, teams, groups, places, and schedules"
+        description={t("kisi.accessRights.pageDesc")}
         actions={
           <Button
             disabled={!canMutate}
@@ -725,7 +727,7 @@ export function AccessRightsAdaptedPage({
                   className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-[#2f3037] hover:bg-[#f3f4f8]"
                 >
                   <EyeIcon className="mr-1.5 size-4" />
-                  {previewAccessRightsMutation.isPending ? "Previewing..." : "Preview impact"}
+                  {previewAccessRightsMutation.isPending ? "Previewing..." : t("kisi.accessRights.impactPreview")}
                 </Button>
                 <Button
                   type="button"
@@ -734,7 +736,7 @@ export function AccessRightsAdaptedPage({
                   className="h-9 rounded-[6px] bg-[#4f55ff] px-3 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                 >
                   <CheckIcon className="mr-1.5 size-4" />
-                  {reviewAccessRightsMutation.isPending ? "Marking..." : "Mark reviewed"}
+                  {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}
                 </Button>
               </div>
             </div>
@@ -1125,7 +1127,7 @@ export function AccessRightsAdaptedPage({
                 }
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
               >
-                {createAccessRightMutation.isPending ? "Creating..." : "Share Access"}
+                {createAccessRightMutation.isPending ? "Creating..." : t("kisi.accessRights.shareAccess")}
               </Button>
             </SheetFooter>
           </form>
@@ -1523,7 +1525,7 @@ export function AccessRightsAdaptedPage({
               className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
             >
               <CheckIcon className="mr-1.5 size-4" />
-              {reviewAccessRightsMutation.isPending ? "Marking..." : "Mark reviewed"}
+              {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}
             </Button>
           </SheetFooter>
         </SheetContent>

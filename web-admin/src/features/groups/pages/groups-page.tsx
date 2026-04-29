@@ -499,7 +499,7 @@ export function GroupsAdaptedPage({
       </section>
 
       <SettingsPanel
-        tabs={["General", "Members", "Doors", "Zones", "Links", "Time Restrictions", "Permissions"]}
+        tabs={[t("kisi.groups.tabGeneral"), t("kisi.groups.tabMembers"), t("kisi.groups.tabDoors"), t("kisi.groups.tabZones"), t("kisi.groups.tabLinks"), t("kisi.groups.tabTimeRestrictions"), t("kisi.groups.tabPermissions")]}
         active={activeTab}
         onTabChange={setActiveTab}
         footer={

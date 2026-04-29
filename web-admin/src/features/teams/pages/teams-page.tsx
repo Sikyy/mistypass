@@ -409,7 +409,7 @@ export function TeamsAdaptedPage({
       </section>
 
       <SettingsPanel
-        tabs={["General", "Members", "Access Rights", "Settings"]}
+        tabs={[t("kisi.teams.tabGeneral"), t("kisi.teams.tabMembers"), t("kisi.teams.tabAccessRights"), t("kisi.teams.tabSettings")]}
         active={activeTab}
         onTabChange={setActiveTab}
         footer={
