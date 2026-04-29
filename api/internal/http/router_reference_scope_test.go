@@ -131,3 +131,63 @@ func TestReferencePlaceAdminScopeDerivesFromRoleAssignmentsWithoutJWTBuildingIDs
 		t.Fatalf("expected team role assignment place status 200, got %d body=%s", teamScopedPlaceRecorder.Code, teamScopedPlaceRecorder.Body.String())
 	}
 }
+
+func TestReferenceOperatorReadOnlyWriteGuard(t *testing.T) {
+	router, err := NewRouter(config.Config{
+		JWTSecret:       "reference-operator-write-guard-test-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "ops.jkt.01@mistypass.local")
+
+	readRecorder := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/cards?tenant_id=tenant_demo_jakarta", token, nil)
+	if readRecorder.Code != http.StatusOK {
+		t.Fatalf("expected operator card list status 200, got %d body=%s", readRecorder.Code, readRecorder.Body.String())
+	}
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   []byte
+	}{
+		{
+			name:   "create team",
+			method: http.MethodPost,
+			path:   "/api/v1/teams",
+			body:   []byte(`{"team":{"tenant_id":"tenant_demo_jakarta","name":"Operator Guard Team","scope":"place","place_id":"building_demo_001"}}`),
+		},
+		{
+			name:   "update role assignment",
+			method: http.MethodPatch,
+			path:   "/api/v1/role_assignments/ra_demo_place_admin_001",
+			body:   []byte(`{"role_assignment":{"tenant_id":"tenant_demo_jakarta","role_id":"role_place_admin","applies_to_type":"Place","applies_to_id":"building_demo_001","assignee_type":"User","assignee_id":"usr_1001"}}`),
+		},
+		{
+			name:   "delete share",
+			method: http.MethodDelete,
+			path:   "/api/v1/shares/vst_2201?tenant_id=tenant_demo_jakarta",
+		},
+		{
+			name:   "create card",
+			method: http.MethodPost,
+			path:   "/api/v1/cards",
+			body:   []byte(`{"card":{"tenant_id":"tenant_demo_jakarta","template_id":"wpt_employee_demo","card_number":"OPERATOR-GUARD-CARD"}}`),
+		},
+		{
+			name:   "create alert policy",
+			method: http.MethodPost,
+			path:   "/api/v1/alert_policies",
+			body:   []byte(`{"policy":{"tenant_id":"tenant_demo_jakarta","category":"custom","name":"Operator Guard","trigger":"door.forced_open","severity":"warning","condition_expression":"event.type == \"door.forced_open\"","enabled":true}}`),
+		},
+	}
+
+	for _, tc := range cases {
+		recorder := referenceAPIRequest(t, router, tc.method, tc.path, token, tc.body)
+		if recorder.Code != http.StatusForbidden {
+			t.Fatalf("expected operator %s status 403, got %d body=%s", tc.name, recorder.Code, recorder.Body.String())
+		}
+	}
+}

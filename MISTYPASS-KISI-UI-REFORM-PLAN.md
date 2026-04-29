@@ -424,7 +424,7 @@ Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
 | Destructive UX 收口 | 主要资源删除/解绑/撤销、硬件 Publish Config/重启/触发和实体卡终态推进已接确认；legacy building/door/door-group/temporary-access create 与 access policy create/update 已补审计；Organization Advanced 预留动作已禁用，下一步继续按域检查非硬件 legacy 高危操作 |
 | Row actions 收口 | Groups Links、Access Rights、Teams Members、Credentials 表格、Hardware door bindings、Alert Policies 已迁入；剩余 Settings/Advanced 等非表格操作继续按风险逐步统一 |
 | API 语义收口 | Reference wrapper 覆盖面已大，reference destructive/write audit baseline 已覆盖 Place/Lock/Group/Group Link/Group Lock/Controller/Reader/Team/Team Membership/Role Assignment/Share/Card/Alert Policy，并已扩展 Team create/update、Team Membership create、Role Assignment create/update、Share create/update、Card create/assign/status/deassign/revoke 等关键写操作回归；Access Link claim 已补 `last_used_at` / `claimed_at` 写回与 `reference_group_link_claimed` 审计；collection 响应已补 pagination metadata 与 `limit` / `offset` 裁剪，CORS 已 expose `X-Collection-Range`，错误响应已补 `{error,message,code,status}` baseline；OpenAPI baseline 已补 `GET /api/v1/openapi.json`，覆盖 operationId、pagination/error components、extension 分组和 legacy archive；Place delete 已落归档语义，Terminal 已补 detail 且 lifecycle 保持 Reader assign/deassign；legacy gateway register/bind/unbind/device register/config publish/reboot 已补审计与回归；legacy building/door/door-group/temporary-access create 与 access policy create/update 已补审计与回归；Users detail/update/delete/invite/invitations/receipt/provider webhook API、client helper、User Detail UI 写入、Users Add/Invite/provider dispatch/批量启停、Access Rights schedule template/bulk schedule/review/impact preview/bulk review baseline、Reports baseline、Alert Policy custom baseline 与实体卡库存 status 前后端治理 baseline 已补 |
-| Scope guard | Place Admin 视角可用；后端 `building_admin` scope 已从 token `building_ids` 扩展到 Role Assignment / Team Membership 推导，API-level URL 绕过回归已覆盖 Places/Locks/Shares，浏览器 URL 绕过 E2E 已覆盖 unassigned Place direct route |
+| Scope guard | Place Admin 视角可用；后端 `building_admin` scope 已从 token `building_ids` 扩展到 Role Assignment / Team Membership 推导，API-level URL 绕过回归已覆盖 Places/Locks/Shares，Operator 只读写保护 smoke 已覆盖 Team/Card/Role Assignment/Share/Alert Policy 写入拒绝，浏览器 URL 绕过 E2E 已覆盖 unassigned Place direct route |
 | 质量与体积 | 单测与构建稳定；主入口 bundle、旧后台并存、i18n 和视觉回归仍在推进 |
 
 #### 未完成
@@ -444,7 +444,7 @@ Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
 | 优先级 | 事项 | 原因 |
 |---|---|---|
 | P0 | 继续消除剩余直接 destructive mutation：reference 关键写操作 audit baseline 已扩展到 Team/Team Membership/Role Assignment/Share/Card 的 create/update/assign/status/deassign/revoke；legacy gateway 高危写/命令、legacy building/door/door-group/temporary-access create 与 legacy access policy create/update 已补审计，后续按域检查其他非硬件 legacy 操作；未来启用 Organization Advanced 写入前必须先接确认和审计 | 直接影响数据安全与用户误操作风险 |
-| P0 | Place Admin scope guard 与 demo 登录稳定性回归；继续补只读账号写入保护和更多 Place route smoke | 这是两类管理账号可用性的底线 |
+| P0 | Place Admin scope guard 与 demo 登录稳定性回归；Operator 只读写保护 smoke 已补，继续补更多 Place route smoke | 这是两类管理账号可用性的底线 |
 | P0 | 每轮保持 `typecheck`、unit、build、关键 smoke 通过 | 当前改动跨 API、adapter、UI，回归面大 |
 | P1 | 非硬件 legacy destructive audit 复查 | 补齐高风险操作追踪闭环 |
 | P1 | Users 批量治理与 Access Rights 复杂 schedule 规则/节假日例外 | 补齐 People & Access 的日常运营闭环 |
