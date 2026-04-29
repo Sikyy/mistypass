@@ -855,8 +855,8 @@ export function AccessRightsAdaptedPage({
       <Sheet open={shareAccessOpen} onOpenChange={setShareAccessOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Share Access</SheetTitle>
-            <SheetDescription>Create a role assignment or access link for this scope.</SheetDescription>
+            <SheetTitle>{t("kisi.accessRights.shareAccess")}</SheetTitle>
+            <SheetDescription>{t("kisi.accessRights.shareAccessDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -908,7 +908,7 @@ export function AccessRightsAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Role</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
                     <select
                       value={roleID}
                       onChange={(event) => setRoleID(event.target.value)}
@@ -928,14 +928,14 @@ export function AccessRightsAdaptedPage({
                 </div>
 
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scope</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scope")}</span>
                   <select
                     value={scopeID}
                     onChange={(event) => setScopeID(event.target.value)}
                     className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                   >
                     {scopeOptions.length === 0 ? (
-                      <option value="">No scope available</option>
+                      <option value="">{t("common.noDataFound")}</option>
                     ) : (
                       scopeOptions.map((scope) => (
                         <option key={scope.id} value={scope.id}>
@@ -954,14 +954,14 @@ export function AccessRightsAdaptedPage({
                       onChange={(event) => updateAssigneeType(event.target.value as RoleAssignment["assignee_type"])}
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                     >
-                      <option value="User">User</option>
-                      <option value="Team">Team</option>
-                      <option value="Guest">Guest</option>
+                      <option value="User">{t("kisi.accessRights.user")}</option>
+                      <option value="Team">{t("kisi.accessRights.team")}</option>
+                      <option value="Guest">{t("kisi.accessRights.guest")}</option>
                     </select>
                   </label>
                   {assigneeType === "Guest" ? (
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Guest email</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assigneeEmail")}</span>
                       <input
                         value={assigneeEmail}
                         onChange={(event) => {
@@ -973,14 +973,14 @@ export function AccessRightsAdaptedPage({
                     </label>
                   ) : (
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assignee")}</span>
                       <select
                         value={assigneeID}
                         onChange={(event) => updateAssigneeID(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
                         {assigneeOptions.length === 0 ? (
-                          <option value="">No assignee available</option>
+                          <option value="">{t("common.noDataFound")}</option>
                         ) : (
                           assigneeOptions.map((assignee) => (
                             <option key={assignee.id} value={assignee.id}>
@@ -995,7 +995,7 @@ export function AccessRightsAdaptedPage({
 
                 {assigneeType === "User" ? (
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee email</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assigneeEmail")}</span>
                     <input
                       value={assigneeEmail}
                       onChange={(event) => setAssigneeEmail(event.target.value)}
@@ -1025,13 +1025,13 @@ export function AccessRightsAdaptedPage({
                   </label>
                 </div>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
                   <select
                     value={shareGroupID}
                     onChange={(event) => setShareGroupID(event.target.value)}
                     className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                   >
-                    <option value="">No group</option>
+                    <option value="">{t("common.noDataFound")}</option>
                     {groupRows.map((group) => (
                       <option key={group.id} value={group.id}>
                         {group.name}
@@ -1041,13 +1041,13 @@ export function AccessRightsAdaptedPage({
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
                     <select
                       value={sharePlaceID}
                       onChange={(event) => setSharePlaceID(event.target.value)}
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                     >
-                      <option value="">No place</option>
+                      <option value="">{t("common.noDataFound")}</option>
                       {placeRows.map((place) => (
                         <option key={place.id} value={place.id}>
                           {place.name}
@@ -1056,13 +1056,13 @@ export function AccessRightsAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Door</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
                     <select
                       value={shareLockID}
                       onChange={(event) => setShareLockID(event.target.value)}
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                     >
-                      <option value="">No door</option>
+                      <option value="">{t("common.noDataFound")}</option>
                       {doorRows.map((door) => (
                         <option key={door.id} value={door.id}>
                           {door.name}
@@ -1145,8 +1145,8 @@ export function AccessRightsAdaptedPage({
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Edit Access Right</SheetTitle>
-            <SheetDescription>Review the live reference record and update its role or schedule.</SheetDescription>
+            <SheetTitle>{t("kisi.accessRights.editARSheet")}</SheetTitle>
+            <SheetDescription>{t("kisi.accessRights.editARDesc")}</SheetDescription>
           </SheetHeader>
 
           {editDetailQuery.isPending ? (
@@ -1223,7 +1223,7 @@ export function AccessRightsAdaptedPage({
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Role</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
                     <select
                       value={editRoleID}
                       onChange={(event) => setEditRoleID(event.target.value)}
@@ -1265,13 +1265,13 @@ export function AccessRightsAdaptedPage({
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
                     <select
                       value={editShareGroupID}
                       onChange={(event) => setEditShareGroupID(event.target.value)}
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                     >
-                      <option value="">No group</option>
+                      <option value="">{t("common.noDataFound")}</option>
                       {groupRows.map((group) => (
                         <option key={group.id} value={group.id}>
                           {group.name}
@@ -1282,13 +1282,13 @@ export function AccessRightsAdaptedPage({
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
                       <select
                         value={editSharePlaceID}
                         onChange={(event) => setEditSharePlaceID(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="">No place</option>
+                        <option value="">{t("common.noDataFound")}</option>
                         {placeRows.map((place) => (
                           <option key={place.id} value={place.id}>
                             {place.name}
@@ -1297,13 +1297,13 @@ export function AccessRightsAdaptedPage({
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Door</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
                       <select
                         value={editShareLockID}
                         onChange={(event) => setEditShareLockID(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="">No door</option>
+                        <option value="">{t("common.noDataFound")}</option>
                         {doorRows.map((door) => (
                           <option key={door.id} value={door.id}>
                             {door.name}

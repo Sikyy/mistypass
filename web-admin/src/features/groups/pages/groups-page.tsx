@@ -462,7 +462,7 @@ export function GroupsAdaptedPage({
                 <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
-                <th className="px-4 py-4 font-semibold">Members / Doors</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.groups.membersDoors")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
@@ -562,7 +562,7 @@ export function GroupsAdaptedPage({
                   <span className="text-sm text-[#6f717c]">{row.email}</span>
                 </div>
               ))}
-              {memberRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">No users found for this group scope.</div> : null}
+              {memberRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">{t("kisi.groups.noMembers")}</div> : null}
             </div>
           </>
         ) : null}
@@ -715,7 +715,7 @@ export function GroupsAdaptedPage({
                   <div key={day} className="border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-[#6f717c] last:border-r-0">
                     <div className="border-b border-white/80 bg-white py-4">{day}</div>
                     <div className="mx-auto mt-16 w-full max-w-[118px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
-                      <p className="truncate font-semibold">Access permitted</p>
+                      <p className="truncate font-semibold">{t("kisi.doors.accessPermitted")}</p>
                       <p className="mt-1 text-white/70">08:00 - 18:00</p>
                     </div>
                   </div>
@@ -816,7 +816,7 @@ export function GroupsAdaptedPage({
       <Sheet open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Group</SheetTitle>
+            <SheetTitle>{t("kisi.groups.addGroup")}</SheetTitle>
             <SheetDescription>{t("kisi.groups.createGroupDesc")}</SheetDescription>
           </SheetHeader>
           <form
@@ -886,7 +886,7 @@ export function GroupsAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>{t("kisi.groups.addDoors")}</SheetTitle>
-            <SheetDescription>Bind a door resource to the selected door group.</SheetDescription>
+            <SheetDescription>{t("kisi.groups.addDoorsDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -917,7 +917,7 @@ export function GroupsAdaptedPage({
                 ))}
               </select>
             </label>
-            {availableDoorRows.length === 0 ? <p className="text-sm text-[#8a5a00]">No unassigned doors are available for this scope.</p> : null}
+            {availableDoorRows.length === 0 ? <p className="text-sm text-[#8a5a00]">{t("kisi.groups.noDoors")}</p> : null}
             <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
               <Button
                 type="submit"
@@ -935,7 +935,7 @@ export function GroupsAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>{t("kisi.groups.addLink")}</SheetTitle>
-            <SheetDescription>Create an access link for the selected group.</SheetDescription>
+            <SheetDescription>{t("kisi.groups.addLinkDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -969,7 +969,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
               <input
                 value={createLinkValidUntil}
                 placeholder="2026-05-01T10:00:00Z"
@@ -1059,7 +1059,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
               <input
                 value={editLinkValidUntil}
                 placeholder="2026-05-01T10:00:00Z"

@@ -690,7 +690,7 @@ export function OrganizationSetupAdaptedPage({
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Create a new physical place inside this organization.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.createPlaceDesc")}</p>
             </div>
             <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
               Use the Places page to create places. This wizard view is a preview placeholder.
@@ -750,7 +750,7 @@ export function OrganizationSetupAdaptedPage({
             <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
               <div>
                 <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">Define which events create alerts and who receives them.</p>
+                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.alertDesc")}</p>
               </div>
               <Button
                 type="button"
@@ -825,7 +825,7 @@ export function OrganizationSetupAdaptedPage({
                                 <ToggleSwitch enabled={draft.whatsapp} />
                               </button>
                               <label className="block">
-                                <span className="sr-only">Receiver groups</span>
+                                <span className="sr-only">{t("kisi.orgSetup.receiverGroups")}</span>
                                 <input
                                   value={draft.receiver_groups}
                                   disabled={saveAlertPoliciesMutation.isPending}
@@ -837,7 +837,7 @@ export function OrganizationSetupAdaptedPage({
                           ) : (
                             <>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Threshold</span>
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.threshold")}</span>
                                 <input
                                   value={draft.threshold}
                                   disabled={saveAlertPoliciesMutation.isPending}
@@ -847,7 +847,7 @@ export function OrganizationSetupAdaptedPage({
                                 />
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Window seconds</span>
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.windowSeconds")}</span>
                                 <input
                                   value={draft.window_seconds}
                                   disabled={saveAlertPoliciesMutation.isPending}
@@ -857,7 +857,7 @@ export function OrganizationSetupAdaptedPage({
                                 />
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Cooldown seconds</span>
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.cooldownSeconds")}</span>
                                 <input
                                   value={draft.cooldown_seconds}
                                   disabled={saveAlertPoliciesMutation.isPending}
@@ -924,7 +924,7 @@ export function OrganizationSetupAdaptedPage({
             <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
               <div>
                 <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">Connect identity, directory, webhook, and device event systems.</p>
+                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.integrationsDesc")}</p>
               </div>
               <Button
                 type="button"
@@ -1016,7 +1016,7 @@ export function OrganizationSetupAdaptedPage({
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Billing is reserved, but the page keeps the same operational structure.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.billingDesc")}</p>
             </div>
             <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
               Billing management is coming soon. The settings below are preview placeholders.
@@ -1037,7 +1037,7 @@ export function OrganizationSetupAdaptedPage({
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Organization profile, communication policy, and security defaults.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.settingsDesc")}</p>
             </div>
             <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
               Organization settings will be backed by the API in a future release. Toggle states below are preview placeholders.
@@ -1160,7 +1160,7 @@ export function OrganizationSetupAdaptedPage({
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Tenant ID</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.tenantId")}</span>
                 <input
                   value={integrationDraft.tenant_id}
                   disabled={Boolean(tenantID) || saveIntegrationMutation.isPending}
@@ -1185,11 +1185,11 @@ export function OrganizationSetupAdaptedPage({
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 >
                   <option value="hris">HRIS</option>
-                  <option value="identity_provider">Identity Provider</option>
+                  <option value="identity_provider">{t("kisi.orgSetup.identityProvider")}</option>
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Provider</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.provider")}</span>
                 <select
                   value={integrationDraft.provider}
                   disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
@@ -1225,7 +1225,7 @@ export function OrganizationSetupAdaptedPage({
                 </select>
               </label>
               <label className="block sm:col-span-2">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Sync mode</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.syncMode")}</span>
                 <select
                   value={integrationDraft.sync_mode}
                   disabled={saveIntegrationMutation.isPending}
@@ -1235,14 +1235,14 @@ export function OrganizationSetupAdaptedPage({
                   {integrationDraft.type === "identity_provider" ? (
                     <>
                       <option value="jit">JIT</option>
-                      <option value="manual">Manual</option>
+                      <option value="manual">{t("kisi.orgSetup.manual")}</option>
                       <option value="scheduled">Scheduled</option>
                     </>
                   ) : (
                     <>
-                      <option value="hybrid">Hybrid</option>
-                      <option value="webhook">Webhook</option>
-                      <option value="pull">Pull</option>
+                      <option value="hybrid">{t("kisi.orgSetup.hybrid")}</option>
+                      <option value="webhook">{t("kisi.orgSetup.webhook")}</option>
+                      <option value="pull">{t("kisi.orgSetup.pull")}</option>
                     </>
                   )}
                 </select>
@@ -1252,7 +1252,7 @@ export function OrganizationSetupAdaptedPage({
             {integrationDraft.type === "identity_provider" ? (
               <div className="grid gap-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Issuer URL</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.issuerUrl")}</span>
                   <input
                     value={integrationDraft.issuer_url}
                     disabled={saveIntegrationMutation.isPending}
@@ -1262,7 +1262,7 @@ export function OrganizationSetupAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Client ID</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.clientId")}</span>
                   <input
                     value={integrationDraft.client_id}
                     disabled={saveIntegrationMutation.isPending}
@@ -1272,7 +1272,7 @@ export function OrganizationSetupAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Auth URL</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.authUrl")}</span>
                   <input
                     value={integrationDraft.auth_url}
                     disabled={saveIntegrationMutation.isPending}
@@ -1284,7 +1284,7 @@ export function OrganizationSetupAdaptedPage({
             ) : (
               <div className="grid gap-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Credential ref</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.credentialRef")}</span>
                   <input
                     value={integrationDraft.credential_ref}
                     disabled={saveIntegrationMutation.isPending}
@@ -1294,7 +1294,7 @@ export function OrganizationSetupAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Webhook secret ref</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.webhookSecretRef")}</span>
                   <input
                     value={integrationDraft.webhook_secret_ref}
                     disabled={saveIntegrationMutation.isPending}
@@ -1361,7 +1361,7 @@ export function OrganizationSetupAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>Add Policy</SheetTitle>
-            <SheetDescription>Create or reactivate an alert policy for this organization.</SheetDescription>
+            <SheetDescription>{t("kisi.orgSetup.addPolicyDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -1371,7 +1371,7 @@ export function OrganizationSetupAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Tenant ID</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.tenantId")}</span>
               <input
                 value={createAlertPolicyTenantID}
                 readOnly={Boolean(tenantID)}
@@ -1386,7 +1386,7 @@ export function OrganizationSetupAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Policy type</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.policyType")}</span>
               <select
                 value={createAlertPolicyCategory}
                 onChange={(event) => {
@@ -1397,15 +1397,15 @@ export function OrganizationSetupAdaptedPage({
                 }}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="enterprise_sync_worker">Enterprise sync worker</option>
-                <option value="wallet_jobs">Wallet job queue</option>
-                <option value="custom">Custom condition</option>
+                <option value="enterprise_sync_worker">{t("kisi.orgSetup.enterpriseSync")}</option>
+                <option value="wallet_jobs">{t("kisi.orgSetup.walletJobs")}</option>
+                <option value="custom">{t("kisi.orgSetup.customCondition")}</option>
               </select>
             </label>
             {createAlertPolicyCategory === "custom" ? (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Policy name</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.policyName")}</span>
                   <input
                     value={createAlertPolicyDraft.name}
                     onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, name: event.target.value }))}
@@ -1413,7 +1413,7 @@ export function OrganizationSetupAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Trigger</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.trigger")}</span>
                   <input
                     value={createAlertPolicyDraft.trigger}
                     onChange={(event) => {
@@ -1424,20 +1424,20 @@ export function OrganizationSetupAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Severity</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.severity")}</span>
                   <select
                     value={createAlertPolicyDraft.severity}
                     onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, severity: event.target.value }))}
                     className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                   >
-                    <option value="info">Info</option>
-                    <option value="warning">Warning</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    <option value="info">{t("kisi.orgSetup.info")}</option>
+                    <option value="warning">{t("kisi.orgSetup.warning")}</option>
+                    <option value="high">{t("kisi.orgSetup.high")}</option>
+                    <option value="critical">{t("kisi.orgSetup.critical")}</option>
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Condition expression</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.conditionExpr")}</span>
                   <input
                     value={createAlertPolicyDraft.condition_expression}
                     onChange={(event) => {
@@ -1474,14 +1474,14 @@ export function OrganizationSetupAdaptedPage({
               className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left disabled:bg-[#fbfbfc]"
             >
               <span>
-                <span className="block text-sm font-semibold text-[#17171c]">Policy enabled</span>
-                <span className="mt-1 block text-xs text-[#6f717c]">Inactive policies remain listed for review.</span>
+                <span className="block text-sm font-semibold text-[#17171c]">{t("kisi.orgSetup.policyEnabled")}</span>
+                <span className="mt-1 block text-xs text-[#6f717c]">{t("kisi.orgSetup.policyEnabledDesc")}</span>
               </span>
               <ToggleSwitch enabled={createAlertPolicyDraft.enabled} />
             </button>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Threshold</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.threshold")}</span>
                 <input
                   value={createAlertPolicyDraft.threshold}
                   inputMode="numeric"
@@ -1490,7 +1490,7 @@ export function OrganizationSetupAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Window</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.window")}</span>
                 <input
                   value={createAlertPolicyDraft.window_seconds}
                   inputMode="numeric"
@@ -1499,7 +1499,7 @@ export function OrganizationSetupAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Cooldown</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.cooldown")}</span>
                 <input
                   value={createAlertPolicyDraft.cooldown_seconds}
                   inputMode="numeric"
@@ -1529,7 +1529,7 @@ export function OrganizationSetupAdaptedPage({
               </button>
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Receiver groups</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.receiverGroups")}</span>
               <input
                 value={createAlertPolicyDraft.receiver_groups}
                 onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, receiver_groups: event.target.value }))}

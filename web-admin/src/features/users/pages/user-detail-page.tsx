@@ -247,7 +247,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               variant="interaction"
               className="h-10 rounded-[6px] text-[#4f55ff]"
             >
-              <Link to="/access-rights">Share Access</Link>
+              <Link to="/access-rights">{t("common.shareAccess")}</Link>
             </Button>
             <Button
               type="button"
@@ -393,7 +393,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                       <UsersIcon className="size-5 text-[#2f3037]" />
                     </div>
                     <div className="max-w-3xl">
-                      <p className="font-semibold text-[#17171c]">Suspend Access</p>
+                      <p className="font-semibold text-[#17171c]">{t("kisi.users.suspendAccess")}</p>
                       <p className="mt-1 text-sm leading-6 text-[#6f717c]">
                         Prevent this user from unlocking doors while keeping their account and audit history intact.
                       </p>
@@ -431,7 +431,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 description="Access Rights connect users, teams, places, groups, and schedules."
                 action={
                   <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
-                    <Link to="/access-rights">Share Access</Link>
+                    <Link to="/access-rights">{t("common.shareAccess")}</Link>
                   </Button>
                 }
               />
@@ -516,7 +516,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               </div>
               <div className="border-t border-[#eceef2]">
                 <div className="px-7 py-5">
-                  <h3 className="text-sm font-semibold text-[#17171c]">Invitation Deliveries</h3>
+                  <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.users.invite")}</h3>
                 </div>
                 <div className="divide-y divide-[#eceef2]">
                   {invitations.length > 0 ? (

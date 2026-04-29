@@ -986,12 +986,12 @@ export function CredentialsAdaptedPage({
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">Batch</th>
+                <th className="px-6 py-4 font-semibold">{t("kisi.credentials.batchAudit")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
-                <th className="px-4 py-4 font-semibold">Credential</th>
-                <th className="px-4 py-4 font-semibold">Reason</th>
-                <th className="px-6 py-4 font-semibold">Updated</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.credentials.title")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.description")}</th>
+                <th className="px-6 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -999,7 +999,7 @@ export function CredentialsAdaptedPage({
                 <MistyisletEmptyTableRow colSpan={6}>Batch jobs unavailable.</MistyisletEmptyTableRow>
               ) : null}
               {walletJobsQuery.isPending ? (
-                <MistyisletEmptyTableRow colSpan={6}>Loading batch jobs...</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>{t("common.loading")}</MistyisletEmptyTableRow>
               ) : null}
               {!walletJobsQuery.isPending && !walletJobsQuery.isError && filteredBatchJobs.length === 0 ? (
                 <MistyisletEmptyTableRow colSpan={6}>
@@ -1062,7 +1062,7 @@ export function CredentialsAdaptedPage({
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.credentials.issued")}</th>
-                <th className="px-4 py-4 font-semibold">Expires</th>
+                <th className="px-4 py-4 font-semibold">{t("common.validUntil")}</th>
                 <th className="px-6 py-4 text-right font-semibold">{t("common.actions")}</th>
               </tr>
             </thead>
@@ -1133,7 +1133,7 @@ export function CredentialsAdaptedPage({
       <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Issue Credential</SheetTitle>
+            <SheetTitle>{t("kisi.credentials.issue")}</SheetTitle>
             <SheetDescription>Issue a Google Wallet credential or register a physical UID.</SheetDescription>
           </SheetHeader>
           <form
@@ -1222,7 +1222,7 @@ export function CredentialsAdaptedPage({
               </div>
             )}
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Expires at</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
               <input
                 type="datetime-local"
                 value={expiresAt}
@@ -1255,11 +1255,11 @@ export function CredentialsAdaptedPage({
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[540px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Credential Detail</SheetTitle>
+            <SheetTitle>{t("kisi.credentials.title")}</SheetTitle>
             <SheetDescription>{selectedCardID || "Selected credential"}</SheetDescription>
           </SheetHeader>
           {detailCardQuery.isPending ? (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">Loading credential...</div>
+            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.loading")}</div>
           ) : detailCardQuery.isError ? (
             <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
               {detailCardQuery.error instanceof Error ? detailCardQuery.error.message : "Credential detail unavailable"}
@@ -1292,7 +1292,7 @@ export function CredentialsAdaptedPage({
 
               <section className="rounded-[6px] border border-[#d9dbe3] p-4">
                 <div className="border-b border-[#eceef2] pb-4">
-                  <h3 className="text-sm font-semibold text-[#17171c]">Assignment</h3>
+                  <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.assign")}</h3>
                   <p className="mt-1 text-xs text-[#6f717c]">{detailAssignmentQuery.isPending ? "Loading assignment..." : detailAssignment?.id || "No assignment"}</p>
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
