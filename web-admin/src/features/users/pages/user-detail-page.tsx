@@ -23,6 +23,7 @@ import {
   type ActivityTone,
 } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   deleteUser,
   fetchUser,
@@ -101,6 +102,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const tenantID = getViewerTenantID(viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const [activeTab, setActiveTab] = useState("General")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -465,6 +467,47 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                   </tbody>
                 </table>
               </div>
+              {userQuery.data && (
+                <div className="border-t border-[#eceef2]">
+                  <div className="px-7 py-5">
+                    <h3 className="text-sm font-semibold text-[#17171c]">Accessible Doors</h3>
+                    <p className="mt-1 text-xs text-[#6f717c]">Doors this user can access based on group membership and role assignments.</p>
+                  </div>
+                  <div className="px-7 pb-5">
+                    {(() => {
+                      const userGroupIDs = userQuery.data.group_ids ?? []
+                      const doors = resourceQuery.summary.doors
+                      const hardware = resourceQuery.summary.hardware
+                      const accessibleDoors = doors.filter((door) => {
+                        // Check building-level group access
+                        const userGroups = resourceQuery.summary.groups?.filter((g) =>
+                          userGroupIDs.includes(g.id) && g.placeId === door.placeId
+                        ) ?? []
+                        return userGroups.length > 0
+                      })
+                      if (accessibleDoors.length === 0) {
+                        return <p className="text-sm text-[#6f717c]">No accessible doors found for this user.</p>
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {accessibleDoors.map((door) => {
+                            const gw = hardware.find((h) => (h.type === "Controller" || h.type === "Gateway") && h.doorNames.includes(door.name))
+                            return (
+                              <div key={door.id} className="flex items-center gap-2 rounded-[6px] border border-[#eceef2] px-3 py-2 text-sm">
+                                <StatusDot tone={gw ? gw.tone : "warning"} label="" />
+                                <Link to={`/places/${door.placeId}/doors`} className="font-medium text-[#4f55ff] hover:underline">
+                                  {door.name}
+                                </Link>
+                                <span className="text-[#6f717c]">{door.floorName}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
             </>
           ) : null}
 

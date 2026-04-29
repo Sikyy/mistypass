@@ -292,7 +292,8 @@ export function DoorDetailAdaptedPage({
     },
     onSuccess: async (result) => {
       const label = result.action === "unlock" ? t("kisi.doors.unlock") : result.action === "lock_down" ? t("kisi.doors.lockdown") : "Cancel lockdown"
-      setActionNotice(`${label} accepted.`)
+      const statusLabel = result.status === "dispatched" ? "dispatched to gateway" : "accepted"
+      setActionNotice(`${label} ${statusLabel}.`)
       setActionError("")
       await refreshDoors()
     },
@@ -487,6 +488,26 @@ export function DoorDetailAdaptedPage({
               <FormField label={t("kisi.doors.area")} value={selectedDoor?.areaName ?? "Unassigned area"} />
               <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
             </div>
+            {selectedDoor && (
+              <div className="border-t border-[#eceef2] px-7 py-5">
+                <h3 className="mb-3 text-xs font-semibold uppercase text-[#6f717c]">Gateway Connection</h3>
+                {selectedHardware.length > 0 ? (
+                  <div className="flex flex-wrap gap-4">
+                    {selectedHardware.filter((h) => h.type === "Controller" || h.type === "Gateway").map((h) => (
+                      <div key={h.id} className="flex items-center gap-3 rounded-[6px] border border-[#eceef2] px-4 py-3">
+                        <StatusDot tone={h.tone} label={h.statusLabel} />
+                        <div className="text-sm">
+                          <span className="font-medium text-[#17171c]">{h.name}</span>
+                          <span className="ml-2 text-[#6f717c]">{h.lastSeenLabel}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#6f717c]">No gateway bound to this door. Unlock commands will be accepted but not dispatched to hardware.</p>
+                )}
+              </div>
+            )}
           </>
         ) : null}
 

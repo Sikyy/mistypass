@@ -20,6 +20,7 @@ export function useMistyisletResourceSummary(token: string, viewer: CurrentUser)
     ],
     queryFn: () => loadMistyisletResourceSummary(token, viewer),
     staleTime: 30 * 1000,
+    refetchInterval: 15 * 1000,
   })
   const summary = query.data ?? fallbackMistyisletResourceSummary
 
