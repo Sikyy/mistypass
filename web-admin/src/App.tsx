@@ -58,8 +58,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RoleScopeBanner } from "@/components/role-scope-banner"
-import { HomePage } from "@/features/home/pages/home-page"
 import { isMistyisletPreviewRoute } from "@/features/mistyislet-shell/navigation"
+
+const HomePage = lazy(() =>
+  import("@/features/home/pages/home-page").then((module) => ({ default: module.HomePage }))
+)
 import { listAlarms, type CurrentUser } from "@/lib/api"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/context/auth-context"
@@ -81,60 +84,60 @@ import {
 } from "@/lib/viewer"
 
 const DashboardPage = lazy(() =>
-  import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage }))
+  import("@/features/legacy/pages/dashboard-page").then((module) => ({ default: module.DashboardPage }))
 )
 const TenantsPage = lazy(() =>
-  import("@/pages/tenants-page").then((module) => ({ default: module.TenantsPage }))
+  import("@/features/legacy/pages/tenants-page").then((module) => ({ default: module.TenantsPage }))
 )
 const TenantDetailPage = lazy(() =>
-  import("@/pages/tenant-detail-page").then((module) => ({ default: module.TenantDetailPage }))
+  import("@/features/legacy/pages/tenant-detail-page").then((module) => ({ default: module.TenantDetailPage }))
 )
 const EnterprisePage = lazy(() =>
-  import("@/pages/enterprise-page").then((module) => ({ default: module.EnterprisePage }))
+  import("@/features/legacy/pages/enterprise-page").then((module) => ({ default: module.EnterprisePage }))
 )
 const SpacesPage = lazy(() =>
-  import("@/pages/spaces-page").then((module) => ({ default: module.SpacesPage }))
+  import("@/features/legacy/pages/spaces-page").then((module) => ({ default: module.SpacesPage }))
 )
 const AccessDirectoryPage = lazy(() =>
-  import("@/pages/access-directory-page").then((module) => ({ default: module.AccessDirectoryPage }))
+  import("@/features/legacy/pages/access-directory-page").then((module) => ({ default: module.AccessDirectoryPage }))
 )
 const AccessPoliciesPage = lazy(() =>
-  import("@/pages/access-policies-page").then((module) => ({ default: module.AccessPoliciesPage }))
+  import("@/features/legacy/pages/access-policies-page").then((module) => ({ default: module.AccessPoliciesPage }))
 )
 const AccessGrantsPage = lazy(() =>
-  import("@/pages/access-grants-page").then((module) => ({ default: module.AccessGrantsPage }))
+  import("@/features/legacy/pages/access-grants-page").then((module) => ({ default: module.AccessGrantsPage }))
 )
 const AccessLegacySectionRedirectPage = lazy(() =>
-  import("@/pages/access-legacy-section-redirect-page").then((module) => ({
+  import("@/features/legacy/pages/access-legacy-section-redirect-page").then((module) => ({
     default: module.AccessLegacySectionRedirectPage,
   }))
 )
 const WalletPage = lazy(() =>
-  import("@/pages/wallet-page").then((module) => ({ default: module.WalletPage }))
+  import("@/features/legacy/pages/wallet-page").then((module) => ({ default: module.WalletPage }))
 )
 const GatewaysPage = lazy(() =>
-  import("@/pages/gateways-page").then((module) => ({ default: module.GatewaysPage }))
+  import("@/features/legacy/pages/gateways-page").then((module) => ({ default: module.GatewaysPage }))
 )
 const EventsPage = lazy(() =>
-  import("@/pages/events-page").then((module) => ({ default: module.EventsPage }))
+  import("@/features/legacy/pages/events-page").then((module) => ({ default: module.EventsPage }))
 )
 const AlarmsPage = lazy(() =>
-  import("@/pages/alarms-page").then((module) => ({ default: module.AlarmsPage }))
+  import("@/features/legacy/pages/alarms-page").then((module) => ({ default: module.AlarmsPage }))
 )
 const AuditPage = lazy(() =>
-  import("@/pages/audit-page").then((module) => ({ default: module.AuditPage }))
+  import("@/features/legacy/pages/audit-page").then((module) => ({ default: module.AuditPage }))
 )
 const LoginPage = lazy(() =>
-  import("@/pages/login-page").then((module) => ({ default: module.LoginPage }))
+  import("@/features/legacy/pages/login-page").then((module) => ({ default: module.LoginPage }))
 )
 const AccessLinkClaimPage = lazy(() =>
-  import("@/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
+  import("@/features/legacy/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
 )
 const NotFoundPage = lazy(() =>
-  import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage }))
+  import("@/features/legacy/pages/not-found-page").then((module) => ({ default: module.NotFoundPage }))
 )
 const NoPermissionPage = lazy(() =>
-  import("@/pages/no-permission-page").then((module) => ({ default: module.NoPermissionPage }))
+  import("@/features/legacy/pages/no-permission-page").then((module) => ({ default: module.NoPermissionPage }))
 )
 
 type NavGroupID = "command" | "sites" | "people" | "platform"
@@ -642,7 +645,11 @@ export default function App() {
   const usesMistyisletShell = isMistyisletPreviewRoute(location.pathname)
 
   if (usesMistyisletShell) {
-    return <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
+      </Suspense>
+    )
   }
 
   return <AppShell token={token} viewer={viewer} onLogout={logout} />

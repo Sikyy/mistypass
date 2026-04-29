@@ -1,4 +1,4 @@
-import { AccessPage, type AccessPageProps } from "@/pages/access-page"
+import { AccessPage, type AccessPageProps } from "@/features/legacy/pages/access-page"
 
 type AccessPoliciesPageProps = Omit<AccessPageProps, "activeSectionOverride">
 
