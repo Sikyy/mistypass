@@ -90,6 +90,10 @@ type server struct {
 	customAlertPolicyMu           sync.RWMutex
 	customAlertPolicies           map[string]referenceAlertPolicy
 	customAlertPolicySeq          int
+	alertNotificationMu           sync.RWMutex
+	alertNotifications            []alertNotification
+	alertCooldownMu               sync.RWMutex
+	alertCooldowns                map[string]time.Time
 	hrisWebhookReceiptWorkerWake  chan struct{}
 	hrisWebhookDLQWorkerWake      chan struct{}
 	hrisWebhookReceiptWorkerQueue chan enterpriseHRISWebhookReceiptQueuedTask
@@ -191,6 +195,11 @@ const (
 )
 
 func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) {
+	handler, _, err := newRouterInternal(cfg, stateStore)
+	return handler, err
+}
+
+func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler, *server, error) {
 	tenantSvc := tenant.NewService()
 	spaceSvc := space.NewService()
 	accessSvc := access.NewService()
@@ -202,7 +211,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	enterpriseSvc := enterprise.NewService()
 	hrisVaultMasterKey, err := resolveHRISVaultMasterKey(cfg.HRISVaultMasterKey)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	hrisVaultSvc := hris.NewVaultService(hrisVaultMasterKey)
 	hrisDLQSvc := hris.NewDLQService()
@@ -229,51 +238,51 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		}
 		tenantSvc, err = tenant.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		spaceSvc, err = space.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		accessSvc, err = access.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		gatewaySvc, err = gateway.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		eventSvc, err = event.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		alarmSvc, err = alarm.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		auditSvc, err = audit.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		walletSvc, err = wallet.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		enterpriseSvc, err = enterprise.NewServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		hrisVaultSvc, err = hris.NewVaultServiceWithStateStore(hrisVaultMasterKey, stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		hrisDLQSvc, err = hris.NewDLQServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		hrisPullStateSvc, err = hris.NewPullStateServiceWithStateStore(stateStore)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	walletSvc.SetJobAlertMockTransientFailCount(cfg.WalletAlertDispatchMockTransientFailCount)
@@ -291,7 +300,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		WhatsAppPhoneNumberID: cfg.WalletAlertWhatsAppPhoneNumberID,
 		WhatsAppTimeout:       cfg.WalletAlertWhatsAppTimeout,
 	}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduledReports, scheduledReportSeq := defaultReferenceScheduledReports(time.Now().UTC())
 
@@ -328,6 +337,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		scheduledReports:              scheduledReports,
 		scheduledReportSeq:            scheduledReportSeq,
 		customAlertPolicies:           map[string]referenceAlertPolicy{},
+		alertCooldowns:                map[string]time.Time{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
 		hrisWebhookDLQWorkerWake:      make(chan struct{}, 1),
 		hrisWebhookReceiptWorkerQueue: make(chan enterpriseHRISWebhookReceiptQueuedTask, enterpriseHRISWebhookQueuedTaskBufferSize),
@@ -338,7 +348,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	s.authService.SetAdminMFARequired(cfg.AuthAdminMFARequired)
 	messageBus, err := bus.NewPublisher(cfg.NATSEnabled, cfg.NATSServerURL, cfg.NATSSubjectPrefix)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	s.messageBus = messageBus
 	if s.messageBus.Enabled() {
@@ -350,7 +360,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	}
 	if authPersistence, ok := stateStore.(auth.Persistence); ok {
 		if err := s.authService.SetPersistence(authPersistence); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if strings.TrimSpace(cfg.RedisAddr) != "" {
@@ -364,11 +374,11 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			WriteTimeout: cfg.RedisWriteTimeout,
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if err := s.authService.SetVolatileStore(redisStore); err != nil {
 			_ = redisStore.Close()
-			return nil, err
+			return nil, nil, err
 		}
 		s.rateLimitStore = redisStore
 		s.volatileStore = redisStore
@@ -380,7 +390,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		s.gatewayTokenStore = tokenStore
 	}
 	if err := s.restoreGatewayBootstrapState(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	router := chi.NewRouter()
@@ -570,6 +580,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alert_policies", s.listReferenceAlertPolicies)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Post("/alert_policies/condition_preview", s.previewReferenceAlertPolicyCondition)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Post("/alert_policies/evaluate", s.evaluateReferenceAlertPoliciesForEvent)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alert_policies/notifications", s.listAlertNotificationsHandler)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/alert_policies", s.createReferenceAlertPolicy)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alert_policies/{policyID}", s.getReferenceAlertPolicy)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/alert_policies/{policyID}", s.updateReferenceAlertPolicy)
@@ -748,8 +759,9 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	s.startEnterpriseHRISWebhookReceiptWorker()
 	s.startEnterpriseHRISWebhookDLQWorker()
 	s.startEnterpriseHRISPullWorker()
+	s.startAlertPolicyEventScheduler()
 
-	return router, nil
+	return router, s, nil
 }
 
 type gatewayBootstrapStateSnapshot struct {

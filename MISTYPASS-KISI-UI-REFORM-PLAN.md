@@ -363,7 +363,7 @@ API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度
 | Teams 高级治理 | SCIM source diff、成员批量导入、team access review 尚未实现 |
 | Access Rights 高级语义 | target/schedule 过滤、review 计数、valid_from/valid_until baseline、schedule template baseline、批量 schedule edit、权限影响预览和批量 review 已接；剩余复杂时间窗、节假日/例外规则 |
 | Reports 高级语义 | Reports 已接聚合指标、CSV 下载与 scheduled report baseline；剩余排程投递持久化、更多导出格式与模板参数化 |
-| Organization Setup | SSO/SCIM 独立配置、Billing、Alert Policy 调度器/渠道升级/持久化投递仍待补齐 |
+| Organization Setup | SSO/SCIM 独立配置、Billing 仍待补齐；Alert Policy 事件驱动调度器已落地（自动评估 + cooldown + 通知查询），剩余渠道升级策略和 DB 持久化 |
 | Credentials 高级治理 | Apple Pass `.pkpass` 签名与设备回调、制卡供应商真实 API 和实体卡任务全流程运营视图仍待补齐 |
 | 质量收口 | 新 UI 文案 i18n、Organization/Place E2E、移动端视觉 smoke、legacy archive、OpenAPI 资源 schema 细化仍待完成 |
 

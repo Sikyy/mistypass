@@ -110,7 +110,7 @@ Bundled Reference 提供这些认证方式：
 | Access Rights schedule | 复杂时间窗、节假日/例外规则 | 当前已有 `valid_from` / `valid_until` baseline、schedule template baseline、批量 schedule edit 与 review/impact preview | P1 |
 | Teams governance | SCIM source diff、成员批量导入、team access review | 当前支持 team/membership CRUD 与 role assignment flow | P1 |
 | Users governance | 目录差异审阅、批量 role/group 变更细化 | `batch-status`、`batch-delete`、`batch-invite`、`export-csv`、`import-csv` 已落地；前端已接真正的 batch endpoint 替换 Promise.all 并发，CSV 导出/导入按钮已接 | P2 |
-| Alert Policy advanced execution | 调度器、升级策略、持久化和通知投递状态 | 当前已支持内置订阅、custom policy CRUD、条件语法校验、样例事件 preview 和事件 payload 批量 evaluate；custom 仍是内存态配置模型 | P1 |
+| Alert Policy advanced execution | 渠道升级策略、通知持久化到 DB | 事件驱动调度器已落地：event subscriber 自动评估 enabled custom policies 并 dispatch 通知，cooldown 机制防止重复通知，`GET /alert_policies/notifications` 已支持 tenant/policy/severity/status 过滤；剩余渠道升级策略和 DB 级持久化 | P2 |
 | Apple Pass production protocol | `.pkpass` 签名、pass type identifier / certificate 管理、device registration、push update callback | 当前已有 resident 自助 enrollment 记录与 Admin 管理 baseline，尚未生成真实 Apple Wallet pass bundle | P1 |
 | Physical card supplier | 真实制卡供应商 API、完整库存运营视图和前端治理控件 | 当前有 vendor/inventory/task baseline、CSV import，以及 `available` / `frozen` / `scrapped` 后端生命周期治理；`reserved` / `issued` 仍必须通过实体卡 task lifecycle 推进 | P1 |
 | Digital access link governance | Claim 后写回与基础审计已落地；复杂过期策略、访问链接审计运营视图与 QR code 运营视图待深化 | 当前有 `/group_links`、`/group_links/verify`、`/shares` 和 public claim UI baseline；verify 成功会写 `last_used_at` / `claimed_at` 并追加 `reference_group_link_claimed` audit | P2 |
