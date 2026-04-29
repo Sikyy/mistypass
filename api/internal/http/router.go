@@ -541,6 +541,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Post("/access-policies", s.createAccessPolicy)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Patch("/access-policies/{policyID}", s.updateAccessPolicy)
 			protected.Post("/verify-credential", s.verifyCredential)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/gateways/{gatewayID}/access-rules", s.previewGatewayAccessRules)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/organization/settings", s.getOrganizationSettings)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/organization/settings", s.updateOrganizationSettings)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/organization/export-audit", s.exportOrganizationAudit)
@@ -2924,6 +2925,7 @@ type gatewayConfigAuthzCacheCounts struct {
 	VisitorPasses   int `json:"visitor_passes"`
 	Users           int `json:"users"`
 	UserGroups      int `json:"user_groups"`
+	AccessRules     int `json:"access_rules"`
 }
 
 type gatewayConfigAuthzCachePolicy struct {
@@ -2940,6 +2942,18 @@ type gatewayConfigAuthzStatusCodes struct {
 	Stale   string `json:"stale"`
 	Missing string `json:"missing"`
 	Drift   string `json:"drift"`
+}
+
+type gatewayConfigAccessRule struct {
+	CredentialType string              `json:"credential_type"`
+	CredentialData string              `json:"credential_data"`
+	UserID         string              `json:"user_id"`
+	UserEmail      string              `json:"user_email"`
+	LockIDs        []string            `json:"lock_ids"`
+	TimeWindows    []access.TimeWindow `json:"time_windows,omitempty"`
+	ExceptionDates []string            `json:"exception_dates,omitempty"`
+	ValidFrom      string              `json:"valid_from,omitempty"`
+	ValidUntil     string              `json:"valid_until,omitempty"`
 }
 
 type gatewayConfigAuthzCache struct {
@@ -2959,6 +2973,8 @@ type gatewayConfigAuthzCache struct {
 	VisitorPasses   []access.VisitorPass          `json:"visitor_passes,omitempty"`
 	Users           []access.AccessUser           `json:"users,omitempty"`
 	UserGroups      []access.UserGroup            `json:"user_groups,omitempty"`
+	AccessRules     []gatewayConfigAccessRule      `json:"access_rules,omitempty"`
+	LockdownLocks   []string                       `json:"lockdown_locks,omitempty"`
 }
 
 func (s *server) buildGatewayConfigAuthzCache(tenantID, gatewayID string, boundDoorIDs []string, generatedAt time.Time) gatewayConfigAuthzCache {
@@ -3005,6 +3021,7 @@ func (s *server) buildGatewayConfigAuthzCache(tenantID, gatewayID string, boundD
 		Users:         s.gatewayConfigAuthzUsers(tenantID, hasBoundDoors, buildingIDSet, allowedUserGroupIDs),
 		UserGroups:    userGroups,
 	}
+	cache.AccessRules = s.buildGatewayAccessRules(tenantID, boundDoorIDs, cache.Users, cache.UserGroups)
 	cache.Counts = gatewayConfigAuthzCacheCounts{
 		Doors:           len(cache.Doors),
 		Policies:        len(cache.Policies),
@@ -3012,9 +3029,166 @@ func (s *server) buildGatewayConfigAuthzCache(tenantID, gatewayID string, boundD
 		VisitorPasses:   len(cache.VisitorPasses),
 		Users:           len(cache.Users),
 		UserGroups:      len(cache.UserGroups),
+		AccessRules:     len(cache.AccessRules),
 	}
 	cache.Version = gatewayConfigAuthzCacheVersion(cache)
 	return cache
+}
+
+func (s *server) buildGatewayAccessRules(
+	tenantID string,
+	boundDoorIDs []string,
+	users []access.AccessUser,
+	userGroups []access.UserGroup,
+) []gatewayConfigAccessRule {
+	if s.walletSvc == nil || len(boundDoorIDs) == 0 {
+		return nil
+	}
+
+	boundDoorSet := make(map[string]struct{}, len(boundDoorIDs))
+	for _, id := range boundDoorIDs {
+		boundDoorSet[id] = struct{}{}
+	}
+
+	// Build user → accessible lock IDs (within this gateway's bound doors)
+	userLockAccess := make(map[string][]string) // userID → []lockID
+	doorGroups := s.spaceSvc.ListDoorGroups(tenantID)
+	allDoors := s.spaceSvc.ListDoors(tenantID)
+
+	for _, user := range users {
+		lockIDs := make(map[string]struct{})
+
+		// Via user groups → door groups
+		for _, ug := range userGroups {
+			if !containsString(user.GroupIDs, ug.ID) {
+				continue
+			}
+			// Door groups in same building
+			for _, dg := range doorGroups {
+				for _, doorID := range dg.DoorIDs {
+					if _, bound := boundDoorSet[doorID]; bound {
+						lockIDs[doorID] = struct{}{}
+					}
+				}
+			}
+			// All doors in the building where this group applies
+			for _, door := range allDoors {
+				if _, bound := boundDoorSet[door.ID]; !bound {
+					continue
+				}
+				if door.BuildingID == ug.BuildingID || door.BuildingID == ug.PlaceID {
+					lockIDs[door.ID] = struct{}{}
+				}
+			}
+		}
+
+		// Via role assignments
+		for _, ra := range s.accessSvc.ListRoleAssignments(tenantID) {
+			if ra.AssigneeType != "User" || ra.AssigneeID != user.ID {
+				continue
+			}
+			for _, door := range allDoors {
+				if _, bound := boundDoorSet[door.ID]; !bound {
+					continue
+				}
+				if ra.AppliesToType == "Organization" || (ra.AppliesToType == "Place" && ra.AppliesToID == door.BuildingID) {
+					lockIDs[door.ID] = struct{}{}
+				}
+			}
+		}
+
+		if len(lockIDs) > 0 {
+			ids := make([]string, 0, len(lockIDs))
+			for id := range lockIDs {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			userLockAccess[user.ID] = ids
+		}
+	}
+
+	// Map credentials → users → access rules
+	rules := make([]gatewayConfigAccessRule, 0)
+
+	// Physical card inventory → NFC UIDs
+	for _, item := range s.walletSvc.ListPhysicalCardInventory(tenantID, "") {
+		if item.UID == "" || item.AssignedPassID == "" {
+			continue
+		}
+		pass, err := s.walletSvc.GetPass(tenantID, item.AssignedPassID)
+		if err != nil || pass.TargetType != "user" || pass.Status != "active" {
+			continue
+		}
+		lockIDs, exists := userLockAccess[pass.TargetID]
+		if !exists {
+			continue
+		}
+		user := findUserByID(users, pass.TargetID)
+		rules = append(rules, gatewayConfigAccessRule{
+			CredentialType: "nfc_uid",
+			CredentialData: item.UID,
+			UserID:         pass.TargetID,
+			UserEmail:      userEmail(user),
+			LockIDs:        lockIDs,
+		})
+		if item.CardNumber != "" {
+			rules = append(rules, gatewayConfigAccessRule{
+				CredentialType: "card_number",
+				CredentialData: item.CardNumber,
+				UserID:         pass.TargetID,
+				UserEmail:      userEmail(user),
+				LockIDs:        lockIDs,
+			})
+		}
+	}
+
+	// Passes with UID (cards registered directly)
+	for _, pass := range s.walletSvc.ListPasses(tenantID) {
+		if pass.UID == "" || pass.TargetType != "user" || pass.Status != "active" {
+			continue
+		}
+		lockIDs, exists := userLockAccess[pass.TargetID]
+		if !exists {
+			continue
+		}
+		// Skip if already covered by physical card inventory
+		alreadyCovered := false
+		for _, r := range rules {
+			if r.CredentialType == "nfc_uid" && r.CredentialData == pass.UID {
+				alreadyCovered = true
+				break
+			}
+		}
+		if alreadyCovered {
+			continue
+		}
+		user := findUserByID(users, pass.TargetID)
+		rules = append(rules, gatewayConfigAccessRule{
+			CredentialType: "nfc_uid",
+			CredentialData: pass.UID,
+			UserID:         pass.TargetID,
+			UserEmail:      userEmail(user),
+			LockIDs:        lockIDs,
+		})
+	}
+
+	return rules
+}
+
+func findUserByID(users []access.AccessUser, id string) *access.AccessUser {
+	for i := range users {
+		if users[i].ID == id {
+			return &users[i]
+		}
+	}
+	return nil
+}
+
+func userEmail(user *access.AccessUser) string {
+	if user == nil {
+		return ""
+	}
+	return user.Email
 }
 
 func gatewayConfigAuthzResolveStatus(

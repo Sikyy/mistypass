@@ -375,6 +375,28 @@ func (s *Service) List(tenantID string) []Gateway {
 	return items
 }
 
+func (s *Service) FindGatewayByID(tenantID, gatewayID string) (Gateway, bool) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" {
+		return Gateway{}, false
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.gateways {
+		if s.gateways[i].ID != nextGatewayID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			continue
+		}
+		return s.gateways[i], true
+	}
+	return Gateway{}, false
+}
+
 func (s *Service) FindGatewayByDoorID(tenantID, doorID string) (Gateway, bool) {
 	filterTenantID := strings.TrimSpace(tenantID)
 	nextDoorID := strings.TrimSpace(doorID)
