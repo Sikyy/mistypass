@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next"
-import { ArrowRightIcon, Building2Icon, LockKeyholeIcon } from "lucide-react"
+import { ArrowRightIcon, Building2Icon, GlobeIcon, LockKeyholeIcon } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
@@ -7,6 +7,12 @@ import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
@@ -143,24 +149,30 @@ export function LoginPage() {
                   <CardTitle className="text-2xl">{t("login.form.title")}</CardTitle>
                   <CardDescription>{t("login.form.description")}</CardDescription>
                 </div>
-                <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-1">
-                  {languageOptions.map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => {
-                        void i18n.changeLanguage(item.code)
-                      }}
-                      className={`rounded px-2 py-1 text-xs ${
-                        isLanguageActive(currentLanguage, item.code)
-                          ? "bg-background text-foreground shadow-sm"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {t(item.labelKey)}
-                    </button>
-                  ))}
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                      <GlobeIcon className="size-3.5" />
+                      {languageOptions.find((l) => isLanguageActive(currentLanguage, l.code))?.labelKey
+                        ? t(languageOptions.find((l) => isLanguageActive(currentLanguage, l.code))!.labelKey)
+                        : "Language"}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    {languageOptions.map((item) => (
+                      <DropdownMenuItem
+                        key={item.code}
+                        className="cursor-pointer text-sm"
+                        onSelect={() => void i18n.changeLanguage(item.code)}
+                      >
+                        <span className="flex-1">{t(item.labelKey)}</span>
+                        {isLanguageActive(currentLanguage, item.code) ? (
+                          <span className="size-2 rounded-full bg-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

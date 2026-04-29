@@ -164,7 +164,7 @@ function RouteFallback() {
 function buildNavItems(viewer: CurrentUser, t: TFunction): NavItem[] {
   const items: NavItem[] = [
     {
-      to: "/dashboard",
+      to: "/home",
       group: "command",
       label: t("app.nav.dashboard.label"),
       description: isPlatformViewer(viewer)
@@ -417,7 +417,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem>
-                    <Link to="/dashboard" className="text-muted-foreground hover:text-foreground">
+                    <Link to="/home" className="text-muted-foreground hover:text-foreground">
                       {t("app.shell.console")}
                     </Link>
                   </BreadcrumbItem>
@@ -464,7 +464,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           <main className="relative flex-1 px-4 py-5 md:px-6">
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-                <Route path="/dashboard" element={<DashboardPage token={token} viewer={viewer} />} />
+                <Route path="/dashboard" element={<Navigate to="/home" replace />} />
                 <Route
                   path="/tenants"
                   element={

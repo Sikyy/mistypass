@@ -1,7 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { ChevronDownIcon, MapPinPlusIcon } from "lucide-react"
 
-import { MistyisletEmptyTableRow, MistyisletFilterButton, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
 import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
@@ -27,15 +34,34 @@ export function EventHistoryAdaptedPage({
   const rows = placeScoped ? placeContext.events : resourceQuery.summary.events
   const [expandedRow, setExpandedRow] = useState("")
   const [query, setQuery] = useState("")
+  const [dateFilter, setDateFilter] = useState("all")
+  const [actionFilter, setActionFilter] = useState("all")
+
+  const actionTypes = useMemo(() => {
+    const types = new Set<string>()
+    for (const row of rows) {
+      if (row.action) types.add(row.action)
+    }
+    return Array.from(types).sort()
+  }, [rows])
+
   const visibleRows = rows.filter((row) => {
     const normalizedQuery = query.trim().toLowerCase()
-    if (normalizedQuery === "") {
-      return true
+    if (normalizedQuery !== "" && ![row.object, row.action, row.user, row.timeLabel, row.statusLabel, row.details].join(" ").toLowerCase().includes(normalizedQuery)) {
+      return false
     }
-    return [row.object, row.action, row.user, row.timeLabel, row.statusLabel, row.details]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedQuery)
+    if (actionFilter !== "all" && row.action !== actionFilter) {
+      return false
+    }
+    if (dateFilter === "today") {
+      const today = new Date().toISOString().split("T")[0]
+      if (!row.timeLabel?.startsWith(today)) return false
+    } else if (dateFilter === "7days") {
+      const weekAgo = new Date(Date.now() - 7 * 86400000)
+      const rowDate = new Date(row.timeLabel ?? "")
+      if (rowDate < weekAgo) return false
+    }
+    return true
   })
 
   useEffect(() => {
@@ -70,8 +96,33 @@ export function EventHistoryAdaptedPage({
           The timezone is Indonesia (Jakarta). <span className="text-[#4f55ff]">Change</span>
         </div>
         <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-4 md:flex-row md:items-center">
-          <MistyisletFilterButton label="Today" className="font-normal md:w-36" />
-          <MistyisletFilterButton label="All Actions" className="font-normal md:w-40" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 justify-between font-normal md:w-36">
+                {dateFilter === "all" ? "All Time" : dateFilter === "today" ? "Today" : "Last 7 Days"}
+                <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-36">
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("all")}>All Time</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("today")}>Today</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("7days")}>Last 7 Days</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 justify-between font-normal md:w-40">
+                {actionFilter === "all" ? "All Actions" : actionFilter}
+                <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-60 w-40 overflow-y-auto">
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setActionFilter("all")}>All Actions</DropdownMenuItem>
+              {actionTypes.map((action) => (
+                <DropdownMenuItem key={action} className="cursor-pointer" onSelect={() => setActionFilter(action)}>{action}</DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search events..." />
         </div>
         <div className="overflow-x-auto">

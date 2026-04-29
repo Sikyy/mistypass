@@ -690,6 +690,9 @@ export function OrganizationSetupAdaptedPage({
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">Create a new physical place inside this organization.</p>
             </div>
+            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
+              Use the Places page to create places. This wizard view is a preview placeholder.
+            </div>
             {activeTab === "General" ? (
               <div className="grid gap-6 p-7 md:grid-cols-2">
                 <FormField label="Place name" value="Sudirman Hub" />
@@ -1013,6 +1016,9 @@ export function OrganizationSetupAdaptedPage({
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">Billing is reserved, but the page keeps the same operational structure.</p>
             </div>
+            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
+              Billing management is coming soon. The settings below are preview placeholders.
+            </div>
             <div className="divide-y divide-[#eceef2]">
               {billingRows.map((row, index) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_150px_1fr] md:items-center">
@@ -1030,6 +1036,9 @@ export function OrganizationSetupAdaptedPage({
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">Organization profile, communication policy, and security defaults.</p>
+            </div>
+            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
+              Organization settings will be backed by the API in a future release. Toggle states below are preview placeholders.
             </div>
             <div className="space-y-6 p-7">
               {activeTab === "Communication" ? (

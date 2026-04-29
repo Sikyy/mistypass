@@ -79,8 +79,14 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
   )
 }
 
+const LANGUAGE_OPTIONS = [
+  { code: "en-US", label: "English" },
+  { code: "zh-CN", label: "中文" },
+  { code: "id-ID", label: "Bahasa" },
+] as const
+
 function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "children">) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName } = useNavigationContext()
   const accountTitle =
@@ -150,18 +156,30 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
             <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
               <Link to="/my-account">{t("kisi.shell.myAccount")}</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              {t("kisi.shell.helpSupport")}
+            <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
+              <a href="https://docs.mistyislet.com/help" target="_blank" rel="noopener noreferrer">{t("kisi.shell.helpSupport")}</a>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              <span className="min-w-0 flex-1">{t("kisi.shell.language", { lang: "English" })}</span>
-              <ChevronRightIcon className="size-4 text-[#2f3037]" />
-            </DropdownMenuItem>
+            <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
+            <DropdownMenuLabel className="px-4 py-2 text-xs font-semibold text-[#6f717c]">
+              {t("kisi.shell.language", { lang: LANGUAGE_OPTIONS.find(l => (i18n.resolvedLanguage ?? i18n.language).startsWith(l.code.split("-")[0]))?.label ?? "English" })}
+            </DropdownMenuLabel>
+            {LANGUAGE_OPTIONS.map((lang) => (
+              <DropdownMenuItem
+                key={lang.code}
+                className="cursor-pointer rounded-none px-4 py-2.5 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]"
+                onSelect={() => void i18n.changeLanguage(lang.code)}
+              >
+                <span className="min-w-0 flex-1">{lang.label}</span>
+                {(i18n.resolvedLanguage ?? i18n.language).startsWith(lang.code.split("-")[0]) ? (
+                  <span className="size-2 rounded-full bg-[#4f55ff]" />
+                ) : null}
+              </DropdownMenuItem>
+            ))}
             <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
             <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
               {t("kisi.shell.addAccount")}
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]" onSelect={onLogout}>
+            <DropdownMenuItem className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]" onSelect={onLogout}>
               {t("kisi.shell.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -234,35 +252,41 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
 
       <div className="space-y-2 border-t border-[#d9dbe3] px-4 py-3">
         <div className="space-y-1">
-          <Link
-            to="/organization/create-place"
+          <a
+            href="https://shop.mistyislet.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
           >
             <ShoppingBagIcon className="size-4 shrink-0 text-[#6f717c]" />
             <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.shop")}</span>
-          </Link>
-          <Link
-            to="/organization/settings"
+          </a>
+          <a
+            href="https://docs.mistyislet.com"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
           >
             <BookOpenIcon className="size-4 shrink-0 text-[#6f717c]" />
             <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.documentation")}</span>
-          </Link>
+          </a>
         </div>
-        <Link
-          to="/organization/settings"
+        <a
+          href="https://docs.mistyislet.com/help"
+          target="_blank"
+          rel="noopener noreferrer"
           className="mt-1 flex h-10 w-full min-w-0 items-center gap-3 rounded-[6px] border-t border-[#d9dbe3] px-3 pt-2 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
         >
           <CircleHelpIcon className="size-4 shrink-0 text-[#6f717c]" />
           <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.helpFeedback")}</span>
-        </Link>
+        </a>
       </div>
     </aside>
   )
 }
 
 function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "children">) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname)
 
@@ -290,18 +314,27 @@ function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
               <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c]">
                 <Link to="/my-account">{t("kisi.shell.myAccount")}</Link>
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
-                {t("kisi.shell.helpSupport")}
+              <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c]">
+                <a href="https://docs.mistyislet.com/help" target="_blank" rel="noopener noreferrer">{t("kisi.shell.helpSupport")}</a>
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
-                <span className="min-w-0 flex-1">{t("kisi.shell.language", { lang: "English" })}</span>
-                <ChevronRightIcon className="size-4" />
-              </DropdownMenuItem>
+              <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <DropdownMenuItem
+                  key={lang.code}
+                  className="cursor-pointer rounded-none px-4 py-2.5 text-sm text-[#17171c]"
+                  onSelect={() => void i18n.changeLanguage(lang.code)}
+                >
+                  <span className="min-w-0 flex-1">{lang.label}</span>
+                  {(i18n.resolvedLanguage ?? i18n.language).startsWith(lang.code.split("-")[0]) ? (
+                    <span className="size-2 rounded-full bg-[#4f55ff]" />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
                 {t("kisi.shell.addAccount")}
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]" onSelect={onLogout}>
+              <DropdownMenuItem className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c]" onSelect={onLogout}>
                 {t("kisi.shell.signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
