@@ -1,4 +1,3 @@
-  const { t } = useTranslation()
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -97,6 +96,7 @@ function invitationDeliveryDetail(delivery: UserInvitationDelivery) {
 }
 
 export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPageProps) {
+  const { t } = useTranslation()
   const { userID = "" } = useParams<{ userID?: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()

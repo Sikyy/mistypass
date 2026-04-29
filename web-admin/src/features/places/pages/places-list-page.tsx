@@ -1,4 +1,3 @@
-  const { t } = useTranslation()
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
@@ -22,6 +21,7 @@ import { createPlace, type CurrentUser } from "@/lib/api"
 import { getViewerTenantID } from "@/lib/viewer"
 
 export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: CurrentUser }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
   const [placeName, setPlaceName] = useState("")

@@ -1,4 +1,3 @@
-  const { t } = useTranslation()
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
@@ -51,6 +50,7 @@ export function PlaceSettingsAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("General")

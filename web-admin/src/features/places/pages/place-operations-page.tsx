@@ -1,4 +1,3 @@
-  const { t } = useTranslation()
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { BarChart3Icon, BellIcon, ChevronDownIcon, ShieldCheckIcon } from "lucide-react"
@@ -14,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 
 export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState("Overview")
   const rows = title === "Integrations"
     ? [
