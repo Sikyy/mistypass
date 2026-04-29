@@ -110,7 +110,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         onTabChange={setActiveTab}
         footer={
           <>
-            <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-[#4f55ff]" onClick={onLogout}>Sign Out</Button>
+            <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-[#4f55ff]" onClick={onLogout}>{t("kisi.shell.signOut")}</Button>
             <Button
               disabled={activeTab !== t("kisi.myAccount.profile") || !profileDirty || !profileName.trim() || profileMutation.isPending}
               className="h-10 rounded-[8px] px-8"
@@ -149,13 +149,13 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Account role</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.role")}</span>
                     <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#2f3037]">
                       <span className="min-w-0 truncate">{formatMistyisletRoleLabel(viewer)}</span>
                     </div>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Language</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.language")}</span>
                     <div className="relative">
                       <select
                         value={profileLanguage}
@@ -202,7 +202,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Logins</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Review active sign-in methods and sessions.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.description")}</p>
             </div>
             {[
               ["Password", "Enabled", "Last changed 18 days ago"],
@@ -222,7 +222,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Credentials</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Personal credentials associated with this account.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.credentials")}</p>
             </div>
             {[
               ["Mobile credential", "Active", "Used for app unlocks"],
@@ -241,7 +241,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Security</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Account-level protection and recovery settings.</p>
+              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.security")}</p>
             </div>
             {[
               ["Multi-factor authentication", true, "Require an additional verification step at sign-in."],
@@ -266,7 +266,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
             <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
               <div>
                 <h2 className="text-lg font-semibold text-[#17171c]">API</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">Personal API keys for automation and integrations.</p>
+                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.api")}</p>
               </div>
               <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[6px] border border-[#d9dbe3] px-4 lg:max-w-[360px]">
                 <SearchIcon className="size-4 text-[#6f717c]" />

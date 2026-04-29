@@ -427,7 +427,7 @@ export function TeamsAdaptedPage({
             <PanelHeader title="General" description="Team identity and ownership." />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Team name</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.teamName")}</span>
                 <input
                   value={teamName}
                   disabled={!selectedTeam}
@@ -437,7 +437,7 @@ export function TeamsAdaptedPage({
               </label>
               <FormField label="Owner" value="Organization Admin" />
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Default place</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.defaultPlace")}</span>
                 <div className="relative">
                   <select
                     value={teamScope === "organization" ? "organization" : teamPlaceID}
@@ -535,7 +535,7 @@ export function TeamsAdaptedPage({
                     </tr>
                   ))}
                   {selectedMemberships.length === 0 ? (
-                    <MistyisletEmptyTableRow colSpan={5}>No team members found.</MistyisletEmptyTableRow>
+                    <MistyisletEmptyTableRow colSpan={5}>{t("kisi.teams.noMembers")}</MistyisletEmptyTableRow>
                   ) : null}
                 </tbody>
               </table>
@@ -569,7 +569,7 @@ export function TeamsAdaptedPage({
                 </div>
               ))}
               {selectedAccessRights.length === 0 ? (
-                <div className="px-7 py-10 text-sm text-[#6f717c]">No team Access Rights assigned.</div>
+                <div className="px-7 py-10 text-sm text-[#6f717c]">{t("kisi.teams.noAR")}</div>
               ) : null}
             </div>
           </>
@@ -640,7 +640,7 @@ export function TeamsAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>New Team</SheetTitle>
-            <SheetDescription>Create a team for batch access assignments.</SheetDescription>
+            <SheetDescription>{t("kisi.teams.createDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -716,7 +716,7 @@ export function TeamsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Member type</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.memberType")}</span>
               <select
                 value={memberType}
                 onChange={(event) => {
@@ -754,7 +754,7 @@ export function TeamsAdaptedPage({
             ) : (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Guest ID or email</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.guestId")}</span>
                   <input
                     value={memberID}
                     onChange={(event) => {
@@ -765,7 +765,7 @@ export function TeamsAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Guest name</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.guestName")}</span>
                   <input
                     value={memberName}
                     onChange={(event) => setMemberName(event.target.value)}
@@ -790,7 +790,7 @@ export function TeamsAdaptedPage({
       <Sheet open={accessSheetOpen} onOpenChange={setAccessSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Assign Access Right</SheetTitle>
+            <SheetTitle>{t("kisi.teams.assignAR")}</SheetTitle>
             <SheetDescription>{selectedTeam?.name ?? "Selected team"}</SheetDescription>
           </SheetHeader>
           <form
@@ -841,7 +841,7 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.validUntil")}</span>
               <input
                 type="datetime-local"
                 value={validUntil}

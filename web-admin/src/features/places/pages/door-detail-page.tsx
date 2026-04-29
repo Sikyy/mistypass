@@ -445,7 +445,7 @@ export function DoorDetailAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Gateway ID</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.doors.gatewayId")}</span>
                 <input
                   value={gatewayID}
                   disabled={!selectedDoor}
@@ -461,12 +461,12 @@ export function DoorDetailAdaptedPage({
                   onChange={(event) => setDoorKind(event.target.value as Lock["kind"])}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 >
-                  <option value="office">Office</option>
-                  <option value="turnstile">Turnstile</option>
-                  <option value="server-room">Server Room</option>
+                  <option value="office">{t("kisi.doors.office")}</option>
+                  <option value="turnstile">{t("kisi.doors.turnstile")}</option>
+                  <option value="server-room">{t("kisi.doors.serverRoom")}</option>
                   <option value="elevator">Elevator</option>
-                  <option value="parking-gate">Parking Gate</option>
-                  <option value="emergency-exit">Emergency Exit</option>
+                  <option value="parking-gate">{t("kisi.doors.parkingGate")}</option>
+                  <option value="emergency-exit">{t("kisi.doors.emergencyExit")}</option>
                 </select>
               </label>
               <label className="block">
@@ -531,7 +531,7 @@ export function DoorDetailAdaptedPage({
                 </div>
               ))}
               {selectedHardware.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">No hardware is mapped to this door.</div>
+                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.doors.noHardware")}</div>
               ) : null}
             </div>
           </>
@@ -550,7 +550,7 @@ export function DoorDetailAdaptedPage({
                 </div>
               ))}
               {selectedEvents.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">No recent events for this door.</div>
+                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.doors.noEvents")}</div>
               ) : null}
             </div>
           </>
@@ -572,15 +572,15 @@ export function DoorDetailAdaptedPage({
 
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="flex items-center justify-center gap-14 border-b border-[#eceef2] px-6 py-4">
-          <button className="text-base font-semibold text-[#2f3037]">Unlock Schedules</button>
-          <button className="border-b-2 border-[#4f55ff] px-4 pb-4 text-base font-semibold text-[#4f55ff]">Access Schedules</button>
+          <button className="text-base font-semibold text-[#2f3037]">{t("kisi.doors.unlockSchedules")}</button>
+          <button className="border-b-2 border-[#4f55ff] px-4 pb-4 text-base font-semibold text-[#4f55ff]">{t("kisi.doors.accessSchedules")}</button>
         </div>
         <div className="flex items-center gap-4 border-b border-[#eceef2] px-8 py-6">
           <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#4f55ff] text-white">
             <Clock3Icon className="size-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-[#17171c]">Time Restriction</h3>
+            <h3 className="font-semibold text-[#17171c]">{t("kisi.doors.timeRestriction")}</h3>
             <p className="text-sm text-[#6f717c]">Allow users to unlock door only during defined time periods.</p>
           </div>
           <span className="ml-auto h-5 w-10 rounded-full bg-[#7f88ff] p-0.5">
@@ -621,7 +621,7 @@ export function DoorDetailAdaptedPage({
                 <div className="border-b border-white/80 bg-white py-4">{day}</div>
                 {day.startsWith("Thu") ? (
                   <div className="mx-auto mt-[188px] w-full max-w-[120px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
-                    <p className="truncate font-semibold">Access permitted</p>
+                    <p className="truncate font-semibold">{t("kisi.doors.accessPermitted")}</p>
                     <p className="mt-1 text-white/70">6:00 PM - 10:00 PM</p>
                   </div>
                 ) : null}
@@ -629,8 +629,8 @@ export function DoorDetailAdaptedPage({
             ))}
           </div>
           <div className="mt-6 flex flex-wrap gap-8 text-sm font-semibold text-[#2f3037]">
-            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#202443]" />Access permitted</span>
-            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#c4c6cc]" />Access restricted</span>
+            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#202443]" />{t("kisi.doors.accessPermitted")}</span>
+            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#c4c6cc]" />{t("kisi.doors.accessRestricted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#3b3c42]" />Access restricted due to exception</span>
           </div>
         </div>
@@ -686,7 +686,7 @@ export function DoorDetailAdaptedPage({
                 onChange={(event) => setNewDoorFloorID(event.target.value)}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="">Select floor</option>
+                <option value="">{t("kisi.doors.selectFloor")}</option>
                 {floors.map((floor) => (
                   <option key={floor.id} value={floor.id}>
                     {floor.name}
@@ -701,7 +701,7 @@ export function DoorDetailAdaptedPage({
                 onChange={(event) => setNewDoorAreaID(event.target.value)}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="">Select area</option>
+                <option value="">{t("kisi.doors.selectArea")}</option>
                 {newDoorAreaOptions.map((area) => (
                   <option key={area.id} value={area.id}>
                     {area.name}
@@ -732,12 +732,12 @@ export function DoorDetailAdaptedPage({
                   onChange={(event) => setNewDoorKind(event.target.value as Lock["kind"])}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                 >
-                  <option value="office">Office</option>
-                  <option value="turnstile">Turnstile</option>
-                  <option value="server-room">Server Room</option>
+                  <option value="office">{t("kisi.doors.office")}</option>
+                  <option value="turnstile">{t("kisi.doors.turnstile")}</option>
+                  <option value="server-room">{t("kisi.doors.serverRoom")}</option>
                   <option value="elevator">Elevator</option>
-                  <option value="parking-gate">Parking Gate</option>
-                  <option value="emergency-exit">Emergency Exit</option>
+                  <option value="parking-gate">{t("kisi.doors.parkingGate")}</option>
+                  <option value="emergency-exit">{t("kisi.doors.emergencyExit")}</option>
                 </select>
               </label>
               <label className="block">

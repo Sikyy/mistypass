@@ -518,7 +518,7 @@ export function GroupsAdaptedPage({
             <PanelHeader title="General" description="Group identity and default access behavior." />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group name</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.groups.groupName")}</span>
                 <input
                   value={editGroupName}
                   disabled={!canMutateGroups}
@@ -607,7 +607,7 @@ export function GroupsAdaptedPage({
                   </Button>
                 </div>
               ))}
-              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">No doors are assigned to this group.</div> : null}
+              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">{t("kisi.groups.noDoors")}</div> : null}
             </div>
           </>
         ) : null}
@@ -624,7 +624,7 @@ export function GroupsAdaptedPage({
                   <p className="mt-4 text-sm font-semibold text-[#2f3037]">{row.doorCount} doors</p>
                 </div>
               ))}
-              {zoneRows.length === 0 ? <div className="text-sm text-[#6f717c]">No zones are assigned to this group.</div> : null}
+              {zoneRows.length === 0 ? <div className="text-sm text-[#6f717c]">{t("kisi.groups.noZones")}</div> : null}
             </div>
           </>
         ) : null}
@@ -817,7 +817,7 @@ export function GroupsAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>Add Group</SheetTitle>
-            <SheetDescription>Create a user group for this access scope.</SheetDescription>
+            <SheetDescription>{t("kisi.groups.createGroupDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -860,7 +860,7 @@ export function GroupsAdaptedPage({
                   onChange={(event) => setCreateGroupPlaceID(event.target.value)}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                 >
-                  <option value="">Organization-wide</option>
+                  <option value="">{t("kisi.groups.orgWide")}</option>
                   {placeRows.map((place) => (
                     <option key={place.id} value={place.id}>
                       {place.name}
@@ -885,7 +885,7 @@ export function GroupsAdaptedPage({
       <Sheet open={addDoorsOpen} onOpenChange={setAddDoorsOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Doors</SheetTitle>
+            <SheetTitle>{t("kisi.groups.addDoors")}</SheetTitle>
             <SheetDescription>Bind a door resource to the selected door group.</SheetDescription>
           </SheetHeader>
           <form
@@ -934,7 +934,7 @@ export function GroupsAdaptedPage({
       <Sheet open={createLinkOpen} onOpenChange={setCreateLinkOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Link</SheetTitle>
+            <SheetTitle>{t("kisi.groups.addLink")}</SheetTitle>
             <SheetDescription>Create an access link for the selected group.</SheetDescription>
           </SheetHeader>
           <form
@@ -1037,7 +1037,7 @@ export function GroupsAdaptedPage({
               className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left"
             >
               <span>
-                <span className="block text-sm font-semibold text-[#17171c]">Link enabled</span>
+                <span className="block text-sm font-semibold text-[#17171c]">{t("kisi.groups.linkEnabled")}</span>
                 <span className="mt-1 block text-xs text-[#6f717c]">Disabled links remain visible but cannot grant access.</span>
               </span>
               <ToggleSwitch enabled={editLinkEnabled} />

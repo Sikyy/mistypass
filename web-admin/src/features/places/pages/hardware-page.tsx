@@ -565,7 +565,7 @@ export function HardwareAdaptedPage({
                 </div>
               ))}
               {selectedDeviceDoorRows.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">No doors are mapped to this device.</div>
+                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.hardware.noMatch")}</div>
               ) : null}
             </div>
           </>
@@ -583,7 +583,7 @@ export function HardwareAdaptedPage({
                 </div>
               ))}
               {selectedDeviceEvents.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">No recent events for this device path.</div>
+                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.hardware.noMatch")}</div>
               ) : null}
             </div>
           </>
@@ -811,8 +811,8 @@ export function HardwareAdaptedPage({
                 }}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="controller">Controller</option>
-                <option value="reader">Reader</option>
+                <option value="controller">{t("common.controller")}</option>
+                <option value="reader">{t("common.reader")}</option>
               </select>
             </label>
             <label className="block">
@@ -844,7 +844,7 @@ export function HardwareAdaptedPage({
             ) : (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Controller</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.controller")}</span>
                   <select
                     value={hardwareGatewayID}
                     onChange={(event) => setHardwareGatewayID(event.target.value)}

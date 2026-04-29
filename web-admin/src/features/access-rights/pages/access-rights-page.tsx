@@ -682,7 +682,7 @@ export function AccessRightsAdaptedPage({
               className="h-12 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm font-semibold text-[#2f3037] md:w-56"
               aria-label="Filter access rights by target"
             >
-              <option value="all">All targets</option>
+              <option value="all">{t("kisi.accessRights.allTargets")}</option>
               {targetOptions.map((target) => (
                 <option key={target} value={target}>
                   {target}
@@ -695,11 +695,11 @@ export function AccessRightsAdaptedPage({
               className="h-12 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm font-semibold text-[#2f3037] md:w-48"
               aria-label="Filter access rights by schedule"
             >
-              <option value="all">All schedules</option>
-              <option value="enabled">Enabled</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="expired">Expired</option>
-              <option value="needs_review">Needs review</option>
+              <option value="all">{t("kisi.accessRights.allSchedules")}</option>
+              <option value="enabled">{t("kisi.accessRights.enabled")}</option>
+              <option value="scheduled">{t("kisi.accessRights.scheduled")}</option>
+              <option value="expired">{t("kisi.accessRights.expired")}</option>
+              <option value="needs_review">{t("kisi.accessRights.needsReview")}</option>
             </select>
           </div>
           {someVisibleSelected ? (
@@ -758,7 +758,7 @@ export function AccessRightsAdaptedPage({
                   <th className="px-4 py-4 font-semibold">{t("common.name")}</th>
                   <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                   <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
-                  <th className="px-4 py-4 font-semibold">Rule</th>
+                  <th className="px-4 py-4 font-semibold">{t("kisi.accessRights.rule")}</th>
                   <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                   <th className="px-4 py-4 text-right font-semibold">{t("common.actions")}</th>
                 </tr>
@@ -818,7 +818,7 @@ export function AccessRightsAdaptedPage({
                   </tr>
                 ))}
                 {rows.length === 0 ? (
-                  <MistyisletEmptyTableRow colSpan={7}>No access rights match this search.</MistyisletEmptyTableRow>
+                  <MistyisletEmptyTableRow colSpan={7}>{t("kisi.accessRights.noMatch")}</MistyisletEmptyTableRow>
                 ) : null}
               </tbody>
             </table>
@@ -894,7 +894,7 @@ export function AccessRightsAdaptedPage({
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scope type</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
                     <select
                       value={scopeType}
                       onChange={(event) => updateScopeType(event.target.value as RoleAssignment["applies_to_type"])}
@@ -948,7 +948,7 @@ export function AccessRightsAdaptedPage({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee type</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
                     <select
                       value={assigneeType}
                       onChange={(event) => updateAssigneeType(event.target.value as RoleAssignment["assignee_type"])}
@@ -1075,14 +1075,14 @@ export function AccessRightsAdaptedPage({
             )}
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Schedule template</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
               <select
                 value={scheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateScheduleTemplate(event.target.value)}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
               >
-                <option value="">Custom schedule</option>
+                <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -1093,7 +1093,7 @@ export function AccessRightsAdaptedPage({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid from</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
                 <input
                   value={validFrom}
                   placeholder="Optional"
@@ -1105,7 +1105,7 @@ export function AccessRightsAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
                 <input
                   value={validUntil}
                   placeholder="2026-05-01T10:00:00Z"
@@ -1186,7 +1186,7 @@ export function AccessRightsAdaptedPage({
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scope type</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
                       <input
                         value={editRoleAssignment.applies_to_type}
                         readOnly
@@ -1205,7 +1205,7 @@ export function AccessRightsAdaptedPage({
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee type</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
                       <input
                         value={editRoleAssignment.assignee_type}
                         readOnly
@@ -1316,14 +1316,14 @@ export function AccessRightsAdaptedPage({
               ) : null}
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Schedule template</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
                 <select
                   value={editScheduleTemplateID}
                   disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                   onChange={(event) => updateEditScheduleTemplate(event.target.value)}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
                 >
-                  <option value="">Custom schedule</option>
+                  <option value="">{t("common.customSchedule")}</option>
                   {scheduleTemplates.map((template) => (
                     <option key={template.id} value={template.id}>
                       {template.name}
@@ -1334,7 +1334,7 @@ export function AccessRightsAdaptedPage({
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid from</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
                   <input
                     value={editValidFrom}
                     placeholder="Optional"
@@ -1346,7 +1346,7 @@ export function AccessRightsAdaptedPage({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
                   <input
                     value={editValidUntil}
                     placeholder="2026-05-01T10:00:00Z"
@@ -1403,14 +1403,14 @@ export function AccessRightsAdaptedPage({
             </div>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Schedule template</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
               <select
                 value={bulkScheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateBulkScheduleTemplate(event.target.value)}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
               >
-                <option value="">Custom schedule</option>
+                <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
                   <option key={template.id} value={template.id}>
                     {template.name}
@@ -1421,7 +1421,7 @@ export function AccessRightsAdaptedPage({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid from</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
                 <input
                   value={bulkValidFrom}
                   placeholder="Optional"
@@ -1433,7 +1433,7 @@ export function AccessRightsAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
                 <input
                   value={bulkValidUntil}
                   placeholder="2026-05-01T10:00:00Z"
