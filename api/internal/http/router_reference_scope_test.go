@@ -132,6 +132,69 @@ func TestReferencePlaceAdminScopeDerivesFromRoleAssignmentsWithoutJWTBuildingIDs
 	}
 }
 
+func TestReferencePlaceAdminAccessRightsScopeBlocksCrossPlaceWrites(t *testing.T) {
+	router, err := NewRouter(config.Config{
+		JWTSecret:       "reference-place-admin-access-rights-scope-test-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	orgToken := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+	placeToken := referenceAPILogin(t, router, "place.admin.sudirman@mistypass.local")
+
+	crossCreateAssignmentBody := []byte(`{"role_assignment":{"tenant_id":"tenant_demo_jakarta","role_id":"role_place_admin","applies_to_type":"Place","applies_to_id":"building_demo_002","assignee_type":"User","assignee_id":"usr_1001","assignee_email":"andri.pratama@mistypass.local"}}`)
+	crossCreateAssignmentRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/role_assignments", placeToken, crossCreateAssignmentBody)
+	if crossCreateAssignmentRecorder.Code != http.StatusForbidden {
+		t.Fatalf("expected place admin cross-place role assignment create status 403, got %d body=%s", crossCreateAssignmentRecorder.Code, crossCreateAssignmentRecorder.Body.String())
+	}
+
+	createAssignmentRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/role_assignments", orgToken, crossCreateAssignmentBody)
+	if createAssignmentRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected org role assignment create status 201, got %d body=%s", createAssignmentRecorder.Code, createAssignmentRecorder.Body.String())
+	}
+	var createdAssignment struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createAssignmentRecorder.Body.Bytes(), &createdAssignment); err != nil {
+		t.Fatalf("decode cross-place role assignment: %v", err)
+	}
+
+	createShareBody := []byte(`{"share":{"tenant_id":"tenant_demo_jakarta","email":"cross.scope.review@example.test","grantee_name":"Cross Scope Review","place_id":"building_demo_002","valid_until":"2099-05-01T10:00:00Z"}}`)
+	createShareRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/shares", orgToken, createShareBody)
+	if createShareRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected org share create status 201, got %d body=%s", createShareRecorder.Code, createShareRecorder.Body.String())
+	}
+	var createdShare struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createShareRecorder.Body.Bytes(), &createdShare); err != nil {
+		t.Fatalf("decode cross-place share: %v", err)
+	}
+
+	detailRecorder := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/role_assignments/"+createdAssignment.ID+"?tenant_id=tenant_demo_jakarta", placeToken, nil)
+	if detailRecorder.Code != http.StatusForbidden {
+		t.Fatalf("expected place admin cross-place role assignment detail status 403, got %d body=%s", detailRecorder.Code, detailRecorder.Body.String())
+	}
+
+	selectionBody := []byte(`{"tenant_id":"tenant_demo_jakarta","role_assignment_ids":["` + createdAssignment.ID + `"],"share_ids":["` + createdShare.ID + `"]}`)
+	previewRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/access_rights/impact_preview", placeToken, selectionBody)
+	if previewRecorder.Code != http.StatusForbidden {
+		t.Fatalf("expected place admin cross-place impact preview status 403, got %d body=%s", previewRecorder.Code, previewRecorder.Body.String())
+	}
+
+	reviewRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/access_rights/review", placeToken, selectionBody)
+	if reviewRecorder.Code != http.StatusForbidden {
+		t.Fatalf("expected place admin cross-place review status 403, got %d body=%s", reviewRecorder.Code, reviewRecorder.Body.String())
+	}
+
+	scheduleBody := []byte(`{"tenant_id":"tenant_demo_jakarta","role_assignment_ids":["` + createdAssignment.ID + `"],"share_ids":["` + createdShare.ID + `"],"valid_until":"2099-06-01T10:00:00Z"}`)
+	scheduleRecorder := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/access_rights/schedule", placeToken, scheduleBody)
+	if scheduleRecorder.Code != http.StatusForbidden {
+		t.Fatalf("expected place admin cross-place schedule status 403, got %d body=%s", scheduleRecorder.Code, scheduleRecorder.Body.String())
+	}
+}
+
 func TestReferenceOperatorReadOnlyWriteGuard(t *testing.T) {
 	router, err := NewRouter(config.Config{
 		JWTSecret:       "reference-operator-write-guard-test-secret",
