@@ -1,7 +1,7 @@
 import { AlertCircleIcon, DoorOpenIcon, HistoryIcon, UsersIcon } from "lucide-react"
 
-import { KpiCard, PageFrame, StatusDot, type ActivityTone } from "@/components/kisi/primitives"
-import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
+import { KpiCard, PageFrame, StatusDot, type ActivityTone } from "@/components/mistyislet/primitives"
+import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
 import type { CurrentUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -26,7 +26,7 @@ export function PlaceDashboardAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
-  const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
+  const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place, doors, events } = resourceQuery.context
   const today = new Date()
   const onlineDoors = doors.filter((door) => door.status === "online").length

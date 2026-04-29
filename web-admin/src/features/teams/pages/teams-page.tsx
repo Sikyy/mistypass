@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDownIcon, KeyRoundIcon, PlusIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
-import { KisiEmptyTableRow } from "@/components/kisi/data-display"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
+import { MistyisletEmptyTableRow } from "@/components/mistyislet/data-display"
 import {
   FormField,
   InfoBanner,
@@ -12,7 +12,7 @@ import {
   SettingsPanel,
   SettingToggleRows,
   StatusDot,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -22,8 +22,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { selectKisiPlaceContext, type KisiTeamMembershipResource } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { selectMistyisletPlaceContext, type MistyisletTeamMembershipResource } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   createRoleAssignment,
   createTeam,
@@ -69,7 +69,7 @@ export function TeamsAdaptedPage({
   const [memberID, setMemberID] = useState("")
   const [memberEmail, setMemberEmail] = useState("")
   const [memberName, setMemberName] = useState("")
-  const [deleteMembershipTarget, setDeleteMembershipTarget] = useState<KisiTeamMembershipResource | null>(null)
+  const [deleteMembershipTarget, setDeleteMembershipTarget] = useState<MistyisletTeamMembershipResource | null>(null)
   const [accessSheetOpen, setAccessSheetOpen] = useState(false)
   const [accessScope, setAccessScope] = useState<Role["applies_to"]>("Place")
   const [accessScopeID, setAccessScopeID] = useState("")
@@ -77,13 +77,13 @@ export function TeamsAdaptedPage({
   const [validUntil, setValidUntil] = useState("")
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiResourceSummary(token, viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const rolesQuery = useQuery({
     queryKey: ["reference-roles"],
     queryFn: () => listRoles(token),
     staleTime: 60 * 1000,
   })
-  const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
+  const placeContext = selectMistyisletPlaceContext(resourceQuery.summary, placeID)
   const tenantID = getViewerTenantID(viewer)
   const teams = placeScoped ? placeContext.teams : resourceQuery.summary.teams
   const teamMemberships = placeScoped ? placeContext.teamMemberships : resourceQuery.summary.teamMemberships
@@ -400,7 +400,7 @@ export function TeamsAdaptedPage({
                   </td>
                 </tr>
               ))}
-              {teams.length === 0 ? <KisiEmptyTableRow colSpan={5}>No teams found.</KisiEmptyTableRow> : null}
+              {teams.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>No teams found.</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>
@@ -533,7 +533,7 @@ export function TeamsAdaptedPage({
                     </tr>
                   ))}
                   {selectedMemberships.length === 0 ? (
-                    <KisiEmptyTableRow colSpan={5}>No team members found.</KisiEmptyTableRow>
+                    <MistyisletEmptyTableRow colSpan={5}>No team members found.</MistyisletEmptyTableRow>
                   ) : null}
                 </tbody>
               </table>

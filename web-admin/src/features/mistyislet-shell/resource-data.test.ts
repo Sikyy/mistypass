@@ -29,15 +29,15 @@ vi.mock("@/lib/api", () => ({
 }))
 
 import {
-  buildKisiAccessRightsFromReferenceResources,
-  buildKisiHardwareFromReferenceResources,
-  loadKisiResourceSummary,
-  selectKisiPlaceContext,
-  type KisiGroupResource,
-  type KisiPlaceResource,
-  type KisiResourceSummary,
-  type KisiTeamResource,
-  type KisiUserResource,
+  buildMistyisletAccessRightsFromReferenceResources,
+  buildMistyisletHardwareFromReferenceResources,
+  loadMistyisletResourceSummary,
+  selectMistyisletPlaceContext,
+  type MistyisletGroupResource,
+  type MistyisletPlaceResource,
+  type MistyisletResourceSummary,
+  type MistyisletTeamResource,
+  type MistyisletUserResource,
 } from "./resource-data"
 import {
   createEventSet,
@@ -98,7 +98,7 @@ const place = {
   offlineCount: 0,
   statusLabel: "All online",
   tone: "success",
-} satisfies KisiPlaceResource
+} satisfies MistyisletPlaceResource
 
 const group = {
   id: "group_service",
@@ -110,7 +110,7 @@ const group = {
   description: "Service access",
   statusLabel: "Enabled",
   tone: "success",
-} satisfies KisiGroupResource
+} satisfies MistyisletGroupResource
 
 const user = {
   id: "user_rina",
@@ -122,7 +122,7 @@ const user = {
   tone: "success",
   accessDateLabel: "Apr 26, 2026",
   sourceLabel: "Manual",
-} satisfies KisiUserResource
+} satisfies MistyisletUserResource
 
 const team = {
   id: "team_engineering",
@@ -135,7 +135,7 @@ const team = {
   accessRightCount: 1,
   statusLabel: "Enabled",
   tone: "success",
-} satisfies KisiTeamResource
+} satisfies MistyisletTeamResource
 
 const roles: Role[] = [
   {
@@ -292,7 +292,7 @@ const emptySummary = {
   teamMemberships: [],
   accessRights: [],
   partial: false,
-} satisfies KisiResourceSummary
+} satisfies MistyisletResourceSummary
 
 function resetResourceSummaryMocks() {
   vi.mocked(listPlaces).mockResolvedValue([])
@@ -348,13 +348,13 @@ describe("kisi resource-data summary adapter", () => {
           description: "Lobby door",
         },
       ],
-    } satisfies KisiResourceSummary
+    } satisfies MistyisletResourceSummary
 
-    const outOfScope = selectKisiPlaceContext(summary, "building_demo_002")
+    const outOfScope = selectMistyisletPlaceContext(summary, "building_demo_002")
     expect(outOfScope.place).toBeNull()
     expect(outOfScope.doors).toEqual([])
 
-    const slugAlias = selectKisiPlaceContext(summary, "sudirman-hub")
+    const slugAlias = selectMistyisletPlaceContext(summary, "sudirman-hub")
     expect(slugAlias.place?.id).toBe(place.id)
     expect(slugAlias.doors).toHaveLength(1)
   })
@@ -449,7 +449,7 @@ describe("kisi resource-data summary adapter", () => {
     vi.mocked(listDoorGroups).mockResolvedValue([doorGroup])
     vi.mocked(listGroupLocks).mockResolvedValue([groupLock])
 
-    const summary = await loadKisiResourceSummary("access-token", viewer)
+    const summary = await loadMistyisletResourceSummary("access-token", viewer)
 
     expect(summary.places).toEqual([
       expect.objectContaining({
@@ -550,7 +550,7 @@ describe("kisi resource-data summary adapter", () => {
     vi.mocked(listControllers).mockRejectedValue(new Error("controllers unavailable"))
     vi.mocked(listGateways).mockResolvedValue([gateway])
 
-    const summary = await loadKisiResourceSummary("access-token", viewer)
+    const summary = await loadMistyisletResourceSummary("access-token", viewer)
 
     expect(listGateways).toHaveBeenCalledTimes(1)
     expect(summary.hardware).toEqual(
@@ -612,7 +612,7 @@ describe("kisi resource-data summary adapter", () => {
     vi.mocked(listCards).mockRejectedValue(new Error("cards unavailable"))
     vi.mocked(listWalletPasses).mockResolvedValue([walletPass])
 
-    const summary = await loadKisiResourceSummary("access-token", viewer)
+    const summary = await loadMistyisletResourceSummary("access-token", viewer)
 
     expect(summary.events).toEqual([
       expect.objectContaining({
@@ -658,7 +658,7 @@ describe("kisi resource-data access rights mapper", () => {
       },
     ]
 
-    const rows = buildKisiAccessRightsFromReferenceResources({
+    const rows = buildMistyisletAccessRightsFromReferenceResources({
       roleAssignments: assignments,
       shares: [],
       roles,
@@ -699,7 +699,7 @@ describe("kisi resource-data access rights mapper", () => {
       },
     ]
 
-    const rows = buildKisiAccessRightsFromReferenceResources({
+    const rows = buildMistyisletAccessRightsFromReferenceResources({
       roleAssignments: [],
       shares,
       roles,
@@ -757,7 +757,7 @@ describe("kisi resource-data access rights mapper", () => {
       },
     ]
 
-    const rows = buildKisiAccessRightsFromReferenceResources({
+    const rows = buildMistyisletAccessRightsFromReferenceResources({
       roleAssignments: assignments,
       shares,
       roles,
@@ -803,7 +803,7 @@ describe("kisi resource-data access rights mapper", () => {
       },
     ]
 
-    const rows = buildKisiAccessRightsFromReferenceResources({
+    const rows = buildMistyisletAccessRightsFromReferenceResources({
       roleAssignments: assignments,
       shares: [],
       roles,
@@ -882,7 +882,7 @@ describe("kisi resource-data hardware mapper", () => {
       last_seen_at: "2026-04-26T10:00:00Z",
     } satisfies Terminal
 
-    const rows = buildKisiHardwareFromReferenceResources({
+    const rows = buildMistyisletHardwareFromReferenceResources({
       controllers: [controller],
       readers: [reader],
       terminals: [terminal],
@@ -945,7 +945,7 @@ describe("kisi resource-data hardware mapper", () => {
       ],
     } satisfies Gateway
 
-    const rows = buildKisiHardwareFromReferenceResources({
+    const rows = buildMistyisletHardwareFromReferenceResources({
       controllers: [],
       readers: [],
       terminals: [],

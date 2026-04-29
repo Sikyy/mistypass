@@ -55,9 +55,9 @@ import {
 } from "@/lib/api"
 import { getViewerBuildingIDs, getViewerTenantID, isPlatformViewer } from "@/lib/viewer"
 
-export type KisiResourceTone = "success" | "warning" | "danger" | "info"
+export type MistyisletResourceTone = "success" | "warning" | "danger" | "info"
 
-export type KisiPlaceResource = {
+export type MistyisletPlaceResource = {
   id: string
   name: string
   address: string
@@ -66,10 +66,10 @@ export type KisiPlaceResource = {
   gatewayCount: number
   offlineCount: number
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
 }
 
-export type KisiFloorResource = {
+export type MistyisletFloorResource = {
   id: string
   placeId: string
   name: string
@@ -77,10 +77,10 @@ export type KisiFloorResource = {
   doorCount: number
   hardwareCount: number
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
 }
 
-export type KisiZoneResource = {
+export type MistyisletZoneResource = {
   id: string
   placeId: string
   floorId: string
@@ -90,7 +90,7 @@ export type KisiZoneResource = {
   doorCount: number
 }
 
-export type KisiDoorResource = {
+export type MistyisletDoorResource = {
   id: string
   placeId: string
   floorId: string
@@ -105,20 +105,20 @@ export type KisiDoorResource = {
   description: string
 }
 
-export type KisiHardwareResource = {
+export type MistyisletHardwareResource = {
   id: string
   placeId: string
   gatewayId: string
   name: string
   type: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
   location: string
   lastSeenLabel: string
   doorNames: string[]
 }
 
-export type KisiEventResource = {
+export type MistyisletEventResource = {
   id: string
   placeId: string
   doorId: string
@@ -127,12 +127,12 @@ export type KisiEventResource = {
   user: string
   timeLabel: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
   details: string
   at: string
 }
 
-export type KisiUserResource = {
+export type MistyisletUserResource = {
   id: string
   placeId: string
   name: string
@@ -141,24 +141,24 @@ export type KisiUserResource = {
   roleValue?: string
   rawStatus?: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
   accessDateLabel: string
   sourceLabel: string
   groupIds?: string[]
 }
 
-export type KisiCredentialResource = {
+export type MistyisletCredentialResource = {
   id: string
   user: string
   userID: string
   type: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
   issuedLabel: string
   expiresLabel: string
 }
 
-export type KisiGroupResource = {
+export type MistyisletGroupResource = {
   id: string
   tenantID?: string
   placeId: string
@@ -180,10 +180,10 @@ export type KisiGroupResource = {
   tapToAccessRestrictionEnabled?: boolean
   timeRestrictionTimeZone?: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
 }
 
-export type KisiTeamResource = {
+export type MistyisletTeamResource = {
   id: string
   placeId: string
   name: string
@@ -193,10 +193,10 @@ export type KisiTeamResource = {
   memberCount: number
   accessRightCount: number
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
 }
 
-export type KisiTeamMembershipResource = {
+export type MistyisletTeamMembershipResource = {
   id: string
   teamId: string
   placeId: string
@@ -205,10 +205,10 @@ export type KisiTeamMembershipResource = {
   email: string
   sourceLabel: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
 }
 
-export type KisiAccessRightResource = {
+export type MistyisletAccessRightResource = {
   id: string
   sourceType?: "role_assignment" | "share"
   placeId: string
@@ -217,43 +217,43 @@ export type KisiAccessRightResource = {
   targetLabel: string
   ruleLabel: string
   statusLabel: string
-  tone: KisiResourceTone
+  tone: MistyisletResourceTone
   reviewedAt?: string
   reviewedBy?: string
   needsReview?: boolean
 }
 
-export type KisiResourceSummary = {
-  places: KisiPlaceResource[]
-  floors: KisiFloorResource[]
-  zones: KisiZoneResource[]
-  doors: KisiDoorResource[]
-  hardware: KisiHardwareResource[]
-  events: KisiEventResource[]
-  users: KisiUserResource[]
-  credentials: KisiCredentialResource[]
-  groups: KisiGroupResource[]
-  teams: KisiTeamResource[]
-  teamMemberships: KisiTeamMembershipResource[]
-  accessRights: KisiAccessRightResource[]
+export type MistyisletResourceSummary = {
+  places: MistyisletPlaceResource[]
+  floors: MistyisletFloorResource[]
+  zones: MistyisletZoneResource[]
+  doors: MistyisletDoorResource[]
+  hardware: MistyisletHardwareResource[]
+  events: MistyisletEventResource[]
+  users: MistyisletUserResource[]
+  credentials: MistyisletCredentialResource[]
+  groups: MistyisletGroupResource[]
+  teams: MistyisletTeamResource[]
+  teamMemberships: MistyisletTeamMembershipResource[]
+  accessRights: MistyisletAccessRightResource[]
   partial: boolean
 }
 
-export type KisiPlaceContext = {
-  place: KisiPlaceResource | null
-  floors: KisiFloorResource[]
-  zones: KisiZoneResource[]
-  doors: KisiDoorResource[]
-  hardware: KisiHardwareResource[]
-  events: KisiEventResource[]
-  users: KisiUserResource[]
-  groups: KisiGroupResource[]
-  teams: KisiTeamResource[]
-  teamMemberships: KisiTeamMembershipResource[]
-  accessRights: KisiAccessRightResource[]
+export type MistyisletPlaceContext = {
+  place: MistyisletPlaceResource | null
+  floors: MistyisletFloorResource[]
+  zones: MistyisletZoneResource[]
+  doors: MistyisletDoorResource[]
+  hardware: MistyisletHardwareResource[]
+  events: MistyisletEventResource[]
+  users: MistyisletUserResource[]
+  groups: MistyisletGroupResource[]
+  teams: MistyisletTeamResource[]
+  teamMemberships: MistyisletTeamMembershipResource[]
+  accessRights: MistyisletAccessRightResource[]
 }
 
-const fallbackPlaces: KisiPlaceResource[] = [
+const fallbackPlaces: MistyisletPlaceResource[] = [
   {
     id: "sudirman-hub",
     name: "Sudirman Hub",
@@ -289,7 +289,7 @@ const fallbackPlaces: KisiPlaceResource[] = [
   },
 ]
 
-const fallbackFloors: KisiFloorResource[] = [
+const fallbackFloors: MistyisletFloorResource[] = [
   {
     id: "sudirman-1f",
     placeId: "sudirman-hub",
@@ -322,7 +322,7 @@ const fallbackFloors: KisiFloorResource[] = [
   },
 ]
 
-const fallbackZones: KisiZoneResource[] = [
+const fallbackZones: MistyisletZoneResource[] = [
   {
     id: "zone-sudirman-lobby",
     placeId: "sudirman-hub",
@@ -343,7 +343,7 @@ const fallbackZones: KisiZoneResource[] = [
   },
 ]
 
-const fallbackDoors: KisiDoorResource[] = [
+const fallbackDoors: MistyisletDoorResource[] = [
   {
     id: "door-garage",
     placeId: "sudirman-hub",
@@ -388,7 +388,7 @@ const fallbackDoors: KisiDoorResource[] = [
   },
 ]
 
-const fallbackHardware: KisiHardwareResource[] = [
+const fallbackHardware: MistyisletHardwareResource[] = [
   {
     id: "gw-sudirman-a",
     placeId: "sudirman-hub",
@@ -427,7 +427,7 @@ const fallbackHardware: KisiHardwareResource[] = [
   },
 ]
 
-const fallbackEvents: KisiEventResource[] = [
+const fallbackEvents: MistyisletEventResource[] = [
   {
     id: "event-1",
     placeId: "sudirman-hub",
@@ -469,7 +469,7 @@ const fallbackEvents: KisiEventResource[] = [
   },
 ]
 
-const fallbackUsers: KisiUserResource[] = [
+const fallbackUsers: MistyisletUserResource[] = [
   {
     id: "user-andra",
     placeId: "sudirman-hub",
@@ -516,7 +516,7 @@ const fallbackUsers: KisiUserResource[] = [
   },
 ]
 
-const fallbackCredentials: KisiCredentialResource[] = [
+const fallbackCredentials: MistyisletCredentialResource[] = [
   {
     id: "credential-andra-mobile",
     user: "Andra Saputra",
@@ -549,7 +549,7 @@ const fallbackCredentials: KisiCredentialResource[] = [
   },
 ]
 
-const fallbackGroups: KisiGroupResource[] = [
+const fallbackGroups: MistyisletGroupResource[] = [
   {
     id: "group-service-personnel",
     placeId: "sudirman-hub",
@@ -589,7 +589,7 @@ const fallbackGroups: KisiGroupResource[] = [
   },
 ]
 
-const fallbackTeams: KisiTeamResource[] = [
+const fallbackTeams: MistyisletTeamResource[] = [
   {
     id: "team-engineering",
     placeId: "sudirman-hub",
@@ -616,7 +616,7 @@ const fallbackTeams: KisiTeamResource[] = [
   },
 ]
 
-const fallbackTeamMemberships: KisiTeamMembershipResource[] = [
+const fallbackTeamMemberships: MistyisletTeamMembershipResource[] = [
   {
     id: "team-engineering-andra",
     teamId: "team-engineering",
@@ -641,7 +641,7 @@ const fallbackTeamMemberships: KisiTeamMembershipResource[] = [
   },
 ]
 
-const fallbackAccessRights: KisiAccessRightResource[] = [
+const fallbackAccessRights: MistyisletAccessRightResource[] = [
   {
     id: "access-service-personnel",
     placeId: "sudirman-hub",
@@ -674,7 +674,7 @@ const fallbackAccessRights: KisiAccessRightResource[] = [
   },
 ]
 
-export const fallbackKisiResourceSummary: KisiResourceSummary = {
+export const fallbackMistyisletResourceSummary: MistyisletResourceSummary = {
   places: fallbackPlaces,
   floors: fallbackFloors,
   zones: fallbackZones,
@@ -798,7 +798,7 @@ function formatAccessAction(event: AccessEvent) {
   return "Access warning"
 }
 
-function eventTone(event: AccessEvent): KisiResourceTone {
+function eventTone(event: AccessEvent): MistyisletResourceTone {
   if (event.result === "success") {
     return "success"
   }
@@ -808,7 +808,7 @@ function eventTone(event: AccessEvent): KisiResourceTone {
   return "warning"
 }
 
-function eventStatusLabel(tone: KisiResourceTone) {
+function eventStatusLabel(tone: MistyisletResourceTone) {
   if (tone === "success") {
     return "Success"
   }
@@ -818,7 +818,7 @@ function eventStatusLabel(tone: KisiResourceTone) {
   return "Review"
 }
 
-function eventSetTone(event: EventSetEvent): KisiResourceTone {
+function eventSetTone(event: EventSetEvent): MistyisletResourceTone {
   if (event.success || event.result === "success") {
     return "success"
   }
@@ -841,7 +841,7 @@ function formatEventSetAction(event: EventSetEvent) {
   return titleize(event.type || "Event")
 }
 
-function userTone(status: string): KisiResourceTone {
+function userTone(status: string): MistyisletResourceTone {
   const normalized = status.trim().toLowerCase()
   if (normalized === "active" || normalized === "enabled") {
     return "success"
@@ -866,7 +866,7 @@ function userStatusLabel(status: string) {
   return titleize(status || "Unknown")
 }
 
-function credentialTone(status: string): KisiResourceTone {
+function credentialTone(status: string): MistyisletResourceTone {
   const normalized = status.trim().toLowerCase()
   if (normalized === "active") {
     return "success"
@@ -927,7 +927,7 @@ function credentialStatusLabelFromCard(status: Card["status"]) {
   return "Suspended"
 }
 
-function credentialToneFromCard(status: Card["status"]): KisiResourceTone {
+function credentialToneFromCard(status: Card["status"]): MistyisletResourceTone {
   if (status === "activated") {
     return "success"
   }
@@ -995,7 +995,7 @@ function gatewayDoorNames(gateway: Gateway, doorsByID: Map<string, Door>, doorsB
   return (doorsByGatewayID.get(gateway.id) ?? []).map((door) => door.name)
 }
 
-export function buildKisiHardwareFromReferenceResources({
+export function buildMistyisletHardwareFromReferenceResources({
   controllers,
   readers,
   terminals,
@@ -1009,7 +1009,7 @@ export function buildKisiHardwareFromReferenceResources({
   terminals: Terminal[]
   gateways?: Gateway[]
   doors: Door[]
-  places: Array<Pick<KisiPlaceResource, "id" | "name">>
+  places: Array<Pick<MistyisletPlaceResource, "id" | "name">>
   useGatewayFallback?: boolean
 }) {
   const doorsByID = new Map(doors.map((door) => [door.id, door]))
@@ -1029,7 +1029,7 @@ export function buildKisiHardwareFromReferenceResources({
     ...controllers.map((controller) => {
       const place = placeByID.get(controller.place_id)
       const doorNames = doorNamesForLockIDs(controller.lock_ids ?? [])
-      const tone: KisiResourceTone = controller.status === "online" ? "success" : "warning"
+      const tone: MistyisletResourceTone = controller.status === "online" ? "success" : "warning"
       return {
         id: controller.id,
         placeId: controller.place_id,
@@ -1041,12 +1041,12 @@ export function buildKisiHardwareFromReferenceResources({
         location: place?.name ?? "Unassigned place",
         lastSeenLabel: formatRelativeSeen(controller.last_seen_at),
         doorNames,
-      } satisfies KisiHardwareResource
+      } satisfies MistyisletHardwareResource
     }),
     ...readers.map((reader) => {
       const place = placeByID.get(reader.place_id)
       const doorNames = doorNamesForLockIDs(reader.lock_ids ?? [])
-      const tone: KisiResourceTone = reader.status === "online" ? "success" : "warning"
+      const tone: MistyisletResourceTone = reader.status === "online" ? "success" : "warning"
       return {
         id: reader.id,
         placeId: reader.place_id,
@@ -1058,11 +1058,11 @@ export function buildKisiHardwareFromReferenceResources({
         location: doorNames[0] ?? place?.name ?? "Unassigned place",
         lastSeenLabel: formatRelativeSeen(reader.last_seen_at),
         doorNames,
-      } satisfies KisiHardwareResource
+      } satisfies MistyisletHardwareResource
     }),
     ...terminals.map((terminal) => {
       const place = placeByID.get(terminal.place_id)
-      const tone: KisiResourceTone = terminal.status === "offline" ? "warning" : "success"
+      const tone: MistyisletResourceTone = terminal.status === "offline" ? "warning" : "success"
       return {
         id: terminal.id,
         placeId: terminal.place_id,
@@ -1074,7 +1074,7 @@ export function buildKisiHardwareFromReferenceResources({
         location: terminal.place?.name ?? place?.name ?? "Unassigned place",
         lastSeenLabel: formatRelativeSeen(terminal.last_seen_at ?? terminal.updated_at),
         doorNames: [],
-      } satisfies KisiHardwareResource
+      } satisfies MistyisletHardwareResource
     }),
   ]
 
@@ -1085,8 +1085,8 @@ export function buildKisiHardwareFromReferenceResources({
   return gateways.flatMap((gateway) => {
     const place = placeByID.get(gateway.building_id)
     const doorNames = gatewayDoorNames(gateway, doorsByID, doorsByGatewayID)
-    const gatewayTone: KisiResourceTone = gateway.status === "online" ? "success" : "warning"
-    const gatewayRow: KisiHardwareResource = {
+    const gatewayTone: MistyisletResourceTone = gateway.status === "online" ? "success" : "warning"
+    const gatewayRow: MistyisletHardwareResource = {
       id: gateway.id,
       placeId: gateway.building_id,
       gatewayId: gateway.id,
@@ -1100,7 +1100,7 @@ export function buildKisiHardwareFromReferenceResources({
     }
 
     const deviceRows = (gateway.devices ?? []).map((device) => {
-      const deviceTone: KisiResourceTone = device.status === "online" ? "success" : "warning"
+      const deviceTone: MistyisletResourceTone = device.status === "online" ? "success" : "warning"
       return {
         id: device.id,
         placeId: gateway.building_id,
@@ -1112,7 +1112,7 @@ export function buildKisiHardwareFromReferenceResources({
         location: doorNames[0] ?? place?.name ?? "Unassigned place",
         lastSeenLabel: formatRelativeSeen(device.last_seen_at),
         doorNames,
-      } satisfies KisiHardwareResource
+      } satisfies MistyisletHardwareResource
     })
 
     return [gatewayRow, ...deviceRows]
@@ -1138,7 +1138,7 @@ function placeIDForAccessScope(
 
 function targetLabelForAccessScope(
   item: Pick<AccessPolicy | TemporaryAccess, "scope_type" | "building_id" | "area_id" | "door_id">,
-  placesByID: Map<string, KisiPlaceResource>,
+  placesByID: Map<string, MistyisletPlaceResource>,
   areasByID: Map<string, Area>,
   doorsByID: Map<string, Door>
 ) {
@@ -1164,7 +1164,7 @@ function policyStatusLabel(status: AccessPolicy["status"]) {
   return "Disabled"
 }
 
-function policyTone(status: AccessPolicy["status"]): KisiResourceTone {
+function policyTone(status: AccessPolicy["status"]): MistyisletResourceTone {
   if (status === "active") {
     return "success"
   }
@@ -1177,9 +1177,9 @@ function policyTone(status: AccessPolicy["status"]): KisiResourceTone {
 function temporaryAccessStatus(item: TemporaryAccess) {
   const expiresAt = new Date(item.valid_until)
   if (!Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
-    return { statusLabel: "Expired", tone: "danger" as KisiResourceTone }
+    return { statusLabel: "Expired", tone: "danger" as MistyisletResourceTone }
   }
-  return { statusLabel: "Enabled", tone: "success" as KisiResourceTone }
+  return { statusLabel: "Enabled", tone: "success" as MistyisletResourceTone }
 }
 
 function formatAccessDateLabel(value?: string, fallback = "No expiry") {
@@ -1204,23 +1204,23 @@ function roleName(roleID: string, rolesByID: Map<string, Role>) {
 function accessValidityStatus(validFrom?: string, validUntil?: string, rawStatus?: string) {
   const normalizedStatus = rawStatus?.trim().toLowerCase()
   if (normalizedStatus === "expired" || normalizedStatus === "revoked" || normalizedStatus === "disabled" || normalizedStatus === "inactive") {
-    return { statusLabel: titleize(normalizedStatus), tone: "danger" as KisiResourceTone }
+    return { statusLabel: titleize(normalizedStatus), tone: "danger" as MistyisletResourceTone }
   }
   if (normalizedStatus === "pending" || normalizedStatus === "scheduled") {
-    return { statusLabel: titleize(normalizedStatus), tone: "warning" as KisiResourceTone }
+    return { statusLabel: titleize(normalizedStatus), tone: "warning" as MistyisletResourceTone }
   }
 
   const startsAt = validFrom?.trim() ? new Date(validFrom).getTime() : Number.NaN
   if (!Number.isNaN(startsAt) && startsAt > Date.now()) {
-    return { statusLabel: "Scheduled", tone: "warning" as KisiResourceTone }
+    return { statusLabel: "Scheduled", tone: "warning" as MistyisletResourceTone }
   }
 
   const expiresAt = validUntil?.trim() ? new Date(validUntil).getTime() : Number.NaN
   if (!Number.isNaN(expiresAt) && expiresAt < Date.now()) {
-    return { statusLabel: "Expired", tone: "danger" as KisiResourceTone }
+    return { statusLabel: "Expired", tone: "danger" as MistyisletResourceTone }
   }
 
-  return { statusLabel: "Enabled", tone: "success" as KisiResourceTone }
+  return { statusLabel: "Enabled", tone: "success" as MistyisletResourceTone }
 }
 
 function accessRightNeedsReview(statusLabel: string, reviewedAt?: string) {
@@ -1228,7 +1228,7 @@ function accessRightNeedsReview(statusLabel: string, reviewedAt?: string) {
   return !reviewedAt?.trim() && normalizedStatus !== "" && normalizedStatus !== "enabled" && normalizedStatus !== "active"
 }
 
-function roleAssignmentSubjectType(item: RoleAssignment): KisiAccessRightResource["subjectType"] {
+function roleAssignmentSubjectType(item: RoleAssignment): MistyisletAccessRightResource["subjectType"] {
   if (item.assignee_type === "Team") {
     return "Team"
   }
@@ -1241,7 +1241,7 @@ function roleAssignmentSubjectType(item: RoleAssignment): KisiAccessRightResourc
   return "User"
 }
 
-function roleAssignmentPlaceID(item: RoleAssignment, groupsByID: Map<string, KisiGroupResource>) {
+function roleAssignmentPlaceID(item: RoleAssignment, groupsByID: Map<string, MistyisletGroupResource>) {
   if (item.applies_to_type === "Place") {
     return item.applies_to_id
   }
@@ -1253,8 +1253,8 @@ function roleAssignmentPlaceID(item: RoleAssignment, groupsByID: Map<string, Kis
 
 function scopeLabelForRoleAssignment(
   item: RoleAssignment,
-  placesByID: Map<string, KisiPlaceResource>,
-  groupsByID: Map<string, KisiGroupResource>
+  placesByID: Map<string, MistyisletPlaceResource>,
+  groupsByID: Map<string, MistyisletGroupResource>
 ) {
   if (item.applies_to_type === "Organization") {
     return "All organization places"
@@ -1267,8 +1267,8 @@ function scopeLabelForRoleAssignment(
 
 function assigneeLabelForRoleAssignment(
   item: RoleAssignment,
-  usersByID: Map<string, KisiUserResource>,
-  teamsByID: Map<string, KisiTeamResource>
+  usersByID: Map<string, MistyisletUserResource>,
+  teamsByID: Map<string, MistyisletTeamResource>
 ) {
   if (item.assignee_type === "User") {
     return usersByID.get(item.assignee_id)?.name ?? (item.assignee_email ? formatActor(item.assignee_email) : `User ${item.assignee_id.slice(0, 8)}`)
@@ -1293,7 +1293,7 @@ function roleAssignmentRuleLabel(item: RoleAssignment, rolesByID: Map<string, Ro
 function sharePlaceID(
   item: Share,
   doorsByID: Map<string, Pick<Door, "building_id" | "name">>,
-  groupsByID: Map<string, KisiGroupResource>
+  groupsByID: Map<string, MistyisletGroupResource>
 ) {
   if (item.place_id?.trim()) {
     return item.place_id
@@ -1310,8 +1310,8 @@ function sharePlaceID(
 function targetLabelForShare(
   item: Share,
   rolesByID: Map<string, Role>,
-  placesByID: Map<string, KisiPlaceResource>,
-  groupsByID: Map<string, KisiGroupResource>,
+  placesByID: Map<string, MistyisletPlaceResource>,
+  groupsByID: Map<string, MistyisletGroupResource>,
   doorsByID: Map<string, Pick<Door, "building_id" | "name">>
 ) {
   if (item.group_id?.trim()) {
@@ -1326,7 +1326,7 @@ function targetLabelForShare(
   return roleName(item.role_id, rolesByID)
 }
 
-export function buildKisiAccessRightsFromReferenceResources({
+export function buildMistyisletAccessRightsFromReferenceResources({
   roleAssignments,
   shares,
   roles,
@@ -1339,10 +1339,10 @@ export function buildKisiAccessRightsFromReferenceResources({
   roleAssignments: RoleAssignment[]
   shares: Share[]
   roles: Role[]
-  places: KisiPlaceResource[]
-  groups: KisiGroupResource[]
-  teams?: KisiTeamResource[]
-  users: KisiUserResource[]
+  places: MistyisletPlaceResource[]
+  groups: MistyisletGroupResource[]
+  teams?: MistyisletTeamResource[]
+  users: MistyisletUserResource[]
   doors: Array<Pick<Door, "id" | "building_id" | "name">>
 }) {
   const rolesByID = new Map(roles.map((role) => [role.id, role]))
@@ -1371,7 +1371,7 @@ export function buildKisiAccessRightsFromReferenceResources({
       reviewedAt: assignment.reviewed_at,
       reviewedBy: assignment.reviewed_by,
       needsReview: accessRightNeedsReview(status.statusLabel, assignment.reviewed_at),
-    } satisfies KisiAccessRightResource
+    } satisfies MistyisletAccessRightResource
   })
 
   const shareRights = shares.map((share) => {
@@ -1390,13 +1390,13 @@ export function buildKisiAccessRightsFromReferenceResources({
       reviewedAt: share.reviewed_at,
       reviewedBy: share.reviewed_by,
       needsReview: accessRightNeedsReview(status.statusLabel, share.reviewed_at),
-    } satisfies KisiAccessRightResource
+    } satisfies MistyisletAccessRightResource
   })
 
   return [...assignmentRights, ...shareRights].sort((left, right) => left.name.localeCompare(right.name))
 }
 
-export async function loadKisiResourceSummary(token: string, viewer: CurrentUser): Promise<KisiResourceSummary> {
+export async function loadMistyisletResourceSummary(token: string, viewer: CurrentUser): Promise<MistyisletResourceSummary> {
   const tenantID = isPlatformViewer(viewer) ? undefined : getViewerTenantID(viewer)
   const [
     buildingsResult,
@@ -1515,7 +1515,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         offlineCount,
         statusLabel: offlineCount > 0 ? `${offlineCount} offline` : "All online",
         tone: offlineCount > 0 ? "warning" : "success",
-      } satisfies KisiPlaceResource
+      } satisfies MistyisletPlaceResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
   const placesByID = new Map(places.map((place) => [place.id, place]))
@@ -1540,7 +1540,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         hardwareCount: floorControllers.length > 0 || !useGatewayFallback ? floorControllers.length : floorGateways.length,
         statusLabel: offlineCount > 0 ? "Review" : "Online",
         tone: offlineCount > 0 ? "warning" : "success",
-      } satisfies KisiFloorResource
+      } satisfies MistyisletFloorResource
     })
     .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
 
@@ -1556,7 +1556,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         name: area.name,
         description: floor ? `${floor.name} zone` : "Unassigned floor zone",
         doorCount: areaDoors.length,
-      } satisfies KisiZoneResource
+      } satisfies MistyisletZoneResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
@@ -1582,11 +1582,11 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         gatewaySerial: controller?.name ?? gateway?.serial_number ?? "Unassigned gateway",
         deviceCount: referenceReaderCount > 0 || !useGatewayFallback ? referenceReaderCount : devices.length,
         description: `${titleize(door.kind)} door on ${floor?.name ?? "unassigned floor"}`,
-      } satisfies KisiDoorResource
+      } satisfies MistyisletDoorResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
-  const hardwareResources = buildKisiHardwareFromReferenceResources({
+  const hardwareResources = buildMistyisletHardwareFromReferenceResources({
     controllers,
     readers,
     terminals,
@@ -1612,7 +1612,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         tone,
         details: event.detail || `${event.result || "event"} ${event.object_type ? `on ${event.object_type}` : ""}`.trim(),
         at: event.created_at,
-      } satisfies KisiEventResource
+      } satisfies MistyisletEventResource
     })
     .sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime())
 
@@ -1632,7 +1632,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         tone,
         details: `${event.result} via gateway ${event.gateway_id.slice(0, 8)}`,
         at: event.at,
-      } satisfies KisiEventResource
+      } satisfies MistyisletEventResource
     })
     .sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime())
   const eventResources = referenceEventResources.length > 0 || !isRejected(eventSetResult) ? referenceEventResources : fallbackEventResources
@@ -1653,7 +1653,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         accessDateLabel: formatDateLabel(user.created_at),
         sourceLabel: user.sync_source ? titleize(user.sync_source) : "Manual",
         groupIds: user.group_ids ?? [],
-      } satisfies KisiUserResource
+      } satisfies MistyisletUserResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
@@ -1680,7 +1680,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         accessRightCount,
         statusLabel: "Enabled",
         tone: "success",
-      } satisfies KisiTeamResource
+      } satisfies MistyisletTeamResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
@@ -1700,7 +1700,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         sourceLabel: membership.source || "Manual",
         statusLabel: user?.statusLabel ?? "Active",
         tone,
-      } satisfies KisiTeamMembershipResource
+      } satisfies MistyisletTeamMembershipResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
@@ -1720,7 +1720,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         tone: credentialToneFromCard(card.status),
         issuedLabel: formatDateLabel(card.issued_at),
         expiresLabel: card.expires_at ? formatDateLabel(card.expires_at) : "No expiry",
-      } satisfies KisiCredentialResource
+      } satisfies MistyisletCredentialResource
     })
     .sort((left, right) => left.user.localeCompare(right.user))
 
@@ -1737,7 +1737,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         tone: credentialTone(pass.status),
         issuedLabel: formatDateLabel(pass.issued_at),
         expiresLabel: pass.expires_at ? formatDateLabel(pass.expires_at) : "No expiry",
-      } satisfies KisiCredentialResource
+      } satisfies MistyisletCredentialResource
     })
     .sort((left, right) => left.user.localeCompare(right.user))
   const credentials = cardCredentials.length > 0 || !isRejected(cardsResult) ? cardCredentials : walletCredentials
@@ -1765,7 +1765,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         timeRestrictionTimeZone: group.time_restriction_time_zone,
         statusLabel: "Enabled",
         tone: "success",
-      } satisfies KisiGroupResource
+      } satisfies MistyisletGroupResource
     }),
     ...doorGroups.map((group) => {
       const relationDoorIDs = groupLocks.filter((lock) => lock.group_id === group.id).map((lock) => lock.lock_id)
@@ -1794,11 +1794,11 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         zoneFloorIds: Array.from(new Set(zoneFloorIDs)),
         statusLabel: groupDoors.length > 0 ? "Enabled" : "Review",
         tone: groupDoors.length > 0 ? "success" : "warning",
-      } satisfies KisiGroupResource
+      } satisfies MistyisletGroupResource
     }),
   ].sort((left, right) => left.name.localeCompare(right.name))
 
-  const referenceAccessRights = buildKisiAccessRightsFromReferenceResources({
+  const referenceAccessRights = buildMistyisletAccessRightsFromReferenceResources({
     roleAssignments,
     shares,
     roles,
@@ -1820,7 +1820,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         ruleLabel: policy.schedule || "Always",
         statusLabel: policyStatusLabel(policy.status),
         tone: policyTone(policy.status),
-      } satisfies KisiAccessRightResource
+      } satisfies MistyisletAccessRightResource
     }),
     ...temporaryAccess.map((grant) => {
       const status = temporaryAccessStatus(grant)
@@ -1833,7 +1833,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         ruleLabel: `Expires ${formatDateLabel(grant.valid_until)}`,
         statusLabel: status.statusLabel,
         tone: status.tone,
-      } satisfies KisiAccessRightResource
+      } satisfies MistyisletAccessRightResource
     }),
   ].sort((left, right) => left.name.localeCompare(right.name))
 
@@ -1873,7 +1873,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
   }
 }
 
-export function selectKisiPlaceContext(summary: KisiResourceSummary, placeID?: string | null): KisiPlaceContext {
+export function selectMistyisletPlaceContext(summary: MistyisletResourceSummary, placeID?: string | null): MistyisletPlaceContext {
   const requestedID = placeID?.trim()
   const requestedSlug = requestedID ? slugify(requestedID) : ""
   const place =
@@ -1913,6 +1913,6 @@ export function selectKisiPlaceContext(summary: KisiResourceSummary, placeID?: s
   }
 }
 
-export function summarizePlaceCounts(place: KisiPlaceResource) {
+export function summarizePlaceCounts(place: MistyisletPlaceResource) {
   return `${formatCount(place.doorCount, "door")} - ${formatCount(place.gatewayCount, "gateway")}`
 }

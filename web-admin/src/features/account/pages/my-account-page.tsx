@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { ChevronDownIcon, CloudIcon, SearchIcon, Trash2Icon, UserIcon } from "lucide-react"
 
-import { PageFrame, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/kisi/primitives"
+import { PageFrame, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
-import { formatKisiRoleLabel } from "@/features/kisi-shell/navigation"
+import { formatMistyisletRoleLabel } from "@/features/mistyislet-shell/navigation"
 import { updateCurrentUser, type CurrentUser } from "@/lib/api"
 
 function formatPersonName(email: string) {
@@ -149,7 +149,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                   <label className="block">
                     <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Account role</span>
                     <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#2f3037]">
-                      <span className="min-w-0 truncate">{formatKisiRoleLabel(viewer)}</span>
+                      <span className="min-w-0 truncate">{formatMistyisletRoleLabel(viewer)}</span>
                     </div>
                   </label>
                   <label className="block">
@@ -190,7 +190,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                 <div className="flex size-28 items-center justify-center rounded-[10px] bg-[#eef0f4]">
                   <UserIcon className="size-14 text-[#17171c]" />
                 </div>
-                <span className="text-sm font-semibold text-[#6f717c]">{formatKisiRoleLabel(viewer)}</span>
+                <span className="text-sm font-semibold text-[#6f717c]">{formatMistyisletRoleLabel(viewer)}</span>
               </div>
             </div>
           </>

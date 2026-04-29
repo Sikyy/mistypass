@@ -1,4 +1,4 @@
-import type { ActivityTone } from "@/components/kisi/primitives"
+import type { ActivityTone } from "@/components/mistyislet/primitives"
 import type { WalletIssueJob, WalletPhysicalCardInventoryItem } from "@/lib/api"
 
 type CredentialBatchAuditUser = {

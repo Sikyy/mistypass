@@ -2,7 +2,7 @@ import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { describe, expect, it } from "vitest"
 
-import { RowActionsMenu } from "@/components/kisi/actions"
+import { RowActionsMenu } from "@/components/mistyislet/actions"
 
 describe("kisi action primitives", () => {
   it("renders an accessible row actions trigger", () => {

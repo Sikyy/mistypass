@@ -17,11 +17,11 @@ import {
   KpiCard,
   toneClassName,
   type ActivityTone,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
-import { KisiAdminShell } from "@/features/kisi-shell/kisi-admin-shell"
-import { formatKisiRoleLabel, parsePlaceRoute, placePath } from "@/features/kisi-shell/navigation"
-import { KisiConsoleRoutes } from "@/features/kisi-shell/routes"
+import { MistyisletAdminShell } from "@/features/mistyislet-shell/mistyislet-admin-shell"
+import { formatMistyisletRoleLabel, parsePlaceRoute, placePath } from "@/features/mistyislet-shell/navigation"
+import { MistyisletConsoleRoutes } from "@/features/mistyislet-shell/routes"
 import {
   listAccessEvents,
   listAlarms,
@@ -339,7 +339,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
             <span>{scopeName}</span>
             <span className="size-1 rounded-full bg-[#c3c6d1]" />
             <span className="rounded-full border border-[#e1e3e8] bg-white px-2.5 py-1 text-xs font-semibold text-[#2f3037]">
-              {formatKisiRoleLabel(viewer, location.pathname)}
+              {formatMistyisletRoleLabel(viewer, location.pathname)}
             </span>
           </div>
         </div>
@@ -396,14 +396,14 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
   )
 
   return (
-    <KisiAdminShell viewer={viewer} onLogout={onLogout}>
-      <KisiConsoleRoutes
+    <MistyisletAdminShell viewer={viewer} onLogout={onLogout}>
+      <MistyisletConsoleRoutes
         homeContent={homeContent}
         token={token}
         viewer={viewer}
         onViewerChange={onViewerChange}
         onLogout={onLogout}
       />
-    </KisiAdminShell>
+    </MistyisletAdminShell>
   )
 }

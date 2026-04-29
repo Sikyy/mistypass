@@ -11,7 +11,7 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
-import { ConfirmActionDialog } from "@/components/kisi/actions"
+import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import {
   FormField,
   PageFrame,
@@ -19,7 +19,7 @@ import {
   SettingsPanel,
   SettingToggleRows,
   StatusDot,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -29,8 +29,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import type { KisiFloorResource } from "@/features/kisi-shell/resource-data"
-import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
+import type { MistyisletFloorResource } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
 import { createArea, createFloor, deleteFloor, updateArea, updateFloor, type CurrentUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { getViewerTenantID } from "@/lib/viewer"
@@ -54,10 +54,10 @@ export function FloorsAdaptedPage({
   const [areaName, setAreaName] = useState("")
   const [addAreaOpen, setAddAreaOpen] = useState(false)
   const [newAreaName, setNewAreaName] = useState("")
-  const [deleteFloorTarget, setDeleteFloorTarget] = useState<KisiFloorResource | null>(null)
+  const [deleteFloorTarget, setDeleteFloorTarget] = useState<MistyisletFloorResource | null>(null)
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
+  const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place, floors, zones, doors, hardware } = resourceQuery.context
   const selectedFloor = floors.find((floor) => floor.id === selectedFloorID) ?? floors[0]
   const tenantID = getViewerTenantID(viewer)
@@ -166,7 +166,7 @@ export function FloorsAdaptedPage({
   })
 
   const deleteFloorMutation = useMutation({
-    mutationFn: (floor: KisiFloorResource) => {
+    mutationFn: (floor: MistyisletFloorResource) => {
       if (!tenantID) {
         throw new Error("tenant_id is required")
       }

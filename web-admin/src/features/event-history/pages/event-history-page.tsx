@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { ChevronDownIcon, MapPinPlusIcon } from "lucide-react"
 
-import { KisiEmptyTableRow, KisiFilterButton, KisiSearchField } from "@/components/kisi/data-display"
-import { PageFrame, StatusDot } from "@/components/kisi/primitives"
-import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { MistyisletEmptyTableRow, MistyisletFilterButton, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
+import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import type { CurrentUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -19,9 +19,9 @@ export function EventHistoryAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
-  const resourceQuery = useKisiResourceSummary(token, viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const placeContext = useMemo(
-    () => selectKisiPlaceContext(resourceQuery.summary, placeID),
+    () => selectMistyisletPlaceContext(resourceQuery.summary, placeID),
     [placeID, resourceQuery.summary]
   )
   const rows = placeScoped ? placeContext.events : resourceQuery.summary.events
@@ -70,9 +70,9 @@ export function EventHistoryAdaptedPage({
           The timezone is Indonesia (Jakarta). <span className="text-[#4f55ff]">Change</span>
         </div>
         <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-4 md:flex-row md:items-center">
-          <KisiFilterButton label="Today" className="font-normal md:w-36" />
-          <KisiFilterButton label="All Actions" className="font-normal md:w-40" />
-          <KisiSearchField value={query} onChange={setQuery} placeholder="Search events..." />
+          <MistyisletFilterButton label="Today" className="font-normal md:w-36" />
+          <MistyisletFilterButton label="All Actions" className="font-normal md:w-40" />
+          <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search events..." />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -118,7 +118,7 @@ export function EventHistoryAdaptedPage({
                 )
               })}
               {visibleRows.length === 0 ? (
-                <KisiEmptyTableRow colSpan={6}>No events match this search.</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>No events match this search.</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>

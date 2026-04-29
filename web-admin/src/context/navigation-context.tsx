@@ -9,7 +9,7 @@ import {
   isPlaceAdminView,
   parsePlaceRoute,
   placePath,
-} from "@/features/kisi-shell/navigation"
+} from "@/features/mistyislet-shell/navigation"
 import { listBuildings, type CurrentUser } from "@/lib/api"
 import { getViewerTenantID, isPlatformViewer } from "@/lib/viewer"
 

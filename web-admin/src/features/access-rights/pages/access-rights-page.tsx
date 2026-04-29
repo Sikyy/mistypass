@@ -2,9 +2,9 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarClockIcon, CheckIcon, EyeIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
-import { KisiEmptyTableRow, KisiSearchField, KisiTablePagination } from "@/components/kisi/data-display"
-import { PageFrame, StatusDot } from "@/components/kisi/primitives"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
+import { MistyisletEmptyTableRow, MistyisletSearchField, MistyisletTablePagination } from "@/components/mistyislet/data-display"
+import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -14,8 +14,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   createRoleAssignment,
   createShare,
@@ -184,7 +184,7 @@ export function AccessRightsAdaptedPage({
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
   const [impactPreviewOpen, setImpactPreviewOpen] = useState(false)
   const [impactPreview, setImpactPreview] = useState<AccessRightsImpactPreview | null>(null)
-  const resourceQuery = useKisiResourceSummary(token, viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const tenantID = getViewerTenantID(viewer)
   const rolesQuery = useQuery({
     queryKey: ["reference-roles"],
@@ -197,7 +197,7 @@ export function AccessRightsAdaptedPage({
     enabled: Boolean(tenantID),
     staleTime: 60 * 1000,
   })
-  const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
+  const placeContext = selectMistyisletPlaceContext(resourceQuery.summary, placeID)
   const accessRights = placeScoped ? placeContext.accessRights : resourceQuery.summary.accessRights
   const roles = rolesQuery.data ?? []
   const scheduleTemplates = scheduleTemplatesQuery.data ?? []
@@ -673,7 +673,7 @@ export function AccessRightsAdaptedPage({
             </div>
           </div>
           <div className="flex flex-col gap-4 border-b border-[#eceef2] p-6 md:flex-row md:items-center">
-            <KisiSearchField value={query} onChange={setQuery} placeholder={`Search ${activeTab.toLowerCase()}...`} className="h-12 bg-transparent" />
+            <MistyisletSearchField value={query} onChange={setQuery} placeholder={`Search ${activeTab.toLowerCase()}...`} className="h-12 bg-transparent" />
             <select
               value={activeTargetFilter}
               onChange={(event) => setTargetFilter(event.target.value)}
@@ -816,12 +816,12 @@ export function AccessRightsAdaptedPage({
                   </tr>
                 ))}
                 {rows.length === 0 ? (
-                  <KisiEmptyTableRow colSpan={7}>No access rights match this search.</KisiEmptyTableRow>
+                  <MistyisletEmptyTableRow colSpan={7}>No access rights match this search.</MistyisletEmptyTableRow>
                 ) : null}
               </tbody>
             </table>
           </div>
-          <KisiTablePagination />
+          <MistyisletTablePagination />
         </section>
       </PageFrame>
 

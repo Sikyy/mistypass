@@ -2,8 +2,8 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { DownloadIcon } from "lucide-react"
 
-import { KisiEmptyTableRow, KisiSearchField } from "@/components/kisi/data-display"
-import { PageFrame, StatusDot } from "@/components/kisi/primitives"
+import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   downloadReportCSV,
@@ -145,7 +145,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
           ))}
         </div>
         <div className="border-b border-[#eceef2] bg-[#fbfbfc] p-5">
-          <KisiSearchField value={query} onChange={setQuery} placeholder={`Search ${activeTab.toLowerCase()} reports...`} />
+          <MistyisletSearchField value={query} onChange={setQuery} placeholder={`Search ${activeTab.toLowerCase()} reports...`} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left text-sm">
@@ -183,9 +183,9 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
                   </td>
                 </tr>
               ))}
-              {reportsQuery.isPending ? <KisiEmptyTableRow colSpan={5}>Loading reports...</KisiEmptyTableRow> : null}
+              {reportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>Loading reports...</MistyisletEmptyTableRow> : null}
               {!reportsQuery.isPending && reports.length === 0 ? (
-                <KisiEmptyTableRow colSpan={5}>No reports match this view.</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={5}>No reports match this view.</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>
@@ -219,9 +219,9 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
                   <td className="px-4 py-5 text-[#6f717c]">{formatDateTime(item.next_run_at)}</td>
                 </tr>
               ))}
-              {scheduledReportsQuery.isPending ? <KisiEmptyTableRow colSpan={5}>Loading scheduled reports...</KisiEmptyTableRow> : null}
+              {scheduledReportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>Loading scheduled reports...</MistyisletEmptyTableRow> : null}
               {!scheduledReportsQuery.isPending && scheduledReports.length === 0 ? (
-                <KisiEmptyTableRow colSpan={5}>No scheduled reports are configured.</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={5}>No scheduled reports are configured.</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>

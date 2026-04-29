@@ -34,7 +34,7 @@ Mistyislet 后台要从“功能堆叠型后台”转为“任务驱动型门禁
 | UI 产品名 | 一律使用 `Mistyislet` |
 | 基准产品引用 | 只允许出现在本计划、截图说明、内部 benchmark 文件名或代码命名中 |
 | 用户可见禁用项 | 不显示旧品牌名，也不显示基准方资源入口文案 |
-| 内部路径 | 现有 `kisi-shell` / `components/kisi` 可暂时保留，后续再做 rename pass |
+| 内部路径 | `kisi-shell` → `mistyislet-shell`、`components/kisi` → `components/mistyislet`、所有 `Kisi*` 导出符号 → `Mistyislet*` rename 已完成 |
 
 ### 1.3 当前优先级
 
@@ -184,10 +184,10 @@ API 权限模型的完整定义见 `MISTYISLET-KISI-API-SUMMARY.md` §2。本节
 
 | 文件 | 职责 |
 |---|---|
-| `web-admin/src/components/kisi/primitives.tsx` | `PageFrame`、`KpiCard`、`SettingsPanel`、`FormField`、`StatusDot`、Toggle |
-| `web-admin/src/components/kisi/data-display.tsx` | Search、Filter、空表格行、分页 |
-| `web-admin/src/features/kisi-shell/kisi-admin-shell.tsx` | Topbar、Sidebar、移动端 Topbar、Shell 布局 |
-| `web-admin/src/features/kisi-shell/navigation.ts` | 导航配置、角色可见性、路由解析 |
+| `web-admin/src/components/mistyislet/primitives.tsx` | `PageFrame`、`KpiCard`、`SettingsPanel`、`FormField`、`StatusDot`、Toggle |
+| `web-admin/src/components/mistyislet/data-display.tsx` | Search、Filter、空表格行、分页 |
+| `web-admin/src/features/mistyislet-shell/mistyislet-admin-shell.tsx` | Topbar、Sidebar、移动端 Topbar、Shell 布局 |
+| `web-admin/src/features/mistyislet-shell/navigation.ts` | 导航配置、角色可见性、路由解析 |
 | `web-admin/src/context/navigation-context.tsx` | 当前视角、当前 Place、进入/返回操作 |
 
 ---
@@ -279,8 +279,8 @@ API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度
 | Sidebar A/B | Organization Admin 与 Place Admin 两套导航已实现 |
 | Navigation context | `currentView`、`selectedPlaceID`、`selectedPlaceName`、enter/back 已实现 |
 | Canonical Place route | Place 卡片使用真实 `building.id`，Place 侧 Sidebar 跟随当前 `placeId` |
-| Route module | `features/kisi-shell/routes.tsx` 已替代临时 `preview-routes.tsx` if/else renderer |
-| 共享组件 | `components/kisi/primitives.tsx`、`components/kisi/data-display.tsx` 已新增 |
+| Route module | `features/mistyislet-shell/routes.tsx` 已替代临时 `preview-routes.tsx` if/else renderer |
+| 共享组件 | `components/mistyislet/primitives.tsx`、`components/mistyislet/data-display.tsx` 已新增 |
 | 页面拆分 | 大型 preview 内容已拆到 feature pages |
 | Home 瘦身 | `home-page.tsx` 从约 1931 行降到约 402 行 |
 | Reference API 首批落地 | `/api/v1/places`、`/api/v1/locks`、`/api/v1/controllers`、`/api/v1/readers`、`/api/v1/terminals`、`/api/v1/groups`、`/api/v1/group_locks`、`/api/v1/group_zones`、`/api/v1/group_links`、`/api/v1/members`、`/api/v1/teams`、`/api/v1/team_memberships`、`/api/v1/cards`、`/api/v1/card_assignments`、`/api/v1/roles`、`/api/v1/role_assignments`、`/api/v1/shares`、`/api/v1/event_sets`、`/api/v1/events/meta`、`/api/v1/events/types`、`/api/v1/integrations`、`/api/v1/alert_policies` 已可用，`places/:id`、`locks/:id`、`role_assignments/:id`、`shares/:id`、`teams/:id`、`cards/:id`、`card_assignments/:id`、`integrations/:id`、`alert_policies/:id` 已支持 GET detail，`places/:id`、`locks/:id`、`teams/:id`、`role_assignments/:id`、`shares/:id`、`integrations/:id`、`alert_policies/:id` 已支持 PATCH/DELETE，`alert_policies` 已支持内置订阅、custom policy baseline、condition preview 与 event evaluate，`places/:id/lock_down`、`places/:id/cancel_lockdown`、`locks/:id/unlock`、`locks/:id/lock_down`、`locks/:id/cancel_lockdown` 已支持 action response，`controllers/:token/assign`、`readers/:token/assign`、controller-lock bind/unbind、controller config/reboot、reader/terminal reboot 和 terminal trigger 已支持 action route，`team_memberships` 已支持 create/delete，`cards/:id/revoke` 已支持撤销，`group_links/verify` 已支持 token 验证 |
@@ -294,16 +294,16 @@ API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度
 
 | 文件 | 作用 |
 |---|---|
-| `web-admin/src/features/kisi-shell/resource-data.ts` | 旧后端资源到新 UI 资源视图的 adapter |
-| `web-admin/src/features/kisi-shell/use-resource-summary.ts` | 共享 React Query hook 与 fallback |
-| `web-admin/src/features/kisi-shell/routes.tsx` | 新 shell 正式 route module |
-| `web-admin/src/features/kisi-shell/kisi-admin-shell.tsx` | Shell 与 Sidebar |
+| `web-admin/src/features/mistyislet-shell/resource-data.ts` | 旧后端资源到新 UI 资源视图的 adapter |
+| `web-admin/src/features/mistyislet-shell/use-resource-summary.ts` | 共享 React Query hook 与 fallback |
+| `web-admin/src/features/mistyislet-shell/routes.tsx` | 新 shell 正式 route module |
+| `web-admin/src/features/mistyislet-shell/mistyislet-admin-shell.tsx` | Shell 与 Sidebar |
 | `web-admin/src/context/navigation-context.tsx` | 导航上下文 |
 | `web-admin/src/features/users/pages/users-page.tsx` | Organization Users / Place Users |
 | `web-admin/src/features/credentials/pages/credentials-page.tsx` | Credentials |
 | `web-admin/src/features/places/pages/*` | Place 资源页面 |
 | `web-admin/src/features/event-history/pages/event-history-page.tsx` | Event History / Unlock History |
-| `web-admin/src/features/kisi-shell/resource-data.test.ts` | Resource summary、Hardware、Access Rights mapper 单元测试 |
+| `web-admin/src/features/mistyislet-shell/resource-data.test.ts` | Resource summary、Hardware、Access Rights mapper 单元测试 |
 
 ### 7.3 最近验证
 

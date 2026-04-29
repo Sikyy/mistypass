@@ -14,7 +14,7 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
-import { ConfirmActionDialog } from "@/components/kisi/actions"
+import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import {
   FormField,
   PageFrame,
@@ -22,8 +22,8 @@ import {
   SettingsPanel,
   SettingToggleRows,
   StatusDot,
-} from "@/components/kisi/primitives"
-import { KisiEmptyTableRow } from "@/components/kisi/data-display"
+} from "@/components/mistyislet/primitives"
+import { MistyisletEmptyTableRow } from "@/components/mistyislet/data-display"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -33,7 +33,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
+import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   cancelLockLockdown,
   createLock,
@@ -90,7 +90,7 @@ export function DoorDetailAdaptedPage({
   const [deleteDoorConfirmOpen, setDeleteDoorConfirmOpen] = useState(false)
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
+  const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place, floors, zones, doors, hardware, events } = resourceQuery.context
   const selectedDoor = doors.find((door) => door.id === selectedDoorID) ?? doors[0]
   const tenantID = getViewerTenantID(viewer)
@@ -409,7 +409,7 @@ export function DoorDetailAdaptedPage({
                   </td>
                 </tr>
               ))}
-              {doors.length === 0 ? <KisiEmptyTableRow colSpan={5}>No doors found for this place.</KisiEmptyTableRow> : null}
+              {doors.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>No doors found for this place.</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>

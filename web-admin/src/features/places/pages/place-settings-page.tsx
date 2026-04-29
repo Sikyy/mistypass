@@ -18,7 +18,7 @@ import {
   PanelHeader,
   SettingsPanel,
   SettingToggleRows,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
+import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   cancelPlaceLockdown,
   deletePlace,
@@ -59,7 +59,7 @@ export function PlaceSettingsAdaptedPage({
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
+  const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place } = resourceQuery.context
   const tenantID = getViewerTenantID(viewer)
   const canMutate = Boolean(tenantID && place && !resourceQuery.usingFallback)

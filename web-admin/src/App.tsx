@@ -59,7 +59,7 @@ import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RoleScopeBanner } from "@/components/role-scope-banner"
 import { HomePage } from "@/features/home/pages/home-page"
-import { isKisiPreviewRoute } from "@/features/kisi-shell/navigation"
+import { isMistyisletPreviewRoute } from "@/features/mistyislet-shell/navigation"
 import { listAlarms, type CurrentUser } from "@/lib/api"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/context/auth-context"
@@ -639,9 +639,9 @@ export default function App() {
     return <Navigate to="/home" replace />
   }
 
-  const usesKisiPreviewShell = isKisiPreviewRoute(location.pathname)
+  const usesMistyisletShell = isMistyisletPreviewRoute(location.pathname)
 
-  if (usesKisiPreviewShell) {
+  if (usesMistyisletShell) {
     return <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
   }
 

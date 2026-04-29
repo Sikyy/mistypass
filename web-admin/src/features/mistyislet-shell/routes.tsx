@@ -1,7 +1,7 @@
 import { lazy, Suspense, type ReactNode } from "react"
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
 
-import { PageFrame } from "@/components/kisi/primitives"
+import { PageFrame } from "@/components/mistyislet/primitives"
 import type { CurrentUser } from "@/lib/api"
 
 import { DEMO_PLACE_ID } from "./navigation"
@@ -58,7 +58,7 @@ const UsersAdaptedPage = lazy(() =>
   import("@/features/users/pages/users-page").then((module) => ({ default: module.UsersAdaptedPage }))
 )
 
-type KisiConsoleRoutesProps = {
+type MistyisletConsoleRoutesProps = {
   homeContent: ReactNode
   token: string
   viewer: CurrentUser
@@ -66,7 +66,7 @@ type KisiConsoleRoutesProps = {
   onLogout: () => void
 }
 
-type AuthenticatedResourcePageProps = Pick<KisiConsoleRoutesProps, "token" | "viewer">
+type AuthenticatedResourcePageProps = Pick<MistyisletConsoleRoutesProps, "token" | "viewer">
 type PlaceResourcePageProps = AuthenticatedResourcePageProps & {
   section?: string
 }
@@ -159,7 +159,7 @@ function GenericRoute() {
   return <GenericAdaptedPage title={titleFromSegment(segment)} placeScoped={placeScoped} />
 }
 
-export function KisiConsoleRoutes({ homeContent, token, viewer, onViewerChange, onLogout }: KisiConsoleRoutesProps) {
+export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerChange, onLogout }: MistyisletConsoleRoutesProps) {
   return (
     <Suspense fallback={<RouteModuleFallback />}>
       <Routes>

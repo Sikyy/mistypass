@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Building2Icon, PlusIcon } from "lucide-react"
 
-import { PageFrame, StatusDot } from "@/components/kisi/primitives"
+import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -13,9 +13,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { placePath } from "@/features/kisi-shell/navigation"
-import { summarizePlaceCounts } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { placePath } from "@/features/mistyislet-shell/navigation"
+import { summarizePlaceCounts } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import { createPlace, type CurrentUser } from "@/lib/api"
 import { getViewerTenantID } from "@/lib/viewer"
 
@@ -27,7 +27,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
   const [region, setRegion] = useState("ID-JK")
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiResourceSummary(token, viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const places = resourceQuery.summary.places
   const tenantID = getViewerTenantID(viewer)
   const canMutate = Boolean(tenantID && !resourceQuery.usingFallback)

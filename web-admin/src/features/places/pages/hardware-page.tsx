@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CloudIcon, FileTextIcon, LinkIcon, PlusIcon, RotateCwIcon, SendIcon, ServerIcon, UnlinkIcon, ZapIcon } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import {
   FormField,
   PageFrame,
@@ -10,8 +10,8 @@ import {
   SettingsPanel,
   SettingToggleRows,
   StatusDot,
-} from "@/components/kisi/primitives"
-import { KisiEmptyTableRow } from "@/components/kisi/data-display"
+} from "@/components/mistyislet/primitives"
+import { MistyisletEmptyTableRow } from "@/components/mistyislet/data-display"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -21,8 +21,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import type { KisiDoorResource, KisiHardwareResource } from "@/features/kisi-shell/resource-data"
-import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
+import type { MistyisletDoorResource, MistyisletHardwareResource } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   assignController,
   assignReader,
@@ -50,22 +50,22 @@ type GatewayDeviceProtocol = "wiegand_26" | "wiegand_34" | "osdp_v2" | "rs485" |
 type HardwareDoorUnbindTarget = {
   controllerID: string
   deviceName: string
-  door: KisiDoorResource
+  door: MistyisletDoorResource
 }
 type HardwareRebootTarget = {
   command: "reboot"
   controllerID: string
-  device: KisiHardwareResource
+  device: MistyisletHardwareResource
 }
 type HardwareTerminalTriggerTarget = {
   command: "trigger"
-  device: KisiHardwareResource
+  device: MistyisletHardwareResource
 }
 type HardwarePublishConfigTarget = {
   command: "publish_config"
   controllerID: string
   configVersion: string
-  device: KisiHardwareResource
+  device: MistyisletHardwareResource
 }
 type HardwareCommandTarget = HardwareRebootTarget | HardwareTerminalTriggerTarget | HardwarePublishConfigTarget
 
@@ -91,11 +91,11 @@ export function HardwareAdaptedPage({
   const [bindDoorID, setBindDoorID] = useState("")
   const [configVersion, setConfigVersion] = useState("place-config-v1")
   const [unbindDoorTarget, setUnbindDoorTarget] = useState<HardwareDoorUnbindTarget | null>(null)
-  const [deassignTarget, setDeassignTarget] = useState<KisiHardwareResource | null>(null)
+  const [deassignTarget, setDeassignTarget] = useState<MistyisletHardwareResource | null>(null)
   const [hardwareCommandTarget, setHardwareCommandTarget] = useState<HardwareCommandTarget | null>(null)
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
+  const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place, doors, hardware, events } = resourceQuery.context
   const selectedDevice = hardware.find((item) => item.id === selectedDeviceID) ?? hardware[0]
   const tenantID = getViewerTenantID(viewer)
@@ -360,7 +360,7 @@ export function HardwareAdaptedPage({
     },
   })
 
-  const deassignMutation = useMutation<Controller | Reader, Error, KisiHardwareResource>({
+  const deassignMutation = useMutation<Controller | Reader, Error, MistyisletHardwareResource>({
     mutationFn: (device) => {
       if (!device) {
         throw new Error("hardware is required")
@@ -478,7 +478,7 @@ export function HardwareAdaptedPage({
                   <td className="px-4 py-5 text-[#6f717c]">{item.location}</td>
                 </tr>
               ))}
-              {hardware.length === 0 ? <KisiEmptyTableRow colSpan={4}>No hardware found for this place.</KisiEmptyTableRow> : null}
+              {hardware.length === 0 ? <MistyisletEmptyTableRow colSpan={4}>No hardware found for this place.</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>

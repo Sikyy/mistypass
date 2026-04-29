@@ -4,8 +4,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { MailPlusIcon, PlusIcon, UsersIcon } from "lucide-react"
 
-import { KisiEmptyTableRow, KisiSearchField } from "@/components/kisi/data-display"
-import { EnabledCheck, InfoBanner, PageFrame, StatusDot } from "@/components/kisi/primitives"
+import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import { EnabledCheck, InfoBanner, PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -15,8 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   batchDeleteUsers,
   batchInviteUsers,
@@ -52,8 +52,8 @@ export function UsersAdaptedPage({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const resourceQuery = useKisiResourceSummary(token, viewer)
-  const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
+  const placeContext = selectMistyisletPlaceContext(resourceQuery.summary, placeID)
   const rows = placeScoped ? placeContext.users : resourceQuery.summary.users
   const tenantID = getViewerTenantID(viewer)
   const canMutate = Boolean(tenantID && !resourceQuery.usingFallback && ["super_admin", "tenant_admin", "building_admin"].includes(viewer.role))
@@ -294,7 +294,7 @@ export function UsersAdaptedPage({
 
         <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
           <div className="flex items-center gap-3 border-b border-[#eceef2] p-5">
-            <KisiSearchField value={query} onChange={setQuery} placeholder="Search Users..." className="h-11 border-[#8589ff]" />
+            <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search Users..." className="h-11 border-[#8589ff]" />
             <Button
               type="button"
               variant="outline"
@@ -428,7 +428,7 @@ export function UsersAdaptedPage({
                   </tr>
                 ))}
                 {filteredRows.length === 0 ? (
-                  <KisiEmptyTableRow colSpan={5}>No users match this search.</KisiEmptyTableRow>
+                  <MistyisletEmptyTableRow colSpan={5}>No users match this search.</MistyisletEmptyTableRow>
                 ) : null}
               </tbody>
             </table>

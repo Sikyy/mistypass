@@ -15,7 +15,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import {
   FormField,
   PageFrame,
@@ -23,7 +23,7 @@ import {
   SettingToggleRows,
   StatusDot,
   ToggleSwitch,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   createAlertPolicy,

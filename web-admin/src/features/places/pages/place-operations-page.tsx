@@ -8,7 +8,7 @@ import {
   SettingsPanel,
   SettingToggleRows,
   StatusDot,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 
 export function PlaceOperationsAdaptedPage({ title }: { title: string }) {

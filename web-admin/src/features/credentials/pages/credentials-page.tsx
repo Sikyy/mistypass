@@ -12,9 +12,9 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
-import { KisiEmptyTableRow, KisiFilterButton, KisiSearchField } from "@/components/kisi/data-display"
-import { PageFrame, StatusDot } from "@/components/kisi/primitives"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
+import { MistyisletEmptyTableRow, MistyisletFilterButton, MistyisletSearchField } from "@/components/mistyislet/data-display"
+import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -24,7 +24,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   activateCard,
   assignCard,
@@ -316,7 +316,7 @@ export function CredentialsAdaptedPage({
   viewer: CurrentUser
 }) {
   const queryClient = useQueryClient()
-  const resourceQuery = useKisiResourceSummary(token, viewer)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const rows = resourceQuery.summary.credentials
   const users = resourceQuery.summary.users
   const tenantID = getViewerTenantID(viewer)
@@ -952,7 +952,7 @@ export function CredentialsAdaptedPage({
           <ClipboardListIcon className="size-5 text-[#6f717c]" />
         </div>
         <div className="flex flex-col gap-3 border-b border-[#eceef2] bg-[#fbfbfc] p-5 lg:flex-row lg:items-center">
-          <KisiSearchField
+          <MistyisletSearchField
             value={batchQuery}
             onChange={setBatchQuery}
             placeholder="Search batch, target, credential, error..."
@@ -994,15 +994,15 @@ export function CredentialsAdaptedPage({
             </thead>
             <tbody>
               {walletJobsQuery.isError ? (
-                <KisiEmptyTableRow colSpan={6}>Batch jobs unavailable.</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>Batch jobs unavailable.</MistyisletEmptyTableRow>
               ) : null}
               {walletJobsQuery.isPending ? (
-                <KisiEmptyTableRow colSpan={6}>Loading batch jobs...</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>Loading batch jobs...</MistyisletEmptyTableRow>
               ) : null}
               {!walletJobsQuery.isPending && !walletJobsQuery.isError && filteredBatchJobs.length === 0 ? (
-                <KisiEmptyTableRow colSpan={6}>
+                <MistyisletEmptyTableRow colSpan={6}>
                   {batchJobs.length === 0 ? "No batch jobs yet." : "No batch jobs match this view."}
-                </KisiEmptyTableRow>
+                </MistyisletEmptyTableRow>
               ) : null}
               {filteredBatchJobs.map((job) => (
                 <tr key={job.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
@@ -1049,8 +1049,8 @@ export function CredentialsAdaptedPage({
           ))}
         </div>
         <div className="flex items-center gap-3 border-b border-[#eceef2] bg-[#fbfbfc] p-5">
-          <KisiSearchField value={query} onChange={setQuery} placeholder="Search credentials..." />
-          <KisiFilterButton label="Type" className="gap-2" />
+          <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search credentials..." />
+          <MistyisletFilterButton label="Type" className="gap-2" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
@@ -1121,7 +1121,7 @@ export function CredentialsAdaptedPage({
                 </tr>
               ))}
               {visibleRows.length === 0 ? (
-                <KisiEmptyTableRow colSpan={6}>No {activeTab.toLowerCase()} credentials match this view.</KisiEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>No {activeTab.toLowerCase()} credentials match this view.</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>

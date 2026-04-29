@@ -12,8 +12,8 @@ import {
   Trash2Icon,
 } from "lucide-react"
 
-import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
-import { FormField, PageFrame, PanelHeader, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/kisi/primitives"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
+import { FormField, PageFrame, PanelHeader, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -23,8 +23,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
-import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
+import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
+import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   createGroup,
   createGroupLink,
@@ -78,8 +78,8 @@ export function GroupsAdaptedPage({
   const [editLinkEnabled, setEditLinkEnabled] = useState(true)
   const [deleteLinkTarget, setDeleteLinkTarget] = useState<GroupLink | null>(null)
   const [actionError, setActionError] = useState("")
-  const resourceQuery = useKisiResourceSummary(token, viewer)
-  const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
+  const resourceQuery = useMistyisletResourceSummary(token, viewer)
+  const placeContext = selectMistyisletPlaceContext(resourceQuery.summary, placeID)
   const groupRows = placeScoped ? placeContext.groups : resourceQuery.summary.groups
   const currentGroup = groupRows.find((group) => group.id === selectedGroupID) ?? groupRows[0]
   const currentAccessRights = (placeScoped ? placeContext.accessRights : resourceQuery.summary.accessRights)

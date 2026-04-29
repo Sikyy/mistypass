@@ -26,13 +26,13 @@ import type { CurrentUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 import {
-  formatKisiRoleLabel,
+  formatMistyisletRoleLabel,
   isNavEntryActive,
   resolveNavSections,
   type NavEntry,
 } from "./navigation"
 
-type KisiAdminShellProps = {
+type MistyisletAdminShellProps = {
   viewer: CurrentUser
   onLogout: () => void
   children: ReactNode
@@ -79,7 +79,7 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
   )
 }
 
-function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children">) {
+function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "children">) {
   const { t } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName } = useNavigationContext()
@@ -87,7 +87,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
     currentView === "place" && selectedPlaceName
       ? t("kisi.shell.placeAdmin", { place: selectedPlaceName })
       : t("kisi.shell.orgAdmin")
-  const roleLabel = formatKisiRoleLabel(viewer, location.pathname)
+  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname)
 
   return (
     <header className="sticky top-0 z-40 hidden h-[64px] items-center bg-[#202443] text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] lg:flex">
@@ -171,7 +171,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
   )
 }
 
-function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
+function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
   const { t } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName, backToOrganization } = useNavigationContext()
@@ -261,10 +261,10 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
   )
 }
 
-function MobileTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children">) {
+function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "children">) {
   const { t } = useTranslation()
   const location = useLocation()
-  const roleLabel = formatKisiRoleLabel(viewer, location.pathname)
+  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname)
 
   return (
     <header className="sticky top-0 z-40 bg-[#202443] text-white lg:hidden">
@@ -319,7 +319,7 @@ function MobileTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
   )
 }
 
-export function KisiAdminShell({ viewer, onLogout, children }: KisiAdminShellProps) {
+export function MistyisletAdminShell({ viewer, onLogout, children }: MistyisletAdminShellProps) {
   useEffect(() => {
     const previousBodyBackground = document.body.style.background
     const previousBodyBackgroundImage = document.body.style.backgroundImage

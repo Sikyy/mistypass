@@ -34,7 +34,7 @@ export type NavSection = {
 
 export const DEMO_PLACE_ID = "sudirman-hub"
 
-const kisiPreviewRoutePrefixes = [
+const mistyisletPreviewRoutePrefixes = [
   "/my-account",
   "/users",
   "/teams",
@@ -173,11 +173,11 @@ export function isPlaceContextPath(pathname: string) {
   return parsePlaceRoute(pathname) !== null
 }
 
-export function isKisiPreviewRoute(pathname: string) {
+export function isMistyisletPreviewRoute(pathname: string) {
   const current = normalizePathname(pathname)
   return (
     current === "/home" ||
-    kisiPreviewRoutePrefixes.some((prefix) => current === prefix || current.startsWith(`${prefix}/`))
+    mistyisletPreviewRoutePrefixes.some((prefix) => current === prefix || current.startsWith(`${prefix}/`))
   )
 }
 
@@ -185,7 +185,7 @@ export function isPlaceAdminView(viewer: CurrentUser, pathname = "") {
   return viewer.role === "building_admin" || viewer.role === "operator" || isPlaceContextPath(pathname)
 }
 
-export function formatKisiRoleLabel(viewer: CurrentUser, pathname = "") {
+export function formatMistyisletRoleLabel(viewer: CurrentUser, pathname = "") {
   return isPlaceAdminView(viewer, pathname) ? "Place Admin" : "Organization Admin"
 }
 

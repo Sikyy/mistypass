@@ -3,7 +3,7 @@ import { ChevronDownIcon, SearchIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-export function KisiSearchField({
+export function MistyisletSearchField({
   value,
   onChange,
   placeholder,
@@ -27,7 +27,7 @@ export function KisiSearchField({
   )
 }
 
-export function KisiFilterButton({
+export function MistyisletFilterButton({
   label,
   className,
 }: {
@@ -45,7 +45,7 @@ export function KisiFilterButton({
   )
 }
 
-export function KisiEmptyTableRow({
+export function MistyisletEmptyTableRow({
   colSpan,
   children,
 }: {
@@ -61,7 +61,7 @@ export function KisiEmptyTableRow({
   )
 }
 
-export function KisiTablePagination() {
+export function MistyisletTablePagination() {
   return (
     <div className="grid grid-cols-3 border-t border-[#eceef2] px-8 py-5 text-sm text-[#6f717c]">
       <span>Previous Page</span>

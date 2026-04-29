@@ -11,7 +11,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
-import { ConfirmActionDialog } from "@/components/kisi/actions"
+import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import {
   InfoBanner,
   PageFrame,
@@ -20,7 +20,7 @@ import {
   StatusDot,
   ToggleSwitch,
   type ActivityTone,
-} from "@/components/kisi/primitives"
+} from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import {
   deleteUser,
