@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useLocation } from "react-router-dom"
 import {
   BellIcon,
@@ -79,12 +80,13 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
 }
 
 function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children">) {
+  const { t } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName } = useNavigationContext()
   const accountTitle =
     currentView === "place" && selectedPlaceName
-      ? `${selectedPlaceName} / Place Admin`
-      : "Mistyislet / Organization Admin"
+      ? t("kisi.shell.placeAdmin", { place: selectedPlaceName })
+      : t("kisi.shell.orgAdmin")
   const roleLabel = formatKisiRoleLabel(viewer, location.pathname)
 
   return (
@@ -98,7 +100,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
       <div className="hidden h-11 min-w-0 w-[520px] items-center gap-3 rounded-[6px] bg-white px-3 text-[#2f3037] shadow-[0_0_0_1px_rgba(255,255,255,0.16)] md:flex">
         <SearchIcon className="size-5 shrink-0 text-[#6f717c]" />
         <span className="truncate text-sm text-[#2f3037]">
-          Search docs, users, doors, places, and features
+          {t("kisi.shell.searchPlaceholder")}
         </span>
         <ChevronDownIcon className="ml-auto size-4 shrink-0 text-[#2f3037]" />
       </div>
@@ -146,21 +148,21 @@ function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
               {roleLabel}
             </DropdownMenuLabel>
             <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              <Link to="/my-account">My Account</Link>
+              <Link to="/my-account">{t("kisi.shell.myAccount")}</Link>
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              Help & Support
+              {t("kisi.shell.helpSupport")}
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              <span className="min-w-0 flex-1">Language: English</span>
+              <span className="min-w-0 flex-1">{t("kisi.shell.language", { lang: "English" })}</span>
               <ChevronRightIcon className="size-4 text-[#2f3037]" />
             </DropdownMenuItem>
             <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
             <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]">
-              Add Account
+              {t("kisi.shell.addAccount")}
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c] focus:bg-[#f7f7f8] focus:text-[#17171c]" onSelect={onLogout}>
-              Sign Out
+              {t("kisi.shell.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -170,6 +172,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
 }
 
 function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
+  const { t } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName, backToOrganization } = useNavigationContext()
   const sections = resolveNavSections(viewer, location.pathname)
@@ -190,7 +193,7 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
       <nav className="flex-1 overflow-auto px-4 py-9">
         {currentView === "place" && selectedPlaceName ? (
           <div className="mb-5 rounded-[6px] border border-[#e1e3e8] bg-[#fbfbfc] px-4 py-3">
-            <p className="text-xs font-semibold text-[#6f717c]">Place</p>
+            <p className="text-xs font-semibold text-[#6f717c]">{t("kisi.shell.place")}</p>
             <p className="mt-1 truncate text-sm font-semibold text-[#17171c]">{selectedPlaceName}</p>
             {canReturnToOrganization ? (
               <button
@@ -198,7 +201,7 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
                 onClick={backToOrganization}
                 className="mt-3 text-left text-xs font-semibold text-[#4f55ff] hover:underline"
               >
-                ← Back to Organization
+                {t("kisi.shell.backToOrg")}
               </button>
             ) : null}
           </div>
@@ -236,14 +239,14 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
             className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
           >
             <ShoppingBagIcon className="size-4 shrink-0 text-[#6f717c]" />
-            <span className="min-w-0 flex-1 truncate whitespace-nowrap">Mistyislet Shop</span>
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.shop")}</span>
           </Link>
           <Link
             to="/organization/settings"
             className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
           >
             <BookOpenIcon className="size-4 shrink-0 text-[#6f717c]" />
-            <span className="min-w-0 flex-1 truncate whitespace-nowrap">Mistyislet Documentation</span>
+            <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.documentation")}</span>
           </Link>
         </div>
         <Link
@@ -251,7 +254,7 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
           className="mt-1 flex h-10 w-full min-w-0 items-center gap-3 rounded-[6px] border-t border-[#d9dbe3] px-3 pt-2 text-left text-sm font-semibold text-[#2f3037] hover:bg-[#f7f7f8]"
         >
           <CircleHelpIcon className="size-4 shrink-0 text-[#6f717c]" />
-          <span className="min-w-0 flex-1 truncate whitespace-nowrap">Help & Feedback</span>
+          <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.helpFeedback")}</span>
         </Link>
       </div>
     </aside>
@@ -259,6 +262,7 @@ function AdminSidebar({ viewer }: Pick<KisiAdminShellProps, "viewer">) {
 }
 
 function MobileTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children">) {
+  const { t } = useTranslation()
   const location = useLocation()
   const roleLabel = formatKisiRoleLabel(viewer, location.pathname)
 
@@ -284,21 +288,21 @@ function MobileTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
             <DropdownMenuContent align="end" className="w-64 rounded-[4px] border-[#d9dbe3] bg-white p-0 text-[#2f3037]">
               <DropdownMenuLabel className="px-4 py-3 text-xs font-semibold text-[#6f717c]">{roleLabel}</DropdownMenuLabel>
               <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-[#17171c]">
-                <Link to="/my-account">My Account</Link>
+                <Link to="/my-account">{t("kisi.shell.myAccount")}</Link>
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
-                Help & Support
+                {t("kisi.shell.helpSupport")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
-                <span className="min-w-0 flex-1">Language: English</span>
+                <span className="min-w-0 flex-1">{t("kisi.shell.language", { lang: "English" })}</span>
                 <ChevronRightIcon className="size-4" />
               </DropdownMenuItem>
               <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]">
-                Add Account
+                {t("kisi.shell.addAccount")}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-[#17171c]" onSelect={onLogout}>
-                Sign Out
+                {t("kisi.shell.signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -307,7 +311,7 @@ function MobileTopBar({ viewer, onLogout }: Omit<KisiAdminShellProps, "children"
       <div className="border-t border-white/10 px-5 pb-4">
         <div className="flex h-10 items-center gap-2 rounded-[6px] bg-white px-3 text-[#2f3037]">
           <SearchIcon className="size-4 text-[#6f717c]" />
-          <span className="truncate text-sm">Search docs and features</span>
+          <span className="truncate text-sm">{t("kisi.shell.searchMobile")}</span>
         </div>
         <p className="mt-2 truncate text-xs text-white/60">{roleLabel}</p>
       </div>

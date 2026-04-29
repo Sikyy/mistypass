@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { MailPlusIcon, PlusIcon, UsersIcon } from "lucide-react"
@@ -49,6 +50,7 @@ export function UsersAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const resourceQuery = useKisiResourceSummary(token, viewer)
   const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
@@ -253,7 +255,7 @@ export function UsersAdaptedPage({
     <>
       <PageFrame
         breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Users"] : ["Home", "Users"]}
-        title={placeScoped ? "Place Users" : "Users"}
+        title={placeScoped ? t("kisi.users.placeTitle") : t("kisi.users.title")}
         count={resourceQuery.isPending ? "--" : rows.length}
         description={placeScoped ? "Manage users associated with this place" : "Manage users across the organization"}
         actions={
@@ -264,7 +266,7 @@ export function UsersAdaptedPage({
             className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
           >
             <PlusIcon className="mr-1.5 size-4" />
-            Add User
+            {t("kisi.users.addUser")}
           </Button>
         }
       >
@@ -301,7 +303,7 @@ export function UsersAdaptedPage({
               className="h-11 rounded-[6px] border-[#c9ccff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
             >
               <MailPlusIcon className="mr-1.5 size-4" />
-              Invite
+              {t("kisi.users.invite")}
             </Button>
             <Button
               type="button"
@@ -309,7 +311,7 @@ export function UsersAdaptedPage({
               onClick={handleExportCSV}
               className="h-11 rounded-[6px] border-[#d9dbe3] bg-white text-[#2f3037] hover:bg-[#fbfbfc]"
             >
-              Export CSV
+              {t("kisi.users.exportCsv")}
             </Button>
             {canMutate && ["super_admin", "tenant_admin"].includes(viewer.role) ? (
               <Button
@@ -318,20 +320,20 @@ export function UsersAdaptedPage({
                 onClick={handleImportCSV}
                 className="h-11 rounded-[6px] border-[#d9dbe3] bg-white text-[#2f3037] hover:bg-[#fbfbfc]"
               >
-                Import CSV
+                {t("kisi.users.importCsv")}
               </Button>
             ) : null}
           </div>
           {selectedUsers.size > 0 ? (
             <div className="flex flex-wrap items-center gap-5 border-b border-[#eceef2] bg-white px-6 py-4 text-sm">
-              <span className="font-semibold text-[#17171c]">{selectedUsers.size} users selected</span>
+              <span className="font-semibold text-[#17171c]">{t("kisi.users.selected", { count: selectedUsers.size })}</span>
               <button
                 type="button"
                 disabled={!canMutate || bulkStatusMutation.isPending}
                 onClick={() => bulkStatusMutation.mutate("suspended")}
                 className="font-semibold text-[#4f55ff] disabled:text-[#9a9ca7]"
               >
-                Suspend Access
+                {t("kisi.users.suspendAccess")}
               </button>
               <button
                 type="button"
@@ -339,7 +341,7 @@ export function UsersAdaptedPage({
                 onClick={() => bulkStatusMutation.mutate("active")}
                 className="font-semibold text-[#6f717c] disabled:text-[#9a9ca7]"
               >
-                Enable Access
+                {t("kisi.users.enableAccess")}
               </button>
               <button
                 type="button"
@@ -347,13 +349,13 @@ export function UsersAdaptedPage({
                 onClick={() => bulkInviteMutation.mutate()}
                 className="font-semibold text-[#4f55ff] disabled:text-[#9a9ca7]"
               >
-                Send Invite
+                {t("kisi.users.sendInvite")}
               </button>
               {!placeScoped && ["super_admin", "tenant_admin"].includes(viewer.role) ? (
                 <button
                   type="button"
                   disabled={!canMutate || bulkDeleteMutation.isPending}
-                  onClick={() => { if (window.confirm(`Delete ${selectedUsers.size} users? This cannot be undone.`)) bulkDeleteMutation.mutate() }}
+                  onClick={() => { if (window.confirm(t("kisi.users.deleteConfirm", { count: selectedUsers.size }))) bulkDeleteMutation.mutate() }}
                   className="font-semibold text-[#d93025] disabled:text-[#9a9ca7]"
                 >
                   Delete
