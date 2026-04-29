@@ -310,6 +310,7 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 	req.Header.Set("Accept", "application/json")
 	if a.bootstrapToken != "" {
 		req.Header.Set("Authorization", "Bearer "+a.bootstrapToken)
+		req.Header.Set("X-Device-Token", a.bootstrapToken)
 	}
 	return http.DefaultClient.Do(req)
 }

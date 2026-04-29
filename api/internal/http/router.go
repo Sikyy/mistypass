@@ -8616,15 +8616,20 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 			writeError(w, http.StatusInternalServerError, "device token verification failed")
 			return false
 		}
+		if exists && matched {
+			return true
+		}
+		// Fallback: accept bootstrap token for unregistered/demo devices
+		bootstrapToken := strings.TrimSpace(s.cfg.GatewayBootstrapToken)
+		if bootstrapToken != "" && provided == bootstrapToken {
+			return true
+		}
 		if !exists {
 			writeError(w, http.StatusUnauthorized, "device not registered")
-			return false
-		}
-		if !matched {
+		} else {
 			writeError(w, http.StatusUnauthorized, "invalid device token")
-			return false
 		}
-		return true
+		return false
 	}
 
 	nextGatewayID := strings.TrimSpace(gatewayID)
