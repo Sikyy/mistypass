@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react"
 import i18next from "i18next"
 import { useTranslation } from "react-i18next"
-import { useMutation } from "@tanstack/react-query"
-import { ChevronDownIcon, CloudIcon, SearchIcon, Trash2Icon, UserIcon } from "lucide-react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ChevronDownIcon, CloudIcon, SearchIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from "lucide-react"
 
+import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import { PageFrame, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import { formatMistyisletRoleLabel } from "@/features/mistyislet-shell/navigation"
-import { updateCurrentUser, type CurrentUser } from "@/lib/api"
+import {
+  disableUserMFA,
+  enableUserMFA,
+  getUserMFAStatus,
+  setupUserMFA,
+  updateCurrentUser,
+  type CurrentUser,
+} from "@/lib/api"
 
 function formatPersonName(email: string) {
   const localPart = email.split("@")[0] || "operator"
@@ -239,27 +247,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         ) : null}
 
         {activeTab === t("kisi.myAccount.security") ? (
-          <div className="divide-y divide-[#eceef2]">
-            <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.security")}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.security")}</p>
-            </div>
-            {[
-              [i18next.t("common.permissions"), true, i18next.t("kisi.myAccount.description")],
-              ["Trusted device prompt", true, "Remember this browser after successful MFA."],
-              ["Recovery codes", false, "Generate backup access codes for emergency sign-in."],
-            ].map(([title, enabled, description]) => (
-              <div key={title as string} className="flex gap-5 px-7 py-5">
-                <div>
-                  <h3 className="font-semibold text-[#17171c]">{title}</h3>
-                  <p className="mt-1 text-sm text-[#6f717c]">{description}</p>
-                </div>
-                <div className="ml-auto pt-1">
-                  <ToggleSwitch enabled={Boolean(enabled)} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <MFASecurityTab token={token} />
         ) : null}
 
         {activeTab === "API" ? (
@@ -297,5 +285,160 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         ) : null}
       </SettingsPanel>
     </PageFrame>
+  )
+}
+
+function MFASecurityTab({ token }: { token: string }) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [mfaStep, setMfaStep] = useState<"idle" | "setup" | "verify">("idle")
+  const [otpauthUrl, setOtpauthUrl] = useState("")
+  const [totpSecret, setTotpSecret] = useState("")
+  const [verifyCode, setVerifyCode] = useState("")
+  const [mfaError, setMfaError] = useState("")
+  const [confirmDisable, setConfirmDisable] = useState(false)
+  const [mfaNotice, setMfaNotice] = useState("")
+
+  const mfaStatusQuery = useQuery({
+    queryKey: ["mfa-status"],
+    queryFn: () => getUserMFAStatus(token),
+    enabled: !!token,
+  })
+
+  const setupMutation = useMutation({
+    mutationFn: () => setupUserMFA(token),
+    onSuccess: (enrollment) => {
+      setOtpauthUrl(enrollment.otpauth_url)
+      setTotpSecret(enrollment.secret)
+      setMfaStep("verify")
+      setMfaError("")
+    },
+    onError: () => setMfaError("Failed to start MFA setup."),
+  })
+
+  const enableMutation = useMutation({
+    mutationFn: (code: string) => enableUserMFA(token, code),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mfa-status"] })
+      setMfaStep("idle")
+      setVerifyCode("")
+      setOtpauthUrl("")
+      setTotpSecret("")
+      setMfaNotice(t("kisi.myAccount.mfaEnabled"))
+      setMfaError("")
+    },
+    onError: () => setMfaError("Invalid code. Please try again."),
+  })
+
+  const disableMutation = useMutation({
+    mutationFn: () => disableUserMFA(token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mfa-status"] })
+      setConfirmDisable(false)
+      setMfaNotice(t("kisi.myAccount.mfaDisabled"))
+    },
+  })
+
+  const mfaEnabled = mfaStatusQuery.data?.enabled ?? false
+
+  return (
+    <div className="divide-y divide-[#eceef2]">
+      <div className="px-7 py-5">
+        <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.security")}</h2>
+        <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.mfaDescription")}</p>
+      </div>
+
+      {mfaNotice && (
+        <div className="mx-7 mt-2 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+          {mfaNotice}
+        </div>
+      )}
+
+      <div className="px-7 py-5">
+        <div className="flex items-start gap-4">
+          <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+            <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-semibold text-[#17171c]">{t("kisi.myAccount.mfaTitle")}</h3>
+            <p className="mt-1 text-sm text-[#6f717c]">
+              {mfaEnabled ? t("kisi.myAccount.mfaEnabled") : t("kisi.myAccount.mfaDisabled")}
+            </p>
+
+            {mfaStep === "idle" && !mfaEnabled && (
+              <Button
+                className="mt-4 h-10 rounded-[6px] px-6"
+                onClick={() => { setMfaNotice(""); setupMutation.mutate() }}
+                disabled={setupMutation.isPending}
+              >
+                {setupMutation.isPending ? "Setting up..." : t("kisi.myAccount.mfaEnable")}
+              </Button>
+            )}
+
+            {mfaStep === "idle" && mfaEnabled && (
+              <Button
+                variant="outline"
+                className="mt-4 h-10 rounded-[6px] border-[#f1b7b2] px-6 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+                onClick={() => { setMfaNotice(""); setConfirmDisable(true) }}
+              >
+                {t("kisi.myAccount.mfaDisable")}
+              </Button>
+            )}
+
+            {mfaStep === "verify" && (
+              <div className="mt-4 space-y-4">
+                <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-5">
+                  <p className="mb-3 text-sm font-semibold text-[#17171c]">{t("kisi.myAccount.mfaScanQR")}</p>
+                  <div className="rounded-[6px] border border-[#d9dbe3] bg-white p-4">
+                    <code className="block break-all text-xs text-[#6f717c]">{otpauthUrl}</code>
+                  </div>
+                  <p className="mt-3 text-xs text-[#6f717c]">
+                    {t("kisi.myAccount.mfaManualEntry")} <code className="font-mono text-[#17171c]">{totpSecret}</code>
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.mfaEnterCode")}</label>
+                  <div className="flex gap-3">
+                    <input
+                      value={verifyCode}
+                      onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setMfaError("") }}
+                      placeholder="000000"
+                      maxLength={6}
+                      className="h-12 w-40 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-center font-mono text-lg tracking-[0.3em] text-[#17171c] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                    />
+                    <Button
+                      className="h-12 rounded-[6px] px-6"
+                      disabled={verifyCode.length !== 6 || enableMutation.isPending}
+                      onClick={() => enableMutation.mutate(verifyCode)}
+                    >
+                      {enableMutation.isPending ? "Verifying..." : "Verify"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-12 rounded-[6px] px-4"
+                      onClick={() => { setMfaStep("idle"); setVerifyCode(""); setMfaError("") }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  {mfaError && <p className="mt-2 text-sm text-[#d93025]">{mfaError}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <ConfirmActionDialog
+        open={confirmDisable}
+        title={t("kisi.myAccount.mfaDisable")}
+        description={t("kisi.myAccount.mfaDisableConfirm")}
+        confirmLabel={t("kisi.myAccount.mfaDisable")}
+        onConfirm={() => disableMutation.mutate()}
+        onOpenChange={(open) => { if (!open) setConfirmDisable(false) }}
+        pending={disableMutation.isPending}
+        destructive
+      />
+    </div>
   )
 }

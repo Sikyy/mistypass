@@ -1,6 +1,9 @@
 # Mistyislet 后续推进路线图
 
 > 更新日期：2026-04-29
+> 第一优先级：完成 MVP 项目跑通，包括硬件
+> 第一理念：让用户更方便、更安全、更高效地开门
+> MVP 聚焦路线图见 `docs/MVP-ROADMAP.md`
 > 基于 Kisi API Bundled References 和 docs.kisi.io 产品文档的差距分析
 
 ---

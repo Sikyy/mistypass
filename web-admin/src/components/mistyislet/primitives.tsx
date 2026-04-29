@@ -129,12 +129,15 @@ export function EnabledCheck({ label = "Enabled" }: { label?: string }) {
   )
 }
 
-export function ToggleSwitch({ enabled }: { enabled: boolean }) {
+export function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle?: () => void }) {
   return (
-    <span
+    <button
+      type="button"
+      onClick={onToggle}
       className={cn(
         "relative inline-flex h-5 w-10 shrink-0 rounded-full transition-colors",
-        enabled ? "bg-[#9ba3ff]" : "bg-[#c4c6cc]"
+        enabled ? "bg-[#9ba3ff]" : "bg-[#c4c6cc]",
+        onToggle && "cursor-pointer"
       )}
     >
       <span
@@ -143,7 +146,7 @@ export function ToggleSwitch({ enabled }: { enabled: boolean }) {
           enabled ? "right-0.5 bg-[#4f55ff]" : "left-0.5 bg-white"
         )}
       />
-    </span>
+    </button>
   )
 }
 
@@ -196,12 +199,14 @@ export function PanelHeader({
 
 export function SettingToggleRows({
   rows,
+  onToggle,
 }: {
   rows: Array<[string, boolean, string, LucideIcon?]>
+  onToggle?: (index: number) => void
 }) {
   return (
     <div className="divide-y divide-[#eceef2]">
-      {rows.map(([title, enabled, description, Icon]) => (
+      {rows.map(([title, enabled, description, Icon], index) => (
         <div key={title} className="flex gap-5 px-7 py-5">
           {Icon ? (
             <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", enabled ? "bg-[#eef0ff] text-[#4f55ff]" : "bg-[#f1f2f5] text-[#6f717c]")}>
@@ -213,7 +218,7 @@ export function SettingToggleRows({
             <p className="mt-1 text-sm leading-6 text-[#6f717c]">{description}</p>
           </div>
           <div className="ml-auto pt-1">
-            <ToggleSwitch enabled={enabled} />
+            <ToggleSwitch enabled={enabled} onToggle={onToggle ? () => onToggle(index) : undefined} />
           </div>
         </div>
       ))}

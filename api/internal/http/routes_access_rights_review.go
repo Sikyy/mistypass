@@ -743,10 +743,12 @@ func (s *server) listHolidayCalendars(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) createHolidayCalendar(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		TenantID string                `json:"tenant_id"`
-		Name     string                `json:"name"`
-		Country  string                `json:"country"`
-		Entries  []access.HolidayEntry `json:"entries"`
+		TenantID      string                `json:"tenant_id"`
+		Name          string                `json:"name"`
+		Country       string                `json:"country"`
+		Entries       []access.HolidayEntry `json:"entries"`
+		PresetCountry string                `json:"preset_country"`
+		PresetYear    int                   `json:"preset_year"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -755,6 +757,22 @@ func (s *server) createHolidayCalendar(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
 	if !ok {
 		return
+	}
+	if request.PresetCountry != "" && len(request.Entries) == 0 {
+		year := request.PresetYear
+		if year == 0 {
+			year = 2026
+		}
+		entries, countryName := holidayPresetEntries(request.PresetCountry, year)
+		if entries != nil {
+			request.Entries = entries
+			if request.Country == "" {
+				request.Country = request.PresetCountry
+			}
+			if request.Name == "" {
+				request.Name = countryName + " " + fmt.Sprintf("%d", year)
+			}
+		}
 	}
 	cal, err := s.accessSvc.CreateHolidayCalendar(tenantID, request.Name, request.Country, request.Entries)
 	if err != nil {

@@ -813,6 +813,53 @@ export type CurrentUser = {
   language?: "en-US" | "id-ID" | "zh-CN" | string
 }
 
+export type MFAStatus = {
+  user_id: string
+  enabled: boolean
+  pending: boolean
+  updated_at?: string
+}
+
+export type MFAEnrollment = {
+  user_id: string
+  secret: string
+  otpauth_url: string
+}
+
+export async function getUserMFAStatus(token: string | undefined): Promise<MFAStatus> {
+  return request<MFAStatus>("/api/v1/auth/mfa/user/status", {}, token)
+}
+
+export async function setupUserMFA(
+  token: string | undefined,
+  issuer?: string
+): Promise<MFAEnrollment> {
+  return request<MFAEnrollment>(
+    "/api/v1/auth/mfa/user/setup",
+    { method: "POST", body: JSON.stringify({ issuer: issuer || "Mistyislet" }) },
+    token
+  )
+}
+
+export async function enableUserMFA(
+  token: string | undefined,
+  code: string
+): Promise<MFAStatus> {
+  return request<MFAStatus>(
+    "/api/v1/auth/mfa/user/enable",
+    { method: "POST", body: JSON.stringify({ code }) },
+    token
+  )
+}
+
+export async function disableUserMFA(token: string | undefined): Promise<MFAStatus> {
+  return request<MFAStatus>(
+    "/api/v1/auth/mfa/user/disable",
+    { method: "POST" },
+    token
+  )
+}
+
 export type EnterpriseIDPConfig = {
   id: string
   tenant_id: string
@@ -3391,6 +3438,59 @@ export async function recordAccessUserInvitationReceipt(
   )
 }
 
+// --- Independent invitation resource ---
+
+export async function listInvitations(
+  token: string | undefined,
+  options?: { tenant_id?: string; status?: string; limit?: number; offset?: number }
+): Promise<UserInvitationDelivery[]> {
+  let path = "/api/v1/invitations"
+  const params = new URLSearchParams()
+  if (options?.tenant_id) params.set("tenant_id", options.tenant_id)
+  if (options?.status) params.set("status", options.status)
+  if (options?.limit) params.set("limit", String(options.limit))
+  if (options?.offset) params.set("offset", String(options.offset))
+  const q = params.toString()
+  if (q) path += "?" + q
+  return requestItems<UserInvitationDelivery>(path, token)
+}
+
+export async function getInvitation(
+  token: string | undefined,
+  deliveryID: string,
+  tenantID?: string
+): Promise<UserInvitationDelivery> {
+  return request<UserInvitationDelivery>(
+    withTenantQuery(`/api/v1/invitations/${encodePathSegment(deliveryID)}`, tenantID),
+    {},
+    token
+  )
+}
+
+export async function cancelInvitation(
+  token: string | undefined,
+  deliveryID: string,
+  tenantID?: string
+): Promise<UserInvitationDelivery> {
+  return request<UserInvitationDelivery>(
+    withTenantQuery(`/api/v1/invitations/${encodePathSegment(deliveryID)}/cancel`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function resendInvitation(
+  token: string | undefined,
+  deliveryID: string,
+  tenantID?: string
+): Promise<UserInvitationDelivery> {
+  return request<UserInvitationDelivery>(
+    withTenantQuery(`/api/v1/invitations/${encodePathSegment(deliveryID)}/resend`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
 export const fetchUser = fetchAccessUser
 export const createUser = createAccessUser
 export const updateUser = updateAccessUser
@@ -4083,6 +4183,111 @@ export async function deleteHolidayCalendar(
   )
 }
 
+export type HolidayPresetCountry = {
+  code: string
+  name: string
+}
+
+export type HolidayPresetsResponse = {
+  country: string
+  country_name: string
+  year: number
+  entries: HolidayEntry[]
+}
+
+export async function listHolidayCalendarPresetCountries(
+  token: string | undefined
+): Promise<HolidayPresetCountry[]> {
+  return requestItems<HolidayPresetCountry>(
+    "/api/v1/holiday_calendars/preset_countries",
+    token
+  )
+}
+
+export async function listHolidayCalendarPresets(
+  token: string | undefined,
+  country: string,
+  year?: number
+): Promise<HolidayPresetsResponse> {
+  let path = `/api/v1/holiday_calendars/presets?country=${encodeURIComponent(country)}`
+  if (year) path += `&year=${year}`
+  return request<HolidayPresetsResponse>(path, {}, token)
+}
+
+// --- Schedules ---
+
+export type Schedule = {
+  id: string
+  tenant_id: string
+  name: string
+  description?: string
+  valid_from?: string
+  valid_until?: string
+  time_windows?: TimeWindow[]
+  exception_dates?: string[]
+  holiday_calendar_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export async function listSchedules(
+  token: string | undefined,
+  tenantID?: string
+): Promise<Schedule[]> {
+  return requestItems<Schedule>(
+    withTenantQuery("/api/v1/schedules", tenantID),
+    token
+  )
+}
+
+export async function getSchedule(
+  token: string | undefined,
+  scheduleID: string,
+  tenantID?: string
+): Promise<Schedule> {
+  return request<Schedule>(
+    withTenantQuery(`/api/v1/schedules/${encodePathSegment(scheduleID)}`, tenantID),
+    {},
+    token
+  )
+}
+
+export async function createSchedule(
+  token: string | undefined,
+  payload: Partial<Schedule> & { tenant_id?: string }
+): Promise<Schedule> {
+  return request<Schedule>(
+    "/api/v1/schedules",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function updateSchedule(
+  token: string | undefined,
+  scheduleID: string,
+  payload: Partial<Schedule>,
+  tenantID?: string
+): Promise<Schedule> {
+  return request<Schedule>(
+    withTenantQuery(`/api/v1/schedules/${encodePathSegment(scheduleID)}`, tenantID),
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function deleteSchedule(
+  token: string | undefined,
+  scheduleID: string,
+  tenantID?: string
+): Promise<void> {
+  await request<void>(
+    withTenantQuery(`/api/v1/schedules/${encodePathSegment(scheduleID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function listRoleAssignments(
   token: string | undefined,
   options?: {
@@ -4761,6 +4966,78 @@ export async function deleteIntegration(
   return request<void>(
     withTenantQuery(`/api/v1/integrations/${encodePathSegment(integrationID)}`, tenantID),
     { method: "DELETE" },
+    token
+  )
+}
+
+// --- Organization Settings ---
+
+export type OrganizationSettings = {
+  tenant_id: string
+  name: string
+  primary_domain: string
+  timezone: string
+  support_email: string
+  email_notifications: boolean
+  push_notifications: boolean
+  weekly_reports: boolean
+  enforce_mfa: boolean
+  password_policy: string
+  session_timeout_minutes: number
+  updated_at: string
+}
+
+export async function getOrganizationSettings(
+  token: string | undefined,
+  tenantID?: string
+): Promise<OrganizationSettings> {
+  return request<OrganizationSettings>(
+    withTenantQuery("/api/v1/organization/settings", tenantID),
+    {},
+    token
+  )
+}
+
+export async function updateOrganizationSettings(
+  token: string | undefined,
+  payload: Partial<OrganizationSettings> & { tenant_id?: string }
+): Promise<OrganizationSettings> {
+  return request<OrganizationSettings>(
+    "/api/v1/organization/settings",
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function exportOrganizationAudit(
+  token: string | undefined,
+  tenantID?: string
+): Promise<{ status: string; message: string }> {
+  return request<{ status: string; message: string }>(
+    withTenantQuery("/api/v1/organization/export-audit", tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function rotateOrganizationWebhooks(
+  token: string | undefined,
+  tenantID?: string
+): Promise<{ status: string; message: string }> {
+  return request<{ status: string; message: string }>(
+    withTenantQuery("/api/v1/organization/rotate-webhooks", tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function disableOrganization(
+  token: string | undefined,
+  tenantID?: string
+): Promise<{ status: string; message: string }> {
+  return request<{ status: string; message: string }>(
+    withTenantQuery("/api/v1/organization/disable", tenantID),
+    { method: "POST" },
     token
   )
 }

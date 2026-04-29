@@ -9,6 +9,9 @@ import { DEMO_PLACE_ID } from "./navigation"
 const AccessRightsAdaptedPage = lazy(() =>
   import("@/features/access-rights/pages/access-rights-page").then((module) => ({ default: module.AccessRightsAdaptedPage }))
 )
+const SchedulesAdaptedPage = lazy(() =>
+  import("@/features/access-rights/pages/schedules-page").then((module) => ({ default: module.SchedulesAdaptedPage }))
+)
 const MyAccountPage = lazy(() =>
   import("@/features/account/pages/my-account-page").then((module) => ({ default: module.MyAccountPage }))
 )
@@ -53,6 +56,9 @@ const TeamsAdaptedPage = lazy(() =>
 )
 const UserDetailAdaptedPage = lazy(() =>
   import("@/features/users/pages/user-detail-page").then((module) => ({ default: module.UserDetailAdaptedPage }))
+)
+const InvitationsAdaptedPage = lazy(() =>
+  import("@/features/users/pages/invitations-page").then((module) => ({ default: module.InvitationsAdaptedPage }))
 )
 const UsersAdaptedPage = lazy(() =>
   import("@/features/users/pages/users-page").then((module) => ({ default: module.UsersAdaptedPage }))
@@ -173,6 +179,8 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/teams" element={<TeamsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/groups" element={<GroupsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/access-rights" element={<AccessRightsAdaptedPage token={token} viewer={viewer} />} />
+        <Route path="/schedules" element={<SchedulesAdaptedPage token={token} viewer={viewer} />} />
+        <Route path="/invitations" element={<InvitationsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/credentials" element={<CredentialsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/event-history" element={<EventHistoryAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/reports" element={<ReportsAdaptedPage token={token} viewer={viewer} />} />

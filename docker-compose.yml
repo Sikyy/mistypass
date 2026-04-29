@@ -12,6 +12,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      nats:
+        condition: service_started
     environment:
       APP_ENV: development
       ENABLE_DEMO_USERS: "${ENABLE_DEMO_USERS:-false}"
@@ -24,6 +26,9 @@ services:
       REDIS_PASSWORD: "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}"
       REDIS_DB: "0"
       REDIS_KEY_PREFIX: mistypass
+      NATS_ENABLED: "${NATS_ENABLED:-true}"
+      NATS_SERVER_URL: "nats://nats:4222"
+      NATS_SUBJECT_PREFIX: mistypass
     ports:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped

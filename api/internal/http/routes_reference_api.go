@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mistypass/cloud/api/internal/bus"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
@@ -1009,21 +1010,59 @@ func (s *server) writeReferencePlaceAction(w http.ResponseWriter, r *http.Reques
 	if !s.requireBuildingScope(w, buildingScope, record.ID) {
 		return
 	}
+
+	now := time.Now().UTC()
+	requestID := fmt.Sprintf("%s:%s:%d", record.ID, action, now.UnixNano())
+	issuedBy := ""
+	if user, ok := authenticatedUser(r); ok {
+		issuedBy = user.Email
+	}
+
 	lockCount := 0
+	dispatched := 0
 	for _, door := range s.spaceSvc.ListDoors(tenantID) {
-		if door.BuildingID == record.ID {
-			lockCount++
+		if door.BuildingID != record.ID {
+			continue
+		}
+		lockCount++
+		if gw, found := s.gatewaySvc.FindGatewayByDoorID(tenantID, door.ID); found {
+			cmd := bus.GatewayCommand{
+				RequestID: fmt.Sprintf("%s:lock_%s:%d", record.ID, door.ID, now.UnixNano()),
+				GatewayID: gw.ID,
+				Command:   action,
+				LockID:    door.ID,
+				PlaceID:   record.ID,
+				TenantID:  tenantID,
+				IssuedBy:  issuedBy,
+				IssuedAt:  now.Format("2006-01-02T15:04:05Z07:00"),
+			}
+			subject := fmt.Sprintf("gateway.%s.command", gw.ID)
+			if err := s.messageBus.PublishJSON(r.Context(), subject, cmd, nil); err != nil {
+				s.logger.Warn("failed to publish place action to gateway",
+					"gateway_id", gw.ID, "lock_id", door.ID, "action", action, "error", err)
+			} else if s.messageBus.Enabled() {
+				dispatched++
+			}
 		}
 	}
+
+	status := "accepted"
+	if dispatched > 0 {
+		status = "dispatched"
+	}
+
+	s.appendAuditLog(r, tenantID, "place_action_"+action,
+		fmt.Sprintf("request_id=%s,place_id=%s,locks=%d,dispatched=%d,status=%s", requestID, record.ID, lockCount, dispatched, status), "access")
+
 	writeJSON(w, http.StatusOK, referenceSpaceActionResponse{
-		ID:           fmt.Sprintf("%s:%s:%d", record.ID, action, time.Now().UTC().UnixNano()),
+		ID:           requestID,
 		ResourceType: "PlaceAction",
 		TenantID:     record.TenantID,
 		PlaceID:      record.ID,
 		Action:       action,
-		Status:       "accepted",
+		Status:       status,
 		LockCount:    lockCount,
-		CreatedAt:    time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt:    now.Format("2006-01-02T15:04:05Z07:00"),
 	})
 }
 
@@ -1248,16 +1287,52 @@ func (s *server) writeReferenceLockAction(w http.ResponseWriter, r *http.Request
 	if !s.requireBuildingScope(w, buildingScope, record.BuildingID) {
 		return
 	}
-	writeJSON(w, http.StatusOK, referenceSpaceActionResponse{
-		ID:           fmt.Sprintf("%s:%s:%d", record.ID, action, time.Now().UTC().UnixNano()),
+
+	now := time.Now().UTC()
+	requestID := fmt.Sprintf("%s:%s:%d", record.ID, action, now.UnixNano())
+	issuedBy := ""
+	if user, ok := authenticatedUser(r); ok {
+		issuedBy = user.Email
+	}
+
+	response := referenceSpaceActionResponse{
+		ID:           requestID,
 		ResourceType: "LockAction",
 		TenantID:     record.TenantID,
 		PlaceID:      record.BuildingID,
 		LockID:       record.ID,
 		Action:       action,
 		Status:       "accepted",
-		CreatedAt:    time.Now().UTC().Format("2006-01-02T15:04:05Z07:00"),
-	})
+		CreatedAt:    now.Format("2006-01-02T15:04:05Z07:00"),
+	}
+
+	// Dispatch command to gateway via NATS if gateway is bound
+	if gw, found := s.gatewaySvc.FindGatewayByDoorID(tenantID, record.ID); found {
+		cmd := bus.GatewayCommand{
+			RequestID: requestID,
+			GatewayID: gw.ID,
+			Command:   action,
+			LockID:    record.ID,
+			PlaceID:   record.BuildingID,
+			TenantID:  tenantID,
+			IssuedBy:  issuedBy,
+			IssuedAt:  now.Format("2006-01-02T15:04:05Z07:00"),
+		}
+		subject := fmt.Sprintf("gateway.%s.command", gw.ID)
+		if err := s.messageBus.PublishJSON(r.Context(), subject, cmd, nil); err != nil {
+			s.logger.Warn("failed to publish lock action to gateway",
+				"gateway_id", gw.ID, "lock_id", record.ID, "action", action, "error", err)
+		} else if s.messageBus.Enabled() {
+			response.Status = "dispatched"
+			s.logger.Info("lock action dispatched to gateway",
+				"gateway_id", gw.ID, "lock_id", record.ID, "action", action, "request_id", requestID)
+		}
+	}
+
+	s.appendAuditLog(r, tenantID, "lock_action_"+action,
+		fmt.Sprintf("request_id=%s,lock_id=%s,place_id=%s,status=%s", requestID, record.ID, record.BuildingID, response.Status), "access")
+
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *server) listReferenceGroups(w http.ResponseWriter, r *http.Request) {

@@ -810,6 +810,150 @@ func (s *Service) DisableAdminMFA(userID string) (AdminMFAStatus, error) {
 	}, nil
 }
 
+// --- User-level MFA (self-service for all authenticated users) ---
+
+func (s *Service) GetUserMFAStatus(userID string) (AdminMFAStatus, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+
+	_, exists, err := s.findUserByID(nextUserID)
+	if err != nil || !exists {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+
+	state, _, err := s.findAdminMFAState(nextUserID)
+	if err != nil {
+		return AdminMFAStatus{}, err
+	}
+	status := AdminMFAStatus{
+		UserID:  nextUserID,
+		Enabled: state.Enabled && strings.TrimSpace(state.Secret) != "",
+		Pending: strings.TrimSpace(state.PendingSecret) != "",
+	}
+	if !state.UpdatedAt.IsZero() {
+		updated := state.UpdatedAt.UTC()
+		status.UpdatedAt = &updated
+	}
+	return status, nil
+}
+
+func (s *Service) StartUserMFAEnrollment(userID, issuer string) (AdminMFAEnrollment, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return AdminMFAEnrollment{}, ErrUserNotFound
+	}
+	nextIssuer := strings.TrimSpace(issuer)
+	if nextIssuer == "" {
+		nextIssuer = "MistyPass"
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, exists, err := s.findUserByIDLocked(nextUserID)
+	if err != nil || !exists {
+		return AdminMFAEnrollment{}, ErrUserNotFound
+	}
+
+	secret, err := generateTOTPSecret(20)
+	if err != nil {
+		return AdminMFAEnrollment{}, err
+	}
+	state := s.adminMFA[nextUserID]
+	state.PendingSecret = secret
+	state.UpdatedAt = time.Now().UTC()
+	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
+		return AdminMFAEnrollment{}, err
+	}
+
+	return AdminMFAEnrollment{
+		UserID:     nextUserID,
+		Secret:     secret,
+		OTPAuthURL: buildOTPAuthURL(nextIssuer, user.Email, secret),
+	}, nil
+}
+
+func (s *Service) EnableUserMFA(userID, code string) (AdminMFAStatus, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+	nextCode := strings.TrimSpace(code)
+	if nextCode == "" {
+		return AdminMFAStatus{}, ErrAdminMFARequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists, err := s.findUserByIDLocked(nextUserID)
+	if err != nil || !exists {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+
+	state, exists, err := s.findAdminMFAStateLocked(nextUserID)
+	if err != nil {
+		return AdminMFAStatus{}, err
+	}
+	if !exists || strings.TrimSpace(state.PendingSecret) == "" {
+		return AdminMFAStatus{}, ErrAdminMFANotConfigured
+	}
+	if !verifyTOTPCode(state.PendingSecret, nextCode, time.Now().UTC()) {
+		return AdminMFAStatus{}, ErrInvalidMFACode
+	}
+
+	state.Secret = state.PendingSecret
+	state.PendingSecret = ""
+	state.Enabled = true
+	state.UpdatedAt = time.Now().UTC()
+	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
+		return AdminMFAStatus{}, err
+	}
+
+	return AdminMFAStatus{
+		UserID:    nextUserID,
+		Enabled:   true,
+		Pending:   false,
+		UpdatedAt: timePointer(state.UpdatedAt),
+	}, nil
+}
+
+func (s *Service) DisableUserMFA(userID string) (AdminMFAStatus, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, exists, err := s.findUserByIDLocked(nextUserID)
+	if err != nil || !exists {
+		return AdminMFAStatus{}, ErrUserNotFound
+	}
+
+	state, _, err := s.findAdminMFAStateLocked(nextUserID)
+	if err != nil {
+		return AdminMFAStatus{}, err
+	}
+	state.Enabled = false
+	state.Secret = ""
+	state.PendingSecret = ""
+	state.UpdatedAt = time.Now().UTC()
+	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
+		return AdminMFAStatus{}, err
+	}
+
+	return AdminMFAStatus{
+		UserID:    nextUserID,
+		Enabled:   false,
+		Pending:   false,
+		UpdatedAt: timePointer(state.UpdatedAt),
+	}, nil
+}
+
 func (s *Service) issueTokenPairLocked(user User) (LoginResponse, error) {
 	accessToken, _, err := s.signToken(user, "access", s.accessTTL)
 	if err != nil {
@@ -1114,23 +1258,28 @@ func (s *Service) findAdminMFAState(userID string) (adminMFAState, bool, error) 
 }
 
 func (s *Service) enforceAdminMFA(user User, mfaCode string) error {
-	if !isAdminRole(user.Role) {
-		return nil
-	}
-	s.mu.RLock()
-	required := s.adminMFARequired
-	s.mu.RUnlock()
-
 	state, exists, err := s.findAdminMFAState(strings.TrimSpace(user.ID))
 	if err != nil {
 		return err
 	}
-	if !exists || !state.Enabled || strings.TrimSpace(state.Secret) == "" {
-		if required {
-			return ErrAdminMFAEnrollmentRequired
+
+	if isAdminRole(user.Role) {
+		s.mu.RLock()
+		required := s.adminMFARequired
+		s.mu.RUnlock()
+
+		if !exists || !state.Enabled || strings.TrimSpace(state.Secret) == "" {
+			if required {
+				return ErrAdminMFAEnrollmentRequired
+			}
+			return nil
 		}
-		return nil
+	} else {
+		if !exists || !state.Enabled || strings.TrimSpace(state.Secret) == "" {
+			return nil
+		}
 	}
+
 	nextCode := strings.TrimSpace(mfaCode)
 	if nextCode == "" {
 		return ErrAdminMFARequired

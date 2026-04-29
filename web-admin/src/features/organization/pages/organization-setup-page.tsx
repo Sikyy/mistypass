@@ -32,15 +32,21 @@ import {
   createIntegration,
   deleteAlertPolicy,
   deleteIntegration,
+  disableOrganization,
+  exportOrganizationAudit,
   getIntegration,
+  getOrganizationSettings,
   listAlertPolicies,
   listIntegrations,
   previewAlertPolicyCondition,
+  rotateOrganizationWebhooks,
   updateIntegration,
   updateAlertPolicy,
+  updateOrganizationSettings,
   type AlertPolicy,
   type CurrentUser,
   type Integration,
+  type OrganizationSettings,
 } from "@/lib/api"
 import {
   Sheet,
@@ -1035,76 +1041,7 @@ export function OrganizationSetupAdaptedPage({
         ) : null}
 
         {isSettings ? (
-          <>
-            <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.settingsDesc")}</p>
-            </div>
-            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
-              Organization settings will be backed by the API in a future release. Toggle states below are preview placeholders.
-            </div>
-            <div className="space-y-6 p-7">
-              {activeTab === "Communication" ? (
-                <SettingToggleRows
-                  rows={[
-                    [i18next.t("common.email"), true, i18next.t("kisi.orgSetup.description"), UsersIcon],
-                    [i18next.t("kisi.orgSetup.notifications"), true, i18next.t("kisi.orgSetup.description"), BellIcon],
-                    [i18next.t("kisi.reports.title"), false, i18next.t("kisi.orgSetup.description"), BarChart3Icon],
-                  ]}
-                />
-              ) : activeTab === "Security" ? (
-                <SettingToggleRows
-                  rows={[
-                    [i18next.t("common.permissions"), true, i18next.t("kisi.orgSetup.description"), ShieldCheckIcon],
-                    [i18next.t("common.permissions"), false, i18next.t("kisi.orgSetup.description"), KeyRoundIcon],
-                    [i18next.t("common.permissions"), true, i18next.t("kisi.orgSetup.description"), CloudIcon],
-                  ]}
-                />
-              ) : activeTab === "Advanced" ? (
-                <div className="space-y-4">
-                  {[
-                    ["Export organization audit log", "Generate an organization-wide event archive."],
-                    ["Rotate webhook secrets", "Rotate all organization webhook signing secrets."],
-                    ["Disable organization", "Reserved destructive action for tenant lifecycle operations."],
-                  ].map((row, index) => (
-                    <div key={row[0]} className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
-                      <div>
-                        <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                        <p className="mt-1 text-sm text-[#6f717c]">{row[1]}</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        disabled
-                        title={t("kisi.orgSetup.comingSoon")}
-                        className={cn(
-                          "ml-auto h-10 rounded-[6px] bg-white px-5 disabled:border-[#d9dbe3] disabled:bg-[#f5f6f8] disabled:text-[#8d909b]",
-                          index === 2
-                            ? "border-[#f1b7b2] text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d] disabled:hover:bg-[#f5f6f8] disabled:hover:text-[#8d909b]"
-                            : "border-[#8589ff] text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:hover:bg-[#f5f6f8] disabled:hover:text-[#8d909b]"
-                        )}
-                      >
-                        {index === 0 ? "Export" : index === 1 ? "Rotate" : "Disable"}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid gap-6 md:grid-cols-2">
-                  {[
-                    ["Organization name", "Mistyislet"],
-                    ["Primary domain", "mistypass.local"],
-                    ["Timezone", "Asia/Jakarta"],
-                    ["Support email", "support@mistypass.local"],
-                  ].map((row) => (
-                    <label key={row[0]} className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{row[0]}</span>
-                      <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#2f3037]">{row[1]}</div>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+          <OrganizationSettingsSection token={token} tenantID={tenantID} activeTab={activeTab} />
         ) : null}
       </SettingsPanel>
 
@@ -1557,5 +1494,267 @@ export function OrganizationSetupAdaptedPage({
         </SheetContent>
       </Sheet>
     </PageFrame>
+  )
+}
+
+function OrganizationSettingsSection({
+  token,
+  tenantID,
+  activeTab,
+}: {
+  token: string
+  tenantID: string | undefined
+  activeTab: string
+}) {
+  const { t } = useTranslation()
+  const queryClient = useQueryClient()
+  const [settingsNotice, setSettingsNotice] = useState("")
+  const [confirmRotate, setConfirmRotate] = useState(false)
+  const [confirmDisable, setConfirmDisable] = useState(false)
+
+  const settingsQuery = useQuery({
+    queryKey: ["orgSettings", tenantID],
+    queryFn: () => getOrganizationSettings(token, tenantID),
+    enabled: !!token,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (patch: Partial<OrganizationSettings>) =>
+      updateOrganizationSettings(token, { ...patch, tenant_id: tenantID }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orgSettings"] })
+      setSettingsNotice(t("kisi.orgSetup.saveChanges") + " " + t("common.saved"))
+    },
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: () => exportOrganizationAudit(token, tenantID),
+    onSuccess: (res) => setSettingsNotice(res.message),
+  })
+  const rotateMutation = useMutation({
+    mutationFn: () => rotateOrganizationWebhooks(token, tenantID),
+    onSuccess: (res) => { setSettingsNotice(res.message); setConfirmRotate(false) },
+  })
+  const disableMutation = useMutation({
+    mutationFn: () => disableOrganization(token, tenantID),
+    onSuccess: (res) => { setSettingsNotice(res.message); setConfirmDisable(false) },
+  })
+
+  const s = settingsQuery.data
+
+  function handleToggle(field: keyof OrganizationSettings, value: boolean) {
+    updateMutation.mutate({ [field]: value } as Partial<OrganizationSettings>)
+  }
+
+  return (
+    <>
+      <div className="border-b border-[#eceef2] px-7 py-5">
+        <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
+        <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.settingsDesc")}</p>
+      </div>
+      {settingsNotice && (
+        <div className="mx-7 mt-4 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+          {settingsNotice}
+        </div>
+      )}
+      <div className="space-y-6 p-7">
+        {activeTab === "Communication" ? (
+          <SettingToggleRows
+            rows={[
+              [i18next.t("common.email"), s?.email_notifications ?? true, i18next.t("kisi.orgSetup.description"), UsersIcon],
+              [i18next.t("kisi.orgSetup.notifications"), s?.push_notifications ?? true, i18next.t("kisi.orgSetup.description"), BellIcon],
+              [i18next.t("kisi.reports.title"), s?.weekly_reports ?? false, i18next.t("kisi.orgSetup.description"), BarChart3Icon],
+            ]}
+            onToggle={(index) => {
+              const fields: Array<keyof OrganizationSettings> = ["email_notifications", "push_notifications", "weekly_reports"]
+              const current = [s?.email_notifications ?? true, s?.push_notifications ?? true, s?.weekly_reports ?? false]
+              handleToggle(fields[index], !current[index])
+            }}
+          />
+        ) : activeTab === "Security" ? (
+          <div className="space-y-5">
+            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+              <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+                <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-[#17171c]">{t("kisi.myAccount.mfaTitle")}</h3>
+                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.mfaDescription")}</p>
+              </div>
+              <div className="pt-1">
+                <ToggleSwitch enabled={s?.enforce_mfa ?? false} onToggle={() => handleToggle("enforce_mfa", !(s?.enforce_mfa ?? false))} />
+              </div>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Password policy</span>
+                <select
+                  value={s?.password_policy ?? "standard"}
+                  onChange={(e) => updateMutation.mutate({ password_policy: e.target.value })}
+                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="strict">Strict</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Session timeout (minutes)</span>
+                <input
+                  type="number"
+                  value={s?.session_timeout_minutes ?? 480}
+                  onChange={(e) => updateMutation.mutate({ session_timeout_minutes: parseInt(e.target.value, 10) || 480 })}
+                  min={5}
+                  max={1440}
+                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                />
+              </label>
+            </div>
+          </div>
+        ) : activeTab === "Advanced" ? (
+          <div className="space-y-4">
+            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+              <div>
+                <h3 className="font-semibold text-[#17171c]">Export organization audit log</h3>
+                <p className="mt-1 text-sm text-[#6f717c]">Generate an organization-wide event archive.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                disabled={exportMutation.isPending}
+                onClick={() => exportMutation.mutate()}
+              >
+                {exportMutation.isPending ? "Exporting..." : "Export"}
+              </Button>
+            </div>
+            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+              <div>
+                <h3 className="font-semibold text-[#17171c]">Rotate webhook secrets</h3>
+                <p className="mt-1 text-sm text-[#6f717c]">Rotate all organization webhook signing secrets.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                onClick={() => setConfirmRotate(true)}
+              >
+                Rotate
+              </Button>
+            </div>
+            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+              <div>
+                <h3 className="font-semibold text-[#17171c]">Disable organization</h3>
+                <p className="mt-1 text-sm text-[#6f717c]">Reserved destructive action for tenant lifecycle operations.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="ml-auto h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+                onClick={() => setConfirmDisable(true)}
+              >
+                Disable
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <OrgSettingsGeneralForm settings={s} onSave={(patch) => updateMutation.mutate(patch)} saving={updateMutation.isPending} />
+        )}
+      </div>
+      <ConfirmActionDialog
+        open={confirmRotate}
+        title="Rotate webhook secrets"
+        description="This will invalidate all existing webhook secrets. Continue?"
+        confirmLabel="Rotate"
+        onConfirm={() => rotateMutation.mutate()}
+        onOpenChange={(open) => { if (!open) setConfirmRotate(false) }}
+        pending={rotateMutation.isPending}
+      />
+      <ConfirmActionDialog
+        open={confirmDisable}
+        onOpenChange={(open) => { if (!open) setConfirmDisable(false) }}
+        title="Disable organization"
+        description="This will disable the organization and suspend all access. This action cannot be easily reversed."
+        confirmLabel="Disable"
+        onConfirm={() => disableMutation.mutate()}
+        pending={disableMutation.isPending}
+        destructive
+      />
+    </>
+  )
+}
+
+function OrgSettingsGeneralForm({
+  settings,
+  onSave,
+  saving,
+}: {
+  settings: OrganizationSettings | undefined
+  onSave: (patch: Partial<OrganizationSettings>) => void
+  saving: boolean
+}) {
+  const [name, setName] = useState("")
+  const [domain, setDomain] = useState("")
+  const [timezone, setTimezone] = useState("")
+  const [supportEmail, setSupportEmail] = useState("")
+  const [dirty, setDirty] = useState(false)
+
+  useEffect(() => {
+    if (settings) {
+      setName(settings.name)
+      setDomain(settings.primary_domain)
+      setTimezone(settings.timezone)
+      setSupportEmail(settings.support_email)
+      setDirty(false)
+    }
+  }, [settings])
+
+  function handleSave() {
+    onSave({ name, primary_domain: domain, timezone, support_email: supportEmail })
+    setDirty(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 md:grid-cols-2">
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Organization name</span>
+          <input
+            value={name}
+            onChange={(e) => { setName(e.target.value); setDirty(true) }}
+            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Primary domain</span>
+          <input
+            value={domain}
+            onChange={(e) => { setDomain(e.target.value); setDirty(true) }}
+            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Timezone</span>
+          <input
+            value={timezone}
+            onChange={(e) => { setTimezone(e.target.value); setDirty(true) }}
+            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Support email</span>
+          <input
+            value={supportEmail}
+            onChange={(e) => { setSupportEmail(e.target.value); setDirty(true) }}
+            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+          />
+        </label>
+      </div>
+      {dirty && (
+        <Button
+          className="h-10 rounded-[6px] px-6"
+          disabled={saving}
+          onClick={handleSave}
+        >
+          {saving ? "Saving..." : "Save"}
+        </Button>
+      )}
+    </div>
   )
 }

@@ -437,6 +437,40 @@ type stateSnapshot struct {
 	GroupLinks               []GroupLink              `json:"group_links"`
 }
 
+type Schedule struct {
+	ID                string       `json:"id"`
+	TenantID          string       `json:"tenant_id"`
+	Name              string       `json:"name"`
+	Description       string       `json:"description,omitempty"`
+	ValidFrom         string       `json:"valid_from,omitempty"`
+	ValidUntil        string       `json:"valid_until,omitempty"`
+	TimeWindows       []TimeWindow `json:"time_windows,omitempty"`
+	ExceptionDates    []string     `json:"exception_dates,omitempty"`
+	HolidayCalendarID string       `json:"holiday_calendar_id,omitempty"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
+}
+
+var (
+	ErrScheduleNotFound     = errors.New("schedule not found")
+	ErrScheduleNameRequired = errors.New("schedule name is required")
+)
+
+type OrganizationSettings struct {
+	TenantID              string    `json:"tenant_id"`
+	Name                  string    `json:"name"`
+	PrimaryDomain         string    `json:"primary_domain"`
+	Timezone              string    `json:"timezone"`
+	SupportEmail          string    `json:"support_email"`
+	EmailNotifications    bool      `json:"email_notifications"`
+	PushNotifications     bool      `json:"push_notifications"`
+	WeeklyReports         bool      `json:"weekly_reports"`
+	EnforceMFA            bool      `json:"enforce_mfa"`
+	PasswordPolicy        string    `json:"password_policy"`
+	SessionTimeoutMinutes int       `json:"session_timeout_minutes"`
+	UpdatedAt             time.Time `json:"updated_at"`
+}
+
 type Service struct {
 	mu                       sync.RWMutex
 	users                    []AccessUser
@@ -450,6 +484,8 @@ type Service struct {
 	teamMemberships          []TeamMembership
 	groupLinks               []GroupLink
 	holidayCalendars         []HolidayCalendar
+	schedules                []Schedule
+	organizationSettings     map[string]OrganizationSettings
 	stateStore               StateStore
 }
 
@@ -774,6 +810,7 @@ func NewService() *Service {
 				UpdatedAt:              now,
 			},
 		},
+		organizationSettings: make(map[string]OrganizationSettings),
 	}
 }
 
@@ -1676,6 +1713,91 @@ func (s *Service) RecordUserInvitationReceipt(
 		return UserInvitationDelivery{}, err
 	}
 	return cloneUserInvitationDelivery(s.userInvitationDeliveries[deliveryIndex]), nil
+}
+
+// --- Independent invitation resource methods ---
+
+func (s *Service) GetInvitationDelivery(tenantID, deliveryID string) (UserInvitationDelivery, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextDeliveryID := strings.TrimSpace(deliveryID)
+	if nextDeliveryID == "" {
+		return UserInvitationDelivery{}, ErrUserInvitationDeliveryNotFound
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.userInvitationDeliveries {
+		if s.userInvitationDeliveries[i].ID != nextDeliveryID {
+			continue
+		}
+		if filterTenantID != "" && s.userInvitationDeliveries[i].TenantID != filterTenantID {
+			continue
+		}
+		return cloneUserInvitationDelivery(s.userInvitationDeliveries[i]), nil
+	}
+	return UserInvitationDelivery{}, ErrUserInvitationDeliveryNotFound
+}
+
+func (s *Service) CancelInvitationDelivery(tenantID, deliveryID string) (UserInvitationDelivery, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextDeliveryID := strings.TrimSpace(deliveryID)
+	if nextDeliveryID == "" {
+		return UserInvitationDelivery{}, ErrUserInvitationDeliveryNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.userInvitationDeliveries {
+		if s.userInvitationDeliveries[i].ID != nextDeliveryID {
+			continue
+		}
+		if filterTenantID != "" && s.userInvitationDeliveries[i].TenantID != filterTenantID {
+			continue
+		}
+		if s.userInvitationDeliveries[i].Status == "sent" {
+			return UserInvitationDelivery{}, errors.New("cannot cancel a delivered invitation")
+		}
+		if s.userInvitationDeliveries[i].Status == "cancelled" {
+			return cloneUserInvitationDelivery(s.userInvitationDeliveries[i]), nil
+		}
+		s.userInvitationDeliveries[i].Status = "cancelled"
+		s.userInvitationDeliveries[i].UpdatedAt = time.Now().UTC()
+		if err := s.persistLocked(); err != nil {
+			return UserInvitationDelivery{}, err
+		}
+		return cloneUserInvitationDelivery(s.userInvitationDeliveries[i]), nil
+	}
+	return UserInvitationDelivery{}, ErrUserInvitationDeliveryNotFound
+}
+
+func (s *Service) ResendInvitationDelivery(tenantID, deliveryID string) (UserInvitationDelivery, AccessUser, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextDeliveryID := strings.TrimSpace(deliveryID)
+	if nextDeliveryID == "" {
+		return UserInvitationDelivery{}, AccessUser{}, ErrUserInvitationDeliveryNotFound
+	}
+
+	s.mu.RLock()
+	var original *UserInvitationDelivery
+	for i := range s.userInvitationDeliveries {
+		if s.userInvitationDeliveries[i].ID != nextDeliveryID {
+			continue
+		}
+		if filterTenantID != "" && s.userInvitationDeliveries[i].TenantID != filterTenantID {
+			continue
+		}
+		d := cloneUserInvitationDelivery(s.userInvitationDeliveries[i])
+		original = &d
+		break
+	}
+	s.mu.RUnlock()
+
+	if original == nil {
+		return UserInvitationDelivery{}, AccessUser{}, ErrUserInvitationDeliveryNotFound
+	}
+	return s.CreateUserInvitationDelivery(original.TenantID, original.UserID, original.DeliveryMethod)
 }
 
 func (s *Service) UpsertUserByEmail(
@@ -3971,6 +4093,274 @@ func normalizeHolidayEntries(entries []HolidayEntry) []HolidayEntry {
 		})
 	}
 	return result
+}
+
+// --- Schedule CRUD ---
+
+func (s *Service) ListSchedules(tenantID string) []Schedule {
+	filterTenantID := strings.TrimSpace(tenantID)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	items := make([]Schedule, 0, len(s.schedules))
+	for i := range s.schedules {
+		if filterTenantID != "" && s.schedules[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.schedules[i])
+	}
+	return items
+}
+
+func (s *Service) GetSchedule(tenantID, scheduleID string) (Schedule, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(scheduleID)
+	if nextID == "" {
+		return Schedule{}, ErrScheduleNotFound
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.schedules {
+		if s.schedules[i].ID != nextID {
+			continue
+		}
+		if filterTenantID != "" && s.schedules[i].TenantID != filterTenantID {
+			continue
+		}
+		return s.schedules[i], nil
+	}
+	return Schedule{}, ErrScheduleNotFound
+}
+
+func (s *Service) CreateSchedule(
+	tenantID, name, description, validFrom, validUntil, holidayCalendarID string,
+	timeWindows []TimeWindow, exceptionDates []string,
+) (Schedule, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return Schedule{}, ErrTenantIDRequired
+	}
+	nextName := strings.TrimSpace(name)
+	if nextName == "" {
+		return Schedule{}, ErrScheduleNameRequired
+	}
+
+	id, err := accessID("sched_")
+	if err != nil {
+		return Schedule{}, err
+	}
+	now := time.Now().UTC()
+
+	schedule := Schedule{
+		ID:                id,
+		TenantID:          nextTenantID,
+		Name:              nextName,
+		Description:       strings.TrimSpace(description),
+		ValidFrom:         strings.TrimSpace(validFrom),
+		ValidUntil:        strings.TrimSpace(validUntil),
+		TimeWindows:       timeWindows,
+		ExceptionDates:    normalizeExceptionDates(exceptionDates),
+		HolidayCalendarID: strings.TrimSpace(holidayCalendarID),
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.schedules = append([]Schedule{schedule}, s.schedules...)
+	if err := s.persistLocked(); err != nil {
+		return Schedule{}, err
+	}
+	return schedule, nil
+}
+
+func (s *Service) UpdateSchedule(
+	tenantID, scheduleID, name, description, validFrom, validUntil, holidayCalendarID string,
+	timeWindows []TimeWindow, exceptionDates []string,
+) (Schedule, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(scheduleID)
+	if nextID == "" {
+		return Schedule{}, ErrScheduleNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.schedules {
+		if s.schedules[i].ID != nextID {
+			continue
+		}
+		if filterTenantID != "" && s.schedules[i].TenantID != filterTenantID {
+			continue
+		}
+		if n := strings.TrimSpace(name); n != "" {
+			s.schedules[i].Name = n
+		}
+		if d := strings.TrimSpace(description); d != "" {
+			s.schedules[i].Description = d
+		}
+		if vf := strings.TrimSpace(validFrom); vf != "" {
+			s.schedules[i].ValidFrom = vf
+		}
+		if vu := strings.TrimSpace(validUntil); vu != "" {
+			s.schedules[i].ValidUntil = vu
+		}
+		if timeWindows != nil {
+			s.schedules[i].TimeWindows = timeWindows
+		}
+		if exceptionDates != nil {
+			s.schedules[i].ExceptionDates = normalizeExceptionDates(exceptionDates)
+		}
+		if hcID := strings.TrimSpace(holidayCalendarID); hcID != "" {
+			s.schedules[i].HolidayCalendarID = hcID
+		}
+		s.schedules[i].UpdatedAt = time.Now().UTC()
+		if err := s.persistLocked(); err != nil {
+			return Schedule{}, err
+		}
+		return s.schedules[i], nil
+	}
+	return Schedule{}, ErrScheduleNotFound
+}
+
+func (s *Service) DeleteSchedule(tenantID, scheduleID string) error {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(scheduleID)
+	if nextID == "" {
+		return ErrScheduleNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.schedules {
+		if s.schedules[i].ID != nextID {
+			continue
+		}
+		if filterTenantID != "" && s.schedules[i].TenantID != filterTenantID {
+			continue
+		}
+		s.schedules = append(s.schedules[:i], s.schedules[i+1:]...)
+		if err := s.persistLocked(); err != nil {
+			return err
+		}
+		return nil
+	}
+	return ErrScheduleNotFound
+}
+
+func normalizeExceptionDates(dates []string) []string {
+	if dates == nil {
+		return nil
+	}
+	result := make([]string, 0, len(dates))
+	for _, d := range dates {
+		trimmed := strings.TrimSpace(d)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
+// --- Organization Settings ---
+
+func defaultOrganizationSettings(tenantID string) OrganizationSettings {
+	return OrganizationSettings{
+		TenantID:              tenantID,
+		Name:                  "Mistyislet",
+		PrimaryDomain:         "mistypass.local",
+		Timezone:              "Asia/Jakarta",
+		SupportEmail:          "support@mistypass.local",
+		EmailNotifications:    true,
+		PushNotifications:     true,
+		WeeklyReports:         false,
+		EnforceMFA:            false,
+		PasswordPolicy:        "standard",
+		SessionTimeoutMinutes: 480,
+		UpdatedAt:             time.Now().UTC(),
+	}
+}
+
+func (s *Service) GetOrganizationSettings(tenantID string) OrganizationSettings {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return defaultOrganizationSettings(nextTenantID)
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if settings, exists := s.organizationSettings[nextTenantID]; exists {
+		return settings
+	}
+	return defaultOrganizationSettings(nextTenantID)
+}
+
+func (s *Service) UpdateOrganizationSettings(
+	tenantID string,
+	name, primaryDomain, timezone, supportEmail *string,
+	emailNotifications, pushNotifications, weeklyReports, enforceMFA *bool,
+	passwordPolicy *string,
+	sessionTimeoutMinutes *int,
+) (OrganizationSettings, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return OrganizationSettings{}, ErrTenantIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	settings, exists := s.organizationSettings[nextTenantID]
+	if !exists {
+		settings = defaultOrganizationSettings(nextTenantID)
+	}
+
+	if name != nil {
+		settings.Name = strings.TrimSpace(*name)
+	}
+	if primaryDomain != nil {
+		settings.PrimaryDomain = strings.TrimSpace(*primaryDomain)
+	}
+	if timezone != nil {
+		settings.Timezone = strings.TrimSpace(*timezone)
+	}
+	if supportEmail != nil {
+		settings.SupportEmail = strings.TrimSpace(*supportEmail)
+	}
+	if emailNotifications != nil {
+		settings.EmailNotifications = *emailNotifications
+	}
+	if pushNotifications != nil {
+		settings.PushNotifications = *pushNotifications
+	}
+	if weeklyReports != nil {
+		settings.WeeklyReports = *weeklyReports
+	}
+	if enforceMFA != nil {
+		settings.EnforceMFA = *enforceMFA
+	}
+	if passwordPolicy != nil {
+		p := strings.TrimSpace(*passwordPolicy)
+		if p == "standard" || p == "strict" {
+			settings.PasswordPolicy = p
+		}
+	}
+	if sessionTimeoutMinutes != nil && *sessionTimeoutMinutes > 0 {
+		settings.SessionTimeoutMinutes = *sessionTimeoutMinutes
+	}
+	settings.UpdatedAt = time.Now().UTC()
+	s.organizationSettings[nextTenantID] = settings
+
+	if err := s.persistLocked(); err != nil {
+		return OrganizationSettings{}, err
+	}
+	return settings, nil
 }
 
 // --- Schedule Evaluation ---

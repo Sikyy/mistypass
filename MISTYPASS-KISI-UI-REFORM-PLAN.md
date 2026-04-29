@@ -38,6 +38,9 @@ Mistyislet 后台要从“功能堆叠型后台”转为“任务驱动型门禁
 
 ### 1.3 当前优先级
 
+> **第一优先级**：完成 MVP 项目跑通，包括硬件。MVP 聚焦路线图见 `docs/MVP-ROADMAP.md`。
+> **第一理念**：让用户更方便、更安全、更高效地开门。
+
 当前处于 Phase 3：只读资源 API 接入。产品权限模型收敛为两类管理视角：Organization Admin 和 Place Admin；API 权限模型必须按 Bundled Reference 的 `roles` + `role_assignments` + `shares` 设计，后端历史角色只作为迁移期兼容存在。第一批 reference-style endpoint 已落地，后续重点是把页面 adapter 和后端 guard 继续迁到这些 endpoint 上。
 
 1. 保持 preview shell 稳定。

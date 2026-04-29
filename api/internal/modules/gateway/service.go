@@ -292,6 +292,7 @@ func NewService() *Service {
 			SerialNumber:   "MP-GW-JKT-0001",
 			BuildingID:     "building_demo_001",
 			DeviceCapacity: 8,
+			BoundDoorIDs:   []string{"door_jkt_001", "door_jkt_014"},
 			Devices: []GatewayDevice{
 				{
 					ID:           "gdv_demo_001",
@@ -372,6 +373,29 @@ func (s *Service) List(tenantID string) []Gateway {
 		items = append(items, s.gateways[i])
 	}
 	return items
+}
+
+func (s *Service) FindGatewayByDoorID(tenantID, doorID string) (Gateway, bool) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextDoorID := strings.TrimSpace(doorID)
+	if nextDoorID == "" {
+		return Gateway{}, false
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.gateways {
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			continue
+		}
+		for _, boundDoorID := range s.gateways[i].BoundDoorIDs {
+			if boundDoorID == nextDoorID {
+				return s.gateways[i], true
+			}
+		}
+	}
+	return Gateway{}, false
 }
 
 func (s *Service) ListSerialInventory(tenantID, productType, status string) ([]SerialInventoryItem, error) {

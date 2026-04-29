@@ -208,3 +208,133 @@ func TestHolidayCalendarCRUD(t *testing.T) {
 	assertReferenceAuditLog(t, router, token, "holiday_calendar_updated", "calendar_id="+created.ID)
 	assertReferenceAuditLog(t, router, token, "holiday_calendar_deleted", "calendar_id="+created.ID)
 }
+
+func TestHolidayCalendarPresetCountries(t *testing.T) {
+	router, err := NewRouter(config.Config{
+		JWTSecret:       "preset-countries-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	rec := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/holiday_calendars/preset_countries", token, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Items []struct {
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result.Items) < 5 {
+		t.Errorf("expected at least 5 preset countries, got %d", len(result.Items))
+	}
+	found := false
+	for _, c := range result.Items {
+		if c.Code == "ID" && c.Name == "Indonesia" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected Indonesia in preset countries")
+	}
+}
+
+func TestHolidayCalendarPresets(t *testing.T) {
+	router, err := NewRouter(config.Config{
+		JWTSecret:       "preset-entries-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	// test Indonesia presets
+	rec := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/holiday_calendars/presets?country=ID&year=2026", token, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Country     string `json:"country"`
+		CountryName string `json:"country_name"`
+		Year        int    `json:"year"`
+		Entries     []struct {
+			Date string `json:"date"`
+			Name string `json:"name"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if result.Country != "ID" || result.CountryName != "Indonesia" || result.Year != 2026 {
+		t.Errorf("unexpected metadata: %s/%s/%d", result.Country, result.CountryName, result.Year)
+	}
+	if len(result.Entries) < 10 {
+		t.Errorf("expected at least 10 entries for Indonesia, got %d", len(result.Entries))
+	}
+	foundIndependenceDay := false
+	for _, e := range result.Entries {
+		if strings.Contains(e.Name, "Kemerdekaan") && strings.HasSuffix(e.Date, "-08-17") {
+			foundIndependenceDay = true
+		}
+	}
+	if !foundIndependenceDay {
+		t.Errorf("expected Indonesia Independence Day in presets")
+	}
+
+	// test unknown country
+	rec2 := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/holiday_calendars/presets?country=XX", token, nil)
+	if rec2.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown country, got %d", rec2.Code)
+	}
+
+	// test missing country param
+	rec3 := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/holiday_calendars/presets", token, nil)
+	if rec3.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for missing country, got %d", rec3.Code)
+	}
+}
+
+func TestHolidayCalendarCreateWithPreset(t *testing.T) {
+	router, err := NewRouter(config.Config{
+		JWTSecret:       "preset-create-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	// create calendar using preset_country
+	createBody := []byte(`{"tenant_id":"tenant_demo_jakarta","preset_country":"SG","preset_year":2026}`)
+	createRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/holiday_calendars", token, createBody)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Country string `json:"country"`
+		Entries []struct {
+			Date string `json:"date"`
+			Name string `json:"name"`
+		} `json:"entries"`
+	}
+	_ = json.Unmarshal(createRec.Body.Bytes(), &created)
+	if created.Country != "SG" {
+		t.Errorf("expected country=SG, got %s", created.Country)
+	}
+	if created.Name != "Singapore 2026" {
+		t.Errorf("expected name=Singapore 2026, got %s", created.Name)
+	}
+	if len(created.Entries) < 10 {
+		t.Errorf("expected at least 10 entries from SG presets, got %d", len(created.Entries))
+	}
+}

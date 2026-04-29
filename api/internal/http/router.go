@@ -357,6 +357,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			"server_url", cfg.NATSServerURL,
 			"subject_prefix", cfg.NATSSubjectPrefix,
 		)
+		if err := s.startGatewayEventSubscriber(cfg.NATSServerURL, cfg.NATSSubjectPrefix); err != nil {
+			s.loggerOrDefault().Warn("gateway event subscriber failed to start", "error", err)
+		}
 	}
 	if authPersistence, ok := stateStore.(auth.Persistence); ok {
 		if err := s.authService.SetPersistence(authPersistence); err != nil {
@@ -455,6 +458,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/events/device", s.gatewayBootstrapDeviceEvent)
 			gatewayRouter.Post("/events/batch", s.gatewayBootstrapEventsBatch)
 			gatewayRouter.Post("/events/checkpoint", s.gatewayBootstrapEventsCheckpoint)
+			gatewayRouter.Post("/verify-credential", s.verifyCredential)
 		})
 
 		r.Group(func(protected chi.Router) {
@@ -465,6 +469,11 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/setup", s.setupAdminMFA)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/enable", s.enableAdminMFA)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/disable", s.disableAdminMFA)
+
+			protected.Get("/auth/mfa/user/status", s.getUserMFAStatus)
+			protected.Post("/auth/mfa/user/setup", s.setupUserMFA)
+			protected.Post("/auth/mfa/user/enable", s.enableUserMFA)
+			protected.Post("/auth/mfa/user/disable", s.disableUserMFA)
 
 			protected.With(s.requireRoles("super_admin")).Get("/tenants", s.listTenants)
 			protected.With(s.requireRoles("super_admin")).Post("/tenants", s.createTenant)
@@ -528,6 +537,16 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Get("/access-policies", s.listAccessPolicies)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Post("/access-policies", s.createAccessPolicy)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Patch("/access-policies/{policyID}", s.updateAccessPolicy)
+			protected.Post("/verify-credential", s.verifyCredential)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/organization/settings", s.getOrganizationSettings)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/organization/settings", s.updateOrganizationSettings)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/organization/export-audit", s.exportOrganizationAudit)
+			protected.With(s.requireRoles("super_admin")).Post("/organization/rotate-webhooks", s.rotateOrganizationWebhooks)
+			protected.With(s.requireRoles("super_admin")).Post("/organization/disable", s.disableOrganization)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/invitations", s.listInvitations)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/invitations/{deliveryID}", s.getInvitation)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/invitations/{deliveryID}/cancel", s.cancelInvitation)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/invitations/{deliveryID}/resend", s.resendInvitation)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/users", s.listUsers)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/users", s.createUser)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/users/{userID}", s.getUser)
@@ -609,6 +628,11 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/role_assignments/{assignmentID}", s.updateReferenceRoleAssignment)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/role_assignments/{assignmentID}", s.deleteReferenceRoleAssignment)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/members", s.listReferenceMembers)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/schedules", s.listSchedules)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/schedules", s.createSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/schedules/{scheduleID}", s.getSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/schedules/{scheduleID}", s.updateSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/schedules/{scheduleID}", s.deleteSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/access_rights/schedule_templates", s.listReferenceAccessRightsScheduleTemplates)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/access_rights/schedule", s.updateReferenceAccessRightsSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Post("/access_rights/impact_preview", s.previewReferenceAccessRightsImpact)
@@ -616,6 +640,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Post("/access_rights/schedule/evaluate", s.evaluateReferenceAccessRightsSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/holiday_calendars", s.listHolidayCalendars)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/holiday_calendars", s.createHolidayCalendar)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/holiday_calendars/preset_countries", s.listHolidayCalendarPresetCountries)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/holiday_calendars/presets", s.listHolidayCalendarPresets)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/holiday_calendars/{calendarID}", s.getHolidayCalendar)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/holiday_calendars/{calendarID}", s.updateHolidayCalendar)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/holiday_calendars/{calendarID}", s.deleteHolidayCalendar)
