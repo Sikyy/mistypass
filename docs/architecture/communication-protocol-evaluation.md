@@ -97,183 +97,133 @@
 
 ## 3. 协议方案对比
 
-### 3.1 四种候选方案
+### 3.1 候选方案对比
 
-| 维度 | A: 纯 NATS | B: 纯 MQTT | C: HTTPS pull/push | D: TLS 持久连接（Kisi 模式） |
+| 维度 | HTTPS :443 (pull/push) | WSS :443 (长连接) | MQTT over WSS :443 | NATS |
 |---|---|---|---|---|
-| 实时性 | 毫秒级 | 毫秒级 | 秒级（取决 poll 间隔） | **毫秒级** |
-| 防火墙穿透 | **差**（4222） | **差**（1883/8883） | **好**（443） | **最好**（31314→993→443 fallback） |
-| WebSocket 穿透 | 可以（WS 443） | 可以（WSS 443） | 不需要 | 不需要（原生 TLS） |
-| 离线能力 | 需自行实现 | QoS 2 + retained | 天然支持 | 天然支持 |
-| 设备端复杂度 | 中（Go client 3MB） | 低（C client <100KB） | 最低（HTTP） | 中（需实现连接管理） |
-| ARM 嵌入式适配 | 好（Go 交叉编译） | **最好**（C/Python） | 最好 | 好（Go/C TLS） |
-| 运维部署 | 需 NATS server | 需 MQTT broker | 无额外组件 | 无额外组件 |
-| 行业成熟度 | 云原生领域 | **IoT 最成熟** | 企业级标准 | **Kisi 已验证** |
-| 代表厂商 | 无门禁厂商 | 学术/IoT 门锁 | Brivo | **Kisi** |
+| 实时性 | 秒级（取决 poll 间隔） | 毫秒级 | 毫秒级 | 毫秒级 |
+| 防火墙穿透 | **最好**（443 出站） | **好**（443，但 WSS 可能被 DPI 拦） | **好**（同 WSS） | **差**（需开 4222） |
+| 离线能力 | 本地策略缓存 + 事件队列 + 幂等同步 | 同左（离线能力不来自传输协议） | 同左 | 同左 |
+| 设备端复杂度 | **最低**（HTTP client） | 中（需 WebSocket 管理） | 中（需 MQTT + WS 库） | 中（需 NATS client） |
+| 运维部署 | **无额外组件** | 无额外组件 | 需部署 MQTT broker | 需部署 NATS server |
+| 生产就绪 | **最快** | 快 | 需 broker HA + ACL + 限流 + 审计 | 仅适合内部 |
 
-### 3.2 MQTT over WebSocket 443 方案
+**关键澄清**：
+- 门禁的**离线能力**来自 Gateway 本地策略缓存、事件持久队列、幂等同步机制，**不来自 MQTT QoS 或 retained message**
+- MQTT QoS 只保证 broker↔client 的投递语义，**不保证业务 exactly-once**。开门命令必须有 command_id、过期时间、ack、去重、审计
+- MQTT retained message **不能用于 unlock/lockdown 命令**（命令必须短 TTL、不可 retained）
 
-如果选 MQTT，可以通过 **WebSocket 443 端口** 穿透防火墙：
+### 3.2 不推荐的方案
 
-```
-Gateway → WSS://cloud:443/mqtt → MQTT Broker (EMQX)
-```
-
-EMQX（你 docker-compose 里已有）支持 MQTT over WebSocket on port 443。这样：
-- ✅ 防火墙只需开 443（和 HTTPS 一样）
-- ✅ IoT 生态最成熟
-- ✅ QoS 保证消息可靠
-- ❌ 需要部署 EMQX broker
-
-### 3.3 NATS over WebSocket 443 方案
-
-NATS 也支持 WebSocket：
-
-```
-Gateway → WSS://cloud:443/nats → NATS Server
-```
-
-- ✅ 防火墙穿透
-- ✅ 性能最强（百万消息/秒）
-- ✅ JetStream 持久化
-- ❌ IoT 嵌入式库不如 MQTT 丰富
+| 方案 | 原因 |
+|---|---|
+| 993 端口 fallback | 政府/银行客户将"借 IMAP 端口跑非 IMAP 协议"视为安全绕行，深度包检测也可能拦截 |
+| 自研 raw TLS 私有协议 | 需硬件/固件/安全芯片/运维全链路能力，Kisi 靠 Electric Imp 平台支撑，我们没有 |
+| MQTT 作为唯一主协议 | 生产级 MQTT 需设备证书、topic ACL、多租户隔离、断线重放、broker HA、限流、证书吊销等，不应作为首批客户的入门门槛 |
+| NATS 暴露给现场 Gateway | NATS 是云内部总线，不适合现场设备直连 |
 
 ---
 
-## 4. 推荐架构：分层双通道
+## 4. 推荐架构
 
-```
-┌───────────────────────────────────────────────────────┐
-│                    Mistyislet Cloud                     │
-│                                                         │
-│  ┌──────────────┐  ┌──────────┐  ┌──────────────────┐ │
-│  │ REST API     │  │ NATS     │  │ MQTT Broker      │ │
-│  │ (管理/配置)   │  │ (内部总线) │  │ (EMQX, 设备通信)  │ │
-│  │ :443         │  │ :4222    │  │ WSS :443/mqtt    │ │
-│  └──────┬───────┘  └────┬─────┘  └────────┬─────────┘ │
-│         │               │                  │           │
-│         │          ┌────┴─────┐            │           │
-│         │          │ 内部桥接  │            │           │
-│         │          │ MQTT↔NATS│            │           │
-│         │          └──────────┘            │           │
-└─────────┼──────────────────────────────────┼───────────┘
-          │                                  │
-     ┌────┴────────────┐            ┌────────┴──────────┐
-     │ 场景 A           │            │ 场景 B             │
-     │ 写字楼/园区       │            │ 政府/工厂/学校      │
-     │ 网络条件好        │            │ 防火墙严格          │
-     │                  │            │                    │
-     │ Gateway          │            │ Gateway            │
-     │ ├ MQTT over WSS  │            │ ├ HTTPS pull       │
-     │ │ (实时推送)      │            │ │ (定时拉配置)       │
-     │ └ 本地判定优先     │            │ ├ HTTPS push       │
-     │                  │            │ │ (事件批量上报)      │
-     └──────────────────┘            │ └ 本地判定优先       │
-                                     └────────────────────┘
-```
+### 4.1 产品路线：先赢保守场景，再增强实时体验
 
-### 4.1 核心学习：Kisi 的安全模型
-
-Kisi 真正值得学的不是它的私有传输协议（Electric Imp 平台绑定），而是：
-
-1. **mTLS（双向证书认证）**：每台设备有独立的客户端证书，Cloud 和设备互相验证身份
-2. **仅出站连接**：设备主动连 Cloud，不需要入站端口/防火墙打洞
-3. **per-device 密钥**：AES-GCM-AEAD，设备级密钥隔离
-4. **本地判定优先**：门禁放行不依赖 Cloud 实时 round-trip
-
-**不应该学的**：
-- 自研 raw TLS 私有协议（需要硬件/固件/安全芯片/运维全链路配套，当前阶段不现实）
-- 多端口 fallback（31314→993→443 是 Electric Imp 平台的设计，不是通用方案）
-
-### 4.2 架构决策：443-only + mTLS
-
-**所有 Gateway ↔ Cloud 通信走 443 端口，用标准协议 + 设备证书认证。**
+**HTTPS-only 先赢政府、学校、工厂；WSS 再提升写字楼、园区的实时体验。不要为了技术漂亮把首批客户部署难度拉高。**
 
 ```
 ┌──────────────────────────────────────────────────┐
-│                 Mistyislet Cloud :443              │
+│               Mistyislet Cloud :443               │
 │                                                    │
-│  ┌─────────────────┐  ┌────────────────────────┐ │
-│  │ HTTPS + mTLS    │  │ WSS (MQTT) + mTLS      │ │
-│  │ 配置/注册/事件   │  │ 实时命令/状态/推送      │ │
-│  └────────┬────────┘  └───────────┬────────────┘ │
-│           │          内部          │              │
+│  ┌──────────────────┐  ┌───────────────────────┐ │
+│  │ HTTPS + mTLS     │  │ WSS + mTLS            │ │
+│  │ 强制基础通道      │  │ 实时增强通道（可选）    │ │
+│  │ 注册/配置/事件/OTA│  │ 远程开门/lockdown/状态 │ │
+│  └────────┬─────────┘  └──────────┬────────────┘ │
+│           │           内部         │              │
 │           └──────── NATS ─────────┘              │
 │                    :4222                          │
 └──────────────────────────────────────────────────┘
                         │
                    全部 :443 出站
+                   per-device client cert (mTLS)
                         │
               ┌─────────┴─────────┐
               │     Gateway       │
-              │  per-device cert  │
-              │  本地 access rule  │
+              │  mTLS 设备证书     │
+              │  本地策略缓存      │
+              │  事件持久队列      │
               └───────────────────┘
 ```
 
-### 4.3 三层设计
+### 4.2 分阶段落地
 
-| 层 | 协议 | 用途 | 端口 |
+| 阶段 | 通道 | 覆盖客户 | 能力 |
 |---|---|---|---|
-| **管理层** | HTTPS + mTLS | 设备注册、拉配置、事件上报、OTA、证书轮换 | 443 |
-| **实时层** | WSS + mTLS（MQTT over WebSocket） | 远程开门、lockdown、在线状态推送 | 443 |
-| **内部总线层** | NATS | API 微服务间通信、事件路由、开发调试 | 4222（内部，不暴露） |
+| **MVP / 首批客户** | HTTPS :443 + mTLS（强制） | 政府、学校、工厂、所有场景 | 配置快照、事件队列、OTA、证书轮换、本地判定 |
+| **实时增强** | + WSS :443 + mTLS（可选） | 写字楼、园区 | 远程实时开门、lockdown、在线状态推送 |
+| **仅内部** | NATS :4222 | 开发调试 | Gateway Simulator、微服务间事件路由 |
 
-**为什么 443-only**：
-- 印尼任何网络（政府/工厂/学校/写字楼）都开放 443
-- 不需要客户 IT 配合开额外端口
-- HTTPS 和 WSS 共用 443，由 path 区分（`/api/v1/gateway/*` vs `/ws/gateway`）
-- 与企业代理/WAF 兼容
+WSS 实现方式可以是自定义 WebSocket，也可以是 MQTT over WebSocket — 不在第一阶段做决定。
 
-### 4.4 Gateway 通信模式
-
-| 场景 | 连接方式 | 说明 |
-|---|---|---|
-| **正常在线** | WSS :443 (MQTT over WebSocket) | 持久连接，实时命令推送 + 事件上报 |
-| **WSS 不可用** | HTTPS :443 pull/push | 定时拉配置 + 批量上报事件 |
-| **开发调试** | NATS :4222 | Gateway Simulator 直连（仅开发环境） |
-
-Gateway 启动时优先建立 WSS 持久连接；如果 WebSocket 被代理/防火墙阻断，自动降级为 HTTPS pull/push。
-
-### 4.5 设备认证：per-device client certificate
+### 4.3 设备认证：per-device client certificate (mTLS)
 
 ```
 1. Gateway 首次注册：
-   POST /api/v1/gateway/register (bootstrap token)
+   POST /api/v1/gateway/register (一次性 bootstrap token)
    → Cloud 签发 per-device client certificate
    → Gateway 保存证书到安全存储
 
-2. 后续通信：
-   所有 HTTPS/WSS 请求携带 client certificate (mTLS)
+2. 后续所有通信：
+   HTTPS/WSS 请求携带 client certificate (mTLS)
    Cloud 验证证书 → 解析 gateway_id + tenant_id
-   → 无需额外 token 交换
+   → 无需额外 token
+
+3. 证书轮换：
+   Cloud 在证书到期前通过 config/pull 下发新证书
+   Gateway 平滑切换
+
+4. 证书撤销：
+   Gateway 被删除时，Cloud 即时撤销证书 (CRL/OCSP)
 ```
 
-### 4.6 与 Kisi 架构的对比
+### 4.4 学 Kisi 的安全模型
+
+| 从 Kisi 学到的 | 在 Mistyislet 怎么做 |
+|---|---|
+| mTLS per-device 证书 | 自管 CA 签发 per-device cert |
+| 仅出站连接 | Gateway 主动连 Cloud :443，不开入站端口 |
+| per-device 密钥隔离 | 每台设备独立证书和密钥 |
+| 本地判定优先 | Gateway 缓存 access_rules，离线可判定（已实现） |
+| 端口友好 | 443-only，不借用其他端口 |
+
+| 不从 Kisi 学的 | 原因 |
+|---|---|
+| Electric Imp 私有协议 | 绑定平台，我们用开放标准 |
+| 993 端口伪装 | 客户可能视为安全绕行 |
+| raw TLS 自研协议 | 需全链路硬件/固件能力支撑 |
+
+### 4.5 与 Kisi 架构的对比
 
 | 维度 | Kisi | Mistyislet |
 |---|---|---|
-| 传输协议 | Electric Imp 私有二进制协议 | **HTTPS + WSS (MQTT)**（开放标准） |
-| 端口 | 31314（主）→ 993 → 443/80 | **443-only** |
+| 传输协议 | Electric Imp 私有二进制协议 | **HTTPS + WSS**（开放标准） |
+| 端口 | 31314（初始连接）→ 993（fallback）→ 443/80（firmware/API） | **443-only** |
 | 设备认证 | PKI mTLS（Electric Imp 管理） | **PKI mTLS（自管 CA）** |
-| 实时推送 | TLS 持久连接 | **WSS 持久连接**（同等实时性） |
-| 本地通信 | AES-UDP :62435 | **待定** |
+| 实时推送 | 私有 TLS 持久连接 | **WSS 持久连接**（可选增强） |
+| 强制基础通道 | 私有 TLS | **HTTPS**（任何网络都能通） |
 | 离线判定 | 本地缓存策略 | **本地 access_rules 缓存**（已实现） |
 | OTA | RSA+AES :443/80 | **HTTPS :443**（待实现） |
-| 平台绑定 | **绑定 Electric Imp** | **无绑定，开放标准** |
+| 平台绑定 | **绑定 Electric Imp** | **无绑定** |
 
-**核心策略**：学 Kisi 的安全模型（mTLS + per-device cert + 仅出站 + 本地判定），不学它的私有传输（Electric Imp 绑定）。用 HTTPS/WSS 开放标准达到同等效果。
+### 4.6 印尼各场景推荐配置
 
-### 4.4 印尼各场景推荐配置
-
-| 场景 | 推荐模式 | 原因 |
+| 场景 | 阶段一（HTTPS） | 阶段二（+WSS） |
 |---|---|---|
-| **写字楼** | MQTT 模式 | 网络条件好，远程开门需实时 |
-| **产业园区** | MQTT 模式 | 多栋建筑，实时管理需求高 |
-| **工厂** | HTTPS 模式 | OT/IT 网络隔离，开端口困难 |
-| **政府机构** | HTTPS 模式 | 严格防火墙，仅开 443 |
-| **学校** | HTTPS 模式 | 网络不稳定，离线需求高 |
-| **大型机构** | MQTT 模式 (WSS 443) | 企业级网络支持 WSS，且需实时性 |
+| **政府机构** | HTTPS pull/push（唯一要求：443 出站） | 按需加 WSS |
+| **学校** | HTTPS pull/push | 通常不需要 WSS |
+| **工厂** | HTTPS pull/push（OT/IT 隔离） | 按需加 WSS |
+| **写字楼** | HTTPS pull/push | **加 WSS（远程开门/访客体验）** |
+| **产业园区** | HTTPS pull/push | **加 WSS（多栋实时管理）** |
 
 ---
 
@@ -283,39 +233,44 @@ Gateway 启动时优先建立 WSS 持久连接；如果 WebSocket 被代理/防�
 
 - ✅ NATS 内部总线已运行（publisher/subscriber/simulator）
 - ✅ Gateway Simulator 通过 NATS 收发命令
-- ✅ HTTPS Gateway API 已有（register/config/events/verify）
-- ❌ MQTT 设备通信层未实现
-- ❌ EMQX broker 已在 docker-compose 但未接入业务
+- ✅ HTTPS Gateway API 已有（register/config/events/verify/access-rules）
+- ✅ Access rule 缓存包生成器已实现
+- ✅ 凭证验证 API 已实现
+- ❌ mTLS 设备证书签发/验证未实现
+- ❌ WSS 实时通道未实现
 
 ### 5.2 过渡步骤
 
-| 阶段 | 任务 | 影响 |
+| 阶段 | 任务 | 说明 |
 |---|---|---|
 | **现在** | 继续用 NATS 开发调试 + HTTPS Gateway API | 不影响现有代码 |
-| **MVP 验证** | 香橙派跑 Gateway 程序 → HTTPS 模式连 Cloud | 用已有 API |
-| **生产准备** | 加 MQTT over WSS 通道，EMQX 桥接到 NATS | 新增 MQTT adapter |
-| **部署** | 按客户网络环境选模式（MQTT/HTTPS/NATS） | 配置级切换 |
+| **MVP 硬件联调** | 香橙派跑 Gateway 程序 → HTTPS :443 连 Cloud | 用已有 `/gateway/*` API |
+| **安全加固** | 实现 mTLS：CA 签发 + 设备证书 + 证书轮换 | 关键生产要求 |
+| **实时增强** | 加 WSS :443 通道（写字楼/园区客户需要时） | MQTT over WSS 或自定义 WSS |
+| **首批部署** | HTTPS-only，按客户要求加 WSS | 保守起步 |
 
-### 5.3 代码改动量
+### 5.3 工作量评估（修正）
 
-| 组件 | 改动 | 预估 |
+| 组件 | 工作内容 | 预估 |
 |---|---|---|
-| EMQX 配置（WSS 443 + auth） | docker-compose + EMQX config | 0.5天 |
-| MQTT → NATS 桥接（EMQX 内置或自写 adapter） | 新增 MQTT subscriber → publish to NATS | 1天 |
-| Gateway 端 MQTT client | 新增模式，复用 NATS 的 command/event schema | 1天 |
-| 模式切换配置 | `COMM_MODE` 环境变量 | 0.5天 |
+| HTTPS Gateway 已有 | register/config/events/verify 已可用 | **已完成** |
+| mTLS 设备证书 | CA 签发、验证中间件、证书轮换、撤销 | 3-5 天 |
+| WSS 实时通道 | WebSocket server + 命令推送 + 断线重连 | 2-3 天 |
+| MQTT over WSS（如选用） | broker 部署 + topic ACL + 多租户隔离 + 限流 + 审计 | **5-10 天**（不是 3 天） |
+| Gateway 端 HTTPS client | Go 程序跑在香橙派上 | 2-3 天 |
 
-**总计约 3 天**，且不影响现有 NATS + HTTPS 代码。
+**注意**：MQTT 生产就绪远不止 3 天 — 设备证书、topic ACL、多租户隔离、断线重放、broker HA、审计、限流、证书吊销、OTA、现场网络排障都需要工程投入。
 
 ---
 
 ## 6. 结论
 
-1. **不需要替换 NATS**——它作为内部总线继续发挥价值
-2. **设备通信主协议选 MQTT over WebSocket (443)**——IoT 生态最成熟，防火墙穿透最好
-3. **保留 HTTPS pull/push 作为 fallback**——政府/工厂等严格网络环境
-4. **三种模式配置级切换**——一套 Gateway 固件适配所有场景
-5. **MVP 阶段继续用 NATS**——等生产部署前再加 MQTT 层，代码改动小
+1. **HTTPS :443 是强制基础通道** — 所有客户（政府/学校/工厂/写字楼）的门禁配置、事件、OTA 都走它
+2. **WSS :443 是实时增强通道（可选）** — 需要远程开门/lockdown 实时性的客户加上
+3. **NATS 只做云内部总线** — 不暴露给现场 Gateway
+4. **mTLS per-device cert 是核心安全模型** — 学 Kisi 的安全架构，不学它的私有传输
+5. **MQTT 不是第一阶段主协议** — 如果需要实时通道，WSS 足够；如果要 MQTT，走 MQTT over WSS，但工程量远超 HTTPS-only
+6. **先赢保守场景（HTTPS-only），再增强实时体验（+WSS）** — 不要为了技术漂亮把首批客户部署难度拉高
 
 ---
 

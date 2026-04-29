@@ -78,7 +78,10 @@ Kisi Controller Pro 使用 **Electric Imp 平台的 TLS 持久连接**（非 HTT
 1. **本地判定优先**：门禁放行判定在 Gateway 本地完成，不依赖 Cloud 实时 round-trip
 2. **异步 + 幂等**：策略下发和事件回传允许短暂延迟，通过幂等键防重复
 3. **版本化策略**：配置和 access rule 通过版本号管理，Gateway 只接受更新的版本
-4. **双通道**：NATS（低延迟推送）+ HTTPS（防火墙穿透 fallback）
+4. **HTTPS 是强制基础通道**：所有 Gateway 都必须支持 HTTPS :443 pull/push
+5. **WSS 是可选实时增强**：需要远程开门实时性时加上 WSS :443
+6. **NATS 仅限云内部**：不暴露给现场 Gateway
+7. **mTLS per-device cert**：学 Kisi 安全模型，每台设备独立证书
 
 ---
 
