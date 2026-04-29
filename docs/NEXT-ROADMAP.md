@@ -1,15 +1,41 @@
 # Mistyislet 后续推进路线图
 
-> 创建日期：2026-04-29
+> 更新日期：2026-04-29
 > 基于 Kisi API Bundled References 和 docs.kisi.io 产品文档的差距分析
 
 ---
 
-## 1. 差距总览
+## 1. 已完成项（本轮会话 22 个 commit）
 
-对照 Kisi API spec（81 个资源路径）和 Kisi 产品文档，Mistyislet 当前的覆盖率：
+### 后端 API
+| 事项 | 状态 |
+|---|---|
+| P0 非硬件 legacy 全域审计（37 个写操作） | done |
+| P1 Users 批量治理（batch-status/delete/invite + CSV 导出导入） | done |
+| P1 Alert Policy 事件驱动调度器 + cooldown + 通知查询 | done |
+| P1 Access Rights 复杂 schedule（TimeWindow + HolidayCalendar + evaluate） | done |
+| P1 Apple/Google Wallet mock provider + 凭证流程文档 | done |
+| P2 OpenAPI 20+ 资源字段级 schema | done |
 
-| 分类 | Kisi 资源数 | Mistyislet 已覆盖 | 覆盖率 |
+### 前端 UI
+| 事项 | 状态 |
+|---|---|
+| kisi → mistyislet 命名统一（40+ 符号） | done |
+| i18n 三语 100% 覆盖（en-US/zh-CN/id-ID，~350 keys） | done |
+| Bundle 优化（主入口 -13%，legacy 页面归档） | done |
+| 语言切换（Shell + 登录页 shadcn DropdownMenu） | done |
+| 根路由 / 重定向到 /home，阻断旧 dashboard | done |
+| Event History 过滤器改为 DropdownMenu | done |
+| Sidebar 底部链接改为外部 <a> | done |
+| Organization Setup Coming Soon 提示 | done |
+| Topbar 搜索框改为真正的 input | done |
+| Place Dashboard 增强（Daily Usage 表格 + Unlock Heatmap） | done |
+
+---
+
+## 2. 差距总览（vs Kisi API spec）
+
+| 分类 | Kisi 资源数 | 已覆盖 | 覆盖率 |
 |---|---:|---:|---:|
 | 核心 CRUD（Places/Locks/Users/Groups/Teams/Roles/Shares） | 22 | 22 | 100% |
 | 凭证（Cards/CardAssignments/Invites） | 6 | 5 | 83% |
@@ -26,19 +52,19 @@
 
 ---
 
-## 2. 推进优先级
+## 3. 待推进事项
 
-### P1 — 近期推进（影响日常运营）
+### P1 — 近期（影响日常运营）
 
 | 序号 | 事项 | 理由 | 预估 |
 |---:|---|---|---|
 | 1 | **Schedules 独立资源** | Group 时间策略精细管理，当前只有 TimeWindow 嵌入字段 | 2-3 天 |
-| 2 | **Organization Settings / Dashboard** | 组织级配置和概览缺失 | 2-3 天 |
+| 2 | **Organization Settings / Dashboard** | 组织级配置和概览 endpoint 缺失，UI 仅为预留样板 | 2-3 天 |
 | 3 | **User 2FA self-service** | 安全合规需求，当前只有 Admin MFA | 1-2 天 |
-| 4 | **Invites 独立资源** | 运营需全局查看和管理邀请 | 1 天 |
-| 5 | **Holiday Calendar Regions** | 按国家预设假日日历 | 1 天 |
+| 4 | **Invites 独立资源** | 运营需全局查看和管理邀请，当前嵌入 user workflow | 1 天 |
+| 5 | **Holiday Calendar Regions** | 按国家预设假日日历，当前需手动创建 | 1 天 |
 
-### P2 — 中期推进（扩展硬件和场景）
+### P2 — 中期（扩展硬件和场景）
 
 | 序号 | 事项 | 理由 | 预估 |
 |---:|---|---|---|
@@ -48,46 +74,38 @@
 | 9 | **Guests 独立资源** | 统一访客目录 | 2 天 |
 | 10 | **Presences / 容量管理** | 在场追踪和容量限制 | 3 天 |
 | 11 | **Group Terminals** | Terminal 按组分配 | 1 天 |
+| 12 | **Visitor Management UI** | 参考 Kisi 截图中的 Present/Past Visitors 表格 | 2 天 |
 
-### P3 — 长期补齐（完善平台能力）
+### P3 — 长期（完善平台能力）
 
 | 序号 | 事项 | 理由 | 预估 |
 |---:|---|---|---|
-| 12 | **Cameras / Video Surveillance** | 视频监控集成 | 5+ 天 |
-| 13 | **Organization Transfers / Certificate Rotation** | 多租户运营 | 3 天 |
-| 14 | **Signed Upload URLs** | 文件上传支持 | 1 天 |
-| 15 | **CSV Card Imports 独立资源** | 对齐 Kisi API | 1 天 |
-| 16 | **Login Session 管理** | 查看和管理登录会话 | 2 天 |
-| 17 | **Password Reset / Self Signup** | 自助密码重置和注册 | 2 天 |
-| 18 | **Apple Pass 真实签名** | 替换 mock PKCS#7 | 3 天 |
-| 19 | **Google Wallet 真实 API** | 替换 mock JWT | 2 天 |
-| 20 | **Alert Policy 渠道升级 + DB 持久化** | 通知链路完善 | 3-4 天 |
+| 13 | **Cameras / Video Surveillance** | 视频监控集成 | 5+ 天 |
+| 14 | **Organization Transfers / Certificate Rotation** | 多租户运营 | 3 天 |
+| 15 | **Signed Upload URLs** | 文件上传（头像/证件） | 1 天 |
+| 16 | **CSV Card Imports 独立资源** | 对齐 Kisi API | 1 天 |
+| 17 | **Login Session 管理** | 查看和管理活跃登录会话 | 2 天 |
+| 18 | **Password Reset / Self Signup** | 自助密码重置和注册 | 2 天 |
+| 19 | **Apple Pass 真实签名** | 替换 mock PKCS#7 为真实 Pass Type Certificate | 3 天 |
+| 20 | **Google Wallet 真实 API** | 替换 mock JWT 为真实 Service Account 签名 | 2 天 |
+| 21 | **Alert Policy 渠道升级 + DB 持久化** | 通知链路完善，当前内存态 | 3-4 天 |
+| 22 | **Company / Place Analytics 报告** | 参考 Kisi 截图中的图表分析报告 | 3 天 |
+| 23 | **Alarm Schedule 周历视图** | 参考 Kisi 截图中的告警排程周历 | 2 天 |
 
 ---
 
-## 3. 已完成项（本轮会话）
-
-| 事项 | Commit |
-|---|---|
-| P0 非硬件 legacy 全域审计 | `4f26ea7` |
-| P1 Users 批量治理（5 API + CSV） | `bf184fc` |
-| P1 Alert Policy 事件驱动调度器 | `c3664a2` |
-| P1 Access Rights 复杂 schedule | `98a0c4b` |
-| P1 Apple/Google Wallet mock provider | `2e54efe` |
-| P2 OpenAPI 20+ 资源 schema | `090cadd` |
-| P2 i18n 三语（en/zh/id） | `f073d3f` |
-| P2 kisi → mistyislet 命名统一 | `c3a2fca` |
-| P2 Bundle 优化 + legacy 整理 | `4b7b38a` |
-
----
-
-## 4. 当前已知 UI 问题
+## 4. 已修复的 UI 问题
 
 | 问题 | 状态 |
 |---|---|
-| Dashboard 个人菜单语言切换不起作用 | 待修复 |
-| 登录页语言切换按钮样式需改为 shadcn/ui | 待修复 |
-| /dashboard 旧黑色系仪表盘仍可访问 | 待重定向到 /home |
-| Organization Setup 子页面功能不完整 | 待补全 |
-| Event History 选项切换不响应 | 待修复 |
-| Sidebar 底部三链接指向不正确 | 待修复 |
+| Dashboard 个人菜单语言切换不起作用 | 已修复 |
+| 登录页语言切换按钮样式 | 已改为 shadcn DropdownMenu |
+| / 和 /dashboard 旧黑色系仪表盘可访问 | 已重定向到 /home |
+| 侧边栏和子页面语言不同步 | 已全部接入 i18n（100%） |
+| Organization Setup 子页面不完整 | 已加 Coming Soon 提示 |
+| Event History 过滤器死板 | 已改为 DropdownMenu |
+| Sidebar 底部三链接指向错误 | 已改为外部链接 |
+| Topbar 搜索框不可点击 | 已改为真正的 input |
+| Alert Policies 布局不对齐 | 已调整网格和 overflow |
+| Event History 行展开后无法收起 | 已修复 useEffect |
+| Place 页面崩溃 | 已修复 useTranslation 放置错误 |
