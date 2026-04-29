@@ -443,6 +443,8 @@ type Service struct {
 	jobAlertWhatsAppReceiverMap    map[string][]string
 	jobAlertWhatsAppSender         alertWhatsAppSender
 	stateStore                     StateStore
+	applePassProvider              *ApplePassProvider
+	googleWalletProvider           *GoogleWalletProvider
 }
 
 func NewService() *Service {
@@ -650,6 +652,8 @@ func NewService() *Service {
 			"security": {"+10000000000"},
 		},
 		jobAlertWhatsAppSender: newWhatsAppMockSender(),
+		applePassProvider:      NewApplePassProvider(ApplePassConfig{}),
+		googleWalletProvider:   NewGoogleWalletProvider(GoogleWalletConfig{}),
 	}
 }
 
@@ -1085,7 +1089,7 @@ func (s *Service) IssuePass(tenantID, templateID, targetType, targetID, expiresA
 		return PassInstance{}, ErrTemplateInactive
 	}
 
-	record, err := createPassRecord(nextTenantID, template, nextTargetType, nextTargetID, strings.TrimSpace(expiresAt), nextActor, now)
+	record, err := s.createPassRecord(nextTenantID, template, nextTargetType, nextTargetID, "", "", strings.TrimSpace(expiresAt), nextActor, now)
 	if err != nil {
 		return PassInstance{}, err
 	}
@@ -1401,7 +1405,7 @@ func (s *Service) IssuePassBatch(tenantID, templateID, targetType string, target
 			continue
 		}
 
-		record, issueErr := createPassRecord(nextTenantID, template, nextTargetType, targetID, strings.TrimSpace(expiresAt), nextActor, now)
+		record, issueErr := s.createPassRecord(nextTenantID, template, nextTargetType, targetID, "", "", strings.TrimSpace(expiresAt), nextActor, now)
 		if issueErr != nil {
 			job.Status = "failed"
 			job.ErrorCode = "issue_failed"
@@ -1621,11 +1625,12 @@ func (s *Service) RetryJob(tenantID, jobID, targetID, actor string) (IssueJob, e
 			return s.jobs[i], nil
 		}
 
-		record, err := createPassRecord(
+		record, err := s.createPassRecord(
 			nextTenantID,
 			template,
 			s.jobs[i].TargetType,
 			retryTargetID,
+			"", "",
 			s.jobs[i].ExpiresAt,
 			nextActor,
 			now,
@@ -2395,11 +2400,12 @@ func (s *Service) processClaimedIssueJob(jobID string, options JobProcessOptions
 		return jobProcessOutcome{jobID: jobID, status: status, retried: retried}
 	}
 
-	record, err := createPassRecord(
+	record, err := s.createPassRecord(
 		options.TenantID,
 		template,
 		job.TargetType,
 		job.TargetID,
+		"", "",
 		job.ExpiresAt,
 		options.Actor,
 		time.Now().UTC(),
@@ -3366,23 +3372,54 @@ func (s *Service) updatePassStatus(tenantID, passID, status, actor string) (Pass
 	return PassInstance{}, ErrPassNotFound
 }
 
-func createPassRecord(tenantID string, template PassTemplate, targetType, targetID, expiresAt, actor string, now time.Time) (PassInstance, error) {
+func (s *Service) createPassRecord(tenantID string, template PassTemplate, targetType, targetID, holderName, holderEmail, expiresAt, actor string, now time.Time) (PassInstance, error) {
 	id, err := walletID("wps_")
 	if err != nil {
 		return PassInstance{}, err
 	}
 
+	provider := firstNonEmpty(template.Provider, "google")
+	objectID := fmt.Sprintf("%s.%s", template.ClassID, id)
+	saveLink := ""
+	nfcPayload := ""
+
+	switch strings.ToLower(provider) {
+	case "apple":
+		if s.applePassProvider != nil {
+			bundle, err := s.applePassProvider.IssuePass(tenantID, holderName, holderEmail, id)
+			if err == nil {
+				objectID = bundle.SerialNumber
+				saveLink = bundle.SaveLink
+				nfcPayload = bundle.NfcPayload
+			}
+		}
+	case "google", "":
+		if s.googleWalletProvider != nil {
+			classID := firstNonEmpty(template.ClassID, "mistyislet.access.default")
+			obj, err := s.googleWalletProvider.IssuePassObject(tenantID, id, classID, holderName, holderEmail)
+			if err == nil {
+				objectID = obj.ObjectID
+				saveLink = obj.SaveLink
+				nfcPayload = obj.NfcPayload
+			}
+		}
+		if saveLink == "" {
+			saveLink = fmt.Sprintf("https://pay.google.com/gp/v/save/%s", id)
+		}
+	}
+
 	record := PassInstance{
 		ID:             id,
 		TenantID:       tenantID,
-		Provider:       firstNonEmpty(template.Provider, "google"),
-		CredentialKind: credentialKindForProvider(template.Provider, targetType),
+		Provider:       provider,
+		CredentialKind: credentialKindForProvider(provider, targetType),
 		TemplateID:     template.ID,
 		TargetType:     targetType,
 		TargetID:       targetID,
-		ObjectID:       fmt.Sprintf("%s.%s", template.ClassID, id),
+		ObjectID:       objectID,
+		Token:          nfcPayload,
 		Status:         "issued",
-		SaveLink:       fmt.Sprintf("https://pay.google.com/gp/v/save/%s", id),
+		SaveLink:       saveLink,
 		ExpiresAt:      expiresAt,
 		IssuedAt:       now,
 		CreatedBy:      actor,
