@@ -942,7 +942,7 @@ export function CredentialsAdaptedPage({
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-[#17171c]">Batch Audit</h2>
+            <h2 className="text-base font-semibold text-[#17171c]">{t("kisi.credentials.batchAudit")}</h2>
             <p className="mt-1 text-sm text-[#6f717c]">
               {walletJobsQuery.isError
                 ? "Batch jobs unavailable"
@@ -1061,7 +1061,7 @@ export function CredentialsAdaptedPage({
                 <th className="px-6 py-4 font-semibold">User</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
-                <th className="px-4 py-4 font-semibold">Issued</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.credentials.issued")}</th>
                 <th className="px-4 py-4 font-semibold">Expires</th>
                 <th className="px-6 py-4 text-right font-semibold">{t("common.actions")}</th>
               </tr>
@@ -1445,7 +1445,7 @@ export function CredentialsAdaptedPage({
               <section className="rounded-[6px] border border-[#d9dbe3] p-4">
                 <div className="flex items-center justify-between gap-3 border-b border-[#eceef2] pb-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#17171c]">Physical Card</h3>
+                    <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.physicalCard")}</h3>
                     <p className="mt-1 text-xs text-[#6f717c]">
                       {physicalTasksQuery.isPending
                         ? "Loading tasks..."

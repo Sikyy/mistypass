@@ -406,7 +406,7 @@ export function FloorsAdaptedPage({
                     </button>
                   ))}
                   {selectedFloorAreas.length === 0 ? (
-                    <div className="rounded-[6px] border border-[#eceef2] px-4 py-8 text-center text-sm text-[#6f717c]">No areas are mapped to this floor.</div>
+                    <div className="rounded-[6px] border border-[#eceef2] px-4 py-8 text-center text-sm text-[#6f717c]">{t("kisi.floors.noAreas")}</div>
                   ) : null}
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
@@ -439,7 +439,7 @@ export function FloorsAdaptedPage({
                   </div>
                 ))}
                 {selectedFloorDoors.length === 0 ? (
-                  <div className="px-7 py-10 text-center text-sm text-[#6f717c]">No doors are mapped to this floor.</div>
+                  <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noDoors")}</div>
                 ) : null}
               </div>
             </>

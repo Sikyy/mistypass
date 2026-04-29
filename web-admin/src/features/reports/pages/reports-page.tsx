@@ -153,11 +153,11 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
           <table className="w-full min-w-[860px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">Report</th>
-                <th className="px-4 py-4 font-semibold">Metrics</th>
+                <th className="px-6 py-4 font-semibold">{t("kisi.reports.type")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.reports.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
-                <th className="px-4 py-4 font-semibold">Generated</th>
-                <th className="px-4 py-4 text-right font-semibold">Export</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.reports.status")}</th>
+                <th className="px-4 py-4 text-right font-semibold">{t("kisi.reports.download")}</th>
               </tr>
             </thead>
             <tbody>
@@ -185,9 +185,9 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
                   </td>
                 </tr>
               ))}
-              {reportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>Loading reports...</MistyisletEmptyTableRow> : null}
+              {reportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>{t("common.loading")}</MistyisletEmptyTableRow> : null}
               {!reportsQuery.isPending && reports.length === 0 ? (
-                <MistyisletEmptyTableRow colSpan={5}>No reports match this view.</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={5}>{t("kisi.reports.noMatch")}</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>
@@ -221,9 +221,9 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
                   <td className="px-4 py-5 text-[#6f717c]">{formatDateTime(item.next_run_at)}</td>
                 </tr>
               ))}
-              {scheduledReportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>Loading scheduled reports...</MistyisletEmptyTableRow> : null}
+              {scheduledReportsQuery.isPending ? <MistyisletEmptyTableRow colSpan={5}>{t("common.loading")}</MistyisletEmptyTableRow> : null}
               {!scheduledReportsQuery.isPending && scheduledReports.length === 0 ? (
-                <MistyisletEmptyTableRow colSpan={5}>No scheduled reports are configured.</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={5}>{t("kisi.reports.noMatch")}</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>
