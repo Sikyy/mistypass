@@ -21,6 +21,8 @@ type openAPIOperationDefinition struct {
 	Conflict       bool
 	Deprecated     bool
 	Replacements   []string
+	ResponseSchema string // e.g. "Place" → $ref: #/components/schemas/Place
+	RequestSchema  string // e.g. "PlaceCreate" → $ref: #/components/schemas/PlaceCreate
 }
 
 func (s *server) getOpenAPISpec(w http.ResponseWriter, r *http.Request) {
@@ -76,11 +78,15 @@ func buildOpenAPIOperation(definition openAPIOperationDefinition) map[string]any
 		operation["security"] = []any{map[string]any{"bearerAuth": []string{}}}
 	}
 	if needsJSONRequestBody(definition.Method) {
+		reqSchema := map[string]any{"type": "object", "additionalProperties": true}
+		if definition.RequestSchema != "" {
+			reqSchema = map[string]any{"$ref": "#/components/schemas/" + definition.RequestSchema}
+		}
 		operation["requestBody"] = map[string]any{
 			"required": true,
 			"content": map[string]any{
 				"application/json": map[string]any{
-					"schema": map[string]any{"type": "object", "additionalProperties": true},
+					"schema": reqSchema,
 				},
 			},
 		}
@@ -114,6 +120,10 @@ func openAPIResponses(definition openAPIOperationDefinition) map[string]any {
 	case definition.NoContent:
 		responses["204"] = map[string]any{"description": "No content"}
 	case definition.Collection:
+		itemSchema := map[string]any{"type": "object", "additionalProperties": true}
+		if definition.ResponseSchema != "" {
+			itemSchema = map[string]any{"$ref": "#/components/schemas/" + definition.ResponseSchema}
+		}
 		responses["200"] = map[string]any{
 			"description": "Collection response with pagination metadata.",
 			"headers": map[string]any{
@@ -124,14 +134,21 @@ func openAPIResponses(definition openAPIOperationDefinition) map[string]any {
 			},
 			"content": map[string]any{
 				"application/json": map[string]any{
-					"schema": map[string]any{"$ref": "#/components/schemas/CollectionResponse"},
+					"schema": map[string]any{
+						"type":     "object",
+						"required": []string{"items", "pagination"},
+						"properties": map[string]any{
+							"items":      map[string]any{"type": "array", "items": itemSchema},
+							"pagination": map[string]any{"$ref": "#/components/schemas/Pagination"},
+						},
+					},
 				},
 			},
 		}
 	case definition.Created:
-		responses["201"] = openAPIObjectResponse("Created")
+		responses["201"] = openAPITypedObjectResponse("Created", definition.ResponseSchema)
 	default:
-		responses["200"] = openAPIObjectResponse("OK")
+		responses["200"] = openAPITypedObjectResponse("OK", definition.ResponseSchema)
 	}
 	responses["401"] = map[string]any{"$ref": "#/components/responses/UnauthorizedError"}
 	responses["403"] = map[string]any{"$ref": "#/components/responses/ForbiddenError"}
@@ -144,11 +161,19 @@ func openAPIResponses(definition openAPIOperationDefinition) map[string]any {
 }
 
 func openAPIObjectResponse(description string) map[string]any {
+	return openAPITypedObjectResponse(description, "")
+}
+
+func openAPITypedObjectResponse(description, schemaName string) map[string]any {
+	schema := map[string]any{"$ref": "#/components/schemas/ObjectResponse"}
+	if schemaName != "" {
+		schema = map[string]any{"$ref": "#/components/schemas/" + schemaName}
+	}
 	return map[string]any{
 		"description": description,
 		"content": map[string]any{
 			"application/json": map[string]any{
-				"schema": map[string]any{"$ref": "#/components/schemas/ObjectResponse"},
+				"schema": schema,
 			},
 		},
 	}
@@ -283,6 +308,26 @@ func openAPIComponents() map[string]any {
 				"type":                 "object",
 				"additionalProperties": true,
 			},
+			"Place":           openAPIPlaceSchema(),
+			"PlaceCreate":     openAPIPlaceCreateSchema(),
+			"Lock":            openAPILockSchema(),
+			"LockCreate":      openAPILockCreateSchema(),
+			"User":            openAPIUserSchema(),
+			"UserCreate":      openAPIUserCreateSchema(),
+			"Group":           openAPIGroupSchema(),
+			"Team":            openAPITeamSchema(),
+			"TeamMembership":  openAPITeamMembershipSchema(),
+			"Role":            openAPIRoleSchema(),
+			"RoleAssignment":  openAPIRoleAssignmentSchema(),
+			"Share":           openAPIShareSchema(),
+			"Card":            openAPICardSchema(),
+			"CardAssignment":  openAPICardAssignmentSchema(),
+			"Controller":      openAPIControllerSchema(),
+			"Reader":          openAPIReaderSchema(),
+			"Terminal":        openAPITerminalSchema(),
+			"AlertPolicy":     openAPIAlertPolicySchema(),
+			"HolidayCalendar": openAPIHolidayCalendarSchema(),
+			"TimeWindow":      openAPITimeWindowSchema(),
 		},
 		"responses": map[string]any{
 			"UnauthorizedError": errorResponseComponent("Unauthorized"),
@@ -325,9 +370,9 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/app/access/logs", OperationID: "fetchAppAccessLogs", Tag: "Mobile App", Summary: "Fetch resident access logs.", Collection: true},
 		{Method: http.MethodPost, Path: "/api/v1/app/visitor-passes", OperationID: "createAppVisitorPass", Tag: "Mobile App", Summary: "Create a resident visitor pass.", Created: true},
 
-		{Method: http.MethodGet, Path: "/api/v1/places", OperationID: "fetchPlaces", Tag: "Places", Summary: "Fetch places.", Collection: true},
-		{Method: http.MethodPost, Path: "/api/v1/places", OperationID: "createPlace", Tag: "Places", Summary: "Create a place.", Created: true},
-		{Method: http.MethodGet, Path: "/api/v1/places/{placeID}", OperationID: "fetchPlace", Tag: "Places", Summary: "Fetch a place."},
+		{Method: http.MethodGet, Path: "/api/v1/places", OperationID: "fetchPlaces", Tag: "Places", Summary: "Fetch places.", Collection: true, ResponseSchema: "Place"},
+		{Method: http.MethodPost, Path: "/api/v1/places", OperationID: "createPlace", Tag: "Places", Summary: "Create a place.", Created: true, ResponseSchema: "Place", RequestSchema: "PlaceCreate"},
+		{Method: http.MethodGet, Path: "/api/v1/places/{placeID}", OperationID: "fetchPlace", Tag: "Places", Summary: "Fetch a place.", ResponseSchema: "Place"},
 		{Method: http.MethodPatch, Path: "/api/v1/places/{placeID}", OperationID: "updatePlace", Tag: "Places", Summary: "Update a place."},
 		{Method: http.MethodDelete, Path: "/api/v1/places/{placeID}", OperationID: "deletePlace", Tag: "Places", Summary: "Archive a place.", NoContent: true},
 		{Method: http.MethodPost, Path: "/api/v1/places/{placeID}/lock_down", OperationID: "lockDownPlace", Tag: "Places", Summary: "Lock down a place."},
@@ -342,7 +387,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/areas/{areaID}", OperationID: "fetchArea", Tag: "Places", Summary: "Fetch an area."},
 		{Method: http.MethodPatch, Path: "/api/v1/areas/{areaID}", OperationID: "updateArea", Tag: "Places", Summary: "Update an area."},
 
-		{Method: http.MethodGet, Path: "/api/v1/locks", OperationID: "fetchLocks", Tag: "Locks", Summary: "Fetch locks.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/locks", OperationID: "fetchLocks", Tag: "Locks", Summary: "Fetch locks.", Collection: true, ResponseSchema: "Lock"},
 		{Method: http.MethodPost, Path: "/api/v1/locks", OperationID: "createLock", Tag: "Locks", Summary: "Create a lock.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/locks/{lockID}", OperationID: "fetchLock", Tag: "Locks", Summary: "Fetch a lock."},
 		{Method: http.MethodPatch, Path: "/api/v1/locks/{lockID}", OperationID: "updateLock", Tag: "Locks", Summary: "Update a lock."},
@@ -351,7 +396,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/lock_down", OperationID: "lockDownLock", Tag: "Locks", Summary: "Lock down a lock."},
 		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/cancel_lockdown", OperationID: "cancelLockLockdown", Tag: "Locks", Summary: "Cancel lock lockdown."},
 
-		{Method: http.MethodGet, Path: "/api/v1/controllers", OperationID: "fetchControllers", Tag: "Hardware", Summary: "Fetch controllers.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/controllers", OperationID: "fetchControllers", Tag: "Hardware", Summary: "Fetch controllers.", Collection: true, ResponseSchema: "Controller"},
 		{Method: http.MethodPost, Path: "/api/v1/controllers/{controllerToken}/assign", OperationID: "assignController", Tag: "Hardware", Summary: "Assign a controller."},
 		{Method: http.MethodPost, Path: "/api/v1/controllers/{controllerID}/deassign", OperationID: "deassignController", Tag: "Hardware", Summary: "Deassign a controller."},
 		{Method: http.MethodPost, Path: "/api/v1/controllers/{controllerID}/locks", OperationID: "bindControllerLock", Tag: "Hardware", Summary: "Bind a controller to a lock.", Created: true},
@@ -367,7 +412,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/terminals/{terminalID}/reboot", OperationID: "rebootTerminal", Tag: "Hardware", Summary: "Reboot a terminal."},
 		{Method: http.MethodPost, Path: "/api/v1/terminals/{terminalID}/trigger", OperationID: "triggerTerminal", Tag: "Hardware", Summary: "Trigger a terminal command."},
 
-		{Method: http.MethodGet, Path: "/api/v1/users", OperationID: "fetchUsers", Tag: "Users", Summary: "Fetch users.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/users", OperationID: "fetchUsers", Tag: "Users", Summary: "Fetch users.", Collection: true, ResponseSchema: "User"},
 		{Method: http.MethodPost, Path: "/api/v1/users", OperationID: "createUser", Tag: "Users", Summary: "Create a user.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/users/{userID}", OperationID: "fetchUser", Tag: "Users", Summary: "Fetch a user."},
 		{Method: http.MethodPatch, Path: "/api/v1/users/{userID}", OperationID: "updateUser", Tag: "Users", Summary: "Update a user."},
@@ -377,7 +422,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/users/{userID}/invitations/{deliveryID}/receipt", OperationID: "recordUserInvitationReceipt", Tag: "Users", Summary: "Record a user invitation receipt."},
 		{Method: http.MethodGet, Path: "/api/v1/members", OperationID: "fetchMembers", Tag: "Users", Summary: "Fetch members.", Collection: true},
 
-		{Method: http.MethodGet, Path: "/api/v1/teams", OperationID: "fetchTeams", Tag: "Teams", Summary: "Fetch teams.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/teams", OperationID: "fetchTeams", Tag: "Teams", Summary: "Fetch teams.", Collection: true, ResponseSchema: "Team"},
 		{Method: http.MethodPost, Path: "/api/v1/teams", OperationID: "createTeam", Tag: "Teams", Summary: "Create a team.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/teams/{teamID}", OperationID: "fetchTeam", Tag: "Teams", Summary: "Fetch a team."},
 		{Method: http.MethodPatch, Path: "/api/v1/teams/{teamID}", OperationID: "updateTeam", Tag: "Teams", Summary: "Update a team."},
@@ -386,7 +431,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/team_memberships", OperationID: "createTeamMembership", Tag: "Teams", Summary: "Create a team membership.", Created: true},
 		{Method: http.MethodDelete, Path: "/api/v1/team_memberships/{membershipID}", OperationID: "deleteTeamMembership", Tag: "Teams", Summary: "Delete a team membership.", NoContent: true},
 
-		{Method: http.MethodGet, Path: "/api/v1/groups", OperationID: "fetchGroups", Tag: "Groups", Summary: "Fetch groups.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/groups", OperationID: "fetchGroups", Tag: "Groups", Summary: "Fetch groups.", Collection: true, ResponseSchema: "Group"},
 		{Method: http.MethodPost, Path: "/api/v1/groups", OperationID: "createGroup", Tag: "Groups", Summary: "Create a group.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/groups/{groupID}", OperationID: "fetchGroup", Tag: "Groups", Summary: "Fetch a group."},
 		{Method: http.MethodPatch, Path: "/api/v1/groups/{groupID}", OperationID: "updateGroup", Tag: "Groups", Summary: "Update a group."},
@@ -403,20 +448,20 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/group_links/verify", OperationID: "verifyGroupLinkToken", Tag: "Groups", Summary: "Verify a group link token.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/group_links/verify", OperationID: "claimGroupLinkToken", Tag: "Groups", Summary: "Claim a group link token.", Public: true},
 
-		{Method: http.MethodGet, Path: "/api/v1/roles", OperationID: "fetchRoles", Tag: "Roles", Summary: "Fetch roles.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/roles", OperationID: "fetchRoles", Tag: "Roles", Summary: "Fetch roles.", Collection: true, ResponseSchema: "Role"},
 		{Method: http.MethodGet, Path: "/api/v1/roles/{roleID}", OperationID: "fetchRole", Tag: "Roles", Summary: "Fetch a role."},
-		{Method: http.MethodGet, Path: "/api/v1/role_assignments", OperationID: "fetchRoleAssignments", Tag: "Roles", Summary: "Fetch role assignments.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/role_assignments", OperationID: "fetchRoleAssignments", Tag: "Roles", Summary: "Fetch role assignments.", Collection: true, ResponseSchema: "RoleAssignment"},
 		{Method: http.MethodPost, Path: "/api/v1/role_assignments", OperationID: "createRoleAssignment", Tag: "Roles", Summary: "Create a role assignment.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/role_assignments/{assignmentID}", OperationID: "fetchRoleAssignment", Tag: "Roles", Summary: "Fetch a role assignment."},
 		{Method: http.MethodPatch, Path: "/api/v1/role_assignments/{assignmentID}", OperationID: "updateRoleAssignment", Tag: "Roles", Summary: "Update a role assignment."},
 		{Method: http.MethodDelete, Path: "/api/v1/role_assignments/{assignmentID}", OperationID: "deleteRoleAssignment", Tag: "Roles", Summary: "Delete a role assignment.", NoContent: true},
-		{Method: http.MethodGet, Path: "/api/v1/shares", OperationID: "fetchShares", Tag: "Shares", Summary: "Fetch shares.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/shares", OperationID: "fetchShares", Tag: "Shares", Summary: "Fetch shares.", Collection: true, ResponseSchema: "Share"},
 		{Method: http.MethodPost, Path: "/api/v1/shares", OperationID: "createShare", Tag: "Shares", Summary: "Create a share.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/shares/{shareID}", OperationID: "fetchShare", Tag: "Shares", Summary: "Fetch a share."},
 		{Method: http.MethodPatch, Path: "/api/v1/shares/{shareID}", OperationID: "updateShare", Tag: "Shares", Summary: "Update a share."},
 		{Method: http.MethodDelete, Path: "/api/v1/shares/{shareID}", OperationID: "deleteShare", Tag: "Shares", Summary: "Delete a share.", NoContent: true},
 
-		{Method: http.MethodGet, Path: "/api/v1/cards", OperationID: "fetchCards", Tag: "Credentials", Summary: "Fetch cards.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/cards", OperationID: "fetchCards", Tag: "Credentials", Summary: "Fetch cards.", Collection: true, ResponseSchema: "Card"},
 		{Method: http.MethodPost, Path: "/api/v1/cards", OperationID: "createCard", Tag: "Credentials", Summary: "Create a card.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/cards/{cardID}", OperationID: "fetchCard", Tag: "Credentials", Summary: "Fetch a card."},
 		{Method: http.MethodGet, Path: "/api/v1/card_assignments", OperationID: "fetchCardAssignments", Tag: "Credentials", Summary: "Fetch card assignments.", Collection: true},
@@ -447,7 +492,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/integrations/{integrationID}", OperationID: "fetchIntegration", Tag: "Integrations", Summary: "Fetch an integration."},
 		{Method: http.MethodPatch, Path: "/api/v1/integrations/{integrationID}", OperationID: "updateIntegration", Tag: "Integrations", Summary: "Update an integration."},
 		{Method: http.MethodDelete, Path: "/api/v1/integrations/{integrationID}", OperationID: "deleteIntegration", Tag: "Integrations", Summary: "Disable an integration.", NoContent: true},
-		{Method: http.MethodGet, Path: "/api/v1/alert_policies", OperationID: "fetchAlertPolicies", Tag: "Alert Policies", Summary: "Fetch alert policies.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/alert_policies", OperationID: "fetchAlertPolicies", Tag: "Alert Policies", Summary: "Fetch alert policies.", Collection: true, ResponseSchema: "AlertPolicy"},
 		{Method: http.MethodPost, Path: "/api/v1/alert_policies", OperationID: "createAlertPolicy", Tag: "Alert Policies", Summary: "Create an alert policy.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/alert_policies/{policyID}", OperationID: "fetchAlertPolicy", Tag: "Alert Policies", Summary: "Fetch an alert policy."},
 		{Method: http.MethodPatch, Path: "/api/v1/alert_policies/{policyID}", OperationID: "updateAlertPolicy", Tag: "Alert Policies", Summary: "Update an alert policy."},
@@ -554,5 +599,379 @@ func openAPILegacyOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPatch, Path: "/api/v1/access-policies/{policyID}", OperationID: "updateLegacyAccessPolicy", Tag: "Legacy Compatibility", Summary: "Update a legacy access policy.", Deprecated: true, Replacements: []string{"/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks"}},
 		{Method: http.MethodGet, Path: "/api/v1/temporary-access", OperationID: "fetchLegacyTemporaryAccess", Tag: "Legacy Compatibility", Summary: "Fetch legacy temporary access.", Collection: true, Deprecated: true, Replacements: []string{"/api/v1/shares"}},
 		{Method: http.MethodPost, Path: "/api/v1/temporary-access", OperationID: "createLegacyTemporaryAccess", Tag: "Legacy Compatibility", Summary: "Create legacy temporary access.", Created: true, Deprecated: true, Replacements: []string{"/api/v1/shares"}},
+	}
+}
+
+// --- Resource Schemas ---
+
+func openAPIPlaceSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "tenant_id", "name"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Place"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"address":       map[string]any{"type": "string"},
+			"region":        map[string]any{"type": "string"},
+			"status":        map[string]any{"type": "string", "enum": []string{"active", "archived"}},
+			"floors_count":  map[string]any{"type": "integer"},
+			"locks_count":   map[string]any{"type": "integer"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIPlaceCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"name"},
+		"properties": map[string]any{
+			"tenant_id": map[string]any{"type": "string"},
+			"name":      map[string]any{"type": "string"},
+			"address":   map[string]any{"type": "string"},
+			"region":    map[string]any{"type": "string"},
+		},
+	}
+}
+
+func openAPILockSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Lock"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"place_id":      map[string]any{"type": "string"},
+			"floor_id":      map[string]any{"type": "string"},
+			"area_id":       map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"kind":          map[string]any{"type": "string", "enum": []string{"office", "server_room", "parking", "elevator", "turnstile", "generic"}},
+			"status":        map[string]any{"type": "string", "enum": []string{"online", "offline", "locked_down"}},
+			"controller_id": map[string]any{"type": "string"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPILockCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"place_id", "name"},
+		"properties": map[string]any{
+			"tenant_id":  map[string]any{"type": "string"},
+			"place_id":   map[string]any{"type": "string"},
+			"floor_id":   map[string]any{"type": "string"},
+			"area_id":    map[string]any{"type": "string"},
+			"name":       map[string]any{"type": "string"},
+			"kind":       map[string]any{"type": "string"},
+			"status":     map[string]any{"type": "string"},
+			"gateway_id": map[string]any{"type": "string"},
+		},
+	}
+}
+
+func openAPIUserSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name", "email"},
+		"properties": map[string]any{
+			"id":          map[string]any{"type": "string"},
+			"tenant_id":   map[string]any{"type": "string"},
+			"building_id": map[string]any{"type": "string"},
+			"name":        map[string]any{"type": "string"},
+			"email":       map[string]any{"type": "string", "format": "email"},
+			"role":        map[string]any{"type": "string"},
+			"status":      map[string]any{"type": "string", "enum": []string{"active", "inactive", "suspended"}},
+			"group_ids":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"sync_source": map[string]any{"type": "string"},
+			"created_at":  map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIUserCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"name", "email"},
+		"properties": map[string]any{
+			"tenant_id":   map[string]any{"type": "string"},
+			"building_id": map[string]any{"type": "string"},
+			"name":        map[string]any{"type": "string"},
+			"email":       map[string]any{"type": "string", "format": "email"},
+			"role":        map[string]any{"type": "string"},
+			"status":      map[string]any{"type": "string"},
+			"group_ids":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+	}
+}
+
+func openAPIGroupSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Group"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"place_id":      map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"description":   map[string]any{"type": "string"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPITeamSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Team"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"description":   map[string]any{"type": "string"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPITeamMembershipSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "team_id", "member_type", "member_id"},
+		"properties": map[string]any{
+			"id":          map[string]any{"type": "string"},
+			"team_id":     map[string]any{"type": "string"},
+			"member_type": map[string]any{"type": "string", "enum": []string{"User", "Guest"}},
+			"member_id":   map[string]any{"type": "string"},
+			"created_at":  map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIRoleSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name", "applies_to"},
+		"properties": map[string]any{
+			"id":          map[string]any{"type": "string"},
+			"name":        map[string]any{"type": "string"},
+			"applies_to":  map[string]any{"type": "string", "enum": []string{"Organization", "Place", "Group"}},
+			"description": map[string]any{"type": "string"},
+			"permissions": map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "boolean"}},
+			"built_in":    map[string]any{"type": "boolean"},
+		},
+	}
+}
+
+func openAPIRoleAssignmentSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "role_id", "applies_to_type", "assignee_type", "assignee_id"},
+		"properties": map[string]any{
+			"id":                  map[string]any{"type": "string"},
+			"tenant_id":          map[string]any{"type": "string"},
+			"role_id":            map[string]any{"type": "string"},
+			"applies_to_type":    map[string]any{"type": "string", "enum": []string{"Organization", "Place", "Group"}},
+			"applies_to_id":      map[string]any{"type": "string"},
+			"assignee_type":      map[string]any{"type": "string", "enum": []string{"User", "Team", "Guest"}},
+			"assignee_id":        map[string]any{"type": "string"},
+			"assignee_email":     map[string]any{"type": "string", "format": "email"},
+			"valid_from":         map[string]any{"type": "string", "format": "date-time"},
+			"valid_until":        map[string]any{"type": "string", "format": "date-time"},
+			"time_windows":       map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/TimeWindow"}},
+			"exception_dates":    map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "date"}},
+			"holiday_calendar_id": map[string]any{"type": "string"},
+			"reviewed_at":        map[string]any{"type": "string", "format": "date-time"},
+			"reviewed_by":        map[string]any{"type": "string"},
+			"created_at":         map[string]any{"type": "string", "format": "date-time"},
+			"updated_at":         map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIShareSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id"},
+		"properties": map[string]any{
+			"id":                  map[string]any{"type": "string"},
+			"tenant_id":          map[string]any{"type": "string"},
+			"scope_type":         map[string]any{"type": "string", "enum": []string{"area", "door", "group"}},
+			"place_id":           map[string]any{"type": "string"},
+			"group_id":           map[string]any{"type": "string"},
+			"grantee_name":       map[string]any{"type": "string"},
+			"grantee_email":      map[string]any{"type": "string", "format": "email"},
+			"valid_from":         map[string]any{"type": "string", "format": "date-time"},
+			"valid_until":        map[string]any{"type": "string", "format": "date-time"},
+			"time_windows":       map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/TimeWindow"}},
+			"exception_dates":    map[string]any{"type": "array", "items": map[string]any{"type": "string", "format": "date"}},
+			"created_at":         map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPICardSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "status"},
+		"properties": map[string]any{
+			"id":              map[string]any{"type": "string"},
+			"tenant_id":       map[string]any{"type": "string"},
+			"provider":        map[string]any{"type": "string"},
+			"credential_kind": map[string]any{"type": "string", "enum": []string{"google_wallet", "apple_wallet", "physical_card"}},
+			"template_id":     map[string]any{"type": "string"},
+			"target_type":     map[string]any{"type": "string", "enum": []string{"user", "visitor"}},
+			"target_id":       map[string]any{"type": "string"},
+			"object_id":       map[string]any{"type": "string"},
+			"status":          map[string]any{"type": "string", "enum": []string{"issued", "active", "suspended", "revoked", "expired"}},
+			"save_link":       map[string]any{"type": "string", "format": "uri"},
+			"uid":             map[string]any{"type": "string"},
+			"card_number":     map[string]any{"type": "string"},
+			"expires_at":      map[string]any{"type": "string", "format": "date-time"},
+			"created_at":      map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPICardAssignmentSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "pass_id", "user_id"},
+		"properties": map[string]any{
+			"id":         map[string]any{"type": "string"},
+			"tenant_id":  map[string]any{"type": "string"},
+			"pass_id":    map[string]any{"type": "string"},
+			"user_id":    map[string]any{"type": "string"},
+			"status":     map[string]any{"type": "string"},
+			"created_at": map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIControllerSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Controller"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"place_id":      map[string]any{"type": "string"},
+			"serial":        map[string]any{"type": "string"},
+			"firmware":      map[string]any{"type": "string"},
+			"status":        map[string]any{"type": "string", "enum": []string{"online", "offline", "provisioning"}},
+			"lock_ids":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIReaderSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Reader"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"controller_id": map[string]any{"type": "string"},
+			"place_id":      map[string]any{"type": "string"},
+			"serial":        map[string]any{"type": "string"},
+			"status":        map[string]any{"type": "string"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPITerminalSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id"},
+		"properties": map[string]any{
+			"id":            map[string]any{"type": "string"},
+			"resource_type": map[string]any{"type": "string", "enum": []string{"Terminal"}},
+			"tenant_id":     map[string]any{"type": "string"},
+			"controller_id": map[string]any{"type": "string"},
+			"place_id":      map[string]any{"type": "string"},
+			"serial":        map[string]any{"type": "string"},
+			"status":        map[string]any{"type": "string"},
+			"created_at":    map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIAlertPolicySchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name", "category"},
+		"properties": map[string]any{
+			"id":                   map[string]any{"type": "string"},
+			"resource_type":        map[string]any{"type": "string", "enum": []string{"AlertPolicy"}},
+			"tenant_id":            map[string]any{"type": "string"},
+			"name":                 map[string]any{"type": "string"},
+			"description":          map[string]any{"type": "string"},
+			"category":             map[string]any{"type": "string", "enum": []string{"custom", "wallet_jobs", "enterprise_sync_worker"}},
+			"trigger":              map[string]any{"type": "string"},
+			"severity":             map[string]any{"type": "string", "enum": []string{"critical", "high", "medium", "low"}},
+			"condition_expression": map[string]any{"type": "string"},
+			"status":               map[string]any{"type": "string", "enum": []string{"active", "inactive"}},
+			"enabled":              map[string]any{"type": "boolean"},
+			"threshold":            map[string]any{"type": "integer"},
+			"window_seconds":       map[string]any{"type": "integer"},
+			"cooldown_seconds":     map[string]any{"type": "integer"},
+			"channels": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"email":    map[string]any{"type": "boolean"},
+					"whatsapp": map[string]any{"type": "boolean"},
+				},
+			},
+			"receiver_groups": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"updated_at":      map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPIHolidayCalendarSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "name"},
+		"properties": map[string]any{
+			"id":        map[string]any{"type": "string"},
+			"tenant_id": map[string]any{"type": "string"},
+			"name":      map[string]any{"type": "string"},
+			"country":   map[string]any{"type": "string"},
+			"entries": map[string]any{
+				"type": "array",
+				"items": map[string]any{
+					"type":     "object",
+					"required": []string{"date", "name"},
+					"properties": map[string]any{
+						"date":        map[string]any{"type": "string", "format": "date"},
+						"name":        map[string]any{"type": "string"},
+						"description": map[string]any{"type": "string"},
+					},
+				},
+			},
+			"updated_at": map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPITimeWindowSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"start_time", "end_time", "day_of_week_set"},
+		"properties": map[string]any{
+			"start_time":     map[string]any{"type": "string", "pattern": "^\\d{2}:\\d{2}$", "description": "HH:MM format"},
+			"end_time":       map[string]any{"type": "string", "pattern": "^\\d{2}:\\d{2}$", "description": "HH:MM format"},
+			"day_of_week_set": map[string]any{"type": "string", "description": "weekday, weekend, all, or comma-separated ISO days (1=Mon, 7=Sun)"},
+			"timezone":       map[string]any{"type": "string", "description": "IANA timezone, e.g. Asia/Jakarta"},
+		},
 	}
 }

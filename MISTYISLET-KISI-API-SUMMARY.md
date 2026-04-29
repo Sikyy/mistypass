@@ -70,7 +70,7 @@ Bundled Reference 提供这些认证方式：
 | P0 | Place Admin scope guard；后端 `building_admin` scope 已可从 Role Assignment / Team Membership 推导，API-level URL 回归已覆盖未授权 Place/Lock/Share/Role Assignment/Access Rights impact-review-schedule，Operator 只读写保护 smoke 已覆盖 Team/Card/Role Assignment/Share/Alert Policy 写入拒绝，浏览器 URL 绕过 E2E 已覆盖 unassigned Place direct route | 防止只靠前端隐藏入口造成越权 |
 | P1 | Users 批量治理深化 | User Detail、目录创建、邀请记录创建、邀请 queue/receipt/audit、Resend/mock provider dispatch、签名 provider webhook、邀请历史视图和批量启停已接，下一步补更细的批量治理 |
 | P1 | Alert Policy 调度器与渠道升级、Access Rights schedule 高级语义 | 补齐运营策略表达能力 |
-| P2 | OpenAPI 资源 schema 细化与生成链路 | operationId、collection pagination、统一 error schema、extension 分组和 legacy archive baseline 已接，下一步补资源字段级 schema |
+| P2 | OpenAPI client/文档站生成 | 资源字段级 schema 已补齐 20+ 资源（Place/Lock/User/Group/Team/Role/RoleAssignment/Share/Card/Controller/Reader/Terminal/AlertPolicy/HolidayCalendar/TimeWindow），含 enum 约束和 format 标注；collection response 已使用 typed item schema；核心 create 操作已有 request body schema；下一步接文档站或 client 生成 |
 
 ### 1.5 前后端 / API 文档对照进度
 

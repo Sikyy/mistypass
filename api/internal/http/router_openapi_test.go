@@ -167,8 +167,22 @@ func assertOpenAPICollectionResponse(t *testing.T, operation map[string]any) {
 	content := mustOpenAPIMap(t, okResponse, "content")
 	applicationJSON := mustOpenAPIMap(t, content, "application/json")
 	schema := mustOpenAPIMap(t, applicationJSON, "schema")
-	if got := schema["$ref"]; got != "#/components/schemas/CollectionResponse" {
-		t.Fatalf("expected collection response schema ref, got %#v", got)
+	// accept both: generic $ref CollectionResponse or inline typed schema with items+pagination
+	if ref, ok := schema["$ref"]; ok {
+		if ref != "#/components/schemas/CollectionResponse" {
+			t.Fatalf("expected collection response schema ref, got %#v", ref)
+		}
+		return
+	}
+	props, ok := schema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected collection schema properties, got %#v", schema)
+	}
+	if _, ok := props["items"]; !ok {
+		t.Fatalf("expected items property in collection schema")
+	}
+	if _, ok := props["pagination"]; !ok {
+		t.Fatalf("expected pagination property in collection schema")
 	}
 }
 
