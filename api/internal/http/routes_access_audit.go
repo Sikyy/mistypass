@@ -90,6 +90,7 @@ func (s *server) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_user_created", fmt.Sprintf("user_id=%s,email=%s,role=%s,building_id=%s,status=%s", created.ID, created.Email, created.Role, created.BuildingID, created.Status), "access")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -418,6 +419,7 @@ func (s *server) createUserGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_user_group_created", fmt.Sprintf("group_id=%s,name=%s,building_id=%s,members=%d", created.ID, created.Name, created.BuildingID, len(created.Members)), "access")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -462,6 +464,7 @@ func (s *server) updateUserGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_user_group_updated", fmt.Sprintf("group_id=%s,name=%s,building_id=%s,members=%d", updated.ID, updated.Name, updated.BuildingID, len(updated.Members)), "access")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -812,6 +815,7 @@ func (s *server) createVisitorPass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_visitor_pass_created", fmt.Sprintf("visitor_pass_id=%s,building_id=%s,host=%s,visitor=%s,expires_at=%s", created.ID, created.BuildingID, created.Host, created.Visitor, created.ExpiresAt), "access")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -1147,6 +1151,7 @@ func (s *server) updateAlarmStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_alarm_status_updated", fmt.Sprintf("alarm_id=%s,status=%s", updated.ID, updated.Status), "alarm")
 	writeJSON(w, http.StatusOK, updated)
 }
 

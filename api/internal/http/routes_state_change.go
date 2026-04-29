@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,6 +63,11 @@ func (s *server) replayStateChangeLog(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	tenantID := ""
+	if user, ok := authenticatedUser(r); ok {
+		tenantID = user.TenantID
+	}
+	s.appendAuditLog(r, tenantID, "state_change_log_replayed", fmt.Sprintf("state_key=%s,from_id=%d,applied=%d,last_change_id=%d", strings.TrimSpace(request.StateKey), request.FromID, result.Applied, result.LastChangeID), "system")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"state_key":      strings.TrimSpace(request.StateKey),
 		"from_id":        request.FromID,
@@ -122,6 +128,11 @@ func (s *server) replayStateChangeLogFromCheckpoint(w http.ResponseWriter, r *ht
 		}
 		return
 	}
+	tenantID := ""
+	if user, ok := authenticatedUser(r); ok {
+		tenantID = user.TenantID
+	}
+	s.appendAuditLog(r, tenantID, "state_change_log_replayed_from_checkpoint", fmt.Sprintf("state_key=%s,from_id=%d,applied=%d,last_change_id=%d", result.StateKey, result.FromID, result.Applied, result.LastChangeID), "system")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"state_key":      result.StateKey,
 		"from_id":        result.FromID,

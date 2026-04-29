@@ -39,6 +39,7 @@ func (s *server) createTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, created.ID, "legacy_tenant_created", fmt.Sprintf("tenant_id=%s,name=%s,type=%s,status=%s", created.ID, created.Name, created.Type, created.Status), "tenant")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -92,6 +93,7 @@ func (s *server) updateTenantStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_tenant_status_updated", fmt.Sprintf("tenant_id=%s,name=%s,status=%s", updated.ID, updated.Name, updated.Status), "tenant")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -214,6 +216,7 @@ func (s *server) createFloor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_floor_created", fmt.Sprintf("floor_id=%s,building_id=%s,name=%s", created.ID, created.BuildingID, created.Name), "space")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -308,6 +311,7 @@ func (s *server) updateFloor(w http.ResponseWriter, r *http.Request) {
 		handleSpaceMutationError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "legacy_floor_updated", fmt.Sprintf("floor_id=%s,building_id=%s,name=%s", updated.ID, updated.BuildingID, updated.Name), "space")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -333,6 +337,7 @@ func (s *server) deleteFloor(w http.ResponseWriter, r *http.Request) {
 		handleSpaceMutationError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "legacy_floor_deleted", fmt.Sprintf("floor_id=%s,building_id=%s,name=%s", current.ID, current.BuildingID, current.Name), "space")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -400,6 +405,7 @@ func (s *server) createArea(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_area_created", fmt.Sprintf("area_id=%s,building_id=%s,floor_id=%s,name=%s", created.ID, created.BuildingID, created.FloorID, created.Name), "space")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -463,6 +469,7 @@ func (s *server) updateArea(w http.ResponseWriter, r *http.Request) {
 		handleSpaceMutationError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "legacy_area_updated", fmt.Sprintf("area_id=%s,building_id=%s,floor_id=%s,name=%s", updated.ID, updated.BuildingID, updated.FloorID, updated.Name), "space")
 	writeJSON(w, http.StatusOK, updated)
 }
 

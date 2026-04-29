@@ -3,6 +3,7 @@ package httpx
 import (
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -71,6 +72,7 @@ func (s *server) upsertWalletGoogleConfig(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_google_config_upserted", fmt.Sprintf("issuer_id=%s,status=%s", config.IssuerID, config.Status), "wallet")
 	writeJSON(w, http.StatusOK, config)
 }
 
@@ -151,6 +153,7 @@ func (s *server) createWalletTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_template_created", fmt.Sprintf("template_id=%s,name=%s,pass_type=%s,status=%s", created.ID, created.Name, created.PassType, created.Status), "wallet")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -183,6 +186,7 @@ func (s *server) updateWalletTemplateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_template_status_updated", fmt.Sprintf("template_id=%s,name=%s,status=%s", updated.ID, updated.Name, updated.Status), "wallet")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -229,6 +233,7 @@ func (s *server) issueWalletPass(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_pass_issued", fmt.Sprintf("pass_id=%s,template_id=%s,target_type=%s,target_id=%s,status=%s", issued.ID, issued.TemplateID, issued.TargetType, issued.TargetID, issued.Status), "wallet")
 	writeJSON(w, http.StatusCreated, issued)
 }
 
@@ -300,6 +305,7 @@ func (s *server) issueWalletPassBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_pass_batch_issued", fmt.Sprintf("template_id=%s,target_type=%s,count=%d,execution_mode=%s", request.TemplateID, request.TargetType, len(jobs), executionMode), "wallet")
 	writeJSON(w, http.StatusAccepted, map[string]any{
 		"items":          jobs,
 		"execution_mode": executionMode,
@@ -409,6 +415,7 @@ func (s *server) dispatchWalletPassDelivery(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_pass_delivery_dispatched", fmt.Sprintf("notification_id=%s,pass_id=%s,channels=%s", record.ID, request.PassID, strings.Join(request.Channels, "|")), "wallet")
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -445,6 +452,7 @@ func (s *server) retryWalletPassDelivery(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_pass_delivery_retried", fmt.Sprintf("notification_id=%s", notificationID), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -510,6 +518,7 @@ func (s *server) createWalletPhysicalCardInventoryItem(w http.ResponseWriter, r 
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_created", fmt.Sprintf("inventory_id=%s,card_number=%s,uid=%s,status=%s", created.ID, created.CardNumber, created.UID, created.Status), "wallet")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -551,6 +560,7 @@ func (s *server) scanWalletPhysicalCardInventory(w http.ResponseWriter, r *http.
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_scanned", fmt.Sprintf("inventory_id=%s,card_number=%s,uid=%s,reader_id=%s", item.ID, item.CardNumber, item.UID, item.ReaderID), "wallet")
 	writeJSON(w, http.StatusCreated, item)
 }
 
@@ -590,6 +600,7 @@ func (s *server) importWalletPhysicalCardInventory(w http.ResponseWriter, r *htt
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_imported", fmt.Sprintf("count=%d", len(items)), "wallet")
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"items": items,
 	})
@@ -627,6 +638,7 @@ func (s *server) importWalletPhysicalCardInventoryCSV(w http.ResponseWriter, r *
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_csv_imported", fmt.Sprintf("count=%d", len(items)), "wallet")
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"items": items,
 	})
@@ -838,6 +850,7 @@ func (s *server) createWalletPhysicalCardTask(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_task_created", fmt.Sprintf("task_id=%s,pass_id=%s,task_type=%s,card_number=%s,status=%s", created.ID, created.PassID, created.TaskType, created.CardNumber, created.Status), "wallet")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -882,6 +895,7 @@ func (s *server) updateWalletPhysicalCardTaskStatus(w http.ResponseWriter, r *ht
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "physical_card_task_status_updated", fmt.Sprintf("task_id=%s,pass_id=%s,status=%s", updated.ID, updated.PassID, updated.Status), "wallet")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -933,6 +947,7 @@ func (s *server) changeWalletPassStatus(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_pass_status_changed", fmt.Sprintf("pass_id=%s,status=%s", record.ID, record.Status), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -1231,6 +1246,7 @@ func (s *server) dispatchWalletJobAlerts(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_job_alerts_dispatched", fmt.Sprintf("total_alerts=%d,dispatched=%d,skipped=%d,failed=%d", result.TotalAlerts, result.Dispatched, result.Skipped, result.Failed), "wallet")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"tenant_id":           result.TenantID,
 		"window_seconds":      int64(window.Seconds()),
@@ -1276,6 +1292,7 @@ func (s *server) retryWalletJobAlertNotification(w http.ResponseWriter, r *http.
 		}
 		return
 	}
+	s.appendAuditLog(r, tenantID, "wallet_job_alert_notification_retried", fmt.Sprintf("notification_id=%s", notificationID), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -1366,6 +1383,7 @@ func (s *server) upsertWalletJobAlertSubscription(w http.ResponseWriter, r *http
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_job_alert_subscription_upserted", fmt.Sprintf("enabled=%v,dlq_threshold=%d", record.Enabled, record.DLQAlertThreshold), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -1443,6 +1461,7 @@ func (s *server) retryWalletJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_job_retried", fmt.Sprintf("job_id=%s", jobID), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -1477,6 +1496,7 @@ func (s *server) requeueWalletDLQJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_dlq_job_requeued", fmt.Sprintf("job_id=%s", jobID), "wallet")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -1514,6 +1534,7 @@ func (s *server) requeueWalletDLQJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_dlq_jobs_requeued", fmt.Sprintf("requeued=%d,skipped=%d,remaining=%d", result.Requeued, result.Skipped, result.RemainingDLQ), "wallet")
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -1568,6 +1589,7 @@ func (s *server) cleanupWalletDLQJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_dlq_jobs_cleaned_up", fmt.Sprintf("removed=%d,remaining=%d", result.Removed, result.RemainingDLQ), "wallet")
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -1622,6 +1644,7 @@ func (s *server) processWalletJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "wallet_jobs_processed", fmt.Sprintf("claimed=%d,succeeded=%d,failed=%d,dlq=%d", result.Claimed, result.Succeeded, result.Failed, result.DLQ), "wallet")
 	writeJSON(w, http.StatusOK, result)
 }
 

@@ -123,17 +123,7 @@ Mistyislet 后台要从“功能堆叠型后台”转为“任务驱动型门禁
 
 ### 3.4 API 权限层级
 
-后续 API 不再以 `user.role` 作为主要权限模型。Bundled Reference 的权限层级是：
-
-| 层级 | 目标 API | 作用 |
-|---|---|---|
-| Role | `/api/v1/roles` | 权限能力包，字段包括 `applies_to` 和 `permissions` |
-| Role Assignment | `/api/v1/role_assignments` | 把 Role 分配给 User、Team 或 Guest，并绑定 Organization、Place 或 Group scope |
-| Share | `/api/v1/shares` | 通过 email 向 Group 分享访问权限，支持 `valid_from`、`valid_until` |
-| Team Membership | `/api/v1/team_memberships` | 把 User 或 Guest 加入 Team，Team 可作为权限受让者 |
-| Group binding | `/api/v1/group_locks`、`/api/v1/group_zones` 等 | 把访问组绑定到门点、区域、电梯或终端 |
-
-映射规则：
+API 权限模型的完整定义见 `MISTYISLET-KISI-API-SUMMARY.md` §2。本节只列出 UI 信息架构需要遵守的映射规则：
 
 - Organization Admin 是 Organization scope 的 Role Assignment，不是单独的后端角色枚举。
 - Place Admin 是 Place scope 的 Role Assignment，不是单独的后端角色枚举。
@@ -254,68 +244,17 @@ Mistyislet 后台要从“功能堆叠型后台”转为“任务驱动型门禁
 
 ## 6. API 契约
 
-### 6.1 参考规则
+API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度追踪的唯一来源是 `MISTYISLET-KISI-API-SUMMARY.md`。本节只保留 UI 层面必须遵守的约束。
 
-所有新增资源 API 都必须按 `Kisi-API-Bundled References.yaml` 与 `https://api.getkisi.com/docs#` 的 resource-oriented 风格设计，同时产品行为和仪表盘概念参考 `https://docs.kisi.io/`。
-
-具体要求：
-
-- 使用资源型 REST endpoint，不使用前端模块名作为 endpoint。
-- 集合路径使用复数，例如 `/integrations`、`/places`、`/locks`、`/role_assignments`。
-- OpenAPI operation 命名使用参考文档风格，例如 `fetchIntegrations`、`fetchIntegration`、`createIntegration`、`updateIntegration`、`deleteIntegration`。
-- 查询参数和 JSON 字段使用 snake_case，例如 `place_id`、`group_id`、`organization_id`、`integration_id`。
-- 集合查询使用 `ids`、`query`、`limit`、`offset` 和资源 scope query；正式响应应支持 `X-Collection-Range`，且 CORS 需 expose 该 header 供浏览器 client 读取。
-- 写入 payload 应按对应资源的请求体建模，例如 `{ "place": {} }`、`{ "group": {} }`、`{ "role_assignment": {} }`，不沿用页面表单结构。
-- UI 文案 Doors 对应目标 API `locks`；UI 文案 Access Rights 对应目标 API `role_assignments` + `shares` + `groups`。
-- 前端 adapter 可以兼容旧接口，但新后端 endpoint 不应继续暴露旧的前端模块语义。
-
-### 6.2 Mistyislet 目标 endpoint
-
-Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
-
-| 资源 | 目标 endpoint | Operation 示例 | 当前状态 |
-|---|---|---|---|
-| Places | `GET/POST /api/v1/places`、`GET/PATCH/DELETE /api/v1/places/:id`、`POST /api/v1/places/:id/lock_down`、`POST /api/v1/places/:id/cancel_lockdown` | `fetchPlaces`、`fetchPlace`、`createPlace`、`updatePlace`、`deletePlace`、`lockDownPlace`、`cancelPlaceLockdown` | 已落地 wrapper，前端 summary 已切；Places 页已接 Create Place，Place Settings 已接 General 保存、lockdown/cancel 与显式确认删除 |
-| Floors | `GET/POST /api/v1/floors`、`GET/PATCH/DELETE /api/v1/floors/:id` | `fetchFloors`、`fetchFloor`、`createFloor`、`updateFloor`、`deleteFloor` | 已支持 `place_id` 查询、detail/update/delete；Floors 页已接 Add Floor 与 General Save |
-| Doors UI / Locks API | `GET/POST /api/v1/locks`、`GET/PATCH/DELETE /api/v1/locks/:id`、`POST /api/v1/locks/:id/unlock`、`POST /api/v1/locks/:id/lock_down`、`POST /api/v1/locks/:id/cancel_lockdown` | `fetchLocks`、`fetchLock`、`createLock`、`updateLock`、`deleteLock`、`unlockLock`、`lockDownLock`、`cancelLockLockdown` | 已落地 wrapper，前端 summary 已切；Door Detail 已接 Add Door、detail、General 保存、Unlock/Lockdown/Cancel/Delete |
-| Hardware | `GET /api/v1/controllers`、`GET /api/v1/readers`、`GET /api/v1/terminals?place_id=`、`GET /api/v1/terminals/:id`、`POST /api/v1/controllers/:token/assign`、`POST /api/v1/readers/:token/assign`、`POST /api/v1/controllers/:id/locks`、`DELETE /api/v1/controllers/:id/locks/:lock_id`、`POST /api/v1/controllers/:id/config/publish`、`POST /api/v1/controllers/:id/reboot`、`POST /api/v1/readers/:id/reboot`、`POST /api/v1/terminals/:id/reboot`、`POST /api/v1/terminals/:id/trigger` | `fetchControllers`、`fetchReaders`、`fetchTerminals`、`fetchTerminal`、`assignController`、`assignReader`、`bindControllerLock`、`unbindControllerLock`、`publishControllerConfig`、`rebootController`、`rebootReader`、`rebootTerminal`、`triggerTerminal` | 已落地 reference-style wrapper，前端 summary 已切；Terminal 已补 detail，独立 update/delete 暂不落地；Hardware 页已接 Add Hardware、门点 Bind/Remove、Publish Config、Reboot 与 Terminal Trigger |
-| Users | `GET /api/v1/users?place_id=`、`GET/PATCH/DELETE /api/v1/users/:id`、`GET /api/v1/members?place_id=` | `fetchUsers`、`fetchUser`、`updateUser`、`deleteUser`、`fetchMembers` | 已支持 `place_id` 与 members wrapper；user detail/update/delete endpoint 和 client helper 已补 |
-| Teams | `GET/POST /api/v1/teams`、`GET/PATCH/DELETE /api/v1/teams/:id`、`GET/POST /api/v1/team_memberships`、`DELETE /api/v1/team_memberships/:id` | `fetchTeams`、`fetchTeam`、`createTeam`、`updateTeam`、`deleteTeam`、`fetchTeamMemberships`、`createTeamMembership`、`deleteTeamMembership` | 已落地 wrapper，Teams 页已接 team 与 membership 写入流 |
-| Groups | `GET/POST/PATCH/DELETE /api/v1/groups`、`GET/POST/DELETE /api/v1/group_locks`、`GET /api/v1/group_zones`、`GET/POST /api/v1/group_links`、`GET/PATCH/DELETE /api/v1/group_links/:id`、`GET/POST /api/v1/group_links/verify` | `fetchGroups`、`createGroup`、`updateGroup`、`deleteGroup`、`fetchGroupLocks`、`createGroupLock`、`deleteGroupLock`、`fetchGroupZones`、`fetchGroupLinks`、`fetchGroupLink`、`createGroupLink`、`updateGroupLink`、`deleteGroupLink`、`verifyGroupLinkToken` | groups/group_locks/group_zones/group_links 已落地 wrapper，Groups 页已接 Add/Save/Delete、限制条件编辑、门点绑定写入、Zones 面板、Links Add/Edit/Delete 与 token 验证 wrapper |
-| Roles | `GET /api/v1/roles` | `fetchRoles`、`fetchRole` | 已落地内置角色 |
-| Role Assignments | `GET /api/v1/role_assignments` | `fetchRoleAssignments`、`createRoleAssignment` | 已落地 state + wrapper |
-| Shares | `GET/POST /api/v1/shares` | `fetchShares`、`createShare`、`listTemporaryAccess`、`createTemporaryAccess` | 已落地 temporary-access wrapper；旧 helper 已转接 `/shares` 并映射回旧 UI view model |
-| Credentials | `GET/POST /api/v1/cards`、`GET /api/v1/cards/:id`、`GET/POST /api/v1/card_assignments`、`GET /api/v1/card_assignments/:id`、`POST /api/v1/cards/:id/assign`、`deassign`、`activate`、`deactivate`、`revoke`、`POST /api/v1/app/credentials/apple-pass`、`POST /api/v1/wallet/passes/issue-batch`、`GET /api/v1/wallet/jobs`、`GET/POST /api/v1/wallet/deliveries`、`GET /api/v1/wallet/physical-card-vendors`、`GET/POST /api/v1/wallet/physical-card-inventory`、`POST /api/v1/wallet/physical-card-inventory/scan`、`import`、`import-csv`、`PATCH /api/v1/wallet/physical-card-inventory/batch-status`、`PATCH /api/v1/wallet/physical-card-inventory/:inventoryID/status`、`GET/POST/PATCH /api/v1/wallet/physical-card-tasks` | `fetchCards`、`fetchCard`、`createCard`、`fetchCardAssignments`、`fetchCardAssignment`、`createCardAssignment`、`issueWalletPassBatch`、`listWalletJobs`、`dispatchWalletPassDelivery`、`listWalletPhysicalCardVendors`、`listWalletPhysicalCardInventory`、`scanWalletPhysicalCardInventoryItem`、`importWalletPhysicalCardInventory`、`importWalletPhysicalCardInventoryCSV`、`updateWalletPhysicalCardInventoryStatus`、`batchUpdateWalletPhysicalCardInventoryStatus`、`createWalletPhysicalCardTask` | 已落地 wallet passes wrapper，前端 summary、detail sheet、批量发放、batch audit 搜索/状态筛选/CSV 导出、delivery、Apple Pass self-service baseline、physical card vendor/inventory/scan、CSV import、库存 status 后端治理/前端控件和 task 流已切；`cards` 已补 `provider` / `credential_kind` 过滤与 `save_link` |
-| Events | `POST /api/v1/event_sets`、`GET /api/v1/event_sets/:id`、`GET /api/v1/events/meta`、`GET /api/v1/events/types` | `createEventSet`、`fetchEventSet`、`fetchEventMetadata`、`fetchEventTypes`、`listAccessEvents` | 已落地 reference wrapper，前端 summary 已切；旧 `listAccessEvents` helper 已转接 `/event_sets` 并映射回旧 AccessEvent view model |
-| Integrations | `GET/POST /api/v1/integrations`、`GET/PATCH/DELETE /api/v1/integrations/:id` | `fetchIntegrations`、`fetchIntegration`、`createIntegration`、`updateIntegration`、`deleteIntegration` | 已落地 wrapper，Organization Setup 已接 list/detail/Add/Edit/Disable |
-| Alert Policies | `GET/POST /api/v1/alert_policies`、`GET/PATCH/DELETE /api/v1/alert_policies/:id`、`POST /api/v1/alert_policies/condition_preview`、`POST /api/v1/alert_policies/evaluate` | `fetchAlertPolicies`、`fetchAlertPolicy`、`createAlertPolicy`、`updateAlertPolicy`、`deleteAlertPolicy`、`previewAlertPolicyCondition`、`evaluateAlertPoliciesForEvent` | 已落地 wrapper，Alert Policies 页已接 Add/Save/Delete、Custom condition 与 Preview；event evaluate 已接 TS helper |
-
-### 6.3 迁移期 adapter 规则
-
-当前后端已有这些旧/现有接口：
-
-- `GET /api/v1/buildings`（后端兼容保留并返回 deprecation/replacement headers；前端 `listBuildings` / `createBuilding` 已转接 `/api/v1/places`）
-- `GET /api/v1/floors`
-- `GET /api/v1/areas`
-- `GET /api/v1/doors`（后端兼容保留并返回 deprecation/replacement headers；前端 `listDoors` / `createDoor` 已转接 `/api/v1/locks`）
-- `GET /api/v1/gateways`（后端兼容保留并指向 `/controllers`、`/readers`、`/terminals`）
-- `GET /api/v1/events/access`（后端兼容保留并指向 `/event_sets`；前端 `listAccessEvents` 已转接 `/event_sets`）
-- `GET /api/v1/users`
-- `GET /api/v1/wallet/passes`（后端兼容保留并指向 `/cards`、`/card_assignments`；前端 `listWalletPasses` 已转接 `/cards`；issue/delivery/job 继续作为 Wallet extension）
-- `GET /api/v1/door_groups`（MistyPass extension；旧 `/door-groups` 保持兼容并返回 replacement headers）
-- `GET /api/v1/access-policies`（后端兼容保留并指向 `/role_assignments`、`/groups`、`/group_locks`）
-- `GET /api/v1/temporary-access`（后端兼容保留并指向 `/shares`；前端 `listTemporaryAccess` / `createTemporaryAccess` 已转接 `/shares`）
-
-在正式资源 endpoint 完成前，前端通过 `features/kisi-shell/resource-data.ts` 映射到新 UI 资源模型。当前 summary 已优先使用 `/api/v1/places`、`/api/v1/locks`、`/api/v1/controllers`、`/api/v1/readers`、`/api/v1/groups`、`/api/v1/teams`、`/api/v1/team_memberships`、`/api/v1/cards`、`/api/v1/card_assignments`、`/api/v1/roles`、`/api/v1/role_assignments`、`/api/v1/shares`、`/api/v1/event_sets`；旧命名 space helper 已转接 `/places` / `/locks`，旧 temporary access helper 已转接 `/shares`，旧 access event helper 已转接 `/event_sets`，旧 wallet pass list helper 已转接 `/cards`，旧 gateway list helper 已 reference-first 组合 `/controllers` / `/readers` / `/terminals` 并仅失败时 fallback `/gateways`，旧 gateway bind/unbind/config/reboot helper 已 reference-first 转接 controller action，旧 `access-policies` 仅作为 fallback，并已通过 response headers 暴露替代 reference 资源。
-
-约束：
+### 6.1 前端 adapter 约束
 
 - 保留 fallback，单个接口失败不导致整页崩溃。
 - adapter 类型留在 shell/resource 层，不泄露到用户可见文案。
 - 页面组件只消费资源视图模型，后续替换正式 endpoint 时尽量不改页面。
 - Place scope 不能只依赖前端过滤，正式接口必须由后端做权限约束。
+- UI 文案 Doors 对应目标 API `locks`；UI 文案 Access Rights 对应目标 API `role_assignments` + `shares` + `groups`。
 
-### 6.4 权限和范围
+### 6.2 权限和范围
 
 - Organization Admin 可以请求组织级资源，也可以请求 Place 级资源。
 - Place Admin 只能请求被分配 Place 的资源。
@@ -324,20 +263,9 @@ Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
 - 新权限写入必须创建或更新 `role_assignments`，不能再扩展历史 `user.role` 枚举。
 - 临时访问和邮件分享必须使用 `shares` 或 `group_links` 模型，不新增 `/access_rights/share`。
 
-### 6.5 前后端 / API 文档对照进度
+### 6.3 前后端 / API 文档对照进度
 
-对照范围：后端 `api/internal/http/router.go`、前端 `web-admin/src/lib/api.ts` 与 `MISTYISLET-KISI-API-SUMMARY.md`。主资源页面已经优先走 reference-style endpoint；剩余差异主要是旧后台、fallback、OpenAPI 生成规范和高级治理能力。
-
-| 状态 | 范围 | 说明 |
-|---|---|---|
-| 已完成 | Places、Floors、Areas、Locks、Hardware、Users/Members、My Account self profile、Teams、Groups/Group Links、Roles/Role Assignments、Shares、Access Rights schedule/impact/review、Cards/Card Assignments、Reports baseline、Integrations、Alert Policies 内置订阅、custom policy、condition preview 与 event evaluate baseline | 后端 route、TS helper、页面写入流和文档表格基本一致；Place Admin scope guard 与 URL 绕过回归已覆盖 |
-| 已完成 | Credentials 发放类型基础对齐 | 对照 Kisi Credentials 文档后，`cards` 已补 `credential_kind` / `save_link` 字段，前端已按 Google Wallet、Apple Wallet、Physical Card 展示；Google Wallet baseline、Apple Pass resident 自助 enrollment、实体卡库存/scan/status/task、Access Link claim 分别归到不同 API 面 |
-| 进行中 | 旧后台与 fallback endpoint 收口 | `listBuildings` / `createBuilding` 旧函数名已改走 reference `/places`；`listDoors` / `createDoor` 旧函数名已改走 reference `/locks`；`listTemporaryAccess` / `createTemporaryAccess` 旧函数名已改走 reference `/shares`；`listAccessEvents` 旧函数名已改走 reference `/event_sets`；`listWalletPasses` 旧函数名已改走 reference `/cards`；`listGateways` 旧函数名已改为先组合 `/controllers`、`/readers`、`/terminals` 成旧 `Gateway[]` view model，仅 reference 硬件读取失败时回退 `/gateways`；`bindGatewayDoor`、`unbindGatewayDoor`、`publishGatewayConfig`、`rebootGateway` 旧函数名已 reference-first 转接 controller lock/config/reboot action；后端 `/buildings`、`/doors`、旧 `/door-groups`、`/gateways`、`/events/access`、`/wallet/passes`、`/access-policies`、`/temporary-access` 已返回 `Deprecation`、`Link`、`X-MistyPass-Replacement`，且 CORS 已 expose；`listUserGroups` / `createUserGroup` / `updateUserGroup` 旧函数名已改走 reference `/groups`；`listDoorGroups` 已改走 snake_case extension `/door_groups`，旧 `/door-groups` 保持兼容；剩余旧接口已从新 shell summary 的无条件并发调用降级为 reference endpoint 失败后的按需 fallback；新 shell 主资源已尽量使用 reference wrapper，后端 legacy 入口后续归档 |
-| 已完成 | API 格式 baseline | Reference collection 已保留 `X-Collection-Range + {items}`，补 `{pagination}` metadata，并支持 `limit` / `offset` 裁剪；CORS 已 expose `X-Collection-Range`；前端 offset list normalizer 已兼容嵌套 `pagination` 与旧顶层 offset 响应；`writeError` 已统一 `{error,message,code,status}` baseline，前端 `APIError` 已保留 `code` / `responseStatus`；`GET /api/v1/openapi.json` 已用 `fetch*` / `create*` / `update*` / `delete*` 与动作动词 operationId 描述当前 baseline |
-| 已完成 | Product extension 分组 baseline | `/door_groups`、`/access_rights/schedule_templates`、`/access_rights/schedule`、`/access_rights/impact_preview`、`/access_rights/review`、Google Wallet config/templates/passes/jobs/deliveries、physical-card inventory/task 已在 OpenAPI 中通过 `x-mistyislet-extension` 与 `x-mistyislet-extension-group` 标注，避免和 Bundled Reference 原生资源混淆 |
-| 进行中 | Credentials Apple Wallet 深化 | Kisi Apple Passes 是用户自助添加，Admin 管理既有 pass；resident 自助 enrollment 与 Admin 管理 baseline 已落地，剩余是真实 `.pkpass` 签名、Apple device registration/pass update callback |
-| 进行中 | Credentials 官方文档边界 | 已按 Kisi Credentials 文档入口及 Apple Passes、Physical Credentials、Access Links / QR Code 子页面复核：Apple Wallet 是用户自助 enrollment，实体卡是库存/读卡器/导入/分配工作流，数字凭证是 access link/share，Google Wallet 是 MistyPass extension |
-| 未完成 | 高级治理 | Users 批量治理深化、Teams SCIM diff/批量导入/review、Access Rights 复杂 schedule 规则/节假日例外、Alert Policy 调度器/渠道升级/持久化投递、Apple Pass `.pkpass` 签名与设备回调、制卡供应商真实 API、实体卡完整运营视图、Access Link 复杂过期策略和审计运营视图 |
+前后端对照进度的唯一来源是 `MISTYISLET-KISI-API-SUMMARY.md` §1.5。本文件不再重复维护该表格。
 
 ---
 
@@ -421,7 +349,7 @@ Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
 
 | 分类 | 当前推进 |
 |---|---|
-| Destructive UX 收口 | 主要资源删除/解绑/撤销、硬件 Publish Config/重启/触发和实体卡终态推进已接确认；legacy building/door/door-group/temporary-access create 与 access policy create/update 已补审计；Organization Advanced 预留动作已禁用，下一步继续按域检查非硬件 legacy 高危操作 |
+| Destructive UX 收口 | 主要资源删除/解绑/撤销、硬件 Publish Config/重启/触发和实体卡终态推进已接确认；legacy 全域写操作审计已完成：building/door/door-group/temporary-access/access-policy/user/user-group/visitor-pass/alarm/tenant/floor/area/MFA/state-replay/wallet config/template/pass issue/status/delivery/physical card/job/DLQ 全链路已补审计与回归；Organization Advanced 预留动作已禁用 |
 | Row actions 收口 | Groups Links、Access Rights、Teams Members、Credentials 表格、Hardware door bindings、Alert Policies 已迁入；剩余 Settings/Advanced 等非表格操作继续按风险逐步统一 |
 | API 语义收口 | Reference wrapper 覆盖面已大，reference destructive/write audit baseline 已覆盖 Place/Lock/Group/Group Link/Group Lock/Controller/Reader/Team/Team Membership/Role Assignment/Share/Card/Alert Policy，并已扩展 Team create/update、Team Membership create、Role Assignment create/update、Share create/update、Card create/assign/status/deassign/revoke 等关键写操作回归；Access Link claim 已补 `last_used_at` / `claimed_at` 写回与 `reference_group_link_claimed` 审计；collection 响应已补 pagination metadata 与 `limit` / `offset` 裁剪，CORS 已 expose `X-Collection-Range`，错误响应已补 `{error,message,code,status}` baseline；OpenAPI baseline 已补 `GET /api/v1/openapi.json`，覆盖 operationId、pagination/error components、extension 分组和 legacy archive；Place delete 已落归档语义，Terminal 已补 detail 且 lifecycle 保持 Reader assign/deassign；legacy gateway register/bind/unbind/device register/config publish/reboot 已补审计与回归；legacy building/door/door-group/temporary-access create 与 access policy create/update 已补审计与回归；Users detail/update/delete/invite/invitations/receipt/provider webhook API、client helper、User Detail UI 写入、Users Add/Invite/provider dispatch/批量启停、Access Rights schedule template/bulk schedule/review/impact preview/bulk review baseline、Reports baseline、Alert Policy custom baseline 与实体卡库存 status 前后端治理 baseline 已补 |
 | Scope guard | Place Admin 视角可用；后端 `building_admin` scope 已从 token `building_ids` 扩展到 Role Assignment / Team Membership 推导，API-level URL 绕过回归已覆盖 Places/Locks/Shares/Role Assignments/Access Rights impact-review-schedule，Operator 只读写保护 smoke 已覆盖 Team/Card/Role Assignment/Share/Alert Policy 写入拒绝，浏览器 URL 绕过 E2E 已覆盖 unassigned Place direct route |
@@ -443,10 +371,9 @@ Mistyislet 保留 `/api/v1` 前缀，但资源结构对齐上述参考格式。
 
 | 优先级 | 事项 | 原因 |
 |---|---|---|
-| P0 | 继续消除剩余直接 destructive mutation：reference 关键写操作 audit baseline 已扩展到 Team/Team Membership/Role Assignment/Share/Card 的 create/update/assign/status/deassign/revoke；legacy gateway 高危写/命令、legacy building/door/door-group/temporary-access create 与 legacy access policy create/update 已补审计，后续按域检查其他非硬件 legacy 操作；未来启用 Organization Advanced 写入前必须先接确认和审计 | 直接影响数据安全与用户误操作风险 |
+| P0 | destructive mutation 审计已完成：reference 关键写操作 audit baseline 已覆盖全资源域；legacy 全域写操作审计（user/user-group/visitor-pass/alarm/tenant/floor/area/MFA/state-replay/wallet 全链路）已补齐并有回归测试；未来启用 Organization Advanced 写入前必须先接确认和审计 | 直接影响数据安全与用户误操作风险 |
 | P0 | Place Admin scope guard 与 demo 登录稳定性回归；Role Assignment / Access Rights 跨 Place 写入 smoke 和 Operator 只读写保护 smoke 已补，继续补更多 Place route smoke | 这是两类管理账号可用性的底线 |
 | P0 | 每轮保持 `typecheck`、unit、build、关键 smoke 通过 | 当前改动跨 API、adapter、UI，回归面大 |
-| P1 | 非硬件 legacy destructive audit 复查 | 补齐高风险操作追踪闭环 |
 | P1 | Users 批量治理与 Access Rights 复杂 schedule 规则/节假日例外 | 补齐 People & Access 的日常运营闭环 |
 | P1 | Credentials Apple Pass `.pkpass`/设备回调、实体卡完整运营视图与供应商真实 API | Google Wallet、Apple Pass self-service、Access Link、实体卡 scan/inventory/task/status baseline 已可用，下一步是 Apple Wallet 真实协议和运营深度 |
 | P2 | i18n、移动端视觉、旧后台 archive、OpenAPI 资源 schema 细化、bundle 拆分 | 影响体验和维护成本，但可在核心闭环稳定后集中处理 |

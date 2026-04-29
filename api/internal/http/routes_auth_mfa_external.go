@@ -60,6 +60,7 @@ func (s *server) setupAdminMFA(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.appendAuditLog(r, user.TenantID, "admin_mfa_setup_started", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
 	writeJSON(w, http.StatusOK, enrollment)
 }
 
@@ -95,6 +96,7 @@ func (s *server) enableAdminMFA(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.appendAuditLog(r, user.TenantID, "admin_mfa_enabled", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
 	writeJSON(w, http.StatusOK, status)
 }
 
@@ -116,6 +118,7 @@ func (s *server) disableAdminMFA(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	s.appendAuditLog(r, user.TenantID, "admin_mfa_disabled", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
 	writeJSON(w, http.StatusOK, status)
 }
 
