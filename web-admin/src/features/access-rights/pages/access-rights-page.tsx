@@ -1173,7 +1173,7 @@ export function AccessRightsAdaptedPage({
                   <span className="text-right font-semibold text-[#17171c]">{editingRow.id}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">Type</span>
+                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
                   <span className="text-right text-[#2f3037]">{editingRow.type}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">

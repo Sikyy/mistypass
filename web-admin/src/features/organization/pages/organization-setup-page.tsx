@@ -1169,7 +1169,7 @@ export function OrganizationSetupAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Type</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
                 <select
                   value={integrationDraft.type}
                   disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
@@ -1220,8 +1220,8 @@ export function OrganizationSetupAdaptedPage({
                   onChange={(event) => updateIntegrationDraft({ status: event.target.value })}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">{t("common.active")}</option>
+                  <option value="inactive">{t("common.inactive")}</option>
                 </select>
               </label>
               <label className="block sm:col-span-2">
@@ -1236,7 +1236,7 @@ export function OrganizationSetupAdaptedPage({
                     <>
                       <option value="jit">JIT</option>
                       <option value="manual">{t("kisi.orgSetup.manual")}</option>
-                      <option value="scheduled">Scheduled</option>
+                      <option value="scheduled">{t("common.scheduled")}</option>
                     </>
                   ) : (
                     <>
@@ -1360,7 +1360,7 @@ export function OrganizationSetupAdaptedPage({
       <Sheet open={createAlertPolicyOpen} onOpenChange={setCreateAlertPolicyOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Policy</SheetTitle>
+            <SheetTitle>{t("kisi.orgSetup.addPolicy")}</SheetTitle>
             <SheetDescription>{t("kisi.orgSetup.addPolicyDesc")}</SheetDescription>
           </SheetHeader>
           <form

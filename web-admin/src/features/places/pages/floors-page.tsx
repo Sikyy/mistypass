@@ -298,7 +298,7 @@ export function FloorsAdaptedPage({
               </button>
             ))}
             {floors.length === 0 ? (
-              <div className="col-span-full px-6 py-10 text-center text-sm text-[#6f717c]">No floors found for this place.</div>
+              <div className="col-span-full px-6 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noAreas")}</div>
             ) : null}
           </div>
         </section>
@@ -458,7 +458,7 @@ export function FloorsAdaptedPage({
                   </div>
                 ))}
                 {selectedFloorHardware.length === 0 ? (
-                  <div className="col-span-full px-7 py-10 text-center text-sm text-[#6f717c]">No hardware is mapped to this floor.</div>
+                  <div className="col-span-full px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noDoors")}</div>
                 ) : null}
               </div>
             </>
@@ -508,7 +508,7 @@ export function FloorsAdaptedPage({
       <Sheet open={addFloorOpen} onOpenChange={setAddFloorOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[420px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Floor</SheetTitle>
+            <SheetTitle>{t("kisi.floors.addFloor")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
           <form
@@ -550,7 +550,7 @@ export function FloorsAdaptedPage({
       <Sheet open={addAreaOpen} onOpenChange={setAddAreaOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[420px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Area</SheetTitle>
+            <SheetTitle>{t("kisi.floors.addArea")}</SheetTitle>
             <SheetDescription>{selectedFloor?.name ?? place?.name ?? "Selected floor"}</SheetDescription>
           </SheetHeader>
           <form

@@ -129,7 +129,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Create Place</SheetTitle>
+            <SheetTitle>{t("kisi.places.createPlace")}</SheetTitle>
             <SheetDescription>{t("kisi.places.emptyPrompt")}</SheetDescription>
           </SheetHeader>
           <form
@@ -148,7 +148,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Address</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
@@ -156,7 +156,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Region</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
               <input
                 value={region}
                 onChange={(event) => setRegion(event.target.value)}

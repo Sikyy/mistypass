@@ -369,7 +369,7 @@ export function TeamsAdaptedPage({
 
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-base font-semibold text-[#17171c]">Teams</h2>
+          <h2 className="text-base font-semibold text-[#17171c]">{t("kisi.teams.title")}</h2>
           <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.teams.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">

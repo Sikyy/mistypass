@@ -124,7 +124,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         {activeTab === t("kisi.myAccount.profile") ? (
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">Profile</h2>
+              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.profile")}</h2>
             </div>
             <div className="grid gap-8 p-7 lg:grid-cols-[1fr_260px]">
               <div className="space-y-6">
@@ -201,7 +201,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         {activeTab === t("kisi.myAccount.logins") ? (
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">Logins</h2>
+              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.logins")}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.description")}</p>
             </div>
             {[
@@ -221,7 +221,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         {activeTab === "Credentials" ? (
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">Credentials</h2>
+              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.credentials")}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.credentials")}</p>
             </div>
             {[
@@ -240,7 +240,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         {activeTab === t("kisi.myAccount.security") ? (
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">Security</h2>
+              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.security")}</h2>
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.security")}</p>
             </div>
             {[
@@ -270,7 +270,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               </div>
               <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[6px] border border-[#d9dbe3] px-4 lg:max-w-[360px]">
                 <SearchIcon className="size-4 text-[#6f717c]" />
-                <span className="text-sm text-[#9a9ca7]">Search APIs...</span>
+                <span className="text-sm text-[#9a9ca7]">{t("common.search")}</span>
               </div>
               <Button variant="outline" className="h-11 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
                 Add API Key

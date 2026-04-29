@@ -845,7 +845,7 @@ export function GroupsAdaptedPage({
             </label>
             {placeScoped ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
                 <input
                   value={placeContext.place?.name ?? "Assigned Place"}
                   readOnly
@@ -854,7 +854,7 @@ export function GroupsAdaptedPage({
               </label>
             ) : (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
                 <select
                   value={createGroupPlaceID}
                   onChange={(event) => setCreateGroupPlaceID(event.target.value)}
@@ -896,7 +896,7 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
@@ -904,7 +904,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Door</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
               <select
                 value={selectedDoorID}
                 onChange={(event) => setSelectedDoorID(event.target.value)}
@@ -945,7 +945,7 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
@@ -984,9 +984,9 @@ export function GroupsAdaptedPage({
                 onChange={(event) => setCreateLinkQRCodeType(event.target.value as "online" | "offline" | "")}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-                <option value="">None</option>
+                <option value="online">{t("common.online")}</option>
+                <option value="offline">{t("common.offline")}</option>
+                <option value="">-</option>
               </select>
             </label>
             <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
@@ -1013,8 +1013,8 @@ export function GroupsAdaptedPage({
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Edit Link</SheetTitle>
-            <SheetDescription>Update access link details for the selected group.</SheetDescription>
+            <SheetTitle>{t("kisi.groups.editLink")}</SheetTitle>
+            <SheetDescription>{t("kisi.groups.editLinkDesc")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -1024,7 +1024,7 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
@@ -1074,9 +1074,9 @@ export function GroupsAdaptedPage({
                 onChange={(event) => setEditLinkQRCodeType(event.target.value as "online" | "offline" | "")}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
-                <option value="">None</option>
+                <option value="online">{t("common.online")}</option>
+                <option value="offline">{t("common.offline")}</option>
+                <option value="">-</option>
               </select>
             </label>
             <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">

@@ -1058,7 +1058,7 @@ export function CredentialsAdaptedPage({
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">User</th>
+                <th className="px-6 py-4 font-semibold">{t("common.user")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.credentials.issued")}</th>
@@ -1167,7 +1167,7 @@ export function CredentialsAdaptedPage({
             {issueMode === "single" ? (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">User</span>
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
                   <select
                     value={selectedUser?.id ?? ""}
                     onChange={(event) => setSelectedUserID(event.target.value)}
@@ -1325,13 +1325,13 @@ export function CredentialsAdaptedPage({
                         }}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="User">User</option>
-                        <option value="Guest">Guest</option>
+                        <option value="User">{t("common.user")}</option>
+                        <option value="Guest">{t("common.guest")}</option>
                       </select>
                     </label>
                     {detailAssigneeType === "User" ? (
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">User</span>
+                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
                         <select
                           value={detailAssigneeID}
                           onChange={(event) => setDetailAssigneeID(event.target.value)}
@@ -1346,7 +1346,7 @@ export function CredentialsAdaptedPage({
                       </label>
                     ) : (
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Guest</span>
+                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.guest")}</span>
                         <input
                           value={detailGuestID}
                           onChange={(event) => setDetailGuestID(event.target.value)}

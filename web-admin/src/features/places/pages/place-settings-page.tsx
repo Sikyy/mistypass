@@ -186,7 +186,7 @@ export function PlaceSettingsAdaptedPage({
             <PanelHeader title="General" description="Place name, address, and timezone." />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Place name</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
                 <input
                   value={placeName}
                   disabled={!place}
@@ -196,7 +196,7 @@ export function PlaceSettingsAdaptedPage({
               </label>
               <FormField label="Timezone" value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Address</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.description")}</span>
                 <input
                   value={address}
                   disabled={!place}
@@ -205,7 +205,7 @@ export function PlaceSettingsAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Region</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.place")}</span>
                 <input
                   value={region}
                   disabled={!place}
@@ -301,8 +301,8 @@ export function PlaceSettingsAdaptedPage({
               ))}
               <div className="flex gap-5 rounded-[6px] border border-[#f1b7b2] bg-[#fffafa] p-5">
                 <div>
-                  <h3 className="font-semibold text-[#17171c]">Delete place</h3>
-                  <p className="mt-1 text-sm text-[#6f717c]">Remove this place and return to the organization place list.</p>
+                  <h3 className="font-semibold text-[#17171c]">{t("common.delete")}</h3>
+                  <p className="mt-1 text-sm text-[#6f717c]">{t("common.deleteConfirm")}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -335,14 +335,14 @@ export function PlaceSettingsAdaptedPage({
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Delete place</DialogTitle>
+            <DialogTitle>{t("common.delete")}</DialogTitle>
             <DialogDescription>
               This removes {place?.name ?? "this place"} from the organization. Type the place name to confirm.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Place name</span>
+              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={deleteConfirmText}
                 onChange={(event) => setDeleteConfirmText(event.target.value)}

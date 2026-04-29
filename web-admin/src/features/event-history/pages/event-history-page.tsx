@@ -91,7 +91,7 @@ export function EventHistoryAdaptedPage({
         </div>
         <div className="flex items-center gap-2 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4 text-xs text-[#6f717c]">
           <MapPinPlusIcon className="size-4" />
-          The timezone is Indonesia (Jakarta). <span className="text-[#4f55ff]">Change</span>
+          {t("kisi.eventHistory.timezone")} <span className="text-[#4f55ff]">Change</span>
         </div>
         <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-4 md:flex-row md:items-center">
           <DropdownMenu>

@@ -802,7 +802,7 @@ export function HardwareAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Type</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
               <select
                 value={hardwareMode}
                 onChange={(event) => {
@@ -880,8 +880,8 @@ export function HardwareAdaptedPage({
                       onChange={(event) => setHardwareStatus(event.target.value as "online" | "offline")}
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                     >
-                      <option value="online">Online</option>
-                      <option value="offline">Offline</option>
+                      <option value="online">{t("common.online")}</option>
+                      <option value="offline">{t("common.offline")}</option>
                     </select>
                   </label>
                 </div>

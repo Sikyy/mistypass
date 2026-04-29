@@ -307,9 +307,9 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               </Button>
             ) : (
               <div className="grid w-full grid-cols-3 text-sm text-[#6f717c]">
-                <span>Previous Page</span>
-                <span className="text-center text-[#17171c]">Page 1 of 1</span>
-                <span className="text-right">Next Page</span>
+                <span>{t("common.previousPage")}</span>
+                <span className="text-center text-[#17171c]">{t("common.pageOf", { page: 1, total: 1 })}</span>
+                <span className="text-right">{t("common.nextPage")}</span>
               </div>
             )
           }
@@ -341,17 +341,17 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                   </div>
                   <div className="grid gap-6 md:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Role</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
                       <select
                         value={role}
                         disabled={!user || !canMutate}
                         onChange={(event) => setRole(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                       >
-                        <option value="employee">Member</option>
-                        <option value="operator">Operator</option>
-                        <option value="manager">Manager</option>
-                        <option value="building_admin">Place Admin</option>
+                        <option value="employee">{t("kisi.users.memberRole")}</option>
+                        <option value="operator">{t("kisi.users.operatorRole")}</option>
+                        <option value="manager">{t("kisi.users.managerRole")}</option>
+                        <option value="building_admin">{t("kisi.users.placeAdminRole")}</option>
                       </select>
                     </label>
                     <label className="block">
@@ -362,15 +362,15 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                         onChange={(event) => setStatus(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                       >
-                        <option value="active">Active</option>
-                        <option value="suspended">Suspended</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="active">{t("kisi.users.activeStatus")}</option>
+                        <option value="suspended">{t("kisi.users.suspendedStatus")}</option>
+                        <option value="inactive">{t("kisi.users.inactiveStatus")}</option>
                       </select>
                     </label>
                   </div>
                   <div className="grid gap-6 md:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place ID</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.users.placeId")}</span>
                       <input
                         value={buildingID}
                         disabled={!user || !canMutate}
@@ -379,7 +379,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group IDs</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.users.groupIds")}</span>
                       <input
                         value={groupIDsText}
                         disabled={!user || !canMutate}
@@ -442,7 +442,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                       <th className="px-7 py-4 font-semibold">{t("common.name")}</th>
                       <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                       <th className="px-4 py-4 font-semibold">{t("common.scope")}</th>
-                      <th className="px-4 py-4 font-semibold">Schedule</th>
+                      <th className="px-4 py-4 font-semibold">{t("kisi.accessRights.schedule")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -475,7 +475,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 description="Credentials available to this user."
                 action={
                   <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
-                    <Link to="/credentials">Issue Credential</Link>
+                    <Link to="/credentials">{t("kisi.credentials.issue")}</Link>
                   </Button>
                 }
               />

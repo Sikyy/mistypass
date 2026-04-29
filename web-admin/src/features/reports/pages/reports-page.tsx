@@ -196,17 +196,17 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
 
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-base font-semibold text-[#17171c]">Scheduled Reports</h2>
+          <h2 className="text-base font-semibold text-[#17171c]">{t("kisi.reports.scheduledReports")}</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] text-[#2f3037]">
                 <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
-                <th className="px-4 py-4 font-semibold">Cadence</th>
-                <th className="px-4 py-4 font-semibold">Recipients</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.reports.period")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.user")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
-                <th className="px-4 py-4 font-semibold">Next Run</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>

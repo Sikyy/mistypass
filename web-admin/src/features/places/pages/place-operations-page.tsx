@@ -49,7 +49,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
         tabs={["Overview", "Rules", "Events", "Settings"]}
         active={activeTab}
         onTabChange={setActiveTab}
-        footer={<Button disabled className="h-10 rounded-[8px] bg-[#eef0f4] px-8 text-[#8d909b]">Save</Button>}
+        footer={<Button disabled className="h-10 rounded-[8px] bg-[#eef0f4] px-8 text-[#8d909b]">{t("common.save")}</Button>}
       >
         {activeTab === "Overview" ? (
           <>

@@ -384,7 +384,7 @@ export function UsersAdaptedPage({
                   <th className="px-4 py-4 font-semibold">{t("common.name")}</th>
                   <th className="px-4 py-4 font-semibold">{t("common.email")}</th>
                   <th className="px-4 py-4 font-semibold">{placeScoped ? "Access Date" : "Role"}</th>
-                  <th className="px-4 py-4 font-semibold">Access Enabled</th>
+                  <th className="px-4 py-4 font-semibold">{t("kisi.users.accessEnabled")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -428,7 +428,7 @@ export function UsersAdaptedPage({
                   </tr>
                 ))}
                 {filteredRows.length === 0 ? (
-                  <MistyisletEmptyTableRow colSpan={5}>No users match this search.</MistyisletEmptyTableRow>
+                  <MistyisletEmptyTableRow colSpan={5}>{t("kisi.users.noMatch")}</MistyisletEmptyTableRow>
                 ) : null}
               </tbody>
             </table>
@@ -461,16 +461,16 @@ export function UsersAdaptedPage({
             </label>
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Role</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
                 <select
                   value={newRole}
                   onChange={(event) => setNewRole(event.target.value)}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                 >
-                  <option value="employee">Member</option>
-                  <option value="operator">Operator</option>
-                  <option value="manager">Manager</option>
-                  <option value="building_admin">Place Admin</option>
+                  <option value="employee">{t("kisi.users.memberRole")}</option>
+                  <option value="operator">{t("kisi.users.operatorRole")}</option>
+                  <option value="manager">{t("kisi.users.managerRole")}</option>
+                  <option value="building_admin">{t("kisi.users.placeAdminRole")}</option>
                 </select>
               </label>
               <label className="block">
@@ -480,14 +480,14 @@ export function UsersAdaptedPage({
                   onChange={(event) => setNewStatus(event.target.value)}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
+                  <option value="active">{t("kisi.users.activeStatus")}</option>
+                  <option value="inactive">{t("kisi.users.inactiveStatus")}</option>
+                  <option value="suspended">{t("kisi.users.suspendedStatus")}</option>
                 </select>
               </label>
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place ID</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.users.placeId")}</span>
               <input
                 value={newBuildingID}
                 disabled={placeScoped}
@@ -496,7 +496,7 @@ export function UsersAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group IDs</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.users.groupIds")}</span>
               <input
                 value={newGroupIDsText}
                 onChange={(event) => setNewGroupIDsText(event.target.value)}
