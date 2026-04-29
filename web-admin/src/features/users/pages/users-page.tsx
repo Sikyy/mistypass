@@ -16,7 +16,16 @@ import {
 } from "@/components/ui/sheet"
 import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
 import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
-import { createUser, sendUserInvitation, updateUser, type CurrentUser } from "@/lib/api"
+import {
+  batchDeleteUsers,
+  batchInviteUsers,
+  batchUpdateUserStatus,
+  createUser,
+  exportUsersCSV,
+  importUsersCSV,
+  sendUserInvitation,
+  type CurrentUser,
+} from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { getViewerTenantID } from "@/lib/viewer"
 
@@ -144,27 +153,16 @@ export function UsersAdaptedPage({
 
   const bulkStatusMutation = useMutation({
     mutationFn: async (nextStatus: "active" | "suspended") => {
-      if (!tenantID) {
-        throw new Error("tenant is required")
-      }
-      await Promise.all(
-        selectedRows.map((row) =>
-          updateUser(token, row.id, {
-            tenant_id: tenantID,
-            building_id: row.placeId,
-            name: row.name,
-            email: row.email,
-            role: row.roleValue ?? "employee",
-            status: nextStatus,
-            group_ids: row.groupIds ?? [],
-          })
-        )
-      )
-      return nextStatus
+      if (!tenantID) throw new Error("tenant is required")
+      return batchUpdateUserStatus(token, {
+        tenant_id: tenantID,
+        user_ids: Array.from(selectedUsers),
+        status: nextStatus,
+      })
     },
-    onSuccess: async (nextStatus) => {
+    onSuccess: async (result) => {
       setSelectedUsers(new Set())
-      setActionNotice(nextStatus === "active" ? "Selected users enabled." : "Selected users suspended.")
+      setActionNotice(result.status === "active" ? `${result.updated} users enabled.` : `${result.updated} users suspended.`)
       setActionError("")
       await refreshUsers()
     },
@@ -173,6 +171,83 @@ export function UsersAdaptedPage({
       setActionError(error instanceof Error ? error.message : "Bulk user update failed")
     },
   })
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantID) throw new Error("tenant is required")
+      return batchDeleteUsers(token, {
+        tenant_id: tenantID,
+        user_ids: Array.from(selectedUsers),
+      })
+    },
+    onSuccess: async (result) => {
+      setSelectedUsers(new Set())
+      setActionNotice(`${result.deleted} users deleted.`)
+      setActionError("")
+      await refreshUsers()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Bulk delete failed")
+    },
+  })
+
+  const bulkInviteMutation = useMutation({
+    mutationFn: async () => {
+      if (!tenantID) throw new Error("tenant is required")
+      return batchInviteUsers(token, {
+        tenant_id: tenantID,
+        user_ids: Array.from(selectedUsers),
+        delivery_method: "email",
+      })
+    },
+    onSuccess: async (result) => {
+      setSelectedUsers(new Set())
+      setActionNotice(`${result.queued} invitations queued.`)
+      setActionError("")
+      await refreshUsers()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Bulk invite failed")
+    },
+  })
+
+  async function handleExportCSV() {
+    try {
+      const csv = await exportUsersCSV(token, tenantID)
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "users.csv"
+      a.click()
+      URL.revokeObjectURL(url)
+      setActionNotice("Users exported.")
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Export failed")
+    }
+  }
+
+  async function handleImportCSV() {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = ".csv"
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file || !tenantID) return
+      try {
+        const csvContent = await file.text()
+        const result = await importUsersCSV(token, { tenant_id: tenantID, csv_content: csvContent })
+        setActionNotice(`Import complete: ${result.created} created, ${result.updated} updated, ${result.errors} errors.`)
+        setActionError("")
+        await refreshUsers()
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "Import failed")
+      }
+    }
+    input.click()
+  }
 
   return (
     <>
@@ -228,6 +303,24 @@ export function UsersAdaptedPage({
               <MailPlusIcon className="mr-1.5 size-4" />
               Invite
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportCSV}
+              className="h-11 rounded-[6px] border-[#d9dbe3] bg-white text-[#2f3037] hover:bg-[#fbfbfc]"
+            >
+              Export CSV
+            </Button>
+            {canMutate && ["super_admin", "tenant_admin"].includes(viewer.role) ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleImportCSV}
+                className="h-11 rounded-[6px] border-[#d9dbe3] bg-white text-[#2f3037] hover:bg-[#fbfbfc]"
+              >
+                Import CSV
+              </Button>
+            ) : null}
           </div>
           {selectedUsers.size > 0 ? (
             <div className="flex flex-wrap items-center gap-5 border-b border-[#eceef2] bg-white px-6 py-4 text-sm">
@@ -248,9 +341,22 @@ export function UsersAdaptedPage({
               >
                 Enable Access
               </button>
-              {placeScoped ? (
-                <button type="button" disabled className="font-semibold text-[#9a9ca7]">
-                  Remove From Place
+              <button
+                type="button"
+                disabled={!canMutate || bulkInviteMutation.isPending}
+                onClick={() => bulkInviteMutation.mutate()}
+                className="font-semibold text-[#4f55ff] disabled:text-[#9a9ca7]"
+              >
+                Send Invite
+              </button>
+              {!placeScoped && ["super_admin", "tenant_admin"].includes(viewer.role) ? (
+                <button
+                  type="button"
+                  disabled={!canMutate || bulkDeleteMutation.isPending}
+                  onClick={() => { if (window.confirm(`Delete ${selectedUsers.size} users? This cannot be undone.`)) bulkDeleteMutation.mutate() }}
+                  className="font-semibold text-[#d93025] disabled:text-[#9a9ca7]"
+                >
+                  Delete
                 </button>
               ) : null}
               <button type="button" className="ml-auto text-[#6f717c]" onClick={() => setSelectedUsers(new Set())}>

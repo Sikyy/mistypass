@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1367,4 +1368,258 @@ func (s *server) dispatchAuditWebhook(w http.ResponseWriter, r *http.Request) {
 		"delivery": delivery,
 		"event":    targetLog,
 	})
+}
+
+func (s *server) batchUpdateUserStatus(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID string   `json:"tenant_id"`
+		UserIDs  []string `json:"user_ids"`
+		Status   string   `json:"status"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	if buildingScope != nil {
+		if err := s.filterUserIDsByScope(tenantID, request.UserIDs, buildingScope); err != nil {
+			writeError(w, http.StatusForbidden, "building scope forbidden")
+			return
+		}
+	}
+
+	result, err := s.accessSvc.BatchUpdateUserStatus(tenantID, request.UserIDs, request.Status)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrUserIDsRequired),
+			errors.Is(err, access.ErrInvalidUserStatus):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	s.appendAuditLog(r, tenantID, "users_batch_status_updated", fmt.Sprintf("status=%s,updated=%d,skipped=%d,not_found=%d", result.Status, result.Updated, result.Skipped, result.NotFound), "access")
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) batchDeleteUsers(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID string   `json:"tenant_id"`
+		UserIDs  []string `json:"user_ids"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	result, err := s.accessSvc.BatchDeleteUsers(tenantID, request.UserIDs)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrUserIDsRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	s.appendAuditLog(r, tenantID, "users_batch_deleted", fmt.Sprintf("deleted=%d,not_found=%d", result.Deleted, result.NotFound), "access")
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) batchInviteUsers(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID       string   `json:"tenant_id"`
+		UserIDs        []string `json:"user_ids"`
+		DeliveryMethod string   `json:"delivery_method"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	if buildingScope != nil {
+		if err := s.filterUserIDsByScope(tenantID, request.UserIDs, buildingScope); err != nil {
+			writeError(w, http.StatusForbidden, "building scope forbidden")
+			return
+		}
+	}
+
+	result, err := s.accessSvc.BatchInviteUsers(tenantID, request.UserIDs, request.DeliveryMethod)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrUserIDsRequired),
+			errors.Is(err, access.ErrDeliveryMethodInvalid):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	s.appendAuditLog(r, tenantID, "users_batch_invited", fmt.Sprintf("queued=%d,skipped=%d,not_found=%d,delivery_method=%s", result.Queued, result.Skipped, result.NotFound, request.DeliveryMethod), "access")
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *server) exportUsersCSV(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	csvBody, err := s.accessSvc.ExportUsersCSV(tenantID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if buildingScope != nil {
+		items := s.accessSvc.ListUsers(tenantID)
+		items = filterUsersByScope(items, buildingScope)
+		var buf strings.Builder
+		buf.WriteString("id,name,email,role,status,building_id,sync_source,created_at\n")
+		for i := range items {
+			buf.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%s,%s\n",
+				items[i].ID, items[i].Name, items[i].Email, items[i].Role,
+				items[i].Status, items[i].BuildingID, items[i].SyncSource,
+				items[i].CreatedAt.UTC().Format(time.RFC3339)))
+		}
+		csvBody = buf.String()
+	}
+
+	s.appendAuditLog(r, tenantID, "users_exported_csv", "format=csv", "access")
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="users.csv"`)
+	_, _ = w.Write([]byte(csvBody))
+}
+
+func (s *server) importUsersCSV(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		CSVContent string `json:"csv_content"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	records, err := parseUsersCSV(request.CSVContent)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	result, err := s.accessSvc.ImportUsersCSV(tenantID, records)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrUsersImportRecordsRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	s.appendAuditLog(r, tenantID, "users_imported_csv", fmt.Sprintf("created=%d,updated=%d,skipped=%d,errors=%d", result.Created, result.Updated, result.Skipped, result.Errors), "access")
+	writeJSON(w, http.StatusOK, result)
+}
+
+func parseUsersCSV(content string) ([]access.UserImportRecord, error) {
+	nextContent := strings.TrimSpace(content)
+	if nextContent == "" {
+		return nil, access.ErrUsersImportRecordsRequired
+	}
+	reader := csv.NewReader(strings.NewReader(nextContent))
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, access.ErrUsersImportRecordsRequired
+	}
+
+	start := 0
+	if len(rows[0]) > 0 && strings.ToLower(strings.TrimSpace(rows[0][0])) == "name" {
+		start = 1
+	}
+	records := make([]access.UserImportRecord, 0, len(rows)-start)
+	for i := start; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) < 2 {
+			continue
+		}
+		record := access.UserImportRecord{
+			Name:  strings.TrimSpace(row[0]),
+			Email: strings.TrimSpace(row[1]),
+		}
+		if len(row) > 2 {
+			record.Role = strings.TrimSpace(row[2])
+		}
+		if len(row) > 3 {
+			record.Status = strings.TrimSpace(row[3])
+		}
+		if len(row) > 4 {
+			record.BuildingID = strings.TrimSpace(row[4])
+		}
+		if record.Email == "" {
+			continue
+		}
+		records = append(records, record)
+	}
+	if len(records) == 0 {
+		return nil, access.ErrUsersImportRecordsRequired
+	}
+	return records, nil
+}
+
+func (s *server) filterUserIDsByScope(tenantID string, userIDs []string, buildingScope map[string]struct{}) error {
+	users := s.accessSvc.ListUsers(tenantID)
+	allowed := make(map[string]struct{}, len(users))
+	for i := range users {
+		if _, ok := buildingScope[users[i].BuildingID]; ok {
+			allowed[users[i].ID] = struct{}{}
+		}
+	}
+	for _, id := range userIDs {
+		uid := strings.TrimSpace(id)
+		if uid == "" {
+			continue
+		}
+		if _, ok := allowed[uid]; !ok {
+			return fmt.Errorf("user %s not in scope", uid)
+		}
+	}
+	return nil
 }

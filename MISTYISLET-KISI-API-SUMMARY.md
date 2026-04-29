@@ -109,7 +109,7 @@ Bundled Reference 提供这些认证方式：
 | Reports advanced | 排程投递持久化、更多导出格式、报表模板参数化 | 当前已有 `/reports` 聚合、CSV download 与 `/scheduled_reports` baseline CRUD | P2 |
 | Access Rights schedule | 复杂时间窗、节假日/例外规则 | 当前已有 `valid_from` / `valid_until` baseline、schedule template baseline、批量 schedule edit 与 review/impact preview | P1 |
 | Teams governance | SCIM source diff、成员批量导入、team access review | 当前支持 team/membership CRUD 与 role assignment flow | P1 |
-| Users governance | 更细的批量治理、批量 invite/retry 策略、目录差异审阅 | 当前支持 Add/Invite、invitation queue/provider receipt、批量 Suspend/Enable | P1 |
+| Users governance | 目录差异审阅、批量 role/group 变更细化 | `batch-status`、`batch-delete`、`batch-invite`、`export-csv`、`import-csv` 已落地；前端已接真正的 batch endpoint 替换 Promise.all 并发，CSV 导出/导入按钮已接 | P2 |
 | Alert Policy advanced execution | 调度器、升级策略、持久化和通知投递状态 | 当前已支持内置订阅、custom policy CRUD、条件语法校验、样例事件 preview 和事件 payload 批量 evaluate；custom 仍是内存态配置模型 | P1 |
 | Apple Pass production protocol | `.pkpass` 签名、pass type identifier / certificate 管理、device registration、push update callback | 当前已有 resident 自助 enrollment 记录与 Admin 管理 baseline，尚未生成真实 Apple Wallet pass bundle | P1 |
 | Physical card supplier | 真实制卡供应商 API、完整库存运营视图和前端治理控件 | 当前有 vendor/inventory/task baseline、CSV import，以及 `available` / `frozen` / `scrapped` 后端生命周期治理；`reserved` / `issued` 仍必须通过实体卡 task lifecycle 推进 | P1 |
@@ -241,6 +241,11 @@ Kisi API 的门点资源名是 `locks`。Mistyislet UI 可以继续显示 Doors�
 | `deleteUser` | DELETE | `/api/v1/users/:id` | Access service endpoint | Organization Admin | 已落地 endpoint、client helper、关联 Role Assignment/Team Membership/Group member 清理与 delete audit | Users |
 | `fetchCurrentUser` | GET | `/api/v1/user` | `/api/v1/user` + `/api/v1/me` 兼容 | Authenticated | 已落地 self profile alias，旧 `/me` 保持可用 | My Account |
 | `updateCurrentUser` | PATCH | `/api/v1/user` | `/api/v1/user` | Authenticated | 已落地，仅允许 `name` / `language` 自助更新并写 audit | My Account |
+| `batchUpdateUserStatus` | POST | `/api/v1/users/batch-status` | Access service batch | Organization Admin / Place Admin | 已落地，前端已接真正的 batch endpoint 替换 Promise.all 并发 | Users |
+| `batchDeleteUsers` | POST | `/api/v1/users/batch-delete` | Access service batch | Organization Admin | 已落地，前端已接批量删除确认 | Users |
+| `batchInviteUsers` | POST | `/api/v1/users/batch-invite` | Access service batch | Organization Admin / Place Admin | 已落地，前端已接批量邀请 | Users |
+| `exportUsersCSV` | GET | `/api/v1/users/export-csv` | Access service CSV export | Organization Admin / Place Admin | 已落地，前端已接 CSV 下载按钮 | Users |
+| `importUsersCSV` | POST | `/api/v1/users/import-csv` | Access service CSV import | Organization Admin | 已落地，前端已接文件选择导入 | Users |
 
 ### 3.6 Teams
 

@@ -3367,6 +3367,95 @@ export const sendUserInvitation = sendAccessUserInvitation
 export const listUserInvitations = listAccessUserInvitations
 export const recordUserInvitationReceipt = recordAccessUserInvitationReceipt
 
+export type BatchUserStatusResult = {
+  tenant_id: string
+  status: string
+  updated: number
+  skipped: number
+  not_found: number
+  user_ids: string[]
+}
+
+export type BatchUserDeleteResult = {
+  tenant_id: string
+  deleted: number
+  not_found: number
+  user_ids: string[]
+}
+
+export type BatchUserInviteResult = {
+  tenant_id: string
+  queued: number
+  skipped: number
+  not_found: number
+  user_ids: string[]
+}
+
+export type UserImportResult = {
+  tenant_id: string
+  created: number
+  updated: number
+  skipped: number
+  errors: number
+}
+
+export async function batchUpdateUserStatus(
+  token: string | undefined,
+  payload: { tenant_id: string; user_ids: string[]; status: string }
+): Promise<BatchUserStatusResult> {
+  return request<BatchUserStatusResult>(
+    "/api/v1/users/batch-status",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function batchDeleteUsers(
+  token: string | undefined,
+  payload: { tenant_id: string; user_ids: string[] }
+): Promise<BatchUserDeleteResult> {
+  return request<BatchUserDeleteResult>(
+    "/api/v1/users/batch-delete",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function batchInviteUsers(
+  token: string | undefined,
+  payload: { tenant_id: string; user_ids: string[]; delivery_method?: string }
+): Promise<BatchUserInviteResult> {
+  return request<BatchUserInviteResult>(
+    "/api/v1/users/batch-invite",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function exportUsersCSV(
+  token: string | undefined,
+  tenantID?: string
+): Promise<string> {
+  const url = withTenantQuery("/api/v1/users/export-csv", tenantID)
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!resp.ok) throw new APIError(resp.status, await resp.text())
+  return resp.text()
+}
+
+export async function importUsersCSV(
+  token: string | undefined,
+  payload: { tenant_id: string; csv_content: string }
+): Promise<UserImportResult> {
+  return request<UserImportResult>(
+    "/api/v1/users/import-csv",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
 export async function createAccessPolicy(
   token: string | undefined,
   payload: {

@@ -57,6 +57,48 @@ var ErrInvalidAssigneeType = errors.New("invalid assignee type")
 var ErrAppliesToIDRequired = errors.New("applies_to_id is required")
 var ErrAssigneeIDRequired = errors.New("assignee_id is required")
 var ErrAccessRightSelectionRequired = errors.New("access right selection is required")
+var ErrUserIDsRequired = errors.New("user_ids is required")
+var ErrUsersImportRecordsRequired = errors.New("import records are required")
+
+type BatchUserStatusResult struct {
+	TenantID string `json:"tenant_id"`
+	Status   string `json:"status"`
+	Updated  int    `json:"updated"`
+	Skipped  int    `json:"skipped"`
+	NotFound int    `json:"not_found"`
+	UserIDs  []string `json:"user_ids"`
+}
+
+type BatchUserDeleteResult struct {
+	TenantID string `json:"tenant_id"`
+	Deleted  int    `json:"deleted"`
+	NotFound int    `json:"not_found"`
+	UserIDs  []string `json:"user_ids"`
+}
+
+type BatchUserInviteResult struct {
+	TenantID   string `json:"tenant_id"`
+	Queued     int    `json:"queued"`
+	Skipped    int    `json:"skipped"`
+	NotFound   int    `json:"not_found"`
+	UserIDs    []string `json:"user_ids"`
+}
+
+type UserImportRecord struct {
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Role       string `json:"role"`
+	Status     string `json:"status"`
+	BuildingID string `json:"building_id"`
+}
+
+type UserImportResult struct {
+	TenantID string `json:"tenant_id"`
+	Created  int    `json:"created"`
+	Updated  int    `json:"updated"`
+	Skipped  int    `json:"skipped"`
+	Errors   int    `json:"errors"`
+}
 
 type Role struct {
 	ID          string          `json:"id"`
@@ -1166,6 +1208,314 @@ func (s *Service) DeleteUser(tenantID, userID string) (AccessUser, error) {
 		return AccessUser{}, err
 	}
 	return removed, nil
+}
+
+func (s *Service) BatchUpdateUserStatus(tenantID string, userIDs []string, status string) (BatchUserStatusResult, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	if filterTenantID == "" {
+		return BatchUserStatusResult{}, ErrTenantIDRequired
+	}
+	if len(userIDs) == 0 {
+		return BatchUserStatusResult{}, ErrUserIDsRequired
+	}
+	nextStatus, err := normalizeUserStatus(status)
+	if err != nil {
+		return BatchUserStatusResult{}, err
+	}
+
+	targetSet := make(map[string]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		if v := strings.TrimSpace(id); v != "" {
+			targetSet[v] = struct{}{}
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var updated, skipped, notFound int
+	updatedIDs := make([]string, 0, len(targetSet))
+	found := make(map[string]struct{}, len(targetSet))
+
+	for i := range s.users {
+		if s.users[i].TenantID != filterTenantID {
+			continue
+		}
+		if _, ok := targetSet[s.users[i].ID]; !ok {
+			continue
+		}
+		found[s.users[i].ID] = struct{}{}
+		if strings.EqualFold(s.users[i].Status, nextStatus) {
+			skipped++
+			continue
+		}
+		s.users[i].Status = nextStatus
+		updated++
+		updatedIDs = append(updatedIDs, s.users[i].ID)
+	}
+	notFound = len(targetSet) - len(found)
+
+	if updated > 0 {
+		if err := s.persistLocked(); err != nil {
+			return BatchUserStatusResult{}, err
+		}
+	}
+
+	return BatchUserStatusResult{
+		TenantID: filterTenantID,
+		Status:   nextStatus,
+		Updated:  updated,
+		Skipped:  skipped,
+		NotFound: notFound,
+		UserIDs:  updatedIDs,
+	}, nil
+}
+
+func (s *Service) BatchDeleteUsers(tenantID string, userIDs []string) (BatchUserDeleteResult, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	if filterTenantID == "" {
+		return BatchUserDeleteResult{}, ErrTenantIDRequired
+	}
+	if len(userIDs) == 0 {
+		return BatchUserDeleteResult{}, ErrUserIDsRequired
+	}
+
+	targetSet := make(map[string]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		if v := strings.TrimSpace(id); v != "" {
+			targetSet[v] = struct{}{}
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var deleted, notFound int
+	deletedIDs := make([]string, 0, len(targetSet))
+	nextUsers := make([]AccessUser, 0, len(s.users))
+	removedIDs := make(map[string]struct{}, len(targetSet))
+
+	for i := range s.users {
+		if s.users[i].TenantID != filterTenantID {
+			nextUsers = append(nextUsers, s.users[i])
+			continue
+		}
+		if _, ok := targetSet[s.users[i].ID]; !ok {
+			nextUsers = append(nextUsers, s.users[i])
+			continue
+		}
+		removedIDs[s.users[i].ID] = struct{}{}
+		deleted++
+		deletedIDs = append(deletedIDs, s.users[i].ID)
+	}
+	notFound = len(targetSet) - deleted
+
+	if deleted > 0 {
+		s.users = nextUsers
+		// clean up group memberships
+		for i := range s.userGroups {
+			for rid := range removedIDs {
+				s.userGroups[i].Members = removeID(s.userGroups[i].Members, rid)
+			}
+		}
+		// clean up role assignments
+		nextAssignments := make([]RoleAssignment, 0, len(s.roleAssignments))
+		for i := range s.roleAssignments {
+			if strings.EqualFold(s.roleAssignments[i].AssigneeType, "User") {
+				if _, ok := removedIDs[s.roleAssignments[i].AssigneeID]; ok {
+					continue
+				}
+			}
+			nextAssignments = append(nextAssignments, s.roleAssignments[i])
+		}
+		s.roleAssignments = nextAssignments
+		// clean up team memberships
+		nextMemberships := make([]TeamMembership, 0, len(s.teamMemberships))
+		for i := range s.teamMemberships {
+			if strings.EqualFold(s.teamMemberships[i].MemberType, "User") {
+				if _, ok := removedIDs[s.teamMemberships[i].MemberID]; ok {
+					continue
+				}
+			}
+			nextMemberships = append(nextMemberships, s.teamMemberships[i])
+		}
+		s.teamMemberships = nextMemberships
+		if err := s.persistLocked(); err != nil {
+			return BatchUserDeleteResult{}, err
+		}
+	}
+
+	return BatchUserDeleteResult{
+		TenantID: filterTenantID,
+		Deleted:  deleted,
+		NotFound: notFound,
+		UserIDs:  deletedIDs,
+	}, nil
+}
+
+func (s *Service) BatchInviteUsers(tenantID string, userIDs []string, deliveryMethod string) (BatchUserInviteResult, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	if filterTenantID == "" {
+		return BatchUserInviteResult{}, ErrTenantIDRequired
+	}
+	if len(userIDs) == 0 {
+		return BatchUserInviteResult{}, ErrUserIDsRequired
+	}
+	nextMethod := strings.ToLower(strings.TrimSpace(deliveryMethod))
+	if nextMethod == "" {
+		nextMethod = "email"
+	}
+	if nextMethod != "email" && nextMethod != "email_qr" {
+		return BatchUserInviteResult{}, ErrDeliveryMethodInvalid
+	}
+
+	targetSet := make(map[string]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		if v := strings.TrimSpace(id); v != "" {
+			targetSet[v] = struct{}{}
+		}
+	}
+
+	var queued, skipped, notFound int
+	queuedIDs := make([]string, 0, len(targetSet))
+
+	s.mu.RLock()
+	users := cloneAccessUsers(s.users)
+	s.mu.RUnlock()
+
+	found := make(map[string]struct{}, len(targetSet))
+	for i := range users {
+		if users[i].TenantID != filterTenantID {
+			continue
+		}
+		if _, ok := targetSet[users[i].ID]; !ok {
+			continue
+		}
+		found[users[i].ID] = struct{}{}
+		if strings.EqualFold(users[i].Status, "suspended") || strings.EqualFold(users[i].Status, "disabled") {
+			skipped++
+			continue
+		}
+		_, _, err := s.CreateUserInvitationDelivery(filterTenantID, users[i].ID, nextMethod)
+		if err != nil {
+			skipped++
+			continue
+		}
+		queued++
+		queuedIDs = append(queuedIDs, users[i].ID)
+	}
+	notFound = len(targetSet) - len(found)
+
+	return BatchUserInviteResult{
+		TenantID: filterTenantID,
+		Queued:   queued,
+		Skipped:  skipped,
+		NotFound: notFound,
+		UserIDs:  queuedIDs,
+	}, nil
+}
+
+func (s *Service) ExportUsersCSV(tenantID string) (string, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	if filterTenantID == "" {
+		return "", ErrTenantIDRequired
+	}
+
+	s.mu.RLock()
+	users := cloneAccessUsers(s.users)
+	s.mu.RUnlock()
+
+	var buf strings.Builder
+	buf.WriteString("id,name,email,role,status,building_id,sync_source,created_at\n")
+	for i := range users {
+		if users[i].TenantID != filterTenantID {
+			continue
+		}
+		buf.WriteString(csvEscape(users[i].ID))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].Name))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].Email))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].Role))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].Status))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].BuildingID))
+		buf.WriteByte(',')
+		buf.WriteString(csvEscape(users[i].SyncSource))
+		buf.WriteByte(',')
+		buf.WriteString(users[i].CreatedAt.UTC().Format(time.RFC3339))
+		buf.WriteByte('\n')
+	}
+	return buf.String(), nil
+}
+
+func (s *Service) ImportUsersCSV(tenantID string, records []UserImportRecord) (UserImportResult, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	if filterTenantID == "" {
+		return UserImportResult{}, ErrTenantIDRequired
+	}
+	if len(records) == 0 {
+		return UserImportResult{}, ErrUsersImportRecordsRequired
+	}
+
+	var created, updated, skipped, errCount int
+
+	for i := range records {
+		email := normalizeEmail(records[i].Email)
+		if email == "" {
+			errCount++
+			continue
+		}
+		name := strings.TrimSpace(records[i].Name)
+		if name == "" {
+			name = email
+		}
+		role := strings.ToLower(strings.TrimSpace(records[i].Role))
+		if role == "" {
+			role = "employee"
+		}
+		status := strings.ToLower(strings.TrimSpace(records[i].Status))
+		if status == "" {
+			status = "active"
+		}
+		buildingID := strings.TrimSpace(records[i].BuildingID)
+
+		_, isNew, err := s.UpsertUserByEmail(
+			filterTenantID,
+			buildingID,
+			name,
+			email,
+			role,
+			status,
+			nil,
+		)
+		if err != nil {
+			errCount++
+			continue
+		}
+		if isNew {
+			created++
+		} else {
+			updated++
+		}
+	}
+
+	return UserImportResult{
+		TenantID: filterTenantID,
+		Created:  created,
+		Updated:  updated,
+		Skipped:  skipped,
+		Errors:   errCount,
+	}, nil
+}
+
+func csvEscape(s string) string {
+	if strings.ContainsAny(s, ",\"\n\r") {
+		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+	}
+	return s
 }
 
 func (s *Service) ListUserInvitationDeliveries(tenantID, userID string) []UserInvitationDelivery {

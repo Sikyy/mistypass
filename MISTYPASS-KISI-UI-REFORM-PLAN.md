@@ -359,7 +359,7 @@ API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度
 
 | 分类 | 缺口 |
 |---|---|
-| Users | Add User、Invite record creation + queue、Resend/mock provider dispatch、签名 provider webhook、receipt baseline、批量 Suspend/Enable 与 User Detail 保存/启停/Resend Invite/Invitation Deliveries/删除已接；剩余是批量治理深化 |
+| Users | 批量治理已补齐：`batch-status`/`batch-delete`/`batch-invite`/`export-csv`/`import-csv` 后端 endpoint 和前端批量操作/CSV 导出导入已落地；剩余目录差异审阅和批量 role/group 细化 |
 | Teams 高级治理 | SCIM source diff、成员批量导入、team access review 尚未实现 |
 | Access Rights 高级语义 | target/schedule 过滤、review 计数、valid_from/valid_until baseline、schedule template baseline、批量 schedule edit、权限影响预览和批量 review 已接；剩余复杂时间窗、节假日/例外规则 |
 | Reports 高级语义 | Reports 已接聚合指标、CSV 下载与 scheduled report baseline；剩余排程投递持久化、更多导出格式与模板参数化 |
