@@ -381,8 +381,8 @@ export function UsersAdaptedPage({
                       aria-label={allFilteredSelected ? "Clear selected users" : "Select all users"}
                     />
                   </th>
-                  <th className="px-4 py-4 font-semibold">Name</th>
-                  <th className="px-4 py-4 font-semibold">Email</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.name")}</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.email")}</th>
                   <th className="px-4 py-4 font-semibold">{placeScoped ? "Access Date" : "Role"}</th>
                   <th className="px-4 py-4 font-semibold">Access Enabled</th>
                 </tr>
@@ -444,7 +444,7 @@ export function UsersAdaptedPage({
           </SheetHeader>
           <div className="space-y-5 px-6 py-6">
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
@@ -452,7 +452,7 @@ export function UsersAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
               <input
                 value={newEmail}
                 onChange={(event) => setNewEmail(event.target.value)}
@@ -474,7 +474,7 @@ export function UsersAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
                 <select
                   value={newStatus}
                   onChange={(event) => setNewStatus(event.target.value)}

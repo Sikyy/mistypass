@@ -155,7 +155,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
               <tr className="border-b border-[#eceef2] text-[#2f3037]">
                 <th className="px-6 py-4 font-semibold">Report</th>
                 <th className="px-4 py-4 font-semibold">Metrics</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">Generated</th>
                 <th className="px-4 py-4 text-right font-semibold">Export</th>
               </tr>
@@ -202,10 +202,10 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">Name</th>
+                <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
                 <th className="px-4 py-4 font-semibold">Cadence</th>
                 <th className="px-4 py-4 font-semibold">Recipients</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">Next Run</th>
               </tr>
             </thead>

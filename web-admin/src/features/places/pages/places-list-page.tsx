@@ -1,4 +1,6 @@
+  const { t } = useTranslation()
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Building2Icon, PlusIcon } from "lucide-react"
@@ -62,7 +64,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Places"]}
+        breadcrumbs={[t("common.home"), "Places"]}
         title="Places"
         count={resourceQuery.isPending ? "--" : places.length}
         description="Open a place to switch into Place Admin navigation"
@@ -138,7 +140,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={placeName}
                 onChange={(event) => setPlaceName(event.target.value)}

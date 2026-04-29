@@ -416,7 +416,7 @@ export function HardwareAdaptedPage({
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Hardware"]}
+        breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Hardware"]}
         title={t("kisi.hardware.title")}
         count={resourceQuery.isPending ? "--" : hardware.length}
         description="Gateways, controllers, readers, and terminals assigned to this place"
@@ -457,8 +457,8 @@ export function HardwareAdaptedPage({
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
                 <th className="px-6 py-4 font-semibold">Device</th>
-                <th className="px-4 py-4 font-semibold">Type</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">Location</th>
               </tr>
             </thead>
@@ -874,7 +874,7 @@ export function HardwareAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
                     <select
                       value={hardwareStatus}
                       onChange={(event) => setHardwareStatus(event.target.value as "online" | "offline")}

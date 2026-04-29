@@ -100,7 +100,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "My Account"]}
+      breadcrumbs={[t("common.home"), "My Account"]}
       title={t("kisi.myAccount.title")}
       description="Manage profile, login, credentials, security, and API keys"
     >
@@ -130,7 +130,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                     <input
                       value={profileName}
                       onChange={(event) => {
@@ -141,7 +141,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
                     <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#9a9ca7]">
                       <span className="min-w-0 truncate">{viewer.email}</span>
                     </div>

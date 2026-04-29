@@ -304,7 +304,7 @@ export function DoorDetailAdaptedPage({
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Doors"]}
+        breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Doors"]}
         title={selectedDoor?.name ?? "Doors"}
         count={resourceQuery.isPending ? "--" : doors.length}
         description={selectedDoor ? `${selectedDoor.kind} door on ${selectedDoor.floorName}` : "Door settings and access schedules"}
@@ -389,7 +389,7 @@ export function DoorDetailAdaptedPage({
                 <th className="px-4 py-4 font-semibold">Floor</th>
                 <th className="px-4 py-4 font-semibold">Area</th>
                 <th className="px-4 py-4 font-semibold">Gateway</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -436,7 +436,7 @@ export function DoorDetailAdaptedPage({
             <PanelHeader title="General" description="Door name, floor, location, and lock behavior." />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Name</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
                 <input
                   value={doorName}
                   disabled={!selectedDoor}
@@ -470,7 +470,7 @@ export function DoorDetailAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Status</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.status")}</span>
                 <select
                   value={doorStatus}
                   disabled={!selectedDoor}
@@ -672,7 +672,7 @@ export function DoorDetailAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={newDoorName}
                 onChange={(event) => setNewDoorName(event.target.value)}
@@ -741,7 +741,7 @@ export function DoorDetailAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
                 <select
                   value={newDoorStatus}
                   onChange={(event) => setNewDoorStatus(event.target.value as Lock["status"])}

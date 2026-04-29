@@ -241,7 +241,7 @@ export function FloorsAdaptedPage({
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Floors"]}
+        breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Floors"]}
         title={t("kisi.floors.title")}
         count={resourceQuery.isPending ? "--" : floors.length}
         description="Manage floors, areas, and door topology for this place"
@@ -352,7 +352,7 @@ export function FloorsAdaptedPage({
               />
               <div className="grid gap-6 p-7 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Name</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
                   <input
                     value={floorName}
                     disabled={!selectedFloor}
@@ -411,7 +411,7 @@ export function FloorsAdaptedPage({
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Name</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
                     <input
                       value={areaName}
                       disabled={!selectedArea}
@@ -519,7 +519,7 @@ export function FloorsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={newFloorName}
                 onChange={(event) => setNewFloorName(event.target.value)}
@@ -561,7 +561,7 @@ export function FloorsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={newAreaName}
                 onChange={(event) => setNewAreaName(event.target.value)}

@@ -1,4 +1,6 @@
+  const { t } = useTranslation()
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
@@ -235,7 +237,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Users"]}
+        breadcrumbs={[t("common.home"), "Users"]}
         title={title}
         description="User profile, permissions, credentials, and event history"
         actions={
@@ -319,7 +321,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 <div className="space-y-6">
                   <div className="grid gap-6 md:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                       <input
                         value={name}
                         disabled={!user || !canMutate}
@@ -328,7 +330,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
                       <input
                         value={email}
                         disabled={!user || !canMutate}
@@ -353,7 +355,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
                       <select
                         value={status}
                         disabled={!user || !canMutate}
@@ -437,9 +439,9 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 <table className="w-full min-w-[760px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                      <th className="px-7 py-4 font-semibold">Name</th>
-                      <th className="px-4 py-4 font-semibold">Type</th>
-                      <th className="px-4 py-4 font-semibold">Scope</th>
+                      <th className="px-7 py-4 font-semibold">{t("common.name")}</th>
+                      <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
+                      <th className="px-4 py-4 font-semibold">{t("common.scope")}</th>
                       <th className="px-4 py-4 font-semibold">Schedule</th>
                     </tr>
                   </thead>

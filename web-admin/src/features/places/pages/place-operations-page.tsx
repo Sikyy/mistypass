@@ -1,4 +1,6 @@
+  const { t } = useTranslation()
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { BarChart3Icon, BellIcon, ChevronDownIcon, ShieldCheckIcon } from "lucide-react"
 
 import {
@@ -39,7 +41,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "Places", "Assigned Place", title]}
+      breadcrumbs={[t("common.home"), "Places", "Assigned Place", title]}
       title={title}
       description="Place-scoped configuration following the same flat Mistyislet layout"
     >

@@ -377,10 +377,10 @@ export function TeamsAdaptedPage({
             <thead className="bg-[#fbfbfc]">
               <tr className="border-b border-[#eceef2]">
                 <th className="px-6 py-4 font-semibold">{t("kisi.teams.name")}</th>
-                <th className="px-4 py-4 font-semibold">Scope</th>
+                <th className="px-4 py-4 font-semibold">{t("common.scope")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.teams.members")}</th>
                 <th className="px-4 py-4 font-semibold">Access Rights</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -466,7 +466,7 @@ export function TeamsAdaptedPage({
               <FormField label="Directory source" value={selectedTeam?.sourceLabel ?? "Manual"} />
             </div>
             <label className="block border-t border-[#eceef2] px-7 py-5">
-              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Description</span>
+              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.description")}</span>
               <textarea
                 value={teamDescription}
                 disabled={!selectedTeam}
@@ -499,10 +499,10 @@ export function TeamsAdaptedPage({
                 <thead>
                   <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
                     <th className="px-7 py-4 font-semibold">{t("kisi.teams.name")}</th>
-                    <th className="px-4 py-4 font-semibold">Email</th>
+                    <th className="px-4 py-4 font-semibold">{t("common.email")}</th>
                     <th className="px-4 py-4 font-semibold">Source</th>
-                    <th className="px-4 py-4 font-semibold">Status</th>
-                    <th className="px-7 py-4 text-right font-semibold">Actions</th>
+                    <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
+                    <th className="px-7 py-4 text-right font-semibold">{t("common.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -681,7 +681,7 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
               <textarea
                 value={teamDescription}
                 onChange={(event) => setTeamDescription(event.target.value)}

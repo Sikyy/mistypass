@@ -459,11 +459,11 @@ export function GroupsAdaptedPage({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-[#fbfbfc]">
               <tr className="border-b border-[#eceef2]">
-                <th className="px-6 py-4 font-semibold">Name</th>
-                <th className="px-4 py-4 font-semibold">Type</th>
-                <th className="px-4 py-4 font-semibold">Target</th>
+                <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
                 <th className="px-4 py-4 font-semibold">Members / Doors</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -527,7 +527,7 @@ export function GroupsAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
                 <input
                   value={editGroupDescription}
                   disabled={!canMutateGroups}
@@ -827,7 +827,7 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={createGroupName}
                 onChange={(event) => setCreateGroupName(event.target.value)}
@@ -835,7 +835,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
               <textarea
                 value={createGroupDescription}
                 onChange={(event) => setCreateGroupDescription(event.target.value)}
@@ -953,7 +953,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={createLinkName}
                 onChange={(event) => setCreateLinkName(event.target.value)}
@@ -961,7 +961,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
               <input
                 value={createLinkEmail}
                 onChange={(event) => setCreateLinkEmail(event.target.value)}
@@ -1043,7 +1043,7 @@ export function GroupsAdaptedPage({
               <ToggleSwitch enabled={editLinkEnabled} />
             </button>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
               <input
                 value={editLinkName}
                 onChange={(event) => setEditLinkName(event.target.value)}
@@ -1051,7 +1051,7 @@ export function GroupsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
               <input
                 value={editLinkEmail}
                 onChange={(event) => setEditLinkEmail(event.target.value)}

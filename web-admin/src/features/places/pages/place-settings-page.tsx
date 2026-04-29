@@ -1,4 +1,6 @@
+  const { t } = useTranslation()
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import {
@@ -146,7 +148,7 @@ export function PlaceSettingsAdaptedPage({
   return (
     <>
       <PageFrame
-        breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Place Settings"]}
+        breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Place Settings"]}
         title={place?.name ?? "Place Settings"}
         description="Configure this place's identity, timezone, and access behavior"
       >

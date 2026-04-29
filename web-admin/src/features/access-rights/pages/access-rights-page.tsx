@@ -755,12 +755,12 @@ export function AccessRightsAdaptedPage({
                       aria-label="Select visible access rights"
                     />
                   </th>
-                  <th className="px-4 py-4 font-semibold">Name</th>
-                  <th className="px-4 py-4 font-semibold">Type</th>
-                  <th className="px-4 py-4 font-semibold">Target</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.name")}</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
                   <th className="px-4 py-4 font-semibold">Rule</th>
-                  <th className="px-4 py-4 font-semibold">Status</th>
-                  <th className="px-4 py-4 text-right font-semibold">Actions</th>
+                  <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
+                  <th className="px-4 py-4 text-right font-semibold">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1008,7 +1008,7 @@ export function AccessRightsAdaptedPage({
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
                     <input
                       value={shareEmail}
                       onChange={(event) => setShareEmail(event.target.value)}
@@ -1016,7 +1016,7 @@ export function AccessRightsAdaptedPage({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                     <input
                       value={shareName}
                       onChange={(event) => setShareName(event.target.value)}
@@ -1247,7 +1247,7 @@ export function AccessRightsAdaptedPage({
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
                       <input
                         value={editShareEmail}
                         onChange={(event) => setEditShareEmail(event.target.value)}
@@ -1255,7 +1255,7 @@ export function AccessRightsAdaptedPage({
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                       <input
                         value={editShareName}
                         onChange={(event) => setEditShareName(event.target.value)}

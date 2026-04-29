@@ -653,7 +653,7 @@ export function OrganizationSetupAdaptedPage({
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "Organization Setup", title]}
+      breadcrumbs={[t("common.home"), "Organization Setup", title]}
       title={title}
       description="Organization-level configuration in a flat Mistyislet workspace"
     >
@@ -1213,7 +1213,7 @@ export function OrganizationSetupAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
                 <select
                   value={integrationDraft.status}
                   disabled={saveIntegrationMutation.isPending}

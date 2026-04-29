@@ -56,7 +56,7 @@ export function PlaceDashboardAdaptedPage({
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Dashboard"]}
+      breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Dashboard"]}
       title={t("kisi.placeDashboard.title")}
       description={place ? t("kisi.placeDashboard.description", { place: place.name }) : t("kisi.placeDashboard.description", { place: "" })}
     >

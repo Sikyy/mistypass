@@ -901,7 +901,7 @@ export function CredentialsAdaptedPage({
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "Credentials"]}
+      breadcrumbs={[t("common.home"), "Credentials"]}
       title="Credentials"
       count={resourceQuery.isPending ? "--" : rows.length}
       description="Issue and monitor access credentials"
@@ -987,8 +987,8 @@ export function CredentialsAdaptedPage({
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
                 <th className="px-6 py-4 font-semibold">Batch</th>
-                <th className="px-4 py-4 font-semibold">Target</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">Credential</th>
                 <th className="px-4 py-4 font-semibold">Reason</th>
                 <th className="px-6 py-4 font-semibold">Updated</th>
@@ -1059,11 +1059,11 @@ export function CredentialsAdaptedPage({
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
                 <th className="px-6 py-4 font-semibold">User</th>
-                <th className="px-4 py-4 font-semibold">Type</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
+                <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                 <th className="px-4 py-4 font-semibold">Issued</th>
                 <th className="px-4 py-4 font-semibold">Expires</th>
-                <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                <th className="px-6 py-4 text-right font-semibold">{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1675,7 +1675,7 @@ export function CredentialsAdaptedPage({
                         <tr>
                           <th className="w-10 px-3 py-2"> </th>
                           <th className="px-3 py-2">Card</th>
-                          <th className="w-28 px-3 py-2">Status</th>
+                          <th className="w-28 px-3 py-2">{t("common.status")}</th>
                           <th className="hidden px-3 py-2 sm:table-cell">Vendor</th>
                           <th className="w-12 px-3 py-2 text-right"> </th>
                         </tr>
