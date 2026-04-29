@@ -385,10 +385,10 @@ export function DoorDetailAdaptedPage({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">Door</th>
-                <th className="px-4 py-4 font-semibold">Floor</th>
-                <th className="px-4 py-4 font-semibold">Area</th>
-                <th className="px-4 py-4 font-semibold">Gateway</th>
+                <th className="px-6 py-4 font-semibold">{t("common.door")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.doors.floor")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.doors.area")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.doors.gateway")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
@@ -411,7 +411,7 @@ export function DoorDetailAdaptedPage({
                   </td>
                 </tr>
               ))}
-              {doors.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>No doors found for this place.</MistyisletEmptyTableRow> : null}
+              {doors.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>{t("kisi.doors.noMatch")}</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>
@@ -454,7 +454,7 @@ export function DoorDetailAdaptedPage({
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Kind</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.doors.kind")}</span>
                 <select
                   value={doorKind}
                   disabled={!selectedDoor}
@@ -464,7 +464,7 @@ export function DoorDetailAdaptedPage({
                   <option value="office">{t("kisi.doors.office")}</option>
                   <option value="turnstile">{t("kisi.doors.turnstile")}</option>
                   <option value="server-room">{t("kisi.doors.serverRoom")}</option>
-                  <option value="elevator">Elevator</option>
+                  <option value="elevator">{t("kisi.doors.elevator")}</option>
                   <option value="parking-gate">{t("kisi.doors.parkingGate")}</option>
                   <option value="emergency-exit">{t("kisi.doors.emergencyExit")}</option>
                 </select>
@@ -477,8 +477,8 @@ export function DoorDetailAdaptedPage({
                   onChange={(event) => setDoorStatus(event.target.value as Lock["status"])}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 >
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
+                  <option value="online">{t("common.online")}</option>
+                  <option value="offline">{t("common.offline")}</option>
                 </select>
               </label>
               <FormField label="Description" value={selectedDoor?.description ?? "No door selected"} />
@@ -581,7 +581,7 @@ export function DoorDetailAdaptedPage({
           </div>
           <div>
             <h3 className="font-semibold text-[#17171c]">{t("kisi.doors.timeRestriction")}</h3>
-            <p className="text-sm text-[#6f717c]">Allow users to unlock door only during defined time periods.</p>
+            <p className="text-sm text-[#6f717c]">{t("kisi.doors.timeRestrictionDesc")}</p>
           </div>
           <span className="ml-auto h-5 w-10 rounded-full bg-[#7f88ff] p-0.5">
             <span className="ml-auto block size-4 rounded-full bg-[#4f55ff]" />
@@ -631,7 +631,7 @@ export function DoorDetailAdaptedPage({
           <div className="mt-6 flex flex-wrap gap-8 text-sm font-semibold text-[#2f3037]">
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#202443]" />{t("kisi.doors.accessPermitted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#c4c6cc]" />{t("kisi.doors.accessRestricted")}</span>
-            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#3b3c42]" />Access restricted due to exception</span>
+            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#3b3c42]" />{t("kisi.doors.accessException")}</span>
           </div>
         </div>
       </section>
@@ -661,7 +661,7 @@ export function DoorDetailAdaptedPage({
       <Sheet open={addDoorOpen} onOpenChange={setAddDoorOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Door</SheetTitle>
+            <SheetTitle>{t("kisi.doors.addDoorSheet")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
           <form
@@ -680,7 +680,7 @@ export function DoorDetailAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Floor</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.floor")}</span>
               <select
                 value={newDoorFloorID}
                 onChange={(event) => setNewDoorFloorID(event.target.value)}
@@ -695,7 +695,7 @@ export function DoorDetailAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Area</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.area")}</span>
               <select
                 value={newDoorAreaID}
                 onChange={(event) => setNewDoorAreaID(event.target.value)}
@@ -710,13 +710,13 @@ export function DoorDetailAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Gateway</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.gateway")}</span>
               <select
                 value={newDoorGatewayID}
                 onChange={(event) => setNewDoorGatewayID(event.target.value)}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="">Unassigned</option>
+                <option value="">{t("common.noDataFound")}</option>
                 {gatewayOptions.map((item) => (
                   <option key={item.gatewayId || item.id} value={item.gatewayId || item.id}>
                     {item.name}
@@ -726,7 +726,7 @@ export function DoorDetailAdaptedPage({
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Kind</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.kind")}</span>
                 <select
                   value={newDoorKind}
                   onChange={(event) => setNewDoorKind(event.target.value as Lock["kind"])}
@@ -735,7 +735,7 @@ export function DoorDetailAdaptedPage({
                   <option value="office">{t("kisi.doors.office")}</option>
                   <option value="turnstile">{t("kisi.doors.turnstile")}</option>
                   <option value="server-room">{t("kisi.doors.serverRoom")}</option>
-                  <option value="elevator">Elevator</option>
+                  <option value="elevator">{t("kisi.doors.elevator")}</option>
                   <option value="parking-gate">{t("kisi.doors.parkingGate")}</option>
                   <option value="emergency-exit">{t("kisi.doors.emergencyExit")}</option>
                 </select>
@@ -747,8 +747,8 @@ export function DoorDetailAdaptedPage({
                   onChange={(event) => setNewDoorStatus(event.target.value as Lock["status"])}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                 >
-                  <option value="online">Online</option>
-                  <option value="offline">Offline</option>
+                  <option value="online">{t("common.online")}</option>
+                  <option value="offline">{t("common.offline")}</option>
                 </select>
               </label>
             </div>

@@ -370,7 +370,7 @@ export function TeamsAdaptedPage({
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="border-b border-[#eceef2] px-6 py-5">
           <h2 className="text-base font-semibold text-[#17171c]">Teams</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">Select a team to review membership and assigned Access Rights.</p>
+          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.teams.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-left text-sm">
@@ -379,7 +379,7 @@ export function TeamsAdaptedPage({
                 <th className="px-6 py-4 font-semibold">{t("kisi.teams.name")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.scope")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.teams.members")}</th>
-                <th className="px-4 py-4 font-semibold">Access Rights</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.teams.accessRights")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
               </tr>
             </thead>
@@ -453,7 +453,7 @@ export function TeamsAdaptedPage({
                     }}
                     className="h-11 w-full appearance-none rounded-[6px] border border-[#d9dbe3] bg-white px-3 pr-9 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                   >
-                    {!placeScoped ? <option value="organization">Organization</option> : null}
+                    {!placeScoped ? <option value="organization">{t("common.organization")}</option> : null}
                     {places.map((place) => (
                       <option key={place.id} value={place.id}>
                         {place.name}
@@ -500,7 +500,7 @@ export function TeamsAdaptedPage({
                   <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
                     <th className="px-7 py-4 font-semibold">{t("kisi.teams.name")}</th>
                     <th className="px-4 py-4 font-semibold">{t("common.email")}</th>
-                    <th className="px-4 py-4 font-semibold">Source</th>
+                    <th className="px-4 py-4 font-semibold">{t("kisi.teams.source")}</th>
                     <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
                     <th className="px-7 py-4 text-right font-semibold">{t("common.actions")}</th>
                   </tr>
@@ -639,7 +639,7 @@ export function TeamsAdaptedPage({
       <Sheet open={teamSheetOpen} onOpenChange={setTeamSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>New Team</SheetTitle>
+            <SheetTitle>{t("kisi.teams.newTeam")}</SheetTitle>
             <SheetDescription>{t("kisi.teams.createDesc")}</SheetDescription>
           </SheetHeader>
           <form
@@ -658,7 +658,7 @@ export function TeamsAdaptedPage({
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scope</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scope")}</span>
               <select
                 value={teamScope === "organization" ? "organization" : teamPlaceID}
                 onChange={(event) => {
@@ -672,7 +672,7 @@ export function TeamsAdaptedPage({
                 }}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                {!placeScoped ? <option value="organization">Organization</option> : null}
+                {!placeScoped ? <option value="organization">{t("common.organization")}</option> : null}
                 {places.map((place) => (
                   <option key={place.id} value={place.id}>
                     {place.name}
@@ -705,7 +705,7 @@ export function TeamsAdaptedPage({
       <Sheet open={memberSheetOpen} onOpenChange={setMemberSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Member</SheetTitle>
+            <SheetTitle>{t("kisi.teams.addMemberSheet")}</SheetTitle>
             <SheetDescription>{selectedTeam?.name ?? "Selected team"}</SheetDescription>
           </SheetHeader>
           <form
@@ -732,13 +732,13 @@ export function TeamsAdaptedPage({
                 }}
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
               >
-                <option value="User">User</option>
-                <option value="Guest">Guest</option>
+                <option value="User">{t("common.user")}</option>
+                <option value="Guest">{t("common.guest")}</option>
               </select>
             </label>
             {memberType === "User" ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">User</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
                 <select
                   value={memberID}
                   onChange={(event) => updateMemberID(event.target.value)}
@@ -813,7 +813,7 @@ export function TeamsAdaptedPage({
               ))}
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Target</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.target")}</span>
               <select
                 value={accessScopeID}
                 onChange={(event) => setAccessScopeID(event.target.value)}
@@ -827,7 +827,7 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Role</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
               <select
                 value={accessRoleID}
                 onChange={(event) => setAccessRoleID(event.target.value)}

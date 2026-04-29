@@ -996,7 +996,7 @@ export function CredentialsAdaptedPage({
             </thead>
             <tbody>
               {walletJobsQuery.isError ? (
-                <MistyisletEmptyTableRow colSpan={6}>Batch jobs unavailable.</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>{t("kisi.credentials.noMatch")}</MistyisletEmptyTableRow>
               ) : null}
               {walletJobsQuery.isPending ? (
                 <MistyisletEmptyTableRow colSpan={6}>{t("common.loading")}</MistyisletEmptyTableRow>
@@ -1134,7 +1134,7 @@ export function CredentialsAdaptedPage({
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>{t("kisi.credentials.issue")}</SheetTitle>
-            <SheetDescription>Issue a Google Wallet credential or register a physical UID.</SheetDescription>
+            <SheetDescription>{t("kisi.credentials.title")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"
@@ -1193,7 +1193,7 @@ export function CredentialsAdaptedPage({
             ) : (
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="block text-xs font-semibold text-[#6f717c]">Users</span>
+                  <span className="block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.users")}</span>
                   <button
                     type="button"
                     onClick={() => setSelectedBatchUserIDs(selectedBatchUserIDs.length === users.length ? [] : users.map((user) => user.id))}
@@ -1230,7 +1230,7 @@ export function CredentialsAdaptedPage({
                 className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
               />
             </label>
-            {users.length === 0 ? <p className="text-sm text-[#8a5a00]">No users are available for assignment.</p> : null}
+            {users.length === 0 ? <p className="text-sm text-[#8a5a00]">{t("common.noDataFound")}</p> : null}
             <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
               <Button
                 type="submit"
@@ -1310,7 +1310,7 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee type</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
                       <select
                         value={detailAssigneeType}
                         onChange={(event) => {
@@ -1369,7 +1369,7 @@ export function CredentialsAdaptedPage({
               <section className="rounded-[6px] border border-[#d9dbe3] p-4">
                 <div className="flex items-center justify-between gap-3 border-b border-[#eceef2] pb-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#17171c]">Delivery</h3>
+                    <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.title")}</h3>
                     <p className="mt-1 text-xs text-[#6f717c]">{deliveriesQuery.isPending ? "Loading deliveries..." : `${detailDeliveries.length} attempts`}</p>
                   </div>
                   <SendIcon className="size-4 text-[#6f717c]" />
@@ -1382,7 +1382,7 @@ export function CredentialsAdaptedPage({
                   }}
                 >
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email recipients</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
                     <input
                       value={deliveryEmailRecipients}
                       onChange={(event) => setDeliveryEmailRecipients(event.target.value)}
@@ -1391,7 +1391,7 @@ export function CredentialsAdaptedPage({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">WhatsApp recipients</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                     <input
                       value={deliveryWhatsAppRecipients}
                       onChange={(event) => setDeliveryWhatsAppRecipients(event.target.value)}
@@ -1437,7 +1437,7 @@ export function CredentialsAdaptedPage({
                     </div>
                   ))}
                   {!deliveriesQuery.isPending && detailDeliveries.length === 0 ? (
-                    <p className="text-sm text-[#6f717c]">No deliveries.</p>
+                    <p className="text-sm text-[#6f717c]">{t("common.noDataFound")}</p>
                   ) : null}
                 </div>
               </section>
@@ -1463,19 +1463,19 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Task</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
                       <select
                         value={physicalTaskType}
                         onChange={(event) => setPhysicalTaskType(event.target.value as WalletPhysicalCardTask["task_type"])}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="issue">Issue</option>
-                        <option value="reissue">Reissue</option>
-                        <option value="loss_report">Loss report</option>
+                        <option value="issue">{t("kisi.credentials.issue")}</option>
+                        <option value="reissue">{t("kisi.credentials.issue")}</option>
+                        <option value="loss_report">{t("common.status")}</option>
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Inventory card</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
                       <select
                         value={physicalInventoryID}
                         onChange={(event) => {
@@ -1489,7 +1489,7 @@ export function CredentialsAdaptedPage({
                         }}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="">Manual card number</option>
+                        <option value="">{t("common.noDataFound")}</option>
                         {availablePhysicalInventory.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.card_number} · {item.vendor_name || "No vendor"}
@@ -1498,7 +1498,7 @@ export function CredentialsAdaptedPage({
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Card number</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalCardNumber}
                         list="physical-card-inventory-options"
@@ -1520,13 +1520,13 @@ export function CredentialsAdaptedPage({
                       </datalist>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Vendor</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.title")}</span>
                       <select
                         value={physicalVendorID}
                         onChange={(event) => setPhysicalVendorID(event.target.value)}
                         className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                       >
-                        <option value="">No vendor</option>
+                        <option value="">{t("common.noDataFound")}</option>
                         {physicalVendors.map((vendor) => (
                           <option key={vendor.id} value={vendor.id}>
                             {vendor.name} · {vendor.provider}
@@ -1536,7 +1536,7 @@ export function CredentialsAdaptedPage({
                     </label>
                   </div>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Note</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
                     <input
                       value={physicalTaskNote}
                       onChange={(event) => setPhysicalTaskNote(event.target.value)}
@@ -1560,7 +1560,7 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scanned UID</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalScanUID}
                         onChange={(event) => setPhysicalScanUID(event.target.value)}
@@ -1568,7 +1568,7 @@ export function CredentialsAdaptedPage({
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Card number</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalScanCardNumber}
                         onChange={(event) => setPhysicalScanCardNumber(event.target.value)}
@@ -1577,7 +1577,7 @@ export function CredentialsAdaptedPage({
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Reader ID</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.reader")}</span>
                       <input
                         value={physicalScanReaderID}
                         onChange={(event) => setPhysicalScanReaderID(event.target.value)}
@@ -1602,7 +1602,7 @@ export function CredentialsAdaptedPage({
                   }}
                 >
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Inventory CSV</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
                     <textarea
                       value={physicalInventoryCSV}
                       onChange={(event) => setPhysicalInventoryCSV(event.target.value)}
@@ -1623,7 +1623,7 @@ export function CredentialsAdaptedPage({
                 <div className="mt-5 space-y-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-[#17171c]">Inventory governance</p>
+                      <p className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.physicalCard")}</p>
                       <p className="mt-1 text-xs text-[#6f717c]">
                         {physicalInventoryCounts.total} total · {physicalInventoryCounts.available} available ·{" "}
                         {physicalInventoryCounts.frozen} frozen · {physicalInventoryCounts.scrapped} scrapped
@@ -1638,9 +1638,9 @@ export function CredentialsAdaptedPage({
                         className="h-9 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                         aria-label="Batch inventory target status"
                       >
-                        <option value="available">Return</option>
-                        <option value="frozen">Freeze</option>
-                        <option value="scrapped">Scrap</option>
+                        <option value="available">{t("common.active")}</option>
+                        <option value="frozen">{t("common.disabled")}</option>
+                        <option value="scrapped">{t("common.delete")}</option>
                       </select>
                       <Button
                         type="button"
@@ -1674,9 +1674,9 @@ export function CredentialsAdaptedPage({
                       <thead className="bg-[#fbfbfc] text-xs font-semibold uppercase text-[#6f717c]">
                         <tr>
                           <th className="w-10 px-3 py-2"> </th>
-                          <th className="px-3 py-2">Card</th>
+                          <th className="px-3 py-2">{t("kisi.credentials.physicalCard")}</th>
                           <th className="w-28 px-3 py-2">{t("common.status")}</th>
-                          <th className="hidden px-3 py-2 sm:table-cell">Vendor</th>
+                          <th className="hidden px-3 py-2 sm:table-cell">{t("kisi.credentials.title")}</th>
                           <th className="w-12 px-3 py-2 text-right"> </th>
                         </tr>
                       </thead>
@@ -1802,7 +1802,7 @@ export function CredentialsAdaptedPage({
                     )
                   })}
                   {!physicalTasksQuery.isPending && detailPhysicalTasks.length === 0 ? (
-                    <p className="text-sm text-[#6f717c]">No physical card tasks.</p>
+                    <p className="text-sm text-[#6f717c]">{t("common.noDataFound")}</p>
                   ) : null}
                 </div>
               </section>

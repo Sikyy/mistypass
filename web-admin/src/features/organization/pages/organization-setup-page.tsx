@@ -1184,7 +1184,7 @@ export function OrganizationSetupAdaptedPage({
                   }}
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 >
-                  <option value="hris">HRIS</option>
+                  <option value="hris">{t("kisi.orgSetup.hris")}</option>
                   <option value="identity_provider">{t("kisi.orgSetup.identityProvider")}</option>
                 </select>
               </label>

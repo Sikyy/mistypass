@@ -120,8 +120,8 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
         ) : (
           <section className="rounded-[6px] border border-[#d9dbe3] bg-white px-6 py-12 text-center">
             <Building2Icon className="mx-auto size-8 text-[#9a9ca7]" />
-            <p className="mt-3 text-sm font-semibold text-[#17171c]">No places found</p>
-            <p className="mt-1 text-sm text-[#6f717c]">Create a place before assigning doors and hardware.</p>
+            <p className="mt-3 text-sm font-semibold text-[#17171c]">{t("kisi.places.noPlaces")}</p>
+            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.places.emptyPrompt")}</p>
           </section>
         )}
       </PageFrame>
@@ -130,7 +130,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
             <SheetTitle>Create Place</SheetTitle>
-            <SheetDescription>Add a place before assigning floors, doors, and hardware.</SheetDescription>
+            <SheetDescription>{t("kisi.places.emptyPrompt")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 px-6 py-5"

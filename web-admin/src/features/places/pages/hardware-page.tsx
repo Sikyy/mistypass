@@ -456,10 +456,10 @@ export function HardwareAdaptedPage({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                <th className="px-6 py-4 font-semibold">Device</th>
+                <th className="px-6 py-4 font-semibold">{t("kisi.hardware.device")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
-                <th className="px-4 py-4 font-semibold">Location</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.hardware.location")}</th>
               </tr>
             </thead>
             <tbody>
@@ -480,7 +480,7 @@ export function HardwareAdaptedPage({
                   <td className="px-4 py-5 text-[#6f717c]">{item.location}</td>
                 </tr>
               ))}
-              {hardware.length === 0 ? <MistyisletEmptyTableRow colSpan={4}>No hardware found for this place.</MistyisletEmptyTableRow> : null}
+              {hardware.length === 0 ? <MistyisletEmptyTableRow colSpan={4}>{t("kisi.hardware.noMatch")}</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>
@@ -515,7 +515,7 @@ export function HardwareAdaptedPage({
                     onChange={(event) => setBindDoorID(event.target.value)}
                     className="h-10 min-w-[220px] rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                   >
-                    <option value="">Select door</option>
+                    <option value="">{t("common.door")}</option>
                     {bindableDoors.map((door) => (
                       <option key={door.id} value={door.id}>
                         {door.name}
@@ -670,7 +670,7 @@ export function HardwareAdaptedPage({
             />
             <div className="grid gap-6 border-b border-[#eceef2] p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Config version</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.hardware.publishConfig")}</span>
                 <input
                   value={configVersion}
                   onChange={(event) => setConfigVersion(event.target.value)}
@@ -791,7 +791,7 @@ export function HardwareAdaptedPage({
       <Sheet open={addHardwareOpen} onOpenChange={setAddHardwareOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[480px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Add Hardware</SheetTitle>
+            <SheetTitle>{t("kisi.hardware.addHardware")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
           <form
@@ -816,7 +816,7 @@ export function HardwareAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Serial number</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.hardware.device")}</span>
               <input
                 value={hardwareSerial}
                 list="hardware-serial-options"
@@ -831,7 +831,7 @@ export function HardwareAdaptedPage({
             </label>
             {hardwareMode === "controller" ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Device capacity</span>
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.hardware.device")}</span>
                 <select
                   value={hardwareCapacity}
                   onChange={(event) => setHardwareCapacity(event.target.value)}
@@ -850,7 +850,7 @@ export function HardwareAdaptedPage({
                     onChange={(event) => setHardwareGatewayID(event.target.value)}
                     className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
                   >
-                    <option value="">Select controller</option>
+                    <option value="">{t("common.controller")}</option>
                     {controllerOptions.map((item) => (
                       <option key={item.gatewayId || item.id} value={item.gatewayId || item.id}>
                         {item.name}
@@ -860,7 +860,7 @@ export function HardwareAdaptedPage({
                 </label>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Protocol</span>
+                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
                     <select
                       value={hardwareProtocol}
                       onChange={(event) => setHardwareProtocol(event.target.value as GatewayDeviceProtocol)}

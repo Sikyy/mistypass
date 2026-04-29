@@ -1150,7 +1150,7 @@ export function AccessRightsAdaptedPage({
           </SheetHeader>
 
           {editDetailQuery.isPending ? (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">Loading access right...</div>
+            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.loading")}</div>
           ) : null}
 
           {editDetailQuery.error ? (
@@ -1169,7 +1169,7 @@ export function AccessRightsAdaptedPage({
             >
               <div className="grid gap-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-4 text-sm">
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">Record</span>
+                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
                   <span className="text-right font-semibold text-[#17171c]">{editingRow.id}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
@@ -1177,7 +1177,7 @@ export function AccessRightsAdaptedPage({
                   <span className="text-right text-[#2f3037]">{editingRow.type}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">Current target</span>
+                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.target")}</span>
                   <span className="max-w-[18rem] text-right text-[#2f3037]">{editingRow.target}</span>
                 </div>
               </div>
@@ -1194,7 +1194,7 @@ export function AccessRightsAdaptedPage({
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Scope ID</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
                       <input
                         value={editRoleAssignment.applies_to_id}
                         readOnly
@@ -1213,7 +1213,7 @@ export function AccessRightsAdaptedPage({
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Assignee ID</span>
+                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
                       <input
                         value={editRoleAssignment.assignee_id}
                         readOnly
@@ -1376,8 +1376,8 @@ export function AccessRightsAdaptedPage({
       <Sheet open={bulkScheduleOpen} onOpenChange={setBulkScheduleOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Edit Schedule</SheetTitle>
-            <SheetDescription>Update the schedule for selected access rights.</SheetDescription>
+            <SheetTitle>{t("kisi.accessRights.editScheduleSheet")}</SheetTitle>
+            <SheetDescription>{t("kisi.accessRights.editScheduleDesc")}</SheetDescription>
           </SheetHeader>
 
           <form
@@ -1389,15 +1389,15 @@ export function AccessRightsAdaptedPage({
           >
             <div className="grid gap-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-4 text-sm">
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">Selected</span>
+                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.selected")}</span>
                 <span className="text-right font-semibold text-[#17171c]">{selectedRows.length}</span>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">Role assignments</span>
+                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.roleAssignments")}</span>
                 <span className="text-right text-[#2f3037]">{selectedRows.filter((row) => row.sourceType === "role_assignment").length}</span>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">Access links</span>
+                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.accessLinks")}</span>
                 <span className="text-right text-[#2f3037]">{selectedRows.filter((row) => row.sourceType === "share").length}</span>
               </div>
             </div>
@@ -1462,8 +1462,8 @@ export function AccessRightsAdaptedPage({
       <Sheet open={impactPreviewOpen} onOpenChange={setImpactPreviewOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[560px]">
           <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
-            <SheetTitle>Access Impact Preview</SheetTitle>
-            <SheetDescription>Review affected resources before marking selected access rights as reviewed.</SheetDescription>
+            <SheetTitle>{t("kisi.accessRights.impactSheet")}</SheetTitle>
+            <SheetDescription>{t("kisi.accessRights.impactDesc")}</SheetDescription>
           </SheetHeader>
 
           {impactPreview ? (
@@ -1514,7 +1514,7 @@ export function AccessRightsAdaptedPage({
               </div>
             </div>
           ) : (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">No preview loaded.</div>
+            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.noDataFound")}</div>
           )}
 
           <SheetFooter className="border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">

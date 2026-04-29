@@ -453,7 +453,7 @@ export function GroupsAdaptedPage({
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="border-b border-[#eceef2] px-6 py-5">
           <h2 className="text-base font-semibold text-[#17171c]">{placeScoped ? "Place Groups" : "Organization Groups"}</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">Review user and door groups that define access coverage for this scope.</p>
+          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.groups.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -742,7 +742,7 @@ export function GroupsAdaptedPage({
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold text-[#17171c]">{title}</h3>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-[#6f717c]">
-                      {description} <span className="text-[#4f55ff] underline underline-offset-2">Learn more</span>
+                      {description} <span className="text-[#4f55ff] underline underline-offset-2">{t("common.description")}</span>
                     </p>
                   </div>
                   <div className="ml-auto pt-2">
@@ -1038,7 +1038,7 @@ export function GroupsAdaptedPage({
             >
               <span>
                 <span className="block text-sm font-semibold text-[#17171c]">{t("kisi.groups.linkEnabled")}</span>
-                <span className="mt-1 block text-xs text-[#6f717c]">Disabled links remain visible but cannot grant access.</span>
+                <span className="mt-1 block text-xs text-[#6f717c]">{t("kisi.groups.linkEnabled")}</span>
               </span>
               <ToggleSwitch enabled={editLinkEnabled} />
             </button>
