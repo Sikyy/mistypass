@@ -10,31 +10,34 @@
 
 ### Kisi 的方案
 
-Kisi Controller Pro 使用 **HTTPS 长轮询 + 推送回调** 模式：
+Kisi Controller Pro 使用 **Electric Imp 平台的 TLS 持久连接**（非 HTTPS polling，非 MQTT）：
 
-- Controller 通过 **HTTPS** 连接 Kisi Cloud（不是 MQTT/NATS）
-- 使用 **TLS mutual auth**（设备证书 + 服务端证书）认证设备身份
-- **策略同步**：Controller 定期 pull 配置（`config/pull`），Cloud 返回版本化的策略包
-- **事件上报**：Controller 将 access event 批量 POST 到 Cloud（`events/batch`）
-- **远程开门**：Cloud 通过 HTTP push notification 或设备下次 poll 时下发命令
-- **本地判定优先**：门禁判定在 Controller 本地完成，不依赖 Cloud 实时响应
+- Controller 通过 **TLS 1.2 持久连接**到 Kisi Cloud（基于 Electric Imp 私有二进制协议）
+- **端口 fallback**：TCP 31314（主）→ TCP 993（IMAP 端口，通常开放）→ TCP 443（HTTPS）
+- 使用 **TLS mutual auth + ephemeral key exchange + PKI 链验证**
+- **仅出站**：Controller 主动连 Cloud，不需要入站端口
+- **本地通信**：Controller ↔ Reader 通过 **AES 加密 UDP**（端口 62435）
+- **离线能力**：Controller 本地缓存策略，per-device AES-GCM-AEAD 密钥
+- **远程开门**：通过持久 TLS 连接即时推送（毫秒级，不是 polling）
+- **OTA**：RSA 签名（HSM 密钥）+ AES 加密，端口 443/80
 
 ### 对比表
 
-| 维度 | Kisi (HTTPS pull/push) | NATS | MQTT |
+| 维度 | Kisi (TLS 持久连接) | NATS | MQTT |
 |---|---|---|---|
-| **延迟** | 高（取决于 poll 间隔，秒级~分钟级） | 极低（毫秒级） | 低（毫秒级） |
-| **远程开门实时性** | 差（需等 Controller 下次 poll） | 好（即时推送） | 好（即时推送） |
-| **防火墙穿透** | 好（HTTPS 443 出站） | 中（需开 4222 或走 WebSocket） | 好（1883/8883，也可走 WebSocket） |
+| **延迟** | 低（TLS 持久连接，毫秒级） | 极低（毫秒级） | 低（毫秒级） |
+| **远程开门实时性** | 好（持久连接即时推送） | 好（即时推送） | 好（即时推送） |
+| **防火墙穿透** | **最好**（31314→993→443 fallback） | 中（需开 4222 或走 WebSocket） | 好（8883→993→443 fallback 可行） |
 | **离线容忍** | 好（本地判定不依赖云） | 好（断开重连自动恢复） | 好（QoS 1/2 + retained message） |
-| **运维复杂度** | 低（只需 HTTPS） | 中（需部署 NATS server） | 中（需部署 MQTT broker） |
-| **设备端实现** | 简单（HTTP client） | 中（需 NATS client 库） | 简单（大量嵌入式 MQTT 库） |
-| **消息可靠性** | 高（HTTP 重试 + 幂等） | 高（JetStream 持久化） | 高（QoS 2 + 持久会话） |
-| **适合场景** | 大规模部署、网络受限环境 | 内部系统、低延迟需求 | IoT 设备、嵌入式硬件 |
+| **运维复杂度** | 低（无额外组件） | 中（需部署 NATS server） | 中（需部署 MQTT broker） |
+| **设备端实现** | 高（私有协议，绑定 Electric Imp 平台） | 中（需 NATS client 库） | 简单（大量嵌入式 MQTT 库） |
+| **消息可靠性** | 高（平台内建） | 高（JetStream 持久化） | 高（QoS 2 + 持久会话） |
+| **适合场景** | Kisi 自有设备 | 内部系统、低延迟需求 | IoT 设备、嵌入式硬件 |
+| **开放性** | **封闭**（绑定 Electric Imp） | 开放 | **最开放** |
 
 ### 结论和建议
 
-**不需要换。两套都保留，分层使用：**
+**不需要换成 Kisi 的方案（私有协议，绑定平台）。我们用 MQTT + 端口 fallback 策略，效果等价但更开放：**
 
 ```
 ┌─────────────────────────────────────────────┐

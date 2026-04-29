@@ -12,14 +12,21 @@
 
 | 维度 | 实现方式 |
 |---|---|
-| Cloud 通信 | **HTTPS/TLS 1.2**，mutual auth + ephemeral key exchange + PKI 链验证 |
-| 本地通信 | **AES 加密 UDP**（端口 62435），Controller ↔ Reader 本地局域网 |
+| Cloud 通信 | **TLS 1.2 持久连接**（基于 Electric Imp IoT 平台的自定义二进制协议），mutual auth + ephemeral key exchange + PKI 链验证 |
+| 端口策略 | **TCP 31314**（主） → **TCP 993**（fallback，利用 IMAP 端口通常开放） → **TCP 443**（终极 fallback） |
 | 连接方向 | **仅出站**（Controller 主动连 Cloud，不需要入站端口/防火墙打洞） |
-| 离线能力 | Controller 本地缓存策略，离线可判定放行 |
-| 远程开门 | 依赖 Controller 下次 poll 或推送通道（延迟秒级~分钟级） |
-| 托管 | Google Cloud Platform，区域故障转移 |
+| 本地通信 | **AES 加密 UDP**（端口 62435），Controller ↔ Reader 本地局域网，签名 + AES/HMAC 加密 |
+| 离线能力 | Controller 本地缓存策略，离线可判定放行；设备自动同步本地存储到云端 |
+| 远程开门 | **实时**（持久 TLS 连接允许 Cloud 即时下推命令，不是 polling） |
+| OTA 更新 | 通过端口 443/80 下载，RSA 签名（HSM 托管密钥）+ AES 加密，每两周更新，停机 <10 秒 |
+| 设备密钥 | per-device keys + AES-GCM-AEAD |
+| 托管 | Google Cloud Platform，区域故障转移，热备数据库 |
 
-**架构特点**：去中心化本地网络 + HTTPS 出站连云。不用 MQTT/NATS。
+**架构特点**：
+- **不是 HTTPS polling，是 TLS 持久连接** — 类似 MQTT/WebSocket，但使用 Electric Imp 的私有协议
+- 端口 fallback 策略巧妙：31314 → 993（IMAP 端口通常开放）→ 443（HTTPS 端口几乎必开）
+- Controller 和 Reader 在同一局域网通过 AES-UDP 通信，Cloud 失联时走本地
+- 去中心化设计：Reader 和 Controller 不需要直接布线连接，只需在同一局域网
 
 ### 1.2 Brivo（企业级云门禁，美国）
 
@@ -90,19 +97,19 @@
 
 ## 3. 协议方案对比
 
-### 3.1 三种候选方案
+### 3.1 四种候选方案
 
-| 维度 | A: 纯 NATS | B: 纯 MQTT | C: HTTPS pull + NATS/MQTT 增强 |
-|---|---|---|---|
-| 实时性 | 毫秒级 | 毫秒级 | 秒级（pull 间隔）+ 毫秒级（增强通道） |
-| 防火墙穿透 | **差**（4222 被封） | **差**（1883/8883 被封） | **好**（443 出站即可） |
-| WebSocket 穿透 | 可以（NATS over WS） | 可以（MQTT over WS 443） | 不需要 |
-| 离线能力 | 无内建（需自行实现） | QoS 2 + retained message | 天然支持（pull 模型） |
-| 设备端复杂度 | 中（NATS Go client 3MB） | 低（MQTT C client <100KB） | 低（HTTP client 即可） |
-| ARM 嵌入式适配 | 好（Go 交叉编译） | **最好**（C/Python 库丰富） | 最好 |
-| 运维部署 | 需部署 NATS server | 需部署 MQTT broker | 无额外组件 |
-| 行业成熟度 | 云原生领域成熟 | **IoT 领域最成熟** | 门禁行业标准做法 |
-| 代表厂商 | 无门禁厂商使用 | 学术/IoT 门锁 | **Kisi、Brivo** |
+| 维度 | A: 纯 NATS | B: 纯 MQTT | C: HTTPS pull/push | D: TLS 持久连接（Kisi 模式） |
+|---|---|---|---|---|
+| 实时性 | 毫秒级 | 毫秒级 | 秒级（取决 poll 间隔） | **毫秒级** |
+| 防火墙穿透 | **差**（4222） | **差**（1883/8883） | **好**（443） | **最好**（31314→993→443 fallback） |
+| WebSocket 穿透 | 可以（WS 443） | 可以（WSS 443） | 不需要 | 不需要（原生 TLS） |
+| 离线能力 | 需自行实现 | QoS 2 + retained | 天然支持 | 天然支持 |
+| 设备端复杂度 | 中（Go client 3MB） | 低（C client <100KB） | 最低（HTTP） | 中（需实现连接管理） |
+| ARM 嵌入式适配 | 好（Go 交叉编译） | **最好**（C/Python） | 最好 | 好（Go/C TLS） |
+| 运维部署 | 需 NATS server | 需 MQTT broker | 无额外组件 | 无额外组件 |
+| 行业成熟度 | 云原生领域 | **IoT 最成熟** | 企业级标准 | **Kisi 已验证** |
+| 代表厂商 | 无门禁厂商 | 学术/IoT 门锁 | Brivo | **Kisi** |
 
 ### 3.2 MQTT over WebSocket 443 方案
 
@@ -165,32 +172,70 @@ Gateway → WSS://cloud:443/nats → NATS Server
                                      └────────────────────┘
 ```
 
-### 4.1 三层设计
+### 4.1 核心学习：Kisi 的端口 fallback 策略
+
+Kisi 最聪明的设计不是协议本身，而是 **端口 fallback**：
+- **TCP 31314**：专用端口，性能最优
+- **TCP 993**：IMAP 端口，绝大多数企业防火墙默认开放（用于邮件）
+- **TCP 443**：HTTPS 端口，几乎所有网络都开放
+
+这意味着 Kisi 的 Controller 几乎可以在任何网络环境下连上云端。**我们应该学习这个策略。**
+
+### 4.2 三层设计
 
 | 层 | 协议 | 用途 | 端口 |
 |---|---|---|---|
 | **管理层** | HTTPS REST API | 管理后台、配置下发、设备注册 | 443 |
-| **设备通信层** | MQTT over WebSocket | Gateway 实时命令和事件 | 443 (WSS) |
+| **设备通信层** | MQTT over TLS | Gateway 实时命令和事件 | **8883 → 993 → 443 (WSS) fallback** |
 | **内部总线层** | NATS | API 微服务间通信、事件路由 | 4222（内部） |
 
-### 4.2 Gateway 端支持三种模式
+### 4.3 Gateway 端口 fallback 策略（学习 Kisi）
+
+```
+Gateway 启动 → 尝试 MQTT TLS :8883
+  ↓ 失败
+尝试 MQTT TLS :993 (借用 IMAP 端口)
+  ↓ 失败
+尝试 MQTT over WebSocket :443 (借用 HTTPS 端口)
+  ↓ 失败
+降级为 HTTPS pull/push :443
+```
+
+这样无论客户的网络环境多严格，Gateway 总能连上。
+
+### 4.4 Gateway 端支持三种模式
 
 | 模式 | 适用场景 | 通信方式 | 实时性 | 配置 |
 |---|---|---|---|---|
-| **MQTT 模式** | 写字楼、园区（推荐默认） | MQTT over WSS :443 | 毫秒级 | `COMM_MODE=mqtt` |
-| **HTTPS 模式** | 政府、工厂、学校（防火墙严格） | HTTPS pull/push :443 | 秒级 | `COMM_MODE=https` |
+| **MQTT 模式（默认）** | 写字楼、园区 | MQTT/TLS，端口 fallback | 毫秒级 | `COMM_MODE=mqtt` |
+| **HTTPS 模式** | 极端受限网络 | HTTPS pull/push :443 | 秒级 | `COMM_MODE=https` |
 | **NATS 模式** | 内网部署、开发调试 | NATS :4222 | 毫秒级 | `COMM_MODE=nats` |
 
-### 4.3 为什么选 MQTT 而不是 NATS 作为设备通信主协议
+### 4.5 为什么选 MQTT 作为设备通信主协议
 
 1. **IoT 生态最成熟**：ESP32、Linux ARM、Arduino 都有生产级 MQTT 库
 2. **QoS 保证**：QoS 1/2 保证消息不丢，适合门禁安全场景
 3. **Retained Message**：离线设备上线后立即获取最新配置
 4. **遗嘱消息 (LWT)**：设备离线自动通知 Cloud
 5. **带宽效率高**：协议头仅 2 字节，适合印尼带宽受限场景
-6. **行业共识**：IoT 门锁/传感器领域 MQTT 是事实标准
+6. **端口 fallback 可行**：MQTT over TLS 可以跑在 993/443 上
+7. **行业共识**：IoT 门锁/传感器领域 MQTT 是事实标准
 
-**NATS 继续保留为内部总线**：API 服务间通信、事件路由、Gateway Simulator 开发测试。
+**NATS 继续保留为内部总线**：API 微服务间通信、事件路由、Gateway Simulator 开发测试。
+
+### 4.6 与 Kisi 架构的对比
+
+| 维度 | Kisi | Mistyislet |
+|---|---|---|
+| 设备通信协议 | Electric Imp 私有二进制协议 | **MQTT**（开放标准） |
+| 端口 fallback | 31314 → 993 → 443 | **8883 → 993 → 443** |
+| 本地通信 | AES-UDP :62435 | **待定**（可复用 AES-UDP 或 BLE） |
+| 离线判定 | 本地缓存策略 | **本地 access_rules 缓存**（已实现） |
+| 远程开门 | 持久连接即时推送 | **MQTT 即时推送**（同等实时性） |
+| OTA | RSA+AES 签名 :443/80 | **待实现** |
+| 设备认证 | PKI mutual TLS | **MQTT client cert + bootstrap token** |
+
+**核心差异**：Kisi 用私有协议绑定了 Electric Imp 平台。我们用 MQTT 开放标准，设备端不绑定任何平台，更灵活。
 
 ### 4.4 印尼各场景推荐配置
 
