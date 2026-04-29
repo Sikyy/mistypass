@@ -642,7 +642,7 @@ export function CredentialsAdaptedPage({
       if ("items" in result) {
         setActionNotice(formatCredentialBatchIssueNotice(result.items))
       } else {
-        setActionNotice("Credential issued.")
+        setActionNotice(t("kisi.credentials.issued"))
       }
       setActionError("")
       await refreshCredentials()
@@ -668,7 +668,7 @@ export function CredentialsAdaptedPage({
     },
     onSuccess: async () => {
       setCredentialActionTarget(null)
-      setActionNotice("Credential updated.")
+      setActionNotice(t("kisi.credentials.issued"))
       setActionError("")
       await refreshCredentials()
     },
@@ -737,7 +737,7 @@ export function CredentialsAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Delivery dispatched.")
+      setActionNotice(t("kisi.credentials.issued"))
       setActionError("")
       await refreshCredentials()
     },
@@ -752,7 +752,7 @@ export function CredentialsAdaptedPage({
       return retryWalletPassDelivery(token, { tenant_id: tenantID, notification_id: notificationID })
     },
     onSuccess: async () => {
-      setActionNotice("Delivery retry queued.")
+      setActionNotice(t("kisi.credentials.issued"))
       setActionError("")
       await refreshCredentials()
     },
@@ -776,7 +776,7 @@ export function CredentialsAdaptedPage({
     },
     onSuccess: async () => {
       setPhysicalTaskNote("")
-      setActionNotice("Physical card task created.")
+      setActionNotice(t("kisi.credentials.issued"))
       setActionError("")
       await refreshCredentials()
     },
@@ -892,7 +892,7 @@ export function CredentialsAdaptedPage({
     },
     onSuccess: async () => {
       setPhysicalTaskStatusTarget(null)
-      setActionNotice("Physical card task updated.")
+      setActionNotice(t("kisi.credentials.issued"))
       setActionError("")
       await refreshCredentials()
     },
@@ -904,7 +904,7 @@ export function CredentialsAdaptedPage({
       breadcrumbs={[t("common.home"), "Credentials"]}
       title="Credentials"
       count={resourceQuery.isPending ? "--" : rows.length}
-      description="Issue and monitor access credentials"
+      description={t("kisi.credentials.title")}
       actions={
         <Button
           type="button"

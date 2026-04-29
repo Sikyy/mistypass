@@ -288,28 +288,28 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
       {
         label: t("kisi.home.onlineGates"),
         value: `${gatewayOnline}/${gatewayTotal}`,
-        note: gatewayTotal === 0 ? "No scoped hardware yet" : "Gateway-backed entry points",
+        note: gatewayTotal === 0 ? t("kisi.home.noHardware") : t("kisi.home.gatewayPoints"),
         icon: DoorOpenIcon,
         tone: gatewayTone,
       },
       {
         label: t("kisi.home.todayAccess"),
         value: todayAccessCount.toLocaleString(),
-        note: "Access events in local time",
+        note: t("kisi.home.gatewayPoints"),
         icon: HistoryIcon,
         tone: "info" as ActivityTone,
       },
       {
         label: t("kisi.home.openAlerts"),
         value: openAlarmCount.toString(),
-        note: openAlarmCount > 0 ? "Needs operational follow-up" : "No open alert queue",
+        note: openAlarmCount > 0 ? t("kisi.home.followUp") : t("kisi.home.noAlertQueue"),
         icon: AlertCircleIcon,
         tone: alarmTone,
       },
       {
         label: t("kisi.home.pendingReview"),
         value: pendingReviewCount.toString(),
-        note: pendingReviewCount > 0 ? "Denied access or urgent alarms" : "No review backlog",
+        note: pendingReviewCount > 0 ? t("kisi.home.deniedAlarms") : t("kisi.home.noReviewBacklog"),
         icon: ShieldCheckIcon,
         tone: pendingTone,
       },
@@ -336,7 +336,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
             </Link>
           </div>
           <h1 className="mt-6 text-[34px] font-bold leading-[42px] text-[#17171c] sm:text-[40px] sm:leading-[48px]">
-            Welcome back, {personName}
+            {t("kisi.home.welcome", { name: personName })}
           </h1>
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[#6f717c]">
             <span>{scopeName}</span>

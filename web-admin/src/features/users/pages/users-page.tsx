@@ -257,7 +257,7 @@ export function UsersAdaptedPage({
         breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Users"] : ["Home", "Users"]}
         title={placeScoped ? t("kisi.users.placeTitle") : t("kisi.users.title")}
         count={resourceQuery.isPending ? "--" : rows.length}
-        description={placeScoped ? "Manage users associated with this place" : "Manage users across the organization"}
+        description={placeScoped ? t("kisi.users.placeScopeNotice") : t("kisi.users.title")}
         actions={
           <Button
             type="button"

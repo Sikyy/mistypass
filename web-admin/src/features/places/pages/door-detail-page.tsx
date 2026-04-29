@@ -222,7 +222,7 @@ export function DoorDetailAdaptedPage({
       setNewDoorKind("office")
       setNewDoorStatus("online")
       setAddDoorOpen(false)
-      setActionNotice("Door created.")
+      setActionNotice(t("kisi.doors.addDoor"))
       setActionError("")
       await refreshDoors()
     },
@@ -246,7 +246,7 @@ export function DoorDetailAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Door saved.")
+      setActionNotice(t("common.save"))
       setActionError("")
       await refreshDoors()
     },
@@ -266,7 +266,7 @@ export function DoorDetailAdaptedPage({
     onSuccess: async () => {
       setSelectedDoorID("")
       setDeleteDoorConfirmOpen(false)
-      setActionNotice("Door deleted.")
+      setActionNotice(t("kisi.doors.deleteDoor"))
       setActionError("")
       await refreshDoors()
     },
@@ -433,7 +433,7 @@ export function DoorDetailAdaptedPage({
       >
         {activeTab === "General" ? (
           <>
-            <PanelHeader title="General" description="Door name, floor, location, and lock behavior." />
+            <PanelHeader title={t("common.general")} description={t("kisi.doors.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
@@ -493,7 +493,7 @@ export function DoorDetailAdaptedPage({
           <>
             <PanelHeader
               title="Groups"
-              description="Groups that include this door as an access target."
+              description={t("kisi.doors.groupsDesc")}
               action={
                 <Button
                   variant="outline"
@@ -520,7 +520,7 @@ export function DoorDetailAdaptedPage({
 
         {activeTab === "Hardware" ? (
           <>
-            <PanelHeader title="Hardware" description="Readers, controllers, and gateway path for this door." />
+            <PanelHeader title={t("common.hardware")} description={t("kisi.doors.hardwareDesc")} />
             <div className="divide-y divide-[#eceef2]">
               {selectedHardware.map((item) => (
                 <div key={item.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_150px_150px_1fr] md:items-center">
@@ -539,7 +539,7 @@ export function DoorDetailAdaptedPage({
 
         {activeTab === "Events" ? (
           <>
-            <PanelHeader title="Events" description="Recent events for this door." />
+            <PanelHeader title={t("common.events")} description={t("kisi.doors.eventsDesc")} />
             <div className="divide-y divide-[#eceef2]">
               {selectedEvents.map((event) => (
                 <div key={event.id} className="grid gap-3 px-7 py-5 md:grid-cols-[120px_180px_180px_1fr] md:items-center">
@@ -558,7 +558,7 @@ export function DoorDetailAdaptedPage({
 
         {activeTab === "Permissions" ? (
           <>
-            <PanelHeader title="Permissions" description="Door-level unlock restrictions and emergency behavior." />
+            <PanelHeader title={t("common.permissions")} description={t("kisi.doors.permDesc")} />
             <SettingToggleRows
               rows={[
                 ["Remote unlock", true, "Allow authorized admins to unlock this door from the dashboard.", DoorOpenIcon],

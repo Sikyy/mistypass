@@ -417,7 +417,16 @@
       "recentActivity": "Recent Activity",
       "recentDesc": "Latest access, alarm, and device signals.",
       "noActivity": "No recent activity",
-      "signalsUnavailable": "Some live signals are unavailable."
+      "signalsUnavailable": "Some live signals are unavailable.",
+      "noHardware": "No scoped hardware yet",
+      "gatewayPoints": "Gateway-backed entry points",
+      "followUp": "Needs operational follow-up",
+      "noAlertQueue": "No open alert queue",
+      "deniedAlarms": "Denied access or urgent alarms",
+      "noReviewBacklog": "No review backlog",
+      "accessGranted": "Access granted",
+      "accessDenied": "Access denied",
+      "accessWarning": "Access warning"
     },
     "doors": {
       "title": "Doors",

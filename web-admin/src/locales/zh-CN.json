@@ -417,7 +417,16 @@
       "recentActivity": "最近活动",
       "recentDesc": "最新访问、告警和设备信号。",
       "noActivity": "暂无活动",
-      "signalsUnavailable": "部分实时信号不可用。"
+      "signalsUnavailable": "部分实时信号不可用。",
+      "noHardware": "暂无硬件设备",
+      "gatewayPoints": "网关支持的入口点",
+      "followUp": "需要运营跟进",
+      "noAlertQueue": "无待处理告警",
+      "deniedAlarms": "拒绝访问或紧急告警",
+      "noReviewBacklog": "无待审阅积压",
+      "accessGranted": "访问已授权",
+      "accessDenied": "访问被拒绝",
+      "accessWarning": "访问警告"
     },
     "doors": {
       "title": "门点",

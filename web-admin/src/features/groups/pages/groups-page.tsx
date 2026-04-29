@@ -405,7 +405,7 @@ export function GroupsAdaptedPage({
       breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Groups"] : ["Home", "Groups"]}
       title={currentGroup?.name ?? (placeScoped ? "Place Groups" : "Groups")}
       count={resourceQuery.isPending ? "--" : groupRows.length}
-      description="Configure the users, doors, floors, schedules, and restrictions for access groups"
+      description={t("kisi.groups.pageDesc")}
       actions={
         <>
           <Button
@@ -515,7 +515,7 @@ export function GroupsAdaptedPage({
       >
         {activeTab === "General" ? (
           <>
-            <PanelHeader title="General" description="Group identity and default access behavior." />
+            <PanelHeader title={t("common.general")} description={t("kisi.groups.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.groups.groupName")}</span>
@@ -547,7 +547,7 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader
               title="Members"
-              description="Users and teams receiving this group's door access."
+              description={t("kisi.groups.membersDesc")}
               action={
                 <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
                   Add Members
@@ -571,7 +571,7 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader
               title="Doors"
-              description="Door resources controlled by this group."
+              description={t("kisi.groups.doorsDesc")}
               action={
                 <Button
                   type="button"
@@ -614,7 +614,7 @@ export function GroupsAdaptedPage({
 
         {activeTab === "Zones" ? (
           <>
-            <PanelHeader title="Zones" description="Area-level access zones derived from this group's door bindings." />
+            <PanelHeader title={t("kisi.groups.zones")} description={t("kisi.groups.zonesDesc")} />
             <div className="grid gap-4 p-7 md:grid-cols-2">
               {zoneRows.map((row) => (
                 <div key={row.id} className="rounded-[6px] border border-[#eceef2] p-5">
@@ -633,7 +633,7 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader
               title="Links"
-              description="Access links issued against this group."
+              description={t("kisi.groups.linksDesc")}
               action={
                 <Button
                   type="button"
@@ -701,7 +701,7 @@ export function GroupsAdaptedPage({
 
         {activeTab === "Time Restrictions" ? (
           <>
-            <PanelHeader title="Time Restrictions" description="Weekly access windows and exceptions." />
+            <PanelHeader title={t("kisi.groups.tabTimeRestrictions")} description={t("kisi.groups.timeDesc")} />
             <div className="p-7">
               <div className="grid min-h-[240px] grid-cols-[56px_repeat(5,minmax(90px,1fr))] overflow-hidden rounded-[6px] border border-[#eceef2]">
                 <div className="border-r border-[#eceef2] bg-white pt-12 text-right text-xs font-semibold text-[#9a9ca7]">
@@ -727,7 +727,7 @@ export function GroupsAdaptedPage({
 
         {activeTab === "Permissions" ? (
           <>
-            <PanelHeader title="Permissions" description="App, geofence, reader, and primary-device restrictions." />
+            <PanelHeader title={t("common.permissions")} description={t("kisi.groups.permDesc")} />
             <div className="divide-y divide-[#eceef2] px-7">
               {restrictions.map(({ key, title, description, enabled, icon: Icon }) => (
                 <div key={key} className="flex gap-5 py-6">

@@ -364,7 +364,7 @@ export function TeamsAdaptedPage({
       ) : null}
 
       <InfoBanner>
-        Teams and Groups are both kept because they solve different Mistyislet workflows: Teams collect users; Groups define access-control resources and restrictions.
+        {t("kisi.teams.pageDesc")}
       </InfoBanner>
 
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">

@@ -134,7 +134,7 @@ export function FloorsAdaptedPage({
       setSelectedFloorID(floor.id)
       setNewFloorName("")
       setAddFloorOpen(false)
-      setActionNotice("Floor created.")
+      setActionNotice(t("kisi.floors.addFloor"))
       setActionError("")
       await refreshFloors()
     },
@@ -157,7 +157,7 @@ export function FloorsAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Floor saved.")
+      setActionNotice(t("common.save"))
       setActionError("")
       await refreshFloors()
     },
@@ -177,7 +177,7 @@ export function FloorsAdaptedPage({
     onSuccess: async () => {
       setSelectedFloorID("")
       setDeleteFloorTarget(null)
-      setActionNotice("Floor deleted.")
+      setActionNotice(t("kisi.floors.deleteFloor"))
       setActionError("")
       await refreshFloors()
     },
@@ -204,7 +204,7 @@ export function FloorsAdaptedPage({
       setNewAreaName("")
       setAddAreaOpen(false)
       setActiveTab("Areas")
-      setActionNotice("Area created.")
+      setActionNotice(t("kisi.floors.addArea"))
       setActionError("")
       await refreshFloors()
     },
@@ -228,7 +228,7 @@ export function FloorsAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Area saved.")
+      setActionNotice(t("common.save"))
       setActionError("")
       await refreshFloors()
     },
@@ -244,7 +244,7 @@ export function FloorsAdaptedPage({
         breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Floors"]}
         title={t("kisi.floors.title")}
         count={resourceQuery.isPending ? "--" : floors.length}
-        description="Manage floors, areas, and door topology for this place"
+        description={t("kisi.floors.description")}
         actions={
           <Button
             disabled={!canMutate}
@@ -331,7 +331,7 @@ export function FloorsAdaptedPage({
             <>
               <PanelHeader
                 title={selectedFloor?.name ?? "No floor selected"}
-                description="Floor metadata and default access behavior."
+                description={t("kisi.floors.description")}
                 action={
                   <Button
                     type="button"
@@ -371,7 +371,7 @@ export function FloorsAdaptedPage({
             <>
               <PanelHeader
                 title="Areas"
-                description="Zones within this floor used by door placement and access scopes."
+                description={t("kisi.floors.description")}
                 action={
                   <Button
                     type="button"
@@ -429,7 +429,7 @@ export function FloorsAdaptedPage({
 
           {activeTab === "Doors" ? (
             <>
-              <PanelHeader title="Doors" description="Doors currently mapped to this floor." />
+              <PanelHeader title={t("kisi.floors.doors")} description={t("kisi.floors.description")} />
               <div className="divide-y divide-[#eceef2]">
                 {selectedFloorDoors.map((door) => (
                   <div key={door.id} className="grid gap-3 px-7 py-5 md:grid-cols-[240px_160px_1fr] md:items-center">
@@ -447,7 +447,7 @@ export function FloorsAdaptedPage({
 
           {activeTab === "Hardware" ? (
             <>
-              <PanelHeader title="Hardware" description="Devices installed on this floor." />
+              <PanelHeader title={t("common.hardware")} description={t("kisi.floors.description")} />
               <div className="grid gap-4 p-7 md:grid-cols-2">
                 {selectedFloorHardware.map((item) => (
                   <div key={item.id} className="rounded-[6px] border border-[#eceef2] p-5">
@@ -466,7 +466,7 @@ export function FloorsAdaptedPage({
 
           {activeTab === "Settings" ? (
             <>
-              <PanelHeader title="Settings" description="Floor-level automation and alerts." />
+              <PanelHeader title={t("common.settings")} description={t("kisi.floors.description")} />
               <SettingToggleRows
                 rows={[
                   ["Apply new doors to default group", true, "New doors on this floor inherit the selected default group.", KeyRoundIcon],

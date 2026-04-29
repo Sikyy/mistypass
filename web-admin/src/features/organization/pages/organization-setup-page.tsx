@@ -655,7 +655,7 @@ export function OrganizationSetupAdaptedPage({
     <PageFrame
       breadcrumbs={[t("common.home"), "Organization Setup", title]}
       title={title}
-      description="Organization-level configuration in a flat Mistyislet workspace"
+      description={t("kisi.orgSetup.description")}
     >
       <SettingsPanel
         tabs={tabs}

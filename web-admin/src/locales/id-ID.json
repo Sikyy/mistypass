@@ -417,7 +417,16 @@
       "recentActivity": "Aktivitas Terbaru",
       "recentDesc": "Sinyal akses, alarm, dan perangkat terbaru.",
       "noActivity": "Tidak ada aktivitas",
-      "signalsUnavailable": "Beberapa sinyal real-time tidak tersedia."
+      "signalsUnavailable": "Beberapa sinyal real-time tidak tersedia.",
+      "noHardware": "Belum ada perangkat keras",
+      "gatewayPoints": "Titik masuk berbasis gateway",
+      "followUp": "Perlu tindak lanjut operasional",
+      "noAlertQueue": "Tidak ada antrian peringatan",
+      "deniedAlarms": "Akses ditolak atau alarm mendesak",
+      "noReviewBacklog": "Tidak ada tinjauan tertunda",
+      "accessGranted": "Akses diberikan",
+      "accessDenied": "Akses ditolak",
+      "accessWarning": "Peringatan akses"
     },
     "doors": {
       "title": "Pintu",

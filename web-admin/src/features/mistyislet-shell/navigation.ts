@@ -191,16 +191,18 @@ export function isPlaceAdminView(viewer: CurrentUser, pathname = "") {
   return viewer.role === "building_admin" || viewer.role === "operator" || isPlaceContextPath(pathname)
 }
 
-export function formatMistyisletRoleLabel(viewer: CurrentUser, pathname = "") {
-  return isPlaceAdminView(viewer, pathname) ? "Place Admin" : "Organization Admin"
+export function formatMistyisletRoleLabel(viewer: CurrentUser, pathname = "", t?: TFunction) {
+  const translate = t ?? ((k: string) => k.split(".").pop() ?? k)
+  return isPlaceAdminView(viewer, pathname) ? translate("common.placeAdmin") : translate("common.orgAdmin")
 }
 
-export function formatAccountMenuTitle(viewer: CurrentUser, pathname = "") {
+export function formatAccountMenuTitle(viewer: CurrentUser, pathname = "", t?: TFunction) {
+  const translate = t ?? ((k: string) => k.split(".").pop() ?? k)
   const placeRoute = parsePlaceRoute(pathname)
   if (isPlaceAdminView(viewer, pathname)) {
-    return `${formatPlaceName(placeRoute?.placeId ?? DEMO_PLACE_ID)} / Place Admin`
+    return `${formatPlaceName(placeRoute?.placeId ?? DEMO_PLACE_ID)} / ${translate("common.placeAdmin")}`
   }
-  return "Mistyislet / Organization Admin"
+  return `Mistyislet / ${translate("common.orgAdmin")}`
 }
 
 export function resolveNavSections(viewer: CurrentUser, pathname = "", t?: TFunction): NavSection[] {

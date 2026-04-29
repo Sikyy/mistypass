@@ -102,7 +102,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
     <PageFrame
       breadcrumbs={[t("common.home"), "My Account"]}
       title={t("kisi.myAccount.title")}
-      description="Manage profile, login, credentials, security, and API keys"
+      description={t("kisi.myAccount.description")}
     >
       <SettingsPanel
         tabs={[t("kisi.myAccount.profile"), t("kisi.myAccount.logins"), "Credentials", t("kisi.myAccount.security"), "API"]}

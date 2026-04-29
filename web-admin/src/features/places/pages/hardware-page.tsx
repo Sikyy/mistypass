@@ -249,7 +249,7 @@ export function HardwareAdaptedPage({
       setHardwareProtocol("osdp_v2")
       setHardwareStatus("online")
       setAddHardwareOpen(false)
-      setActionNotice("Hardware registered.")
+      setActionNotice(t("kisi.hardware.addHardware"))
       setActionError("")
       await refreshHardware()
     },
@@ -493,7 +493,7 @@ export function HardwareAdaptedPage({
       >
         {activeTab === "General" ? (
           <>
-            <PanelHeader title={selectedDevice?.name ?? "No device selected"} description="Device assignment, firmware, and connectivity." />
+            <PanelHeader title={selectedDevice?.name ?? "No device selected"} description={t("kisi.hardware.description")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <FormField label="Device name" value={selectedDevice?.name ?? "No device selected"} />
               <FormField label="Type" value={selectedDevice?.type ?? "Unassigned"} />
@@ -573,7 +573,7 @@ export function HardwareAdaptedPage({
 
         {activeTab === "Events" ? (
           <>
-            <PanelHeader title="Events" description="Device health and command audit events." />
+            <PanelHeader title={t("common.events")} description={t("kisi.hardware.description")} />
             <div className="divide-y divide-[#eceef2]">
               {selectedDeviceEvents.map((event) => (
                 <div key={event.id} className="grid gap-3 px-7 py-5 md:grid-cols-[120px_1fr_140px] md:items-center">

@@ -93,7 +93,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
     currentView === "place" && selectedPlaceName
       ? t("kisi.shell.placeAdmin", { place: selectedPlaceName })
       : t("kisi.shell.orgAdmin")
-  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname)
+  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname, t)
 
   return (
     <header className="sticky top-0 z-40 hidden h-[64px] items-center bg-[#202443] text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] lg:flex">
@@ -289,7 +289,7 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
 function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "children">) {
   const { t, i18n } = useTranslation()
   const location = useLocation()
-  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname)
+  const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname, t)
 
   return (
     <header className="sticky top-0 z-40 bg-[#202443] text-white lg:hidden">
