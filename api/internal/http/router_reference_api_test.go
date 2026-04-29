@@ -1478,6 +1478,15 @@ func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
 	if err := json.Unmarshal(createAssignmentRecorder.Body.Bytes(), &createdAssignment); err != nil {
 		t.Fatalf("decode created role assignment: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_role_assignment_created", "role_assignment_id="+createdAssignment.ID, "role_id=role_place_admin", "applies_to_id=building_demo_001")
+
+	updateAssignmentBody := []byte(`{"role_assignment":{"tenant_id":"tenant_demo_jakarta","role_id":"role_place_admin","applies_to_type":"Place","applies_to_id":"building_demo_001","assignee_type":"User","assignee_id":"usr_audit_place_admin","assignee_email":"audit.place.admin@example.test","valid_until":"2099-05-01T10:00:00Z"}}`)
+	updateAssignmentRecorder := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/role_assignments/"+createdAssignment.ID, token, updateAssignmentBody)
+	if updateAssignmentRecorder.Code != http.StatusOK {
+		t.Fatalf("expected role assignment update status 200, got %d body=%s", updateAssignmentRecorder.Code, updateAssignmentRecorder.Body.String())
+	}
+	assertReferenceAuditLog(t, router, token, "reference_role_assignment_updated", "role_assignment_id="+createdAssignment.ID, "role_id=role_place_admin", "applies_to_id=building_demo_001")
+
 	deleteAssignmentRecorder := referenceAPIRequest(t, router, http.MethodDelete, "/api/v1/role_assignments/"+createdAssignment.ID+"?tenant_id=tenant_demo_jakarta", token, nil)
 	if deleteAssignmentRecorder.Code != http.StatusNoContent {
 		t.Fatalf("expected role assignment delete status 204, got %d body=%s", deleteAssignmentRecorder.Code, deleteAssignmentRecorder.Body.String())
@@ -1495,6 +1504,15 @@ func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
 	if err := json.Unmarshal(createShareRecorder.Body.Bytes(), &createdShare); err != nil {
 		t.Fatalf("decode created share: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_share_created", "share_id="+createdShare.ID, "email=audit.guest@example.test", "place_id=building_demo_001")
+
+	updateShareBody := []byte(`{"share":{"tenant_id":"tenant_demo_jakarta","email":"audit.guest@example.test","place_id":"building_demo_001","valid_until":"2026-05-02T10:00:00Z"}}`)
+	updateShareRecorder := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/shares/"+createdShare.ID, token, updateShareBody)
+	if updateShareRecorder.Code != http.StatusOK {
+		t.Fatalf("expected share update status 200, got %d body=%s", updateShareRecorder.Code, updateShareRecorder.Body.String())
+	}
+	assertReferenceAuditLog(t, router, token, "reference_share_updated", "share_id="+createdShare.ID, "email=audit.guest@example.test", "place_id=building_demo_001")
+
 	deleteShareRecorder := referenceAPIRequest(t, router, http.MethodDelete, "/api/v1/shares/"+createdShare.ID+"?tenant_id=tenant_demo_jakarta", token, nil)
 	if deleteShareRecorder.Code != http.StatusNoContent {
 		t.Fatalf("expected share delete status 204, got %d body=%s", deleteShareRecorder.Code, deleteShareRecorder.Body.String())
@@ -1512,6 +1530,9 @@ func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
 	if err := json.Unmarshal(createAssignedCardRecorder.Body.Bytes(), &createdAssignedCard); err != nil {
 		t.Fatalf("decode assigned card: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_card_created", "card_id="+createdAssignedCard.ID)
+	assertReferenceAuditLog(t, router, token, "reference_card_assigned", "card_id="+createdAssignedCard.ID, "target_id=usr_1001")
+
 	deassignCardRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/cards/"+createdAssignedCard.ID+"/deassign?tenant_id=tenant_demo_jakarta", token, nil)
 	if deassignCardRecorder.Code != http.StatusOK {
 		t.Fatalf("expected card deassign status 200, got %d body=%s", deassignCardRecorder.Code, deassignCardRecorder.Body.String())
@@ -1529,6 +1550,8 @@ func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
 	if err := json.Unmarshal(createRevokedCardRecorder.Body.Bytes(), &createdRevokedCard); err != nil {
 		t.Fatalf("decode revocable card: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_card_created", "card_id="+createdRevokedCard.ID)
+
 	revokeCardRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/cards/"+createdRevokedCard.ID+"/revoke?tenant_id=tenant_demo_jakarta", token, nil)
 	if revokeCardRecorder.Code != http.StatusOK {
 		t.Fatalf("expected card revoke status 200, got %d body=%s", revokeCardRecorder.Code, revokeCardRecorder.Body.String())
@@ -1608,6 +1631,15 @@ func TestReferenceDestructiveMutationAuditCoversAccessHardwareAndCardStatus(t *t
 	if err := json.Unmarshal(createTeamRecorder.Body.Bytes(), &createdTeam); err != nil {
 		t.Fatalf("decode created team: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_team_created", "team_id="+createdTeam.ID, "name=Audit Team", "place_id=building_demo_001")
+
+	updateTeamBody := []byte(`{"team":{"tenant_id":"tenant_demo_jakarta","name":"Audit Team Updated","scope":"place","place_id":"building_demo_001","description":"Updated for audit coverage"}}`)
+	updateTeamRecorder := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/teams/"+createdTeam.ID, token, updateTeamBody)
+	if updateTeamRecorder.Code != http.StatusOK {
+		t.Fatalf("expected team update status 200, got %d body=%s", updateTeamRecorder.Code, updateTeamRecorder.Body.String())
+	}
+	assertReferenceAuditLog(t, router, token, "reference_team_updated", "team_id="+createdTeam.ID, "name=Audit Team Updated", "place_id=building_demo_001")
+
 	createMembershipBody := []byte(`{"team_membership":{"tenant_id":"tenant_demo_jakarta","team_id":"` + createdTeam.ID + `","member_type":"User","member_id":"usr_1001","member_email":"audit.member@example.test","member_name":"Audit Member"}}`)
 	createMembershipRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/team_memberships", token, createMembershipBody)
 	if createMembershipRecorder.Code != http.StatusCreated {
@@ -1619,6 +1651,8 @@ func TestReferenceDestructiveMutationAuditCoversAccessHardwareAndCardStatus(t *t
 	if err := json.Unmarshal(createMembershipRecorder.Body.Bytes(), &createdMembership); err != nil {
 		t.Fatalf("decode created team membership: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_team_membership_created", "team_membership_id="+createdMembership.ID, "team_id="+createdTeam.ID, "email=audit.member@example.test")
+
 	deleteMembershipRecorder := referenceAPIRequest(t, router, http.MethodDelete, "/api/v1/team_memberships/"+createdMembership.ID+"?tenant_id=tenant_demo_jakarta", token, nil)
 	if deleteMembershipRecorder.Code != http.StatusNoContent {
 		t.Fatalf("expected team membership delete status 204, got %d body=%s", deleteMembershipRecorder.Code, deleteMembershipRecorder.Body.String())
@@ -1732,6 +1766,8 @@ func TestReferenceDestructiveMutationAuditCoversAccessHardwareAndCardStatus(t *t
 	if err := json.Unmarshal(createCardRecorder.Body.Bytes(), &createdCard); err != nil {
 		t.Fatalf("decode status card: %v", err)
 	}
+	assertReferenceAuditLog(t, router, token, "reference_card_created", "card_id="+createdCard.ID)
+
 	activateCardRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/cards/"+createdCard.ID+"/activate?tenant_id=tenant_demo_jakarta", token, nil)
 	if activateCardRecorder.Code != http.StatusOK {
 		t.Fatalf("expected card activate status 200, got %d body=%s", activateCardRecorder.Code, activateCardRecorder.Body.String())

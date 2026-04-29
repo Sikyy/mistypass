@@ -2767,6 +2767,7 @@ func (s *server) createReferenceTeam(w http.ResponseWriter, r *http.Request) {
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_team_created", referenceTeamAuditTarget(record), "access")
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -2795,6 +2796,7 @@ func (s *server) updateReferenceTeam(w http.ResponseWriter, r *http.Request) {
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_team_updated", referenceTeamAuditTarget(record), "access")
 	writeJSON(w, http.StatusOK, record)
 }
 
@@ -2859,6 +2861,7 @@ func (s *server) createReferenceTeamMembership(w http.ResponseWriter, r *http.Re
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_team_membership_created", referenceTeamMembershipAuditTarget(record), "access")
 	writeJSON(w, http.StatusCreated, record)
 }
 
@@ -2942,6 +2945,7 @@ func (s *server) createReferenceRoleAssignment(w http.ResponseWriter, r *http.Re
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_role_assignment_created", referenceRoleAssignmentAuditTarget(created), "access")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -2991,6 +2995,7 @@ func (s *server) updateReferenceRoleAssignment(w http.ResponseWriter, r *http.Re
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_role_assignment_updated", referenceRoleAssignmentAuditTarget(updated), "access")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -3017,7 +3022,7 @@ func (s *server) deleteReferenceRoleAssignment(w http.ResponseWriter, r *http.Re
 		handleAccessReferenceError(w, err)
 		return
 	}
-	s.appendAuditLog(r, tenantID, "reference_role_assignment_deleted", fmt.Sprintf("role_assignment_id=%s,role_id=%s,applies_to_type=%s,applies_to_id=%s,assignee_type=%s,assignee_id=%s", assignment.ID, assignment.RoleID, assignment.AppliesToType, assignment.AppliesToID, assignment.AssigneeType, assignment.AssigneeID), "access")
+	s.appendAuditLog(r, tenantID, "reference_role_assignment_deleted", referenceRoleAssignmentAuditTarget(assignment), "access")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -3140,6 +3145,7 @@ func (s *server) createReferenceShare(w http.ResponseWriter, r *http.Request) {
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_share_created", referenceTemporaryAccessShareAuditTarget(created), "access")
 	writeJSON(w, http.StatusCreated, referenceShareFromTemporaryAccess(created))
 }
 
@@ -3232,6 +3238,7 @@ func (s *server) updateReferenceShare(w http.ResponseWriter, r *http.Request) {
 		handleAccessReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_share_updated", referenceTemporaryAccessShareAuditTarget(updated), "access")
 	writeJSON(w, http.StatusOK, referenceShareFromTemporaryAccess(updated))
 }
 
@@ -3257,7 +3264,7 @@ func (s *server) deleteReferenceShare(w http.ResponseWriter, r *http.Request) {
 		handleAccessReferenceError(w, err)
 		return
 	}
-	s.appendAuditLog(r, tenantID, "reference_share_deleted", fmt.Sprintf("share_id=%s,place_id=%s,lock_id=%s,email=%s", record.ID, record.BuildingID, record.DoorID, record.GranteeEmail), "access")
+	s.appendAuditLog(r, tenantID, "reference_share_deleted", referenceTemporaryAccessShareAuditTarget(record), "access")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -3322,6 +3329,7 @@ func (s *server) createReferenceCard(w http.ResponseWriter, r *http.Request) {
 		handleWalletReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_card_created", referenceWalletPassAuditTarget(created), "wallet")
 	if referenceCardPayloadHasAssignee(request.Card) {
 		targetType, targetID, err := s.referenceCardAssigneeTarget(tenantID, request.Card)
 		if err != nil {
@@ -3333,6 +3341,7 @@ func (s *server) createReferenceCard(w http.ResponseWriter, r *http.Request) {
 			handleWalletReferenceError(w, err)
 			return
 		}
+		s.appendAuditLog(r, tenantID, "reference_card_assigned", referenceWalletPassAuditTarget(created), "wallet")
 	}
 	writeJSON(w, http.StatusCreated, referenceCardFromPass(created))
 }
@@ -3395,6 +3404,7 @@ func (s *server) createReferenceCardAssignment(w http.ResponseWriter, r *http.Re
 		handleWalletReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_card_assigned", referenceWalletPassAuditTarget(assigned), "wallet")
 	writeJSON(w, http.StatusOK, referenceCardAssignmentFromPass(assigned))
 }
 
@@ -3420,6 +3430,7 @@ func (s *server) assignReferenceCard(w http.ResponseWriter, r *http.Request) {
 		handleWalletReferenceError(w, err)
 		return
 	}
+	s.appendAuditLog(r, tenantID, "reference_card_assigned", referenceWalletPassAuditTarget(assigned), "wallet")
 	writeJSON(w, http.StatusOK, referenceCardFromPass(assigned))
 }
 
@@ -3433,7 +3444,7 @@ func (s *server) deassignReferenceCard(w http.ResponseWriter, r *http.Request) {
 		handleWalletReferenceError(w, err)
 		return
 	}
-	s.appendAuditLog(r, tenantID, "reference_card_deassigned", fmt.Sprintf("card_id=%s,object_id=%s", updated.ID, updated.ObjectID), "wallet")
+	s.appendAuditLog(r, tenantID, "reference_card_deassigned", referenceWalletPassAuditTarget(updated), "wallet")
 	writeJSON(w, http.StatusOK, referenceCardFromPass(updated))
 }
 
@@ -3550,7 +3561,7 @@ func (s *server) changeReferenceCardStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	s.appendAuditLog(r, tenantID, referenceCardStatusAuditAction(status), fmt.Sprintf("card_id=%s,object_id=%s,status=%s", record.ID, record.ObjectID, referenceCardStatus(record.Status)), "wallet")
+	s.appendAuditLog(r, tenantID, referenceCardStatusAuditAction(status), referenceWalletPassAuditTarget(record), "wallet")
 	writeJSON(w, http.StatusOK, referenceCardFromPass(record))
 }
 
@@ -4919,6 +4930,68 @@ func titleizeReference(value string) string {
 		parts[i] = strings.ToUpper(parts[i][:1]) + strings.ToLower(parts[i][1:])
 	}
 	return strings.Join(parts, " ")
+}
+
+func referenceTeamAuditTarget(item access.Team) string {
+	return fmt.Sprintf(
+		"team_id=%s,name=%s,scope=%s,place_id=%s,source=%s",
+		item.ID,
+		item.Name,
+		item.Scope,
+		item.PlaceID,
+		item.Source,
+	)
+}
+
+func referenceTeamMembershipAuditTarget(item access.TeamMembership) string {
+	return fmt.Sprintf(
+		"team_membership_id=%s,team_id=%s,member_type=%s,member_id=%s,email=%s,source=%s",
+		item.ID,
+		item.TeamID,
+		item.MemberType,
+		item.MemberID,
+		item.MemberEmail,
+		item.Source,
+	)
+}
+
+func referenceRoleAssignmentAuditTarget(item access.RoleAssignment) string {
+	return fmt.Sprintf(
+		"role_assignment_id=%s,role_id=%s,applies_to_type=%s,applies_to_id=%s,assignee_type=%s,assignee_id=%s,email=%s",
+		item.ID,
+		item.RoleID,
+		item.AppliesToType,
+		item.AppliesToID,
+		item.AssigneeType,
+		item.AssigneeID,
+		item.AssigneeEmail,
+	)
+}
+
+func referenceTemporaryAccessShareAuditTarget(item access.TemporaryAccess) string {
+	return fmt.Sprintf(
+		"share_id=%s,scope_type=%s,place_id=%s,area_id=%s,lock_id=%s,group_id=%s,role_id=%s,email=%s,pass_type=%s",
+		item.ID,
+		item.ScopeType,
+		item.BuildingID,
+		item.AreaID,
+		item.DoorID,
+		item.GroupID,
+		item.RoleID,
+		item.GranteeEmail,
+		item.PassType,
+	)
+}
+
+func referenceWalletPassAuditTarget(item wallet.PassInstance) string {
+	return fmt.Sprintf(
+		"card_id=%s,object_id=%s,target_type=%s,target_id=%s,status=%s",
+		item.ID,
+		item.ObjectID,
+		item.TargetType,
+		item.TargetID,
+		referenceCardStatus(item.Status),
+	)
 }
 
 func referenceCardStatus(status string) string {
