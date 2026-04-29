@@ -785,7 +785,7 @@ export function OrganizationSetupAdaptedPage({
                       draft.whatsapp ? "WhatsApp" : "",
                     ].filter(Boolean)
                     return (
-                      <div key={policy.id} className="grid gap-5 px-7 py-5 lg:grid-cols-[40px_minmax(220px,1fr)_minmax(320px,1.35fr)_230px] lg:items-start">
+                      <div key={policy.id} className="grid gap-5 px-7 py-5 xl:grid-cols-[40px_minmax(180px,1fr)_minmax(260px,1.2fr)_200px] xl:items-start">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
                           <AlertCircleIcon className="size-5 text-[#2f3037]" />
                         </div>

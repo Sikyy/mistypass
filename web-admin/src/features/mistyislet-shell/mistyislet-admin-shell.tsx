@@ -105,10 +105,11 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
 
       <div className="hidden h-11 min-w-0 w-[520px] items-center gap-3 rounded-[6px] bg-white px-3 text-[#2f3037] shadow-[0_0_0_1px_rgba(255,255,255,0.16)] md:flex">
         <SearchIcon className="size-5 shrink-0 text-[#6f717c]" />
-        <span className="truncate text-sm text-[#2f3037]">
-          {t("kisi.shell.searchPlaceholder")}
-        </span>
-        <ChevronDownIcon className="ml-auto size-4 shrink-0 text-[#2f3037]" />
+        <input
+          type="text"
+          placeholder={t("kisi.shell.searchPlaceholder")}
+          className="min-w-0 flex-1 truncate bg-transparent text-sm text-[#2f3037] placeholder:text-[#6f717c] outline-none"
+        />
       </div>
 
       <div className="ml-auto flex items-center gap-3 px-8">
@@ -193,7 +194,7 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
   const { t } = useTranslation()
   const location = useLocation()
   const { currentView, selectedPlaceName, backToOrganization } = useNavigationContext()
-  const sections = resolveNavSections(viewer, location.pathname)
+  const sections = resolveNavSections(viewer, location.pathname, t)
   const canReturnToOrganization = viewer.role === "super_admin" || viewer.role === "tenant_admin"
   const hasActiveCollapsibleSection = sections.some(
     (section) => section.collapsible && section.entries.some((entry) => isNavEntryActive(entry, location.pathname))
@@ -344,7 +345,11 @@ function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
       <div className="border-t border-white/10 px-5 pb-4">
         <div className="flex h-10 items-center gap-2 rounded-[6px] bg-white px-3 text-[#2f3037]">
           <SearchIcon className="size-4 text-[#6f717c]" />
-          <span className="truncate text-sm">{t("kisi.shell.searchMobile")}</span>
+          <input
+            type="text"
+            placeholder={t("kisi.shell.searchMobile")}
+            className="min-w-0 flex-1 truncate bg-transparent text-sm text-[#2f3037] placeholder:text-[#6f717c] outline-none"
+          />
         </div>
         <p className="mt-2 truncate text-xs text-white/60">{roleLabel}</p>
       </div>

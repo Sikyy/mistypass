@@ -235,8 +235,8 @@ export function SettingsPanel({
   onTabChange?: (tab: string) => void
 }) {
   return (
-    <section className="grid overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white lg:grid-cols-[320px_1fr]">
-      <div className="border-b border-[#eceef2] p-7 lg:border-b-0 lg:border-r">
+    <section className="grid rounded-[6px] border border-[#d9dbe3] bg-white lg:grid-cols-[280px_1fr]">
+      <div className="border-b border-[#eceef2] p-5 lg:border-b-0 lg:border-r lg:p-7">
         {tabs.map((item) => (
           <button
             key={item}
@@ -251,7 +251,7 @@ export function SettingsPanel({
           </button>
         ))}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 overflow-x-auto">
         {children}
         {footer ? <div className="flex justify-end border-t border-[#eceef2] bg-[#fbfbfc] p-5">{footer}</div> : null}
       </div>

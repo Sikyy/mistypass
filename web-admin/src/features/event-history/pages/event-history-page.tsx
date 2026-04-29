@@ -65,12 +65,8 @@ export function EventHistoryAdaptedPage({
   })
 
   useEffect(() => {
-    if (!expandedRow && rows[0]) {
-      setExpandedRow(rows[0].id)
-      return
-    }
     if (expandedRow && rows.length > 0 && !rows.some((row) => row.id === expandedRow)) {
-      setExpandedRow(rows[0].id)
+      setExpandedRow(rows[0]?.id ?? "")
     }
   }, [expandedRow, rows])
 

@@ -638,7 +638,7 @@ export default function App() {
     )
   }
 
-  if (location.pathname === "/login") {
+  if (location.pathname === "/login" || location.pathname === "/") {
     return <Navigate to="/home" replace />
   }
 
