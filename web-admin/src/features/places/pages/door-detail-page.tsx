@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ChevronDownIcon,
@@ -73,6 +74,7 @@ export function DoorDetailAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("General")
   const [selectedDoorID, setSelectedDoorID] = useState("")
@@ -288,7 +290,7 @@ export function DoorDetailAdaptedPage({
       return cancelLockLockdown(token, selectedDoor.id, tenantID)
     },
     onSuccess: async (result) => {
-      const label = result.action === "unlock" ? "Unlock" : result.action === "lock_down" ? "Lockdown" : "Cancel lockdown"
+      const label = result.action === "unlock" ? t("kisi.doors.unlock") : result.action === "lock_down" ? t("kisi.doors.lockdown") : "Cancel lockdown"
       setActionNotice(`${label} accepted.`)
       setActionError("")
       await refreshDoors()
@@ -770,7 +772,7 @@ export function DoorDetailAdaptedPage({
                 }
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
-                {createLockMutation.isPending ? "Creating..." : "Add Door"}
+                {createLockMutation.isPending ? "Creating..." : t("kisi.doors.addDoor")}
               </Button>
             </SheetFooter>
           </form>

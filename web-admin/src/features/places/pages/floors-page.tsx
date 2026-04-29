@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   BarChart3Icon,
@@ -44,6 +45,7 @@ export function FloorsAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("General")
   const [selectedFloorID, setSelectedFloorID] = useState("")
@@ -240,7 +242,7 @@ export function FloorsAdaptedPage({
     <>
       <PageFrame
         breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Floors"]}
-        title="Floors"
+        title={t("kisi.floors.title")}
         count={resourceQuery.isPending ? "--" : floors.length}
         description="Manage floors, areas, and door topology for this place"
         actions={
@@ -538,7 +540,7 @@ export function FloorsAdaptedPage({
                 disabled={!canMutate || createFloorMutation.isPending || !newFloorName.trim()}
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
-                {createFloorMutation.isPending ? "Creating..." : "Add Floor"}
+                {createFloorMutation.isPending ? "Creating..." : t("kisi.floors.addFloor")}
               </Button>
             </SheetFooter>
           </form>
@@ -580,7 +582,7 @@ export function FloorsAdaptedPage({
                 disabled={!canMutate || !selectedFloor || createAreaMutation.isPending || !newAreaName.trim()}
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
-                {createAreaMutation.isPending ? "Creating..." : "Add Area"}
+                {createAreaMutation.isPending ? "Creating..." : t("kisi.floors.addArea")}
               </Button>
             </SheetFooter>
           </form>

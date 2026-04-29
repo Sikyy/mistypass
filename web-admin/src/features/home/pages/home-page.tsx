@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
@@ -68,10 +69,10 @@ type HomeSummary = {
 }
 
 const quickActions = [
-  { label: "Add User", to: "/users", icon: PlusIcon, primary: true },
-  { label: "Issue Credential", to: "/credentials", icon: CreditCardIcon },
-  { label: "Create Place", to: "/places", icon: MapPinPlusIcon },
-  { label: "View Reports", to: "/reports", icon: AlertCircleIcon },
+  { labelKey: "kisi.home.addUser", to: "/users", icon: PlusIcon, primary: true },
+  { labelKey: "kisi.home.issueCredential", to: "/credentials", icon: CreditCardIcon },
+  { labelKey: "kisi.home.createPlace", to: "/places", icon: MapPinPlusIcon },
+  { labelKey: "kisi.home.viewReports", to: "/reports", icon: AlertCircleIcon },
 ]
 
 function isSameLocalDate(value: string, expected: Date) {
@@ -264,6 +265,7 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
 export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePageProps) {
   const personName = formatPersonName(viewer.email)
   const scopeName = formatScopeName(viewer)
+  const { t } = useTranslation()
   const summaryQuery = useQuery({
     queryKey: ["kisi-home-summary", viewer.id, viewer.role, viewer.tenant_id, viewer.building_ids?.join(",")],
     queryFn: () => loadHomeSummary(token, viewer),
@@ -283,28 +285,28 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
   const kpis = useMemo(
     () => [
       {
-        label: "Online Gates",
+        label: t("kisi.home.onlineGates"),
         value: `${gatewayOnline}/${gatewayTotal}`,
         note: gatewayTotal === 0 ? "No scoped hardware yet" : "Gateway-backed entry points",
         icon: DoorOpenIcon,
         tone: gatewayTone,
       },
       {
-        label: "Today Access",
+        label: t("kisi.home.todayAccess"),
         value: todayAccessCount.toLocaleString(),
         note: "Access events in local time",
         icon: HistoryIcon,
         tone: "info" as ActivityTone,
       },
       {
-        label: "Open Alerts",
+        label: t("kisi.home.openAlerts"),
         value: openAlarmCount.toString(),
         note: openAlarmCount > 0 ? "Needs operational follow-up" : "No open alert queue",
         icon: AlertCircleIcon,
         tone: alarmTone,
       },
       {
-        label: "Pending Review",
+        label: t("kisi.home.pendingReview"),
         value: pendingReviewCount.toString(),
         note: pendingReviewCount > 0 ? "Denied access or urgent alarms" : "No review backlog",
         icon: ShieldCheckIcon,
@@ -368,7 +370,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
               const Icon = action.icon
               return (
                 <Button
-                  key={action.label}
+                  key={action.labelKey}
                   asChild
                   variant={action.primary ? "default" : "outline"}
                   className={cn(
@@ -380,7 +382,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
                 >
                   <Link to={action.to}>
                     <Icon className="mr-1.5 size-4" />
-                    {action.label}
+                    {t(action.labelKey)}
                   </Link>
                 </Button>
               )

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { ChevronDownIcon, MapPinPlusIcon } from "lucide-react"
 
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
@@ -26,6 +27,7 @@ export function EventHistoryAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const { t } = useTranslation()
   const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const placeContext = useMemo(
     () => selectMistyisletPlaceContext(resourceQuery.summary, placeID),
@@ -73,9 +75,9 @@ export function EventHistoryAdaptedPage({
   return (
     <PageFrame
       breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Unlock History"] : ["Home", "Event History"]}
-      title={placeScoped ? "Unlock History" : "Event History"}
+      title={placeScoped ? t("kisi.eventHistory.unlockHistory") : t("kisi.eventHistory.title")}
       count={resourceQuery.isPending ? "--" : rows.length}
-      description={placeScoped ? "View and filter place unlock events" : "View and filter previous events"}
+      description={placeScoped ? t("kisi.eventHistory.unlockDesc") : t("kisi.eventHistory.description")}
     >
       {resourceQuery.usingFallback ? (
         <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
@@ -85,7 +87,7 @@ export function EventHistoryAdaptedPage({
 
       <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
         <div className="border-b border-[#eceef2] px-5 py-4">
-          <h2 className="text-base font-semibold text-[#17171c]">{placeScoped ? "Unlock History" : "Event History"}</h2>
+          <h2 className="text-base font-semibold text-[#17171c]">{placeScoped ? t("kisi.eventHistory.unlockHistory") : t("kisi.eventHistory.title")}</h2>
         </div>
         <div className="flex items-center gap-2 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4 text-xs text-[#6f717c]">
           <MapPinPlusIcon className="size-4" />
@@ -95,42 +97,42 @@ export function EventHistoryAdaptedPage({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-10 justify-between font-normal md:w-36">
-                {dateFilter === "all" ? "All Time" : dateFilter === "today" ? "Today" : "Last 7 Days"}
+                {dateFilter === "all" ? t("kisi.eventHistory.allTime") : dateFilter === "today" ? t("kisi.eventHistory.today") : t("kisi.eventHistory.last7Days")}
                 <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-36">
-              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("all")}>All Time</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("today")}>Today</DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("7days")}>Last 7 Days</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("all")}>{t("kisi.eventHistory.allTime")}</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("today")}>{t("kisi.eventHistory.today")}</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setDateFilter("7days")}>{t("kisi.eventHistory.last7Days")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-10 justify-between font-normal md:w-40">
-                {actionFilter === "all" ? "All Actions" : actionFilter}
+                {actionFilter === "all" ? t("kisi.eventHistory.allActions") : actionFilter}
                 <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="max-h-60 w-40 overflow-y-auto">
-              <DropdownMenuItem className="cursor-pointer" onSelect={() => setActionFilter("all")}>All Actions</DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer" onSelect={() => setActionFilter("all")}>{t("kisi.eventHistory.allActions")}</DropdownMenuItem>
               {actionTypes.map((action) => (
                 <DropdownMenuItem key={action} className="cursor-pointer" onSelect={() => setActionFilter(action)}>{action}</DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search events..." />
+          <MistyisletSearchField value={query} onChange={setQuery} placeholder={t("kisi.eventHistory.searchPlaceholder")} />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
               <tr className="border-b border-[#eceef2] text-[#2f3037]">
                 <th className="w-12 px-6 py-4" />
-                <th className="px-4 py-4 font-semibold">Object</th>
-                <th className="px-4 py-4 font-semibold">Action</th>
-                <th className="px-4 py-4 font-semibold">User</th>
-                <th className="px-4 py-4 font-semibold">Time</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.object")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.action")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.user")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.time")}</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -156,7 +158,7 @@ export function EventHistoryAdaptedPage({
                       <tr className="border-b border-[#eceef2] bg-[#f7f7f8]">
                         <td className="px-6 py-4" />
                         <td colSpan={5} className="px-4 py-4 text-sm leading-6 text-[#6f717c]">
-                          <span className="font-semibold text-[#2f3037]">Details</span>
+                          <span className="font-semibold text-[#2f3037]">{t("kisi.eventHistory.details")}</span>
                           <p className="mt-1">{row.details}</p>
                         </td>
                       </tr>
@@ -165,7 +167,7 @@ export function EventHistoryAdaptedPage({
                 )
               })}
               {visibleRows.length === 0 ? (
-                <MistyisletEmptyTableRow colSpan={6}>No events match this search.</MistyisletEmptyTableRow>
+                <MistyisletEmptyTableRow colSpan={6}>{t("kisi.eventHistory.noMatch")}</MistyisletEmptyTableRow>
               ) : null}
             </tbody>
           </table>

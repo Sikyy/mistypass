@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ClipboardListIcon,
@@ -315,6 +316,7 @@ export function CredentialsAdaptedPage({
   token: string
   viewer: CurrentUser
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const rows = resourceQuery.summary.credentials

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ChevronDownIcon,
@@ -52,6 +53,7 @@ export function GroupsAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("Permissions")
   const [selectedGroupID, setSelectedGroupID] = useState("")

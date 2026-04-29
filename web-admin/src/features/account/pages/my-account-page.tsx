@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation } from "@tanstack/react-query"
 import { ChevronDownIcon, CloudIcon, SearchIcon, Trash2Icon, UserIcon } from "lucide-react"
 
@@ -46,7 +47,8 @@ type MyAccountPageProps = {
 }
 
 export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAccountPageProps) {
-  const [activeTab, setActiveTab] = useState("Profile")
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState(t("kisi.myAccount.profile"))
   const [profileName, setProfileName] = useState(() => profileNameForViewer(viewer))
   const [profileLanguage, setProfileLanguage] = useState(() => normalizedProfileLanguage(viewer.language))
   const [profileFeedback, setProfileFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
@@ -99,18 +101,18 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
   return (
     <PageFrame
       breadcrumbs={["Home", "My Account"]}
-      title="My Account"
+      title={t("kisi.myAccount.title")}
       description="Manage profile, login, credentials, security, and API keys"
     >
       <SettingsPanel
-        tabs={["Profile", "Logins", "Credentials", "Security", "API"]}
+        tabs={[t("kisi.myAccount.profile"), t("kisi.myAccount.logins"), "Credentials", t("kisi.myAccount.security"), "API"]}
         active={activeTab}
         onTabChange={setActiveTab}
         footer={
           <>
             <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-[#4f55ff]" onClick={onLogout}>Sign Out</Button>
             <Button
-              disabled={activeTab !== "Profile" || !profileDirty || !profileName.trim() || profileMutation.isPending}
+              disabled={activeTab !== t("kisi.myAccount.profile") || !profileDirty || !profileName.trim() || profileMutation.isPending}
               className="h-10 rounded-[8px] px-8"
               onClick={handleProfileSave}
             >
@@ -119,7 +121,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           </>
         }
       >
-        {activeTab === "Profile" ? (
+        {activeTab === t("kisi.myAccount.profile") ? (
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Profile</h2>
@@ -196,7 +198,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           </>
         ) : null}
 
-        {activeTab === "Logins" ? (
+        {activeTab === t("kisi.myAccount.logins") ? (
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Logins</h2>
@@ -235,7 +237,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           </div>
         ) : null}
 
-        {activeTab === "Security" ? (
+        {activeTab === t("kisi.myAccount.security") ? (
           <div className="divide-y divide-[#eceef2]">
             <div className="px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">Security</h2>

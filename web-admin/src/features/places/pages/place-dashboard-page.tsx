@@ -1,4 +1,5 @@
 import { AlertCircleIcon, DoorOpenIcon, HistoryIcon, UsersIcon } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { KpiCard, PageFrame, StatusDot, type ActivityTone } from "@/components/mistyislet/primitives"
 import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
@@ -26,6 +27,7 @@ export function PlaceDashboardAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const { t } = useTranslation()
   const resourceQuery = useMistyisletPlaceContext(token, viewer, placeID)
   const { place, doors, events } = resourceQuery.context
   const today = new Date()
@@ -35,16 +37,16 @@ export function PlaceDashboardAdaptedPage({
   const reviewCount = place?.offlineCount ?? events.filter((event) => event.tone !== "success").length
   const cards = [
     [
-      "Online Doors",
+      t("kisi.placeDashboard.onlineDoors"),
       `${onlineDoors}/${doors.length}`,
       place?.offlineCount ? `${place.offlineCount} resource needs review` : "All scoped doors online",
       DoorOpenIcon,
       place?.offlineCount ? "warning" : "success",
     ],
-    ["Today Unlocks", todayEvents.length.toLocaleString(), "Access events in local time", HistoryIcon, "info"],
-    ["Active Users", activeUsers.toString(), "Users seen in recent events", UsersIcon, "success"],
+    [t("kisi.placeDashboard.todayUnlocks"), todayEvents.length.toLocaleString(), "Access events in local time", HistoryIcon, "info"],
+    [t("kisi.placeDashboard.activeUsers"), activeUsers.toString(), "Users seen in recent events", UsersIcon, "success"],
     [
-      "Open Alerts",
+      t("kisi.placeDashboard.openAlerts"),
       reviewCount.toString(),
       reviewCount > 0 ? "Operational follow-up needed" : "No review backlog",
       AlertCircleIcon,
@@ -55,8 +57,8 @@ export function PlaceDashboardAdaptedPage({
   return (
     <PageFrame
       breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Dashboard"]}
-      title="Place Dashboard"
-      description={place ? `Operational overview for ${place.name}` : "Operational overview for the assigned place"}
+      title={t("kisi.placeDashboard.title")}
+      description={place ? t("kisi.placeDashboard.description", { place: place.name }) : t("kisi.placeDashboard.description", { place: "" })}
     >
       {resourceQuery.usingFallback ? (
         <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">

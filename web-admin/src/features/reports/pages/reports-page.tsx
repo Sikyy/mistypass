@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { DownloadIcon } from "lucide-react"
 
@@ -70,6 +71,7 @@ function downloadFile(filename: string, content: string) {
 
 export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false }: ReportsAdaptedPageProps) {
   const tabs = placeScoped ? ["Access", "Doors"] : ["Access", "Doors", "Audit"]
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState(tabs[0])
   const [query, setQuery] = useState("")
   const [actionError, setActionError] = useState("")
@@ -121,7 +123,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
   return (
     <PageFrame
       breadcrumbs={placeScoped ? ["Home", "Places", "Assigned Place", "Analytics"] : ["Home", "Reports"]}
-      title={placeScoped ? "Analytics" : "Reports"}
+      title={placeScoped ? t("kisi.reports.title") : t("kisi.reports.title")}
       count={reportsQuery.isPending ? "--" : reports.length}
       description={placeScoped ? "Place statistics, trends, and audit slices" : "Organization alerts, audit log, and statistics"}
     >

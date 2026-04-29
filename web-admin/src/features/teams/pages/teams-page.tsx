@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ChevronDownIcon, KeyRoundIcon, PlusIcon, ShieldCheckIcon, Trash2Icon } from "lucide-react"
 
@@ -55,6 +56,7 @@ export function TeamsAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("Members")
   const [selectedTeamID, setSelectedTeamID] = useState("")
@@ -374,9 +376,9 @@ export function TeamsAdaptedPage({
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead className="bg-[#fbfbfc]">
               <tr className="border-b border-[#eceef2]">
-                <th className="px-6 py-4 font-semibold">Name</th>
+                <th className="px-6 py-4 font-semibold">{t("kisi.teams.name")}</th>
                 <th className="px-4 py-4 font-semibold">Scope</th>
-                <th className="px-4 py-4 font-semibold">Members</th>
+                <th className="px-4 py-4 font-semibold">{t("kisi.teams.members")}</th>
                 <th className="px-4 py-4 font-semibold">Access Rights</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
               </tr>
@@ -400,7 +402,7 @@ export function TeamsAdaptedPage({
                   </td>
                 </tr>
               ))}
-              {teams.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>No teams found.</MistyisletEmptyTableRow> : null}
+              {teams.length === 0 ? <MistyisletEmptyTableRow colSpan={5}>{t("kisi.teams.noMatch")}</MistyisletEmptyTableRow> : null}
             </tbody>
           </table>
         </div>
@@ -496,7 +498,7 @@ export function TeamsAdaptedPage({
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
-                    <th className="px-7 py-4 font-semibold">Name</th>
+                    <th className="px-7 py-4 font-semibold">{t("kisi.teams.name")}</th>
                     <th className="px-4 py-4 font-semibold">Email</th>
                     <th className="px-4 py-4 font-semibold">Source</th>
                     <th className="px-4 py-4 font-semibold">Status</th>
@@ -648,7 +650,7 @@ export function TeamsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.name")}</span>
               <input
                 value={teamName}
                 onChange={(event) => setTeamName(event.target.value)}

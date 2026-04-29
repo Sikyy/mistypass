@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CloudIcon, FileTextIcon, LinkIcon, PlusIcon, RotateCwIcon, SendIcon, ServerIcon, UnlinkIcon, ZapIcon } from "lucide-react"
 
@@ -78,6 +79,7 @@ export function HardwareAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("General")
   const [selectedDeviceID, setSelectedDeviceID] = useState("")
@@ -415,7 +417,7 @@ export function HardwareAdaptedPage({
     <>
       <PageFrame
         breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Hardware"]}
-        title="Hardware"
+        title={t("kisi.hardware.title")}
         count={resourceQuery.isPending ? "--" : hardware.length}
         description="Gateways, controllers, readers, and terminals assigned to this place"
         actions={
@@ -904,7 +906,7 @@ export function HardwareAdaptedPage({
                 }
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
-                {addHardwareMutation.isPending ? "Registering..." : "Add Hardware"}
+                {addHardwareMutation.isPending ? "Registering..." : t("kisi.hardware.addHardware")}
               </Button>
             </SheetFooter>
           </form>
