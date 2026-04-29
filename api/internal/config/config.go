@@ -44,6 +44,12 @@ type Config struct {
 	JWTAccessTTL                                                 time.Duration
 	JWTRefreshTTL                                                time.Duration
 	EnableDemoUsers                                              bool
+	UserInvitationEmailProvider                                  string
+	UserInvitationEmailFrom                                      string
+	UserInvitationResendEndpoint                                 string
+	UserInvitationResendAPIKey                                   string
+	UserInvitationResendTimeout                                  time.Duration
+	UserInvitationProviderWebhookSecret                          string
 	DatabaseURL                                                  string
 	DatabaseAutoMigrate                                          bool
 	EnterpriseJITProvisionApprovalRequired                       bool
@@ -129,6 +135,7 @@ func FromEnv() Config {
 	loadBrokerConfig(&cfg)
 	loadOTelConfig(&cfg)
 	loadAuthConfig(&cfg)
+	loadUserInvitationConfig(&cfg)
 	loadDatabaseConfig(&cfg)
 	loadEnterpriseConfig(&cfg)
 	loadGatewayConfig(&cfg)
@@ -139,7 +146,7 @@ func FromEnv() Config {
 func loadServerConfig(cfg *Config) {
 	cfg.AppEnv = envLowerOrDefault("APP_ENV", "development")
 	cfg.HTTPAddr = normalizeHTTPAddr(envStringOrDefault("PORT", "8080"))
-	cfg.CORSOrigin = envStringOrDefault("CORS_ORIGIN", "http://localhost:5173")
+	cfg.CORSOrigin = envStringOrDefault("CORS_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
 }
 
 func loadRedisConfig(cfg *Config) {
@@ -209,6 +216,26 @@ func loadAuthConfig(cfg *Config) {
 	if raw := envString("ENABLE_DEMO_USERS"); raw != "" {
 		cfg.EnableDemoUsers = parseBoolOrFallback(raw, false)
 	}
+}
+
+func loadUserInvitationConfig(cfg *Config) {
+	cfg.UserInvitationEmailProvider = envLowerOrDefault("USER_INVITATION_EMAIL_PROVIDER", "queue")
+	switch cfg.UserInvitationEmailProvider {
+	case "queue", "mock", "resend":
+	default:
+		cfg.UserInvitationEmailProvider = "queue"
+	}
+	cfg.UserInvitationEmailFrom = envStringOrDefault("USER_INVITATION_EMAIL_FROM", "no-reply@mistypass.local")
+	cfg.UserInvitationResendEndpoint = envString("USER_INVITATION_RESEND_ENDPOINT")
+	cfg.UserInvitationResendAPIKey = envString("USER_INVITATION_RESEND_API_KEY")
+	cfg.UserInvitationResendTimeout = parseDurationOrFallback(
+		envString("USER_INVITATION_RESEND_TIMEOUT"),
+		5*time.Second,
+	)
+	if cfg.UserInvitationResendTimeout < time.Second {
+		cfg.UserInvitationResendTimeout = 5 * time.Second
+	}
+	cfg.UserInvitationProviderWebhookSecret = envString("USER_INVITATION_PROVIDER_WEBHOOK_SECRET")
 }
 
 func loadDatabaseConfig(cfg *Config) {

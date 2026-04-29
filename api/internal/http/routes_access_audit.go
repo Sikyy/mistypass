@@ -93,6 +93,273 @@ func (s *server) createUser(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, created)
 }
 
+func (s *server) inviteUser(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID       string `json:"tenant_id"`
+		DeliveryMethod string `json:"delivery_method"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(request.DeliveryMethod) == "" {
+		request.DeliveryMethod = "email"
+	}
+	deliveryMethod := strings.ToLower(strings.TrimSpace(request.DeliveryMethod))
+	if deliveryMethod != "email" && deliveryMethod != "email_qr" {
+		writeError(w, http.StatusBadRequest, "invalid delivery_method")
+		return
+	}
+
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	user, err := s.accessSvc.GetUser(tenantID, chi.URLParam(r, "userID"))
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, user.BuildingID) {
+		return
+	}
+
+	delivery, _, err := s.accessSvc.CreateUserInvitationDelivery(tenantID, user.ID, deliveryMethod)
+	if err != nil {
+		handleUserInvitationError(w, err)
+		return
+	}
+	responseDelivery := delivery
+	s.appendAuditLog(
+		r,
+		tenantID,
+		"reference_user_invitation_sent",
+		fmt.Sprintf("delivery_id=%s,user_id=%s,email=%s,place_id=%s,delivery_method=%s,status=%s", delivery.ID, delivery.UserID, delivery.Email, delivery.PlaceID, delivery.DeliveryMethod, delivery.Status),
+		"access",
+	)
+	if dispatched, ok := s.dispatchUserInvitationEmail(r, delivery, user); ok {
+		responseDelivery = dispatched
+	}
+
+	writeJSON(w, http.StatusAccepted, responseDelivery)
+}
+
+func (s *server) listUserInvitations(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	user, err := s.accessSvc.GetUser(tenantID, chi.URLParam(r, "userID"))
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, user.BuildingID) {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": s.accessSvc.ListUserInvitationDeliveries(tenantID, user.ID),
+	})
+}
+
+func (s *server) recordUserInvitationReceipt(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID           string `json:"tenant_id"`
+		Status             string `json:"status"`
+		Provider           string `json:"provider"`
+		ProviderDeliveryID string `json:"provider_delivery_id"`
+		ProviderError      string `json:"provider_error"`
+		Retryable          bool   `json:"retryable"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	user, err := s.accessSvc.GetUser(tenantID, chi.URLParam(r, "userID"))
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, user.BuildingID) {
+		return
+	}
+
+	delivery, err := s.accessSvc.RecordUserInvitationReceipt(
+		tenantID,
+		user.ID,
+		chi.URLParam(r, "deliveryID"),
+		request.Status,
+		request.Provider,
+		request.ProviderDeliveryID,
+		request.ProviderError,
+		request.Retryable,
+	)
+	if err != nil {
+		handleUserInvitationError(w, err)
+		return
+	}
+	s.appendUserInvitationReceiptAudit(r, delivery, "access")
+	writeJSON(w, http.StatusOK, delivery)
+}
+
+func (s *server) getUser(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	user, err := s.accessSvc.GetUser(tenantID, chi.URLParam(r, "userID"))
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, user.BuildingID) {
+		return
+	}
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (s *server) updateUser(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   *string   `json:"tenant_id"`
+		BuildingID *string   `json:"building_id"`
+		Name       *string   `json:"name"`
+		Email      *string   `json:"email"`
+		Role       *string   `json:"role"`
+		Status     *string   `json:"status"`
+		GroupIDs   *[]string `json:"group_ids"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	requestedTenantID := r.URL.Query().Get("tenant_id")
+	if request.TenantID != nil {
+		requestedTenantID = *request.TenantID
+	}
+	tenantID, ok := s.resolveTenantID(w, r, requestedTenantID)
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+
+	userID := chi.URLParam(r, "userID")
+	current, err := s.accessSvc.GetUser(tenantID, userID)
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, current.BuildingID) {
+		return
+	}
+
+	nextBuildingID := current.BuildingID
+	if request.BuildingID != nil {
+		nextBuildingID = *request.BuildingID
+	}
+	nextName := current.Name
+	if request.Name != nil {
+		nextName = *request.Name
+	}
+	nextEmail := current.Email
+	if request.Email != nil {
+		nextEmail = *request.Email
+	}
+	nextRole := current.Role
+	if request.Role != nil {
+		nextRole = *request.Role
+	}
+	nextStatus := current.Status
+	if request.Status != nil {
+		nextStatus = *request.Status
+	}
+	nextGroupIDs := append([]string(nil), current.GroupIDs...)
+	if request.GroupIDs != nil {
+		nextGroupIDs = append([]string(nil), (*request.GroupIDs)...)
+	}
+	if !s.requireBuildingScope(w, buildingScope, nextBuildingID) {
+		return
+	}
+
+	updated, err := s.accessSvc.UpdateUser(tenantID, userID, nextBuildingID, nextName, nextEmail, nextRole, nextStatus, nextGroupIDs)
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	if !strings.EqualFold(current.Status, updated.Status) {
+		s.appendAuditLog(r, tenantID, "reference_user_status_changed", fmt.Sprintf("user_id=%s,email=%s,status=%s,previous_status=%s", updated.ID, updated.Email, updated.Status, current.Status), "access")
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *server) deleteUser(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	removed, err := s.accessSvc.DeleteUser(tenantID, chi.URLParam(r, "userID"))
+	if err != nil {
+		handleAccessUserError(w, err)
+		return
+	}
+	s.appendAuditLog(r, tenantID, "reference_user_deleted", fmt.Sprintf("user_id=%s,email=%s,place_id=%s", removed.ID, removed.Email, removed.BuildingID), "access")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleAccessUserError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, access.ErrTenantIDRequired),
+		errors.Is(err, access.ErrUserNameRequired),
+		errors.Is(err, access.ErrUserEmailRequired),
+		errors.Is(err, access.ErrInvalidUserStatus):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, access.ErrUserNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+func handleUserInvitationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, access.ErrTenantIDRequired),
+		errors.Is(err, access.ErrDeliveryMethodInvalid),
+		errors.Is(err, access.ErrInvalidUserInvitationStatus):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, access.ErrUserNotFound),
+		errors.Is(err, access.ErrUserInvitationDeliveryNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
 func (s *server) listUserGroups(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
@@ -273,6 +540,7 @@ func (s *server) createAccessPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_access_policy_created", accessPolicyAuditTarget(created), "access")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -334,7 +602,22 @@ func (s *server) updateAccessPolicy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_access_policy_updated", accessPolicyAuditTarget(updated), "access")
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func accessPolicyAuditTarget(policy access.Policy) string {
+	return fmt.Sprintf(
+		"policy_id=%s,name=%s,scope_type=%s,building_id=%s,area_id=%s,door_id=%s,status=%s,members=%d",
+		policy.ID,
+		policy.Name,
+		policy.ScopeType,
+		policy.BuildingID,
+		policy.AreaID,
+		policy.DoorID,
+		policy.Status,
+		policy.Members,
+	)
 }
 
 func (s *server) listTemporaryAccess(w http.ResponseWriter, r *http.Request) {
@@ -441,7 +724,22 @@ func (s *server) createTemporaryAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_temporary_access_created", temporaryAccessAuditTarget(created), "access")
 	writeJSON(w, http.StatusCreated, created)
+}
+
+func temporaryAccessAuditTarget(grant access.TemporaryAccess) string {
+	return fmt.Sprintf(
+		"temporary_access_id=%s,scope_type=%s,building_id=%s,area_id=%s,door_id=%s,delivery_method=%s,grantee_email=%s,valid_until=%s",
+		grant.ID,
+		grant.ScopeType,
+		grant.BuildingID,
+		grant.AreaID,
+		grant.DoorID,
+		grant.DeliveryMethod,
+		grant.GranteeEmail,
+		grant.ValidUntil,
+	)
 }
 
 func (s *server) listVisitorPasses(w http.ResponseWriter, r *http.Request) {

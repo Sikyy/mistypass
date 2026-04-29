@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -144,6 +145,7 @@ func (s *server) createBuilding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_building_created", buildingAuditTarget(created), "space")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -172,6 +174,7 @@ func (s *server) createFloor(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		TenantID   string `json:"tenant_id"`
 		BuildingID string `json:"building_id"`
+		PlaceID    string `json:"place_id"`
 		Name       string `json:"name"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
@@ -187,6 +190,9 @@ func (s *server) createFloor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	request.TenantID = tenantID
+	if strings.TrimSpace(request.BuildingID) == "" {
+		request.BuildingID = request.PlaceID
+	}
 	if !s.requireBuildingScope(w, buildingScope, request.BuildingID) {
 		return
 	}
@@ -209,6 +215,125 @@ func (s *server) createFloor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, created)
+}
+
+func buildingAuditTarget(building space.Building) string {
+	return fmt.Sprintf(
+		"building_id=%s,name=%s,region=%s,status=%s",
+		building.ID,
+		building.Name,
+		building.Region,
+		building.Status,
+	)
+}
+
+func doorAuditTarget(door space.Door) string {
+	return fmt.Sprintf(
+		"door_id=%s,building_id=%s,floor_id=%s,area_id=%s,name=%s,gateway_id=%s,kind=%s,status=%s",
+		door.ID,
+		door.BuildingID,
+		door.FloorID,
+		door.AreaID,
+		door.Name,
+		door.GatewayID,
+		door.Kind,
+		door.Status,
+	)
+}
+
+func doorGroupAuditTarget(group space.DoorGroup) string {
+	return fmt.Sprintf(
+		"door_group_id=%s,name=%s,door_ids=%s",
+		group.ID,
+		group.Name,
+		strings.Join(group.DoorIDs, "|"),
+	)
+}
+
+func (s *server) getFloor(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	record, err := s.spaceSvc.GetFloor(tenantID, chi.URLParam(r, "floorID"))
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, record.BuildingID) {
+		return
+	}
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (s *server) updateFloor(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		BuildingID string `json:"building_id"`
+		PlaceID    string `json:"place_id"`
+		Name       string `json:"name"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, firstNonEmptyString(request.TenantID, r.URL.Query().Get("tenant_id")))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	floorID := chi.URLParam(r, "floorID")
+	current, err := s.spaceSvc.GetFloor(tenantID, floorID)
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, current.BuildingID) {
+		return
+	}
+	buildingID := firstNonEmptyString(request.PlaceID, request.BuildingID, current.BuildingID)
+	if !s.requireBuildingScope(w, buildingScope, buildingID) {
+		return
+	}
+	name := firstNonEmptyString(request.Name, current.Name)
+	updated, err := s.spaceSvc.UpdateFloor(tenantID, floorID, buildingID, name)
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *server) deleteFloor(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	floorID := chi.URLParam(r, "floorID")
+	current, err := s.spaceSvc.GetFloor(tenantID, floorID)
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, current.BuildingID) {
+		return
+	}
+	if err := s.spaceSvc.DeleteFloor(tenantID, floorID); err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *server) listAreas(w http.ResponseWriter, r *http.Request) {
@@ -276,6 +401,69 @@ func (s *server) createArea(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, created)
+}
+
+func (s *server) getArea(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	record, err := s.spaceSvc.GetArea(tenantID, chi.URLParam(r, "areaID"))
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, record.BuildingID) {
+		return
+	}
+	writeJSON(w, http.StatusOK, record)
+}
+
+func (s *server) updateArea(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		BuildingID string `json:"building_id"`
+		PlaceID    string `json:"place_id"`
+		FloorID    string `json:"floor_id"`
+		Name       string `json:"name"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, firstNonEmptyString(request.TenantID, r.URL.Query().Get("tenant_id")))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	areaID := chi.URLParam(r, "areaID")
+	current, err := s.spaceSvc.GetArea(tenantID, areaID)
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, current.BuildingID) {
+		return
+	}
+	buildingID := firstNonEmptyString(request.PlaceID, request.BuildingID, current.BuildingID)
+	if !s.requireBuildingScope(w, buildingScope, buildingID) {
+		return
+	}
+	floorID := firstNonEmptyString(request.FloorID, current.FloorID)
+	name := firstNonEmptyString(request.Name, current.Name)
+	updated, err := s.spaceSvc.UpdateArea(tenantID, areaID, buildingID, floorID, name)
+	if err != nil {
+		handleSpaceMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
 }
 
 func (s *server) listDoors(w http.ResponseWriter, r *http.Request) {
@@ -367,6 +555,7 @@ func (s *server) createDoor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_door_created", doorAuditTarget(created), "space")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -436,5 +625,6 @@ func (s *server) createDoorGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.appendAuditLog(r, tenantID, "legacy_door_group_created", doorGroupAuditTarget(created), "space")
 	writeJSON(w, http.StatusCreated, created)
 }

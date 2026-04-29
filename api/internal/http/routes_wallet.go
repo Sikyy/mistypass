@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"encoding/csv"
 	"errors"
 	"net/http"
 	"strconv"
@@ -447,6 +448,339 @@ func (s *server) retryWalletPassDelivery(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, record)
 }
 
+func (s *server) listWalletPhysicalCardVendors(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": s.walletSvc.ListPhysicalCardVendors(tenantID),
+	})
+}
+
+func (s *server) listWalletPhysicalCardInventory(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": s.walletSvc.ListPhysicalCardInventory(tenantID, r.URL.Query().Get("status")),
+	})
+}
+
+func (s *server) createWalletPhysicalCardInventoryItem(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		CardNumber string `json:"card_number"`
+		UID        string `json:"uid"`
+		VendorID   string `json:"vendor_id"`
+		Status     string `json:"status"`
+		Actor      string `json:"actor"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	request.TenantID = tenantID
+
+	created, err := s.walletSvc.CreatePhysicalCardInventoryItem(
+		request.TenantID,
+		request.CardNumber,
+		request.UID,
+		request.VendorID,
+		request.Status,
+		request.Actor,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, wallet.ErrPhysicalCardInventoryCardNumberRequired),
+			errors.Is(err, wallet.ErrInvalidPhysicalCardInventoryStatus):
+			writeError(w, http.StatusBadRequest, err.Error())
+		case errors.Is(err, wallet.ErrPhysicalCardInventoryAlreadyExists):
+			writeError(w, http.StatusConflict, err.Error())
+		case errors.Is(err, wallet.ErrPhysicalCardVendorNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, created)
+}
+
+func (s *server) scanWalletPhysicalCardInventory(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		UID        string `json:"uid"`
+		CardNumber string `json:"card_number"`
+		ReaderID   string `json:"reader_id"`
+		VendorID   string `json:"vendor_id"`
+		Actor      string `json:"actor"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	item, err := s.walletSvc.ScanPhysicalCardInventory(
+		tenantID,
+		request.UID,
+		request.CardNumber,
+		request.ReaderID,
+		request.VendorID,
+		request.Actor,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, wallet.ErrPhysicalCardInventoryUIDRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		case errors.Is(err, wallet.ErrPhysicalCardVendorNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, item)
+}
+
+func (s *server) importWalletPhysicalCardInventory(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID string `json:"tenant_id"`
+		Actor    string `json:"actor"`
+		Items    []struct {
+			CardNumber string `json:"card_number"`
+			UID        string `json:"uid"`
+			VendorID   string `json:"vendor_id"`
+			Status     string `json:"status"`
+		} `json:"items"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	records := make([]wallet.PhysicalCardInventoryImportItem, 0, len(request.Items))
+	for i := range request.Items {
+		records = append(records, wallet.PhysicalCardInventoryImportItem{
+			CardNumber: request.Items[i].CardNumber,
+			UID:        request.Items[i].UID,
+			VendorID:   request.Items[i].VendorID,
+			Status:     request.Items[i].Status,
+		})
+	}
+
+	items, err := s.walletSvc.ImportPhysicalCardInventory(tenantID, records, request.Actor)
+	if err != nil {
+		s.writePhysicalCardInventoryImportError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"items": items,
+	})
+}
+
+func (s *server) importWalletPhysicalCardInventoryCSV(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID   string `json:"tenant_id"`
+		CSVContent string `json:"csv_content"`
+		Actor      string `json:"actor"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	records, err := parsePhysicalCardInventoryCSV(request.CSVContent)
+	if err != nil {
+		switch {
+		case errors.Is(err, wallet.ErrPhysicalCardInventoryRecordsRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusBadRequest, "invalid csv_content format")
+		}
+		return
+	}
+
+	items, err := s.walletSvc.ImportPhysicalCardInventory(tenantID, records, request.Actor)
+	if err != nil {
+		s.writePhysicalCardInventoryImportError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"items": items,
+	})
+}
+
+func (s *server) writePhysicalCardInventoryImportError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, wallet.ErrPhysicalCardInventoryCardNumberRequired),
+		errors.Is(err, wallet.ErrPhysicalCardInventoryRecordsRequired),
+		errors.Is(err, wallet.ErrInvalidPhysicalCardInventoryStatus):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, wallet.ErrPhysicalCardVendorNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+func (s *server) batchUpdateWalletPhysicalCardInventoryStatus(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID     string   `json:"tenant_id"`
+		InventoryIDs []string `json:"inventory_ids"`
+		Status       string   `json:"status"`
+		Reason       string   `json:"reason"`
+		Actor        string   `json:"actor"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	items, err := s.walletSvc.BatchUpdatePhysicalCardInventoryStatus(
+		tenantID,
+		request.InventoryIDs,
+		request.Status,
+		request.Reason,
+		request.Actor,
+	)
+	if err != nil {
+		s.writePhysicalCardInventoryStatusError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+	})
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_status_batch_update", "count="+strconv.Itoa(len(items))+",status="+strings.TrimSpace(request.Status), "web_admin")
+}
+
+func (s *server) updateWalletPhysicalCardInventoryStatus(w http.ResponseWriter, r *http.Request) {
+	inventoryID := chi.URLParam(r, "inventoryID")
+	var request struct {
+		TenantID string `json:"tenant_id"`
+		Status   string `json:"status"`
+		Reason   string `json:"reason"`
+		Actor    string `json:"actor"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+
+	item, err := s.walletSvc.UpdatePhysicalCardInventoryStatus(
+		tenantID,
+		inventoryID,
+		request.Status,
+		request.Reason,
+		request.Actor,
+	)
+	if err != nil {
+		s.writePhysicalCardInventoryStatusError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, item)
+	s.appendAuditLog(r, tenantID, "physical_card_inventory_status_update", "inventory_id="+inventoryID+",status="+strings.TrimSpace(request.Status), "web_admin")
+}
+
+func (s *server) writePhysicalCardInventoryStatusError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, wallet.ErrPhysicalCardInventoryIDsRequired),
+		errors.Is(err, wallet.ErrInvalidPhysicalCardInventoryStatus):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, wallet.ErrPhysicalCardInventoryNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, wallet.ErrInvalidPhysicalCardInventoryTransition):
+		writeError(w, http.StatusConflict, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+func parsePhysicalCardInventoryCSV(content string) ([]wallet.PhysicalCardInventoryImportItem, error) {
+	nextContent := strings.TrimSpace(content)
+	if nextContent == "" {
+		return nil, wallet.ErrPhysicalCardInventoryRecordsRequired
+	}
+	reader := csv.NewReader(strings.NewReader(nextContent))
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, wallet.ErrPhysicalCardInventoryRecordsRequired
+	}
+
+	start := 0
+	if isPhysicalCardInventoryCSVHeader(rows[0]) {
+		start = 1
+	}
+	records := make([]wallet.PhysicalCardInventoryImportItem, 0, len(rows)-start)
+	for i := start; i < len(rows); i++ {
+		row := rows[i]
+		if len(row) == 0 {
+			continue
+		}
+		record := wallet.PhysicalCardInventoryImportItem{
+			CardNumber: strings.TrimSpace(row[0]),
+		}
+		if len(row) > 1 {
+			record.UID = strings.TrimSpace(row[1])
+		}
+		if len(row) > 2 {
+			record.VendorID = strings.TrimSpace(row[2])
+		}
+		if len(row) > 3 {
+			record.Status = strings.TrimSpace(row[3])
+		}
+		if record.CardNumber == "" && record.UID == "" {
+			continue
+		}
+		records = append(records, record)
+	}
+	if len(records) == 0 {
+		return nil, wallet.ErrPhysicalCardInventoryRecordsRequired
+	}
+	return records, nil
+}
+
+func isPhysicalCardInventoryCSVHeader(row []string) bool {
+	if len(row) < 1 {
+		return false
+	}
+	return strings.ToLower(strings.TrimSpace(row[0])) == "card_number"
+}
+
 func (s *server) listWalletPhysicalCardTasks(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
@@ -459,12 +793,14 @@ func (s *server) listWalletPhysicalCardTasks(w http.ResponseWriter, r *http.Requ
 
 func (s *server) createWalletPhysicalCardTask(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		TenantID   string `json:"tenant_id"`
-		PassID     string `json:"pass_id"`
-		TaskType   string `json:"task_type"`
-		CardNumber string `json:"card_number"`
-		Note       string `json:"note"`
-		Actor      string `json:"actor"`
+		TenantID    string `json:"tenant_id"`
+		PassID      string `json:"pass_id"`
+		TaskType    string `json:"task_type"`
+		CardNumber  string `json:"card_number"`
+		InventoryID string `json:"inventory_id"`
+		VendorID    string `json:"vendor_id"`
+		Note        string `json:"note"`
+		Actor       string `json:"actor"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -481,6 +817,8 @@ func (s *server) createWalletPhysicalCardTask(w http.ResponseWriter, r *http.Req
 		request.PassID,
 		request.TaskType,
 		request.CardNumber,
+		request.InventoryID,
+		request.VendorID,
 		request.Note,
 		request.Actor,
 	)
@@ -490,7 +828,9 @@ func (s *server) createWalletPhysicalCardTask(w http.ResponseWriter, r *http.Req
 			errors.Is(err, wallet.ErrInvalidPhysicalCardTaskType),
 			errors.Is(err, wallet.ErrPhysicalCardTaskEmployeePassRequired):
 			writeError(w, http.StatusBadRequest, err.Error())
-		case errors.Is(err, wallet.ErrPassNotFound):
+		case errors.Is(err, wallet.ErrPassNotFound),
+			errors.Is(err, wallet.ErrPhysicalCardInventoryNotFound),
+			errors.Is(err, wallet.ErrPhysicalCardVendorNotFound):
 			writeError(w, http.StatusNotFound, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, err.Error())

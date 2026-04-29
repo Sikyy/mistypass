@@ -86,6 +86,202 @@ func TestIssuePassBatchQueuedAndProcessIssueJobs(t *testing.T) {
 	}
 }
 
+func TestPhysicalCardInventoryReservedAndIssuedWithTask(t *testing.T) {
+	svc := NewService()
+
+	vendors := svc.ListPhysicalCardVendors("tenant_demo_jakarta")
+	if len(vendors) == 0 {
+		t.Fatalf("expected seeded physical card vendors")
+	}
+
+	item, err := svc.CreatePhysicalCardInventoryItem(
+		"tenant_demo_jakarta",
+		"CARD-QA-9001",
+		"UID-QA-9001",
+		"wpcv_internal_demo",
+		"",
+		"qa.inventory",
+	)
+	if err != nil {
+		t.Fatalf("create physical card inventory failed: %v", err)
+	}
+	if item.Status != "available" {
+		t.Fatalf("expected inventory status available, got %s", item.Status)
+	}
+
+	imported, err := svc.ImportPhysicalCardInventory("tenant_demo_jakarta", []PhysicalCardInventoryImportItem{
+		{CardNumber: "CARD-QA-9002", UID: "UID-QA-9002", VendorID: "wpcv_internal_demo"},
+		{CardNumber: "CARD-QA-9003", UID: "UID-QA-9003", VendorID: "wpcv_nusacard_demo"},
+	}, "qa.inventory")
+	if err != nil {
+		t.Fatalf("import physical card inventory failed: %v", err)
+	}
+	if len(imported) != 2 {
+		t.Fatalf("expected two imported cards, got %+v", imported)
+	}
+	if imported[0].Status != "available" || imported[1].VendorName == "" {
+		t.Fatalf("expected available imported cards with vendor names, got %+v", imported)
+	}
+
+	task, err := svc.CreatePhysicalCardTask(
+		"tenant_demo_jakarta",
+		"wps_demo_1001",
+		"reissue",
+		"",
+		item.ID,
+		"",
+		"QA card replacement",
+		"qa.task",
+	)
+	if err != nil {
+		t.Fatalf("create physical card task from inventory failed: %v", err)
+	}
+	if task.InventoryID != item.ID || task.CardNumber != item.CardNumber {
+		t.Fatalf("expected task to reference inventory card, got %+v", task)
+	}
+	if task.VendorID != "wpcv_internal_demo" || task.VendorName != "Internal Badge Desk" {
+		t.Fatalf("expected task vendor from inventory, got %+v", task)
+	}
+
+	reserved := svc.ListPhysicalCardInventory("tenant_demo_jakarta", "reserved")
+	foundReserved := false
+	for i := range reserved {
+		if reserved[i].ID == item.ID && reserved[i].ActiveTaskID == task.ID && reserved[i].AssignedPassID == "wps_demo_1001" {
+			foundReserved = true
+		}
+	}
+	if !foundReserved {
+		t.Fatalf("expected inventory item to be reserved for task, got %+v", reserved)
+	}
+
+	updated, err := svc.UpdatePhysicalCardTaskStatus("tenant_demo_jakarta", task.ID, "issued", "", "", "qa.task")
+	if err != nil {
+		t.Fatalf("issue physical card task failed: %v", err)
+	}
+	if updated.Status != "issued" || updated.CompletedAt == nil {
+		t.Fatalf("expected issued completed task, got %+v", updated)
+	}
+
+	issued := svc.ListPhysicalCardInventory("tenant_demo_jakarta", "issued")
+	foundIssued := false
+	for i := range issued {
+		if issued[i].ID == item.ID && issued[i].AssignedPassID == "wps_demo_1001" && issued[i].ActiveTaskID == task.ID {
+			foundIssued = true
+		}
+	}
+	if !foundIssued {
+		t.Fatalf("expected inventory item to be issued, got %+v", issued)
+	}
+}
+
+func TestPhysicalCardInventoryStatusGovernance(t *testing.T) {
+	svc := NewService()
+
+	item, err := svc.CreatePhysicalCardInventoryItem(
+		"tenant_demo_jakarta",
+		"CARD-QA-GOV-9001",
+		"UID-QA-GOV-9001",
+		"wpcv_internal_demo",
+		"",
+		"qa.inventory",
+	)
+	if err != nil {
+		t.Fatalf("create inventory item failed: %v", err)
+	}
+	second, err := svc.CreatePhysicalCardInventoryItem(
+		"tenant_demo_jakarta",
+		"CARD-QA-GOV-9002",
+		"UID-QA-GOV-9002",
+		"wpcv_internal_demo",
+		"",
+		"qa.inventory",
+	)
+	if err != nil {
+		t.Fatalf("create second inventory item failed: %v", err)
+	}
+
+	frozen, err := svc.BatchUpdatePhysicalCardInventoryStatus(
+		"tenant_demo_jakarta",
+		[]string{item.ID, item.ID, second.ID},
+		"frozen",
+		"quarantine",
+		"qa.inventory",
+	)
+	if err != nil {
+		t.Fatalf("batch freeze inventory failed: %v", err)
+	}
+	if len(frozen) != 2 || frozen[0].Status != "frozen" || frozen[1].Status != "frozen" {
+		t.Fatalf("expected two frozen inventory items, got %+v", frozen)
+	}
+
+	if _, err := svc.CreatePhysicalCardTask(
+		"tenant_demo_jakarta",
+		"wps_demo_1001",
+		"reissue",
+		"",
+		item.ID,
+		"",
+		"should not reserve frozen inventory",
+		"qa.task",
+	); !errors.Is(err, ErrPhysicalCardInventoryNotFound) {
+		t.Fatalf("expected frozen inventory to be unavailable for tasks, got %v", err)
+	}
+
+	available, err := svc.UpdatePhysicalCardInventoryStatus("tenant_demo_jakarta", item.ID, "available", "qa release", "qa.inventory")
+	if err != nil {
+		t.Fatalf("release frozen inventory failed: %v", err)
+	}
+	if available.Status != "available" {
+		t.Fatalf("expected available inventory after release, got %+v", available)
+	}
+
+	task, err := svc.CreatePhysicalCardTask(
+		"tenant_demo_jakarta",
+		"wps_demo_1001",
+		"reissue",
+		"",
+		item.ID,
+		"",
+		"reserve after governance release",
+		"qa.task",
+	)
+	if err != nil {
+		t.Fatalf("create task after release failed: %v", err)
+	}
+	if task.InventoryID != item.ID {
+		t.Fatalf("expected task to reserve released inventory, got %+v", task)
+	}
+
+	if _, err := svc.UpdatePhysicalCardInventoryStatus("tenant_demo_jakarta", item.ID, "scrapped", "bypass task", "qa.inventory"); !errors.Is(err, ErrInvalidPhysicalCardInventoryTransition) {
+		t.Fatalf("expected reserved inventory direct scrap to be rejected, got %v", err)
+	}
+
+	if _, err := svc.BatchUpdatePhysicalCardInventoryStatus("tenant_demo_jakarta", []string{second.ID, item.ID}, "available", "mixed batch", "qa.inventory"); !errors.Is(err, ErrInvalidPhysicalCardInventoryTransition) {
+		t.Fatalf("expected mixed-validity batch update to be rejected, got %v", err)
+	}
+	stillFrozen := svc.ListPhysicalCardInventory("tenant_demo_jakarta", "frozen")
+	foundStillFrozen := false
+	for i := range stillFrozen {
+		if stillFrozen[i].ID == second.ID {
+			foundStillFrozen = true
+		}
+	}
+	if !foundStillFrozen {
+		t.Fatalf("expected failed batch update to leave second inventory frozen, got %+v", stillFrozen)
+	}
+
+	scrapped, err := svc.UpdatePhysicalCardInventoryStatus("tenant_demo_jakarta", second.ID, "scrapped", "bad stock", "qa.inventory")
+	if err != nil {
+		t.Fatalf("scrap frozen inventory failed: %v", err)
+	}
+	if scrapped.Status != "scrapped" {
+		t.Fatalf("expected scrapped inventory, got %+v", scrapped)
+	}
+	if _, err := svc.UpdatePhysicalCardInventoryStatus("tenant_demo_jakarta", second.ID, "available", "restore", "qa.inventory"); !errors.Is(err, ErrInvalidPhysicalCardInventoryTransition) {
+		t.Fatalf("expected scrapped inventory restore to be rejected, got %v", err)
+	}
+}
+
 func TestProcessIssueJobsRetriesIssueFailedJob(t *testing.T) {
 	svc := NewService()
 

@@ -251,6 +251,7 @@ func TestListEnterpriseSyncWorkerAlertSummaryRoute(t *testing.T) {
 	); err != nil {
 		t.Fatalf("append first pull alert should succeed: %v", err)
 	}
+	time.Sleep(time.Millisecond)
 	if _, err := auditSvc.Append(
 		"tenant_demo_jakarta",
 		"enterprise_sync_worker",

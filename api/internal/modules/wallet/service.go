@@ -43,6 +43,15 @@ var ErrInvalidPhysicalCardTaskType = errors.New("invalid physical card task type
 var ErrInvalidPhysicalCardTaskStatus = errors.New("invalid physical card task status")
 var ErrInvalidPhysicalCardTaskTransition = errors.New("invalid physical card task status transition")
 var ErrPhysicalCardTaskEmployeePassRequired = errors.New("physical card task requires employee pass")
+var ErrPhysicalCardInventoryCardNumberRequired = errors.New("physical card inventory card_number is required")
+var ErrPhysicalCardInventoryUIDRequired = errors.New("physical card inventory uid is required")
+var ErrPhysicalCardInventoryRecordsRequired = errors.New("physical card inventory records are required")
+var ErrPhysicalCardInventoryNotFound = errors.New("physical card inventory not found")
+var ErrPhysicalCardInventoryAlreadyExists = errors.New("physical card inventory already exists")
+var ErrPhysicalCardInventoryIDsRequired = errors.New("physical card inventory ids are required")
+var ErrInvalidPhysicalCardInventoryStatus = errors.New("invalid physical card inventory status")
+var ErrInvalidPhysicalCardInventoryTransition = errors.New("invalid physical card inventory status transition")
+var ErrPhysicalCardVendorNotFound = errors.New("physical card vendor not found")
 var ErrJobNotFound = errors.New("job not found")
 var ErrJobRetryNotAllowed = errors.New("job retry not allowed")
 var ErrJobNotInDLQ = errors.New("job is not in dlq")
@@ -94,23 +103,27 @@ type PassTemplate struct {
 }
 
 type PassInstance struct {
-	ID          string     `json:"id"`
-	TenantID    string     `json:"tenant_id"`
-	Provider    string     `json:"provider"`
-	TemplateID  string     `json:"template_id"`
-	TargetType  string     `json:"target_type"`
-	TargetID    string     `json:"target_id"`
-	ObjectID    string     `json:"object_id"`
-	Status      string     `json:"status"`
-	SaveLink    string     `json:"save_link"`
-	ExpiresAt   string     `json:"expires_at,omitempty"`
-	IssuedAt    time.Time  `json:"issued_at"`
-	ActivatedAt *time.Time `json:"activated_at,omitempty"`
-	RevokedAt   *time.Time `json:"revoked_at,omitempty"`
-	CreatedBy   string     `json:"created_by"`
-	UpdatedBy   string     `json:"updated_by"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID             string     `json:"id"`
+	TenantID       string     `json:"tenant_id"`
+	Provider       string     `json:"provider"`
+	CredentialKind string     `json:"credential_kind,omitempty"`
+	TemplateID     string     `json:"template_id"`
+	TargetType     string     `json:"target_type"`
+	TargetID       string     `json:"target_id"`
+	ObjectID       string     `json:"object_id"`
+	Token          string     `json:"token,omitempty"`
+	UID            string     `json:"uid,omitempty"`
+	CardNumber     string     `json:"card_number,omitempty"`
+	Status         string     `json:"status"`
+	SaveLink       string     `json:"save_link"`
+	ExpiresAt      string     `json:"expires_at,omitempty"`
+	IssuedAt       time.Time  `json:"issued_at"`
+	ActivatedAt    *time.Time `json:"activated_at,omitempty"`
+	RevokedAt      *time.Time `json:"revoked_at,omitempty"`
+	CreatedBy      string     `json:"created_by"`
+	UpdatedBy      string     `json:"updated_by"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type IssueJob struct {
@@ -391,17 +404,19 @@ type StateStore interface {
 const stateKey = "module_wallet"
 
 type stateSnapshot struct {
-	Config                    *GoogleConfig              `json:"config"`
-	Templates                 []PassTemplate             `json:"templates"`
-	Passes                    []PassInstance             `json:"passes"`
-	PassDeliveryNotifications []PassDeliveryNotification `json:"pass_delivery_notifications,omitempty"`
-	PhysicalCardTasks         []PhysicalCardTask         `json:"physical_card_tasks,omitempty"`
-	Jobs                      []IssueJob                 `json:"jobs"`
-	AuditLogs                 []AuditLog                 `json:"audit_logs"`
-	DLQCleanupArchives        []JobDLQCleanupArchive     `json:"dlq_cleanup_archives,omitempty"`
-	JobAlertSubscriptions     []JobAlertSubscription     `json:"job_alert_subscriptions,omitempty"`
-	JobAlertNotifications     []JobAlertNotification     `json:"job_alert_notifications,omitempty"`
-	JobAlertCooldowns         []JobAlertDispatchCooldown `json:"job_alert_cooldowns,omitempty"`
+	Config                    *GoogleConfig               `json:"config"`
+	Templates                 []PassTemplate              `json:"templates"`
+	Passes                    []PassInstance              `json:"passes"`
+	PassDeliveryNotifications []PassDeliveryNotification  `json:"pass_delivery_notifications,omitempty"`
+	PhysicalCardTasks         []PhysicalCardTask          `json:"physical_card_tasks,omitempty"`
+	PhysicalCardVendors       []PhysicalCardVendor        `json:"physical_card_vendors,omitempty"`
+	PhysicalCardInventory     []PhysicalCardInventoryItem `json:"physical_card_inventory,omitempty"`
+	Jobs                      []IssueJob                  `json:"jobs"`
+	AuditLogs                 []AuditLog                  `json:"audit_logs"`
+	DLQCleanupArchives        []JobDLQCleanupArchive      `json:"dlq_cleanup_archives,omitempty"`
+	JobAlertSubscriptions     []JobAlertSubscription      `json:"job_alert_subscriptions,omitempty"`
+	JobAlertNotifications     []JobAlertNotification      `json:"job_alert_notifications,omitempty"`
+	JobAlertCooldowns         []JobAlertDispatchCooldown  `json:"job_alert_cooldowns,omitempty"`
 }
 
 type Service struct {
@@ -411,6 +426,8 @@ type Service struct {
 	passes                         []PassInstance
 	passDeliveryNotifications      []PassDeliveryNotification
 	physicalCardTasks              []PhysicalCardTask
+	physicalCardVendors            []PhysicalCardVendor
+	physicalCardInventory          []PhysicalCardInventoryItem
 	jobs                           []IssueJob
 	auditLogs                      []AuditLog
 	dlqCleanupArchives             []JobDLQCleanupArchive
@@ -477,21 +494,22 @@ func NewService() *Service {
 		},
 		passes: []PassInstance{
 			{
-				ID:          "wps_demo_1001",
-				TenantID:    "tenant_demo_jakarta",
-				Provider:    "google",
-				TemplateID:  "wpt_employee_demo",
-				TargetType:  "user",
-				TargetID:    "usr_1001",
-				ObjectID:    "mistypass.employee.class.wps_demo_1001",
-				Status:      "active",
-				SaveLink:    "https://pay.google.com/gp/v/save/wps_demo_1001",
-				IssuedAt:    now.Add(-4 * time.Hour),
-				ActivatedAt: &activated,
-				CreatedBy:   "system",
-				UpdatedBy:   "system",
-				CreatedAt:   now.Add(-4 * time.Hour),
-				UpdatedAt:   activated,
+				ID:             "wps_demo_1001",
+				TenantID:       "tenant_demo_jakarta",
+				Provider:       "google",
+				CredentialKind: "google_wallet",
+				TemplateID:     "wpt_employee_demo",
+				TargetType:     "user",
+				TargetID:       "usr_1001",
+				ObjectID:       "mistypass.employee.class.wps_demo_1001",
+				Status:         "active",
+				SaveLink:       "https://pay.google.com/gp/v/save/wps_demo_1001",
+				IssuedAt:       now.Add(-4 * time.Hour),
+				ActivatedAt:    &activated,
+				CreatedBy:      "system",
+				UpdatedBy:      "system",
+				CreatedAt:      now.Add(-4 * time.Hour),
+				UpdatedAt:      activated,
 			},
 		},
 		passDeliveryNotifications: []PassDeliveryNotification{
@@ -527,21 +545,70 @@ func NewService() *Service {
 		},
 		physicalCardTasks: []PhysicalCardTask{
 			{
-				ID:         "wpc_demo_1001",
+				ID:          "wpc_demo_1001",
+				TenantID:    "tenant_demo_jakarta",
+				PassID:      "wps_demo_1001",
+				TemplateID:  "wpt_employee_demo",
+				TargetType:  "user",
+				TargetID:    "usr_1001",
+				TaskType:    "issue",
+				Status:      "ready",
+				CardNumber:  "CARD-1001",
+				InventoryID: "wpci_demo_1001",
+				VendorID:    "wpcv_nusacard_demo",
+				VendorName:  "NusaCard Fulfillment",
+				Note:        "等待前台交付实体卡并完成绑定",
+				PassStatus:  "active",
+				CreatedBy:   "system",
+				UpdatedBy:   "system",
+				CreatedAt:   now.Add(-90 * time.Minute),
+				UpdatedAt:   now.Add(-20 * time.Minute),
+			},
+		},
+		physicalCardVendors: []PhysicalCardVendor{
+			{
+				ID:        "wpcv_nusacard_demo",
+				TenantID:  "tenant_demo_jakarta",
+				Name:      "NusaCard Fulfillment",
+				Provider:  "nusacard",
+				Status:    "active",
+				CreatedAt: now.Add(-24 * time.Hour),
+				UpdatedAt: now.Add(-24 * time.Hour),
+			},
+			{
+				ID:        "wpcv_internal_demo",
+				TenantID:  "tenant_demo_jakarta",
+				Name:      "Internal Badge Desk",
+				Provider:  "internal",
+				Status:    "active",
+				CreatedAt: now.Add(-24 * time.Hour),
+				UpdatedAt: now.Add(-24 * time.Hour),
+			},
+		},
+		physicalCardInventory: []PhysicalCardInventoryItem{
+			{
+				ID:             "wpci_demo_1001",
+				TenantID:       "tenant_demo_jakarta",
+				CardNumber:     "CARD-1001",
+				UID:            "UID-1001",
+				VendorID:       "wpcv_nusacard_demo",
+				VendorName:     "NusaCard Fulfillment",
+				Status:         "reserved",
+				AssignedPassID: "wps_demo_1001",
+				ActiveTaskID:   "wpc_demo_1001",
+				CreatedAt:      now.Add(-24 * time.Hour),
+				UpdatedAt:      now.Add(-20 * time.Minute),
+			},
+			{
+				ID:         "wpci_demo_1002",
 				TenantID:   "tenant_demo_jakarta",
-				PassID:     "wps_demo_1001",
-				TemplateID: "wpt_employee_demo",
-				TargetType: "user",
-				TargetID:   "usr_1001",
-				TaskType:   "issue",
-				Status:     "ready",
-				CardNumber: "CARD-1001",
-				Note:       "等待前台交付实体卡并完成绑定",
-				PassStatus: "active",
-				CreatedBy:  "system",
-				UpdatedBy:  "system",
-				CreatedAt:  now.Add(-90 * time.Minute),
-				UpdatedAt:  now.Add(-20 * time.Minute),
+				CardNumber: "CARD-1002",
+				UID:        "UID-1002",
+				VendorID:   "wpcv_nusacard_demo",
+				VendorName: "NusaCard Fulfillment",
+				Status:     "available",
+				CreatedAt:  now.Add(-24 * time.Hour),
+				UpdatedAt:  now.Add(-24 * time.Hour),
 			},
 		},
 		jobs: []IssueJob{
@@ -1032,6 +1099,239 @@ func (s *Service) IssuePass(tenantID, templateID, targetType, targetID, expiresA
 	return record, nil
 }
 
+func (s *Service) CreateUnassignedCard(tenantID, templateID, token, uid, cardNumber, cardType, expiresAt, actor string) (PassInstance, error) {
+	nextTemplateID := strings.TrimSpace(templateID)
+	if nextTemplateID == "" {
+		return PassInstance{}, ErrTemplateIDRequired
+	}
+
+	now := time.Now().UTC()
+	nextActor := normalizeActor(actor)
+	nextTenantID := normalizeTenantID(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	template, found := findTemplateByID(s.templates, nextTemplateID)
+	if !found {
+		return PassInstance{}, ErrTemplateNotFound
+	}
+	if template.TenantID != nextTenantID {
+		return PassInstance{}, ErrTemplateNotFound
+	}
+	if template.Status != "active" {
+		return PassInstance{}, ErrTemplateInactive
+	}
+
+	id, err := walletID("wps_")
+	if err != nil {
+		return PassInstance{}, err
+	}
+	objectID := firstNonEmpty(strings.TrimSpace(token), strings.TrimSpace(uid), strings.TrimSpace(cardNumber))
+	if objectID == "" {
+		objectID = fmt.Sprintf("%s.%s", template.ClassID, id)
+	}
+	provider, credentialKind := normalizeCardCredentialProvider(cardType, token, uid, cardNumber, template.Provider)
+	saveLink := ""
+	if credentialKind == "google_wallet" {
+		saveLink = fmt.Sprintf("https://pay.google.com/gp/v/save/%s", id)
+	}
+	record := PassInstance{
+		ID:             id,
+		TenantID:       nextTenantID,
+		Provider:       provider,
+		CredentialKind: credentialKind,
+		TemplateID:     nextTemplateID,
+		ObjectID:       objectID,
+		Token:          strings.TrimSpace(token),
+		UID:            strings.TrimSpace(uid),
+		CardNumber:     strings.TrimSpace(cardNumber),
+		Status:         "issued",
+		SaveLink:       saveLink,
+		ExpiresAt:      strings.TrimSpace(expiresAt),
+		IssuedAt:       now,
+		CreatedBy:      nextActor,
+		UpdatedBy:      nextActor,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	s.passes = append([]PassInstance{record}, s.passes...)
+	s.appendAuditLocked(nextTenantID, "wallet.card.create", nextActor, record.ID, "success")
+	if err := s.persistLocked(); err != nil {
+		return PassInstance{}, err
+	}
+
+	return record, nil
+}
+
+func (s *Service) EnrollApplePass(tenantID, userID, deviceID, passSerial, expiresAt, actor string) (PassInstance, error) {
+	nextTargetID := strings.TrimSpace(userID)
+	if nextTargetID == "" {
+		return PassInstance{}, ErrTargetIDRequired
+	}
+
+	nextTenantID := normalizeTenantID(tenantID)
+	nextDeviceID := strings.TrimSpace(deviceID)
+	nextPassSerial := strings.TrimSpace(passSerial)
+	nextActor := normalizeActor(actor)
+	now := time.Now().UTC()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.passes {
+		if s.passes[i].TenantID != nextTenantID || s.passes[i].TargetType != "user" || s.passes[i].TargetID != nextTargetID {
+			continue
+		}
+		if credentialKindForProvider(s.passes[i].Provider, s.passes[i].TargetType) != "apple_wallet" && strings.ToLower(strings.TrimSpace(s.passes[i].CredentialKind)) != "apple_wallet" {
+			continue
+		}
+		if s.passes[i].Status == "revoked" {
+			continue
+		}
+		if nextPassSerial != "" && s.passes[i].ObjectID != nextPassSerial {
+			continue
+		}
+		if nextDeviceID != "" && s.passes[i].Token != nextDeviceID {
+			continue
+		}
+		if nextPassSerial == "" && nextDeviceID == "" {
+			return s.passes[i], nil
+		}
+		if nextPassSerial != "" || nextDeviceID != "" {
+			return s.passes[i], nil
+		}
+	}
+
+	id, err := walletID("wps_")
+	if err != nil {
+		return PassInstance{}, err
+	}
+	objectID := nextPassSerial
+	if objectID == "" {
+		objectID = fmt.Sprintf("apple.%s.%s", nextTargetID, id)
+	}
+	record := PassInstance{
+		ID:             id,
+		TenantID:       nextTenantID,
+		Provider:       "apple",
+		CredentialKind: "apple_wallet",
+		TemplateID:     "wpt_apple_pass_self",
+		TargetType:     "user",
+		TargetID:       nextTargetID,
+		ObjectID:       objectID,
+		Token:          nextDeviceID,
+		Status:         "active",
+		SaveLink:       "",
+		ExpiresAt:      strings.TrimSpace(expiresAt),
+		IssuedAt:       now,
+		ActivatedAt:    &now,
+		CreatedBy:      nextActor,
+		UpdatedBy:      nextActor,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+
+	s.passes = append([]PassInstance{record}, s.passes...)
+	s.appendAuditLocked(nextTenantID, "wallet.apple_pass.enroll", nextActor, record.ID, "success")
+	if err := s.persistLocked(); err != nil {
+		return PassInstance{}, err
+	}
+
+	return record, nil
+}
+
+func (s *Service) AssignPass(tenantID, passID, targetType, targetID, actor string) (PassInstance, error) {
+	nextPassID := strings.TrimSpace(passID)
+	if nextPassID == "" {
+		return PassInstance{}, ErrPassNotFound
+	}
+	nextTargetType, err := normalizeTargetType(targetType)
+	if err != nil {
+		return PassInstance{}, err
+	}
+	nextTargetID := strings.TrimSpace(targetID)
+	if nextTargetID == "" {
+		return PassInstance{}, ErrTargetIDRequired
+	}
+	nextTenantID := normalizeTenantID(tenantID)
+	nextActor := normalizeActor(actor)
+	now := time.Now().UTC()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.passes {
+		if s.passes[i].ID != nextPassID {
+			continue
+		}
+		if s.passes[i].TenantID != nextTenantID {
+			return PassInstance{}, ErrPassNotFound
+		}
+		if s.passes[i].Status == "revoked" {
+			return PassInstance{}, ErrInvalidPassTransition
+		}
+		s.passes[i].TargetType = nextTargetType
+		s.passes[i].TargetID = nextTargetID
+		s.passes[i].Status = "active"
+		s.passes[i].UpdatedBy = nextActor
+		s.passes[i].UpdatedAt = now
+		value := now
+		s.passes[i].ActivatedAt = &value
+		s.passes[i].RevokedAt = nil
+
+		s.appendAuditLocked(nextTenantID, "wallet.card.assign", nextActor, s.passes[i].ID, "success")
+		if err := s.persistLocked(); err != nil {
+			return PassInstance{}, err
+		}
+
+		return s.passes[i], nil
+	}
+
+	return PassInstance{}, ErrPassNotFound
+}
+
+func (s *Service) DeassignPass(tenantID, passID, actor string) (PassInstance, error) {
+	nextPassID := strings.TrimSpace(passID)
+	if nextPassID == "" {
+		return PassInstance{}, ErrPassNotFound
+	}
+	nextTenantID := normalizeTenantID(tenantID)
+	nextActor := normalizeActor(actor)
+	now := time.Now().UTC()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.passes {
+		if s.passes[i].ID != nextPassID {
+			continue
+		}
+		if s.passes[i].TenantID != nextTenantID {
+			return PassInstance{}, ErrPassNotFound
+		}
+		if s.passes[i].Status == "revoked" {
+			return PassInstance{}, ErrInvalidPassTransition
+		}
+		s.passes[i].TargetType = ""
+		s.passes[i].TargetID = ""
+		s.passes[i].Status = "issued"
+		s.passes[i].UpdatedBy = nextActor
+		s.passes[i].UpdatedAt = now
+		s.passes[i].ActivatedAt = nil
+
+		s.appendAuditLocked(nextTenantID, "wallet.card.deassign", nextActor, s.passes[i].ID, "success")
+		if err := s.persistLocked(); err != nil {
+			return PassInstance{}, err
+		}
+
+		return s.passes[i], nil
+	}
+
+	return PassInstance{}, ErrPassNotFound
+}
+
 func (s *Service) IssuePassBatch(tenantID, templateID, targetType string, targetIDs []string, expiresAt, actor string) ([]IssueJob, error) {
 	nextTemplateID := strings.TrimSpace(templateID)
 	if nextTemplateID == "" {
@@ -1081,7 +1381,7 @@ func (s *Service) IssuePassBatch(tenantID, templateID, targetType string, target
 		job := IssueJob{
 			ID:         jobID,
 			TenantID:   nextTenantID,
-			Provider:   "google",
+			Provider:   firstNonEmpty(template.Provider, "google"),
 			BatchID:    batchID,
 			TemplateID: nextTemplateID,
 			TargetType: nextTargetType,
@@ -1175,7 +1475,7 @@ func (s *Service) IssuePassBatchQueued(tenantID, templateID, targetType string, 
 		job := IssueJob{
 			ID:         jobID,
 			TenantID:   nextTenantID,
-			Provider:   "google",
+			Provider:   firstNonEmpty(template.Provider, "google"),
 			BatchID:    batchID,
 			TemplateID: nextTemplateID,
 			TargetType: nextTargetType,
@@ -3073,24 +3373,62 @@ func createPassRecord(tenantID string, template PassTemplate, targetType, target
 	}
 
 	record := PassInstance{
-		ID:         id,
-		TenantID:   tenantID,
-		Provider:   "google",
-		TemplateID: template.ID,
-		TargetType: targetType,
-		TargetID:   targetID,
-		ObjectID:   fmt.Sprintf("%s.%s", template.ClassID, id),
-		Status:     "issued",
-		SaveLink:   fmt.Sprintf("https://pay.google.com/gp/v/save/%s", id),
-		ExpiresAt:  expiresAt,
-		IssuedAt:   now,
-		CreatedBy:  actor,
-		UpdatedBy:  actor,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:             id,
+		TenantID:       tenantID,
+		Provider:       firstNonEmpty(template.Provider, "google"),
+		CredentialKind: credentialKindForProvider(template.Provider, targetType),
+		TemplateID:     template.ID,
+		TargetType:     targetType,
+		TargetID:       targetID,
+		ObjectID:       fmt.Sprintf("%s.%s", template.ClassID, id),
+		Status:         "issued",
+		SaveLink:       fmt.Sprintf("https://pay.google.com/gp/v/save/%s", id),
+		ExpiresAt:      expiresAt,
+		IssuedAt:       now,
+		CreatedBy:      actor,
+		UpdatedBy:      actor,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 
 	return record, nil
+}
+
+func normalizeCardCredentialProvider(cardType, token, uid, cardNumber, fallbackProvider string) (string, string) {
+	normalizedType := strings.ToLower(strings.TrimSpace(cardType))
+	hasPhysicalIdentifier := strings.TrimSpace(token) != "" || strings.TrimSpace(uid) != "" || strings.TrimSpace(cardNumber) != ""
+	switch normalizedType {
+	case "apple", "apple_wallet", "apple_pass", "apple_passes":
+		return "apple", "apple_wallet"
+	case "google", "google_wallet", "wallet":
+		return "google", "google_wallet"
+	case "physical", "physical_card", "card", "desfire", "mifare", "mifare_desfire", "third_party_hf", "hid", "fob":
+		if normalizedType == "physical" || normalizedType == "physical_card" || normalizedType == "card" {
+			return "physical_card", "physical_card"
+		}
+		return normalizedType, "physical_card"
+	}
+	if hasPhysicalIdentifier {
+		return "physical_card", "physical_card"
+	}
+	provider := firstNonEmpty(strings.ToLower(strings.TrimSpace(fallbackProvider)), "google")
+	return provider, credentialKindForProvider(provider, "")
+}
+
+func credentialKindForProvider(provider, targetType string) string {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "apple":
+		return "apple_wallet"
+	case "google", "":
+		if strings.EqualFold(strings.TrimSpace(targetType), "visitor") {
+			return "google_wallet"
+		}
+		return "google_wallet"
+	case "physical_card", "desfire", "mifare", "mifare_desfire", "third_party_hf", "hid", "fob":
+		return "physical_card"
+	default:
+		return "credential"
+	}
 }
 
 func findTemplateByID(items []PassTemplate, templateID string) (PassTemplate, bool) {
@@ -3119,6 +3457,8 @@ func (s *Service) restoreFromStateStore() error {
 			Passes:                    clonePasses(s.passes),
 			PassDeliveryNotifications: clonePassDeliveryNotifications(s.passDeliveryNotifications),
 			PhysicalCardTasks:         clonePhysicalCardTasks(s.physicalCardTasks),
+			PhysicalCardVendors:       clonePhysicalCardVendors(s.physicalCardVendors),
+			PhysicalCardInventory:     clonePhysicalCardInventory(s.physicalCardInventory),
 			Jobs:                      cloneJobs(s.jobs),
 			AuditLogs:                 cloneAuditLogs(s.auditLogs),
 			DLQCleanupArchives:        cloneDLQCleanupArchives(s.dlqCleanupArchives),
@@ -3134,6 +3474,8 @@ func (s *Service) restoreFromStateStore() error {
 	s.passes = clonePasses(snapshot.Passes)
 	s.passDeliveryNotifications = clonePassDeliveryNotifications(snapshot.PassDeliveryNotifications)
 	s.physicalCardTasks = clonePhysicalCardTasks(snapshot.PhysicalCardTasks)
+	s.physicalCardVendors = clonePhysicalCardVendors(snapshot.PhysicalCardVendors)
+	s.physicalCardInventory = clonePhysicalCardInventory(snapshot.PhysicalCardInventory)
 	s.jobs = cloneJobs(snapshot.Jobs)
 	s.auditLogs = cloneAuditLogs(snapshot.AuditLogs)
 	s.dlqCleanupArchives = cloneDLQCleanupArchives(snapshot.DLQCleanupArchives)
@@ -3155,6 +3497,8 @@ func (s *Service) persistLocked() error {
 		Passes:                    clonePasses(s.passes),
 		PassDeliveryNotifications: clonePassDeliveryNotifications(s.passDeliveryNotifications),
 		PhysicalCardTasks:         clonePhysicalCardTasks(s.physicalCardTasks),
+		PhysicalCardVendors:       clonePhysicalCardVendors(s.physicalCardVendors),
+		PhysicalCardInventory:     clonePhysicalCardInventory(s.physicalCardInventory),
 		Jobs:                      cloneJobs(s.jobs),
 		AuditLogs:                 cloneAuditLogs(s.auditLogs),
 		DLQCleanupArchives:        cloneDLQCleanupArchives(s.dlqCleanupArchives),
@@ -3292,6 +3636,15 @@ func normalizeActor(actor string) string {
 		return "system"
 	}
 	return nextActor
+}
+
+func firstNonEmpty(values ...string) string {
+	for i := range values {
+		if strings.TrimSpace(values[i]) != "" {
+			return strings.TrimSpace(values[i])
+		}
+	}
+	return ""
 }
 
 func normalizeTenantID(tenantID string) string {

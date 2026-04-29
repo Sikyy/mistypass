@@ -127,6 +127,9 @@ const AuditPage = lazy(() =>
 const LoginPage = lazy(() =>
   import("@/pages/login-page").then((module) => ({ default: module.LoginPage }))
 )
+const AccessLinkClaimPage = lazy(() =>
+  import("@/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
+)
 const NotFoundPage = lazy(() =>
   import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage }))
 )
@@ -584,8 +587,25 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
 
 export default function App() {
   const { t } = useTranslation()
-  const { token, viewer, bootstrapping, logout } = useAuth()
+  const { token, viewer, bootstrapping, updateViewer, logout } = useAuth()
   const location = useLocation()
+  const usesAccessLinkClaimRoute =
+    location.pathname === "/access-link" ||
+    location.pathname.startsWith("/access-link/") ||
+    location.pathname === "/access-links/claim"
+
+  if (usesAccessLinkClaimRoute) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/access-link" element={<AccessLinkClaimPage />} />
+          <Route path="/access-link/:token" element={<AccessLinkClaimPage />} />
+          <Route path="/access-links/claim" element={<AccessLinkClaimPage />} />
+          <Route path="*" element={<NotFoundPage authenticated={Boolean(token)} />} />
+        </Routes>
+      </Suspense>
+    )
+  }
 
   if (!token) {
     return (
@@ -622,7 +642,7 @@ export default function App() {
   const usesKisiPreviewShell = isKisiPreviewRoute(location.pathname)
 
   if (usesKisiPreviewShell) {
-    return <HomePage token={token} viewer={viewer} onLogout={logout} />
+    return <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
   }
 
   return <AppShell token={token} viewer={viewer} onLogout={logout} />

@@ -79,17 +79,19 @@ func (q *Queries) GetAuthRevokedAccessTokenExpiresAt(ctx context.Context, tokenI
 }
 
 const getAuthUserByEmail = `-- name: GetAuthUserByEmail :one
-select id, email, role, tenant_id, building_ids, password_hash
+select id, name, email, role, tenant_id, building_ids, language, password_hash
 from mistypass_auth_users
 where lower(email) = $1
 `
 
 type GetAuthUserByEmailRow struct {
 	ID           string
+	Name         string
 	Email        string
 	Role         string
 	TenantID     string
 	BuildingIds  json.RawMessage
+	Language     string
 	PasswordHash []byte
 }
 
@@ -98,27 +100,31 @@ func (q *Queries) GetAuthUserByEmail(ctx context.Context, email string) (GetAuth
 	var i GetAuthUserByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.Name,
 		&i.Email,
 		&i.Role,
 		&i.TenantID,
 		&i.BuildingIds,
+		&i.Language,
 		&i.PasswordHash,
 	)
 	return i, err
 }
 
 const getAuthUserByID = `-- name: GetAuthUserByID :one
-select id, email, role, tenant_id, building_ids, password_hash
+select id, name, email, role, tenant_id, building_ids, language, password_hash
 from mistypass_auth_users
 where id = $1
 `
 
 type GetAuthUserByIDRow struct {
 	ID           string
+	Name         string
 	Email        string
 	Role         string
 	TenantID     string
 	BuildingIds  json.RawMessage
+	Language     string
 	PasswordHash []byte
 }
 
@@ -127,10 +133,12 @@ func (q *Queries) GetAuthUserByID(ctx context.Context, id string) (GetAuthUserBy
 	var i GetAuthUserByIDRow
 	err := row.Scan(
 		&i.ID,
+		&i.Name,
 		&i.Email,
 		&i.Role,
 		&i.TenantID,
 		&i.BuildingIds,
+		&i.Language,
 		&i.PasswordHash,
 	)
 	return i, err
@@ -188,33 +196,39 @@ func (q *Queries) UpsertAuthRevokedAccessToken(ctx context.Context, arg UpsertAu
 }
 
 const upsertAuthUser = `-- name: UpsertAuthUser :exec
-insert into mistypass_auth_users (id, email, role, tenant_id, building_ids, password_hash, created_at, updated_at)
-values ($1, $2, $3, $4, $5, $6, now(), now())
+insert into mistypass_auth_users (id, name, email, role, tenant_id, building_ids, language, password_hash, created_at, updated_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, now(), now())
 on conflict (id) do update
-set email = excluded.email,
+set name = excluded.name,
+    email = excluded.email,
     role = excluded.role,
     tenant_id = excluded.tenant_id,
     building_ids = excluded.building_ids,
+    language = excluded.language,
     password_hash = excluded.password_hash,
     updated_at = now()
 `
 
 type UpsertAuthUserParams struct {
 	ID           string
+	Name         string
 	Email        string
 	Role         string
 	TenantID     string
 	BuildingIds  json.RawMessage
+	Language     string
 	PasswordHash []byte
 }
 
 func (q *Queries) UpsertAuthUser(ctx context.Context, arg UpsertAuthUserParams) error {
 	_, err := q.db.ExecContext(ctx, upsertAuthUser,
 		arg.ID,
+		arg.Name,
 		arg.Email,
 		arg.Role,
 		arg.TenantID,
 		arg.BuildingIds,
+		arg.Language,
 		arg.PasswordHash,
 	)
 	return err

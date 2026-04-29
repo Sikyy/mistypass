@@ -19,6 +19,16 @@ describe("ui design variants", () => {
     expect(buttonVariants({ variant: "interaction" })).toContain("focus-visible:border-interaction")
   })
 
+  it("keeps button states readable on light Kisi work surfaces", () => {
+    expect(buttonVariants({ variant: "default" })).toContain("bg-[#4f55ff]")
+    expect(buttonVariants({ variant: "default" })).toContain("hover:bg-[#454bea]")
+    expect(buttonVariants({ variant: "outline" })).toContain("bg-white")
+    expect(buttonVariants({ variant: "outline" })).toContain("hover:border-[#8589ff]")
+    expect(buttonVariants({ variant: "outline" })).toContain("hover:text-[#3439cc]")
+    expect(buttonVariants({ variant: "ghost" })).toContain("hover:bg-[#f3f4ff]")
+    expect(buttonVariants({ variant: "destructive" })).toContain("hover:text-[#9f1d1d]")
+  })
+
   it("exposes semantic badge variants", () => {
     expect(badgeVariants({ variant: "success" })).toContain("text-emerald-300")
     expect(badgeVariants({ variant: "warning" })).toContain("text-amber-300")

@@ -608,6 +608,33 @@ func TestBuildEnterpriseSyncWorkerAlertSummary(t *testing.T) {
 	}
 }
 
+func TestBuildEnterpriseSyncWorkerAlertSummaryKeepsFirstLogWhenTimestampsTie(t *testing.T) {
+	now := time.Now().UTC()
+	items := buildEnterpriseSyncWorkerAlertSummary([]audit.Log{
+		{
+			TenantID: "tenant_demo_jakarta",
+			Action:   "enterprise_hris_pull_worker_alert",
+			Target:   "failed=2 threshold=1 processed=3 skipped_attempt_limit=1 skipped_cooldown=0",
+			At:       now,
+		},
+		{
+			TenantID: "tenant_demo_jakarta",
+			Action:   "enterprise_hris_pull_worker_alert",
+			Target:   "failed=1 threshold=1 processed=2 skipped_attempt_limit=0 skipped_cooldown=0",
+			At:       now,
+		},
+	})
+	if len(items) != 1 {
+		t.Fatalf("expected one summary item, got %d", len(items))
+	}
+	if items[0].Count != 2 {
+		t.Fatalf("expected tied logs to be counted, got %+v", items[0])
+	}
+	if items[0].LastFailed != 2 || items[0].LastProcessed != 3 || items[0].LastSkippedByAttemptLimit != 1 {
+		t.Fatalf("expected first newest-first log to provide latest metrics, got %+v", items[0])
+	}
+}
+
 func TestBuildEnterpriseSyncWorkerAlertDispatchAlertsUsesGranularFingerprintBuckets(t *testing.T) {
 	now := time.Now().UTC()
 	items := []enterpriseSyncWorkerAlertItem{

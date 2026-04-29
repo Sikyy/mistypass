@@ -132,10 +132,12 @@ type MistypassAuthRevokedAccessToken struct {
 
 type MistypassAuthUser struct {
 	ID           string
+	Name         string
 	Email        string
 	Role         string
 	TenantID     string
 	BuildingIds  json.RawMessage
+	Language     string
 	PasswordHash []byte
 	CreatedAt    time.Time
 	UpdatedAt    time.Time

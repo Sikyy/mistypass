@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 const maxBodyBytes = 1 << 20
@@ -31,8 +33,31 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+type errorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message"`
+	Code    string `json:"code"`
+	Status  string `json:"status"`
+}
+
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{
-		"error": message,
+	nextMessage := strings.TrimSpace(message)
+	if nextMessage == "" {
+		nextMessage = http.StatusText(status)
+	}
+	writeJSON(w, status, errorResponse{
+		Error:   nextMessage,
+		Message: nextMessage,
+		Code:    httpStatusErrorCode(status),
+		Status:  strconv.Itoa(status),
 	})
+}
+
+func httpStatusErrorCode(status int) string {
+	text := strings.ToLower(strings.TrimSpace(http.StatusText(status)))
+	if text == "" {
+		return "http_error"
+	}
+	replacer := strings.NewReplacer(" ", "_", "-", "_")
+	return replacer.Replace(text)
 }

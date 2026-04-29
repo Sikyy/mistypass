@@ -1,20 +1,45 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ChevronDownIcon,
   CreditCardIcon,
   DoorOpenIcon,
   LayersIcon,
   MapPinPlusIcon,
+  PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
+  Trash2Icon,
 } from "lucide-react"
 
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
 import { FormField, PageFrame, PanelHeader, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/kisi/primitives"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { selectKisiPlaceContext } from "@/features/kisi-shell/resource-data"
 import { useKisiResourceSummary } from "@/features/kisi-shell/use-resource-summary"
-import type { CurrentUser } from "@/lib/api"
+import {
+  createGroup,
+  createGroupLink,
+  createGroupLock,
+  deleteGroup,
+  deleteGroupLink,
+  deleteGroupLock,
+  listGroupLinks,
+  updateGroup,
+  updateGroupLink,
+  type CurrentUser,
+  type GroupLink,
+} from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { getViewerTenantID } from "@/lib/viewer"
 
 export function GroupsAdaptedPage({
   token,
@@ -27,23 +52,351 @@ export function GroupsAdaptedPage({
   placeID?: string
   placeScoped?: boolean
 }) {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("Permissions")
+  const [selectedGroupID, setSelectedGroupID] = useState("")
+  const [deleteGroupConfirmOpen, setDeleteGroupConfirmOpen] = useState(false)
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [createGroupName, setCreateGroupName] = useState("")
+  const [createGroupDescription, setCreateGroupDescription] = useState("")
+  const [createGroupPlaceID, setCreateGroupPlaceID] = useState("")
+  const [editGroupName, setEditGroupName] = useState("")
+  const [editGroupDescription, setEditGroupDescription] = useState("")
+  const [addDoorsOpen, setAddDoorsOpen] = useState(false)
+  const [selectedDoorID, setSelectedDoorID] = useState("")
+  const [createLinkOpen, setCreateLinkOpen] = useState(false)
+  const [createLinkName, setCreateLinkName] = useState("")
+  const [createLinkEmail, setCreateLinkEmail] = useState("")
+  const [createLinkValidUntil, setCreateLinkValidUntil] = useState("")
+  const [createLinkQRCodeType, setCreateLinkQRCodeType] = useState<"online" | "offline" | "">("online")
+  const [editLinkOpen, setEditLinkOpen] = useState(false)
+  const [editingLinkID, setEditingLinkID] = useState("")
+  const [editLinkName, setEditLinkName] = useState("")
+  const [editLinkEmail, setEditLinkEmail] = useState("")
+  const [editLinkValidUntil, setEditLinkValidUntil] = useState("")
+  const [editLinkQRCodeType, setEditLinkQRCodeType] = useState<"online" | "offline" | "">("online")
+  const [editLinkEnabled, setEditLinkEnabled] = useState(true)
+  const [deleteLinkTarget, setDeleteLinkTarget] = useState<GroupLink | null>(null)
+  const [actionError, setActionError] = useState("")
   const resourceQuery = useKisiResourceSummary(token, viewer)
   const placeContext = selectKisiPlaceContext(resourceQuery.summary, placeID)
   const groupRows = placeScoped ? placeContext.groups : resourceQuery.summary.groups
-  const currentGroup = groupRows[0]
+  const currentGroup = groupRows.find((group) => group.id === selectedGroupID) ?? groupRows[0]
   const currentAccessRights = (placeScoped ? placeContext.accessRights : resourceQuery.summary.accessRights)
     .filter((item) => !currentGroup || item.name === currentGroup.name || item.subjectType === "Group")
     .slice(0, 5)
   const memberRows = (placeScoped ? placeContext.users : resourceQuery.summary.users).slice(0, 5)
-  const doorRows = (placeScoped ? placeContext.doors : resourceQuery.summary.doors).slice(0, 5)
-  const floorRows = (placeScoped ? placeContext.floors : resourceQuery.summary.floors).slice(0, 4)
+  const allDoorRows = placeScoped ? placeContext.doors : resourceQuery.summary.doors
+  const currentDoorIDs = new Set(currentGroup?.doorIds ?? [])
+  const doorRows = allDoorRows.filter((row) => currentDoorIDs.has(row.id))
+  const availableDoorRows = allDoorRows.filter((row) => !currentDoorIDs.has(row.id))
+  const currentZoneIDs = new Set(currentGroup?.zoneIds ?? [])
+  const allZoneRows = placeScoped ? placeContext.zones : resourceQuery.summary.zones
+  const zoneRows = allZoneRows.filter((row) => currentZoneIDs.has(row.id))
+  const tenantID = getViewerTenantID(viewer)
+  const placeRows = placeScoped && placeContext.place ? [placeContext.place] : resourceQuery.summary.places
+  const canCreateGroups = Boolean(tenantID && !resourceQuery.usingFallback)
+  const canMutateGroups = Boolean(tenantID && currentGroup?.kind === "User group" && !resourceQuery.usingFallback)
+  const canMutateGroupLocks = Boolean(tenantID && currentGroup?.kind === "Door group" && !resourceQuery.usingFallback)
+  const canMutateGroupLinks = Boolean(tenantID && currentGroup?.kind === "User group" && !resourceQuery.usingFallback)
+  const groupFormDirty =
+    Boolean(currentGroup) &&
+    (editGroupName.trim() !== (currentGroup?.name ?? "") || editGroupDescription.trim() !== (currentGroup?.description ?? ""))
+  const groupLinksQuery = useQuery({
+    queryKey: ["reference-group-links", tenantID ?? "none", currentGroup?.id ?? "none"],
+    queryFn: () => listGroupLinks(token, { tenant_id: tenantID, group_id: currentGroup?.id }),
+    enabled: Boolean(tenantID && currentGroup?.id && currentGroup?.kind === "User group" && !resourceQuery.usingFallback),
+    staleTime: 30 * 1000,
+  })
+  const groupLinks = groupLinksQuery.data ?? []
   const restrictions = [
-    ["Primary Device Restriction", "Only allow unlocks from primary smartphones.", true, ShieldCheckIcon],
-    ["Allow App Access", "If enabled, users may access using Mistyislet mobile and web apps.", true, CreditCardIcon],
-    ["Geofence Restriction", "Require users in this group to be at the place location for this group's doors.", true, MapPinPlusIcon],
-    ["Reader Restriction", "Require unlocks at the reader for this group's doors.", false, DoorOpenIcon],
+    {
+      key: "primary_device_restriction_enabled",
+      title: "Primary Device Restriction",
+      description: "Only allow unlocks from primary smartphones.",
+      enabled: Boolean(currentGroup?.primaryDeviceRestrictionEnabled),
+      icon: ShieldCheckIcon,
+    },
+    {
+      key: "login_enabled",
+      title: "Allow App Access",
+      description: "If enabled, users may access using Mistyislet mobile and web apps.",
+      enabled: currentGroup?.loginEnabled ?? true,
+      icon: CreditCardIcon,
+    },
+    {
+      key: "geofence_restriction_enabled",
+      title: "Geofence Restriction",
+      description: `Require users to be near the place location${currentGroup?.geofenceRestrictionRadius ? ` within ${currentGroup.geofenceRestrictionRadius}m` : ""}.`,
+      enabled: Boolean(currentGroup?.geofenceRestrictionEnabled),
+      icon: MapPinPlusIcon,
+    },
+    {
+      key: "reader_restriction_enabled",
+      title: "Reader Restriction",
+      description: "Require unlocks at the reader for this group's doors.",
+      enabled: Boolean(currentGroup?.readerRestrictionEnabled),
+      icon: DoorOpenIcon,
+    },
+    {
+      key: "tap_to_access_restriction_enabled",
+      title: "Tap To Access Restriction",
+      description: "Require reader unlock instead of remote app unlock.",
+      enabled: Boolean(currentGroup?.tapToAccessRestrictionEnabled),
+      icon: DoorOpenIcon,
+    },
   ] as const
+
+  useEffect(() => {
+    setEditGroupName(currentGroup?.name ?? "")
+    setEditGroupDescription(currentGroup?.description ?? "")
+  }, [currentGroup?.id, currentGroup?.name, currentGroup?.description])
+
+  async function refreshGroups() {
+    await queryClient.invalidateQueries({ queryKey: ["kisi-resource-summary"] })
+  }
+
+  const createGroupMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      const name = createGroupName.trim()
+      if (!name) {
+        throw new Error("group name is required")
+      }
+      const selectedPlaceID = placeScoped ? placeContext.place?.id ?? placeID ?? "" : createGroupPlaceID.trim()
+      return createGroup(token, {
+        tenant_id: tenantID,
+        place_id: selectedPlaceID || undefined,
+        name,
+        description: createGroupDescription.trim(),
+      })
+    },
+    onSuccess: async (created) => {
+      setSelectedGroupID(created.id)
+      setCreateGroupOpen(false)
+      setCreateGroupName("")
+      setCreateGroupDescription("")
+      setCreateGroupPlaceID("")
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group create failed"),
+  })
+
+  const updateGroupMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!currentGroup) {
+        throw new Error("group is required")
+      }
+      const name = editGroupName.trim()
+      if (!name) {
+        throw new Error("group name is required")
+      }
+      return updateGroup(token, currentGroup.id, {
+        tenant_id: tenantID,
+        place_id: currentGroup.placeId || undefined,
+        name,
+        description: editGroupDescription.trim(),
+      })
+    },
+    onSuccess: async () => {
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group update failed"),
+  })
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: (groupID: string) => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!groupID) {
+        throw new Error("group is required")
+      }
+      return deleteGroup(token, groupID, tenantID)
+    },
+    onSuccess: async () => {
+      setSelectedGroupID("")
+      setDeleteGroupConfirmOpen(false)
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group delete failed"),
+  })
+
+  const addDoorMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!currentGroup) {
+        throw new Error("group is required")
+      }
+      const doorID = selectedDoorID.trim()
+      if (!doorID) {
+        throw new Error("door is required")
+      }
+      const door = allDoorRows.find((item) => item.id === doorID)
+      return createGroupLock(token, {
+        tenant_id: tenantID,
+        group_id: currentGroup.id,
+        lock_id: doorID,
+        place_id: door?.placeId,
+      })
+    },
+    onSuccess: async () => {
+      setAddDoorsOpen(false)
+      setSelectedDoorID("")
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Door assignment failed"),
+  })
+
+  const removeDoorMutation = useMutation({
+    mutationFn: (doorID: string) => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!currentGroup) {
+        throw new Error("group is required")
+      }
+      return deleteGroupLock(token, `${currentGroup.id}:${doorID}`, tenantID)
+    },
+    onSuccess: async () => {
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Door removal failed"),
+  })
+
+  const updateRestrictionMutation = useMutation({
+    mutationFn: (patch: Record<string, boolean | number | string | undefined>) => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!currentGroup) {
+        throw new Error("group is required")
+      }
+      return updateGroup(token, currentGroup.id, {
+        tenant_id: tenantID,
+        place_id: currentGroup.placeId || undefined,
+        name: currentGroup.name,
+        description: currentGroup.description,
+        ...patch,
+      })
+    },
+    onSuccess: async () => {
+      setActionError("")
+      await refreshGroups()
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Restriction update failed"),
+  })
+
+  const createLinkMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!currentGroup) {
+        throw new Error("group is required")
+      }
+      const name = createLinkName.trim()
+      if (!name) {
+        throw new Error("link name is required")
+      }
+      return createGroupLink(token, {
+        tenant_id: tenantID,
+        group_id: currentGroup.id,
+        name,
+        email: createLinkEmail.trim() || undefined,
+        quick_response_code_type: createLinkQRCodeType,
+        valid_until: createLinkValidUntil.trim() || undefined,
+        link_enabled: true,
+      })
+    },
+    onSuccess: async () => {
+      setCreateLinkOpen(false)
+      setCreateLinkName("")
+      setCreateLinkEmail("")
+      setCreateLinkValidUntil("")
+      setCreateLinkQRCodeType("online")
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-links"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group link create failed"),
+  })
+
+  const updateLinkMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!editingLinkID) {
+        throw new Error("group link is required")
+      }
+      const name = editLinkName.trim()
+      if (!name) {
+        throw new Error("link name is required")
+      }
+      return updateGroupLink(token, editingLinkID, {
+        tenant_id: tenantID,
+        name,
+        email: editLinkEmail.trim(),
+        quick_response_code_type: editLinkQRCodeType,
+        valid_until: editLinkValidUntil.trim(),
+        link_enabled: editLinkEnabled,
+      })
+    },
+    onSuccess: async () => {
+      setEditLinkOpen(false)
+      setEditingLinkID("")
+      setEditLinkName("")
+      setEditLinkEmail("")
+      setEditLinkValidUntil("")
+      setEditLinkQRCodeType("online")
+      setEditLinkEnabled(true)
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-links"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group link update failed"),
+  })
+
+  const deleteLinkMutation = useMutation({
+    mutationFn: (groupLinkID: string) => {
+      if (!tenantID) {
+        throw new Error("tenant_id is required")
+      }
+      return deleteGroupLink(token, groupLinkID, tenantID)
+    },
+    onSuccess: async () => {
+      setDeleteLinkTarget(null)
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-links"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Group link delete failed"),
+  })
+
+  function openEditLink(link: GroupLink) {
+    setEditingLinkID(link.id)
+    setEditLinkName(link.name)
+    setEditLinkEmail(link.email ?? "")
+    setEditLinkValidUntil(link.valid_until ?? "")
+    setEditLinkQRCodeType(
+      link.quick_response_code_type === "offline" || link.quick_response_code_type === "online"
+        ? link.quick_response_code_type
+        : ""
+    )
+    setEditLinkEnabled(link.link_enabled)
+    setActionError("")
+    setEditLinkOpen(true)
+  }
 
   return (
     <PageFrame
@@ -53,11 +406,32 @@ export function GroupsAdaptedPage({
       description="Configure the users, doors, floors, schedules, and restrictions for access groups"
       actions={
         <>
-          <Button className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]">
+          <Button
+            type="button"
+            disabled={!canCreateGroups}
+            onClick={() => {
+              setCreateGroupPlaceID(placeScoped ? placeContext.place?.id ?? placeID ?? "" : placeRows[0]?.id ?? "")
+              setCreateGroupName("")
+              setCreateGroupDescription("")
+              setActionError("")
+              setCreateGroupOpen(true)
+            }}
+            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+          >
             <PlusIcon className="mr-1.5 size-4" />
             Add Group
           </Button>
-          <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:bg-[#fbfbfc]">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canMutateGroups || !currentGroup || deleteGroupMutation.isPending}
+            onClick={() => {
+              setActionError("")
+              setDeleteGroupConfirmOpen(true)
+            }}
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+          >
+            <Trash2Icon className="mr-1.5 size-4" />
             Delete Group
           </Button>
         </>
@@ -66,6 +440,11 @@ export function GroupsAdaptedPage({
       {resourceQuery.usingFallback ? (
         <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
           Live group resources are unavailable. Showing reference data.
+        </div>
+      ) : null}
+      {actionError ? (
+        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          {actionError}
         </div>
       ) : null}
 
@@ -87,7 +466,15 @@ export function GroupsAdaptedPage({
             </thead>
             <tbody>
               {groupRows.map((group) => (
-                <tr key={group.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
+                <tr
+                  key={group.id}
+                  aria-selected={currentGroup?.id === group.id}
+                  onClick={() => setSelectedGroupID(group.id)}
+                  className={cn(
+                    "cursor-pointer border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]",
+                    currentGroup?.id === group.id ? "bg-[#f7f7ff]" : ""
+                  )}
+                >
                   <td className="px-6 py-4 font-semibold text-[#4f55ff]">{group.name}</td>
                   <td className="px-4 py-4 text-[#2f3037]">{group.kind}</td>
                   <td className="px-4 py-4 text-[#6f717c]">{group.targetLabel}</td>
@@ -110,12 +497,17 @@ export function GroupsAdaptedPage({
       </section>
 
       <SettingsPanel
-        tabs={["General", "Members", "Doors", "Floors", "Time Restrictions", "Permissions"]}
+        tabs={["General", "Members", "Doors", "Zones", "Links", "Time Restrictions", "Permissions"]}
         active={activeTab}
         onTabChange={setActiveTab}
         footer={
-          <Button disabled className="h-10 rounded-[8px] bg-[#eef0f4] px-8 text-[#8d909b]">
-            Save
+          <Button
+            type="button"
+            disabled={!canMutateGroups || !groupFormDirty || !editGroupName.trim() || updateGroupMutation.isPending}
+            onClick={() => updateGroupMutation.mutate()}
+            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+          >
+            {updateGroupMutation.isPending ? "Saving..." : "Save"}
           </Button>
         }
       >
@@ -123,7 +515,24 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader title="General" description="Group identity and default access behavior." />
             <div className="grid gap-6 p-7 md:grid-cols-2">
-              <FormField label="Group name" value={currentGroup?.name ?? "No group selected"} />
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group name</span>
+                <input
+                  value={editGroupName}
+                  disabled={!canMutateGroups}
+                  onChange={(event) => setEditGroupName(event.target.value)}
+                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] disabled:bg-[#fbfbfc] disabled:text-[#6f717c]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+                <input
+                  value={editGroupDescription}
+                  disabled={!canMutateGroups}
+                  onChange={(event) => setEditGroupDescription(event.target.value)}
+                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] disabled:bg-[#fbfbfc] disabled:text-[#6f717c]"
+                />
+              </label>
               <FormField label="Access enabled" value={currentGroup?.statusLabel ?? "Unavailable"} trailing={<ToggleSwitch enabled={currentGroup?.tone !== "danger"} />} />
               <FormField label="Default role" value="Basic" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
               <FormField label="Place scope" value={placeScoped ? placeContext.place?.name ?? "Assigned Place" : "All organization places"} />
@@ -138,7 +547,7 @@ export function GroupsAdaptedPage({
               title="Members"
               description="Users and teams receiving this group's door access."
               action={
-                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:bg-[#fbfbfc]">
+                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
                   Add Members
                 </Button>
               }
@@ -162,37 +571,128 @@ export function GroupsAdaptedPage({
               title="Doors"
               description="Door resources controlled by this group."
               action={
-                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:bg-[#fbfbfc]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canMutateGroupLocks || availableDoorRows.length === 0}
+                  onClick={() => {
+                    setSelectedDoorID(availableDoorRows[0]?.id ?? "")
+                    setActionError("")
+                    setAddDoorsOpen(true)
+                  }}
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                >
+                  <PlusIcon className="mr-1.5 size-4" />
                   Add Doors
                 </Button>
               }
             />
             <div className="divide-y divide-[#eceef2]">
               {doorRows.map((row) => (
-                <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_180px_1fr] md:items-center">
+                <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{row.name}</span>
                   <span className="text-sm text-[#2f3037]">{row.floorName}</span>
                   <StatusDot tone={row.status === "online" ? "success" : "warning"} label={row.status === "online" ? "Online" : "Review"} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={!canMutateGroupLocks || removeDoorMutation.isPending}
+                    onClick={() => removeDoorMutation.mutate(row.id)}
+                    className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                  >
+                    Remove
+                  </Button>
                 </div>
               ))}
-              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">No doors found for this group scope.</div> : null}
+              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">No doors are assigned to this group.</div> : null}
             </div>
           </>
         ) : null}
 
-        {activeTab === "Floors" ? (
+        {activeTab === "Zones" ? (
           <>
-            <PanelHeader title="Floors" description="Floor-level access shortcuts for this group." />
+            <PanelHeader title="Zones" description="Area-level access zones derived from this group's door bindings." />
             <div className="grid gap-4 p-7 md:grid-cols-2">
-              {floorRows.map((row) => (
+              {zoneRows.map((row) => (
                 <div key={row.id} className="rounded-[6px] border border-[#eceef2] p-5">
                   <LayersIcon className="size-6 text-[#6f717c]" />
                   <h3 className="mt-5 font-semibold text-[#17171c]">{row.name}</h3>
-                  <p className="mt-1 text-sm text-[#6f717c]">{row.description}</p>
+                  <p className="mt-1 text-sm text-[#6f717c]">{row.floorName} · {row.description}</p>
                   <p className="mt-4 text-sm font-semibold text-[#2f3037]">{row.doorCount} doors</p>
                 </div>
               ))}
-              {floorRows.length === 0 ? <div className="text-sm text-[#6f717c]">No floors found for this group scope.</div> : null}
+              {zoneRows.length === 0 ? <div className="text-sm text-[#6f717c]">No zones are assigned to this group.</div> : null}
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "Links" ? (
+          <>
+            <PanelHeader
+              title="Links"
+              description="Access links issued against this group."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canMutateGroupLinks}
+                  onClick={() => {
+                    setCreateLinkName(currentGroup ? `${currentGroup.name} access link` : "")
+                    setCreateLinkEmail("")
+                    setCreateLinkValidUntil("")
+                    setCreateLinkQRCodeType("online")
+                    setActionError("")
+                    setCreateLinkOpen(true)
+                  }}
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                >
+                  <PlusIcon className="mr-1.5 size-4" />
+                  Add Link
+                </Button>
+              }
+            />
+            <div className="divide-y divide-[#eceef2]">
+              {groupLinks.map((link) => (
+                <div key={link.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_140px_190px] md:items-center">
+                  <div className="min-w-0">
+                    <span className="block truncate font-semibold text-[#17171c]">{link.name}</span>
+                    <span className="mt-1 block truncate text-sm text-[#6f717c]">{link.email || link.phone || "Reusable link"}</span>
+                  </div>
+                  <span className="text-sm text-[#2f3037]">{link.valid_until ? `Expires ${link.valid_until}` : "No expiry"}</span>
+                  <StatusDot tone={link.link_enabled ? "success" : "warning"} label={link.link_enabled ? "Enabled" : "Disabled"} />
+                  <div className="justify-self-start md:justify-self-end">
+                    <RowActionsMenu
+                      label={`Actions for ${link.name}`}
+                      items={[
+                        {
+                          id: "edit",
+                          label: "Edit",
+                          icon: PencilIcon,
+                          disabled: !canMutateGroupLinks || updateLinkMutation.isPending,
+                          onSelect: () => openEditLink(link),
+                        },
+                        {
+                          id: "delete",
+                          label: "Delete",
+                          icon: Trash2Icon,
+                          destructive: true,
+                          disabled: !canMutateGroupLinks || deleteLinkMutation.isPending,
+                          onSelect: () => {
+                            setActionError("")
+                            setDeleteLinkTarget(link)
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
+                </div>
+              ))}
+              {groupLinks.length === 0 ? (
+                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                  {groupLinksQuery.isPending ? "Loading group links..." : "No links are assigned to this group."}
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -227,8 +727,8 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader title="Permissions" description="App, geofence, reader, and primary-device restrictions." />
             <div className="divide-y divide-[#eceef2] px-7">
-              {restrictions.map(([title, description, enabled, Icon]) => (
-                <div key={title} className="flex gap-5 py-6">
+              {restrictions.map(({ key, title, description, enabled, icon: Icon }) => (
+                <div key={key} className="flex gap-5 py-6">
                   <div
                     className={cn(
                       "flex size-12 shrink-0 items-center justify-center rounded-[6px]",
@@ -244,7 +744,15 @@ export function GroupsAdaptedPage({
                     </p>
                   </div>
                   <div className="ml-auto pt-2">
-                    <ToggleSwitch enabled={enabled} />
+                    <button
+                      type="button"
+                      disabled={!canMutateGroups || updateRestrictionMutation.isPending}
+                      onClick={() => updateRestrictionMutation.mutate({ [key]: !enabled })}
+                      className="rounded-full disabled:opacity-60"
+                      aria-pressed={enabled}
+                    >
+                      <ToggleSwitch enabled={enabled} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -252,6 +760,335 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
       </SettingsPanel>
+
+      <ConfirmActionDialog
+        open={deleteGroupConfirmOpen}
+        onOpenChange={(open) => {
+          if (!deleteGroupMutation.isPending) {
+            setDeleteGroupConfirmOpen(open)
+          }
+        }}
+        title="Delete group"
+        description={
+          <>
+            This removes <span className="font-semibold text-[#17171c]">{currentGroup?.name ?? "this group"}</span> and its
+            access-resource bindings from this workspace.
+          </>
+        }
+        confirmLabel="Delete group"
+        pending={deleteGroupMutation.isPending}
+        disabled={!canMutateGroups || !currentGroup}
+        destructive
+        onConfirm={() => {
+          if (currentGroup) {
+            deleteGroupMutation.mutate(currentGroup.id)
+          }
+        }}
+      />
+
+      <ConfirmActionDialog
+        open={Boolean(deleteLinkTarget)}
+        onOpenChange={(open) => {
+          if (!deleteLinkMutation.isPending && !open) {
+            setDeleteLinkTarget(null)
+          }
+        }}
+        title="Delete access link"
+        description={
+          <>
+            This removes <span className="font-semibold text-[#17171c]">{deleteLinkTarget?.name ?? "this link"}</span>. Existing
+            shared URLs and QR tokens for this link will stop working.
+          </>
+        }
+        confirmLabel="Delete link"
+        pending={deleteLinkMutation.isPending}
+        disabled={!canMutateGroupLinks || !deleteLinkTarget}
+        destructive
+        onConfirm={() => {
+          if (deleteLinkTarget) {
+            deleteLinkMutation.mutate(deleteLinkTarget.id)
+          }
+        }}
+      />
+
+      <Sheet open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Group</SheetTitle>
+            <SheetDescription>Create a user group for this access scope.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              createGroupMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <input
+                value={createGroupName}
+                onChange={(event) => setCreateGroupName(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+              <textarea
+                value={createGroupDescription}
+                onChange={(event) => setCreateGroupDescription(event.target.value)}
+                rows={3}
+                className="w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-2 text-sm text-[#2f3037]"
+              />
+            </label>
+            {placeScoped ? (
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                <input
+                  value={placeContext.place?.name ?? "Assigned Place"}
+                  readOnly
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                />
+              </label>
+            ) : (
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Place</span>
+                <select
+                  value={createGroupPlaceID}
+                  onChange={(event) => setCreateGroupPlaceID(event.target.value)}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                >
+                  <option value="">Organization-wide</option>
+                  {placeRows.map((place) => (
+                    <option key={place.id} value={place.id}>
+                      {place.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canCreateGroups || !createGroupName.trim() || createGroupMutation.isPending}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {createGroupMutation.isPending ? "Creating..." : "Create Group"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={addDoorsOpen} onOpenChange={setAddDoorsOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Doors</SheetTitle>
+            <SheetDescription>Bind a door resource to the selected door group.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addDoorMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <input
+                value={currentGroup?.name ?? "No group selected"}
+                readOnly
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Door</span>
+              <select
+                value={selectedDoorID}
+                onChange={(event) => setSelectedDoorID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                {availableDoorRows.map((door) => (
+                  <option key={door.id} value={door.id}>
+                    {door.name} · {door.floorName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {availableDoorRows.length === 0 ? <p className="text-sm text-[#8a5a00]">No unassigned doors are available for this scope.</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canMutateGroupLocks || addDoorMutation.isPending || availableDoorRows.length === 0}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {addDoorMutation.isPending ? "Adding..." : "Add Doors"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={createLinkOpen} onOpenChange={setCreateLinkOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Link</SheetTitle>
+            <SheetDescription>Create an access link for the selected group.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              createLinkMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <input
+                value={currentGroup?.name ?? "No group selected"}
+                readOnly
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <input
+                value={createLinkName}
+                onChange={(event) => setCreateLinkName(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+              <input
+                value={createLinkEmail}
+                onChange={(event) => setCreateLinkEmail(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+              <input
+                value={createLinkValidUntil}
+                placeholder="2026-05-01T10:00:00Z"
+                onChange={(event) => setCreateLinkValidUntil(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">QR code</span>
+              <select
+                value={createLinkQRCodeType}
+                onChange={(event) => setCreateLinkQRCodeType(event.target.value as "online" | "offline" | "")}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+                <option value="">None</option>
+              </select>
+            </label>
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canMutateGroupLinks || !createLinkName.trim() || createLinkMutation.isPending}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {createLinkMutation.isPending ? "Creating..." : "Create Link"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={editLinkOpen}
+        onOpenChange={(open) => {
+          setEditLinkOpen(open)
+          if (!open) {
+            setEditingLinkID("")
+          }
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Edit Link</SheetTitle>
+            <SheetDescription>Update access link details for the selected group.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              updateLinkMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Group</span>
+              <input
+                value={currentGroup?.name ?? "No group selected"}
+                readOnly
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setEditLinkEnabled((enabled) => !enabled)}
+              className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-[#17171c]">Link enabled</span>
+                <span className="mt-1 block text-xs text-[#6f717c]">Disabled links remain visible but cannot grant access.</span>
+              </span>
+              <ToggleSwitch enabled={editLinkEnabled} />
+            </button>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <input
+                value={editLinkName}
+                onChange={(event) => setEditLinkName(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Email</span>
+              <input
+                value={editLinkEmail}
+                onChange={(event) => setEditLinkEmail(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Valid until</span>
+              <input
+                value={editLinkValidUntil}
+                placeholder="2026-05-01T10:00:00Z"
+                onChange={(event) => setEditLinkValidUntil(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">QR code</span>
+              <select
+                value={editLinkQRCodeType}
+                onChange={(event) => setEditLinkQRCodeType(event.target.value as "online" | "offline" | "")}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="online">Online</option>
+                <option value="offline">Offline</option>
+                <option value="">None</option>
+              </select>
+            </label>
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canMutateGroupLinks || !editLinkName.trim() || !editingLinkID || updateLinkMutation.isPending}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {updateLinkMutation.isPending ? "Saving..." : "Save Link"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </PageFrame>
   )
 }

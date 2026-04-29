@@ -10,6 +10,8 @@ import {
   listDoorGroups,
   listFloors,
   listGateways,
+  listGroupLocks,
+  listGroupZones,
   listGroups,
   listLocks,
   listPlaces,
@@ -38,6 +40,8 @@ import {
   type Floor,
   type Gateway,
   type GatewayDevice,
+  type GroupLock,
+  type GroupZone,
   type Role,
   type RoleAssignment,
   type Reader,
@@ -74,6 +78,16 @@ export type KisiFloorResource = {
   hardwareCount: number
   statusLabel: string
   tone: KisiResourceTone
+}
+
+export type KisiZoneResource = {
+  id: string
+  placeId: string
+  floorId: string
+  floorName: string
+  name: string
+  description: string
+  doorCount: number
 }
 
 export type KisiDoorResource = {
@@ -124,10 +138,13 @@ export type KisiUserResource = {
   name: string
   email: string
   role: string
+  roleValue?: string
+  rawStatus?: string
   statusLabel: string
   tone: KisiResourceTone
   accessDateLabel: string
   sourceLabel: string
+  groupIds?: string[]
 }
 
 export type KisiCredentialResource = {
@@ -143,12 +160,25 @@ export type KisiCredentialResource = {
 
 export type KisiGroupResource = {
   id: string
+  tenantID?: string
   placeId: string
   name: string
   kind: string
   memberCount: number
   targetLabel: string
   description: string
+  doorIds?: string[]
+  zoneIds?: string[]
+  zoneFloorIds?: string[]
+  loginEnabled?: boolean
+  geofenceRestrictionEnabled?: boolean
+  geofenceRestrictionRadius?: number
+  primaryDeviceRestrictionEnabled?: boolean
+  managedDeviceRestrictionEnabled?: boolean
+  readerRestrictionEnabled?: boolean
+  timeRestrictionEnabled?: boolean
+  tapToAccessRestrictionEnabled?: boolean
+  timeRestrictionTimeZone?: string
   statusLabel: string
   tone: KisiResourceTone
 }
@@ -180,6 +210,7 @@ export type KisiTeamMembershipResource = {
 
 export type KisiAccessRightResource = {
   id: string
+  sourceType?: "role_assignment" | "share"
   placeId: string
   name: string
   subjectType: "Group" | "Place" | "Team" | "User" | "Access Link"
@@ -187,11 +218,15 @@ export type KisiAccessRightResource = {
   ruleLabel: string
   statusLabel: string
   tone: KisiResourceTone
+  reviewedAt?: string
+  reviewedBy?: string
+  needsReview?: boolean
 }
 
 export type KisiResourceSummary = {
   places: KisiPlaceResource[]
   floors: KisiFloorResource[]
+  zones: KisiZoneResource[]
   doors: KisiDoorResource[]
   hardware: KisiHardwareResource[]
   events: KisiEventResource[]
@@ -207,6 +242,7 @@ export type KisiResourceSummary = {
 export type KisiPlaceContext = {
   place: KisiPlaceResource | null
   floors: KisiFloorResource[]
+  zones: KisiZoneResource[]
   doors: KisiDoorResource[]
   hardware: KisiHardwareResource[]
   events: KisiEventResource[]
@@ -283,6 +319,27 @@ const fallbackFloors: KisiFloorResource[] = [
     hardwareCount: 2,
     statusLabel: "Review",
     tone: "warning",
+  },
+]
+
+const fallbackZones: KisiZoneResource[] = [
+  {
+    id: "zone-sudirman-lobby",
+    placeId: "sudirman-hub",
+    floorId: "sudirman-1f",
+    floorName: "1st Floor",
+    name: "Lobby",
+    description: "Reception and visitor turnstiles",
+    doorCount: 4,
+  },
+  {
+    id: "zone-sudirman-garage",
+    placeId: "sudirman-hub",
+    floorId: "sudirman-parking",
+    floorName: "Parking",
+    name: "Garage",
+    description: "Vehicle and loading bay access",
+    doorCount: 3,
   },
 ]
 
@@ -501,6 +558,8 @@ const fallbackGroups: KisiGroupResource[] = [
     memberCount: 18,
     targetLabel: "Garage, 11th Floor Entry",
     description: "People and access resources used by service teams.",
+    zoneIds: ["zone-sudirman-garage"],
+    zoneFloorIds: ["sudirman-parking"],
     statusLabel: "Enabled",
     tone: "success",
   },
@@ -512,6 +571,8 @@ const fallbackGroups: KisiGroupResource[] = [
     memberCount: 12,
     targetLabel: "Lobby Turnstile",
     description: "Front desk and visitor handling access.",
+    zoneIds: ["zone-sudirman-lobby"],
+    zoneFloorIds: ["sudirman-1f"],
     statusLabel: "Enabled",
     tone: "success",
   },
@@ -616,6 +677,7 @@ const fallbackAccessRights: KisiAccessRightResource[] = [
 export const fallbackKisiResourceSummary: KisiResourceSummary = {
   places: fallbackPlaces,
   floors: fallbackFloors,
+  zones: fallbackZones,
   doors: fallbackDoors,
   hardware: fallbackHardware,
   events: fallbackEvents,
@@ -634,6 +696,21 @@ function fulfilledValue<T>(result: PromiseSettledResult<T>, fallback: T): T {
 
 function isRejected<T>(result: PromiseSettledResult<T>) {
   return result.status === "rejected"
+}
+
+function fulfilledResult<T>(value: T): PromiseFulfilledResult<T> {
+  return { status: "fulfilled", value }
+}
+
+async function settleFallback<T>(enabled: boolean, load: () => Promise<T>, fallback: T): Promise<PromiseSettledResult<T>> {
+  if (!enabled) {
+    return fulfilledResult(fallback)
+  }
+  try {
+    return fulfilledResult(await load())
+  } catch (reason) {
+    return { status: "rejected", reason }
+  }
 }
 
 function slugify(value: string) {
@@ -825,7 +902,16 @@ function credentialType(pass: WalletPassInstance) {
 }
 
 function cardCredentialType(card: Card) {
-  return card.provider ? `${titleize(card.provider)} Card` : "Card"
+  if (card.credential_kind === "google_wallet" || card.provider === "google") {
+    return "Google Wallet"
+  }
+  if (card.credential_kind === "apple_wallet" || card.provider === "apple") {
+    return "Apple Wallet"
+  }
+  if (card.credential_kind === "physical_card" || card.uid || card.card_number) {
+    return card.provider && card.provider !== "physical_card" ? `${titleize(card.provider)} Card` : "Physical Card"
+  }
+  return card.provider ? `${titleize(card.provider)} Credential` : "Credential"
 }
 
 function credentialStatusLabelFromCard(status: Card["status"]) {
@@ -834,6 +920,9 @@ function credentialStatusLabelFromCard(status: Card["status"]) {
   }
   if (status === "unassigned") {
     return "Pending"
+  }
+  if (status === "revoked") {
+    return "Revoked"
   }
   return "Suspended"
 }
@@ -904,6 +993,130 @@ function gatewayDoorNames(gateway: Gateway, doorsByID: Map<string, Door>, doorsB
     return names
   }
   return (doorsByGatewayID.get(gateway.id) ?? []).map((door) => door.name)
+}
+
+export function buildKisiHardwareFromReferenceResources({
+  controllers,
+  readers,
+  terminals,
+  gateways = [],
+  doors,
+  places,
+  useGatewayFallback = false,
+}: {
+  controllers: Controller[]
+  readers: Reader[]
+  terminals: Terminal[]
+  gateways?: Gateway[]
+  doors: Door[]
+  places: Array<Pick<KisiPlaceResource, "id" | "name">>
+  useGatewayFallback?: boolean
+}) {
+  const doorsByID = new Map(doors.map((door) => [door.id, door]))
+  const doorsByGatewayID = new Map<string, Door[]>()
+  doors.forEach((door) => {
+    if (!door.gateway_id) {
+      return
+    }
+    const current = doorsByGatewayID.get(door.gateway_id) ?? []
+    current.push(door)
+    doorsByGatewayID.set(door.gateway_id, current)
+  })
+
+  const placeByID = new Map(places.map((place) => [place.id, place]))
+  const doorNamesForLockIDs = (lockIDs: string[]) => lockIDs.map((lockID) => doorsByID.get(lockID)?.name).filter((name): name is string => Boolean(name))
+  const referenceHardwareResources = [
+    ...controllers.map((controller) => {
+      const place = placeByID.get(controller.place_id)
+      const doorNames = doorNamesForLockIDs(controller.lock_ids ?? [])
+      const tone: KisiResourceTone = controller.status === "online" ? "success" : "warning"
+      return {
+        id: controller.id,
+        placeId: controller.place_id,
+        gatewayId: controller.id,
+        name: controller.name,
+        type: "Controller",
+        statusLabel: controller.status === "online" ? "Online" : "Needs review",
+        tone,
+        location: place?.name ?? "Unassigned place",
+        lastSeenLabel: formatRelativeSeen(controller.last_seen_at),
+        doorNames,
+      } satisfies KisiHardwareResource
+    }),
+    ...readers.map((reader) => {
+      const place = placeByID.get(reader.place_id)
+      const doorNames = doorNamesForLockIDs(reader.lock_ids ?? [])
+      const tone: KisiResourceTone = reader.status === "online" ? "success" : "warning"
+      return {
+        id: reader.id,
+        placeId: reader.place_id,
+        gatewayId: reader.controller_id,
+        name: reader.name,
+        type: "Reader",
+        statusLabel: reader.status === "online" ? "Online" : "Needs review",
+        tone,
+        location: doorNames[0] ?? place?.name ?? "Unassigned place",
+        lastSeenLabel: formatRelativeSeen(reader.last_seen_at),
+        doorNames,
+      } satisfies KisiHardwareResource
+    }),
+    ...terminals.map((terminal) => {
+      const place = placeByID.get(terminal.place_id)
+      const tone: KisiResourceTone = terminal.status === "offline" ? "warning" : "success"
+      return {
+        id: terminal.id,
+        placeId: terminal.place_id,
+        gatewayId: terminal.controller_id ?? terminal.id,
+        name: terminal.name,
+        type: "Terminal",
+        statusLabel: terminal.status === "offline" ? "Needs review" : "Online",
+        tone,
+        location: terminal.place?.name ?? place?.name ?? "Unassigned place",
+        lastSeenLabel: formatRelativeSeen(terminal.last_seen_at ?? terminal.updated_at),
+        doorNames: [],
+      } satisfies KisiHardwareResource
+    }),
+  ]
+
+  if (referenceHardwareResources.length > 0 || !useGatewayFallback) {
+    return referenceHardwareResources
+  }
+
+  return gateways.flatMap((gateway) => {
+    const place = placeByID.get(gateway.building_id)
+    const doorNames = gatewayDoorNames(gateway, doorsByID, doorsByGatewayID)
+    const gatewayTone: KisiResourceTone = gateway.status === "online" ? "success" : "warning"
+    const gatewayRow: KisiHardwareResource = {
+      id: gateway.id,
+      placeId: gateway.building_id,
+      gatewayId: gateway.id,
+      name: gateway.serial_number,
+      type: "Gateway",
+      statusLabel: gateway.status === "online" ? "Online" : "Needs review",
+      tone: gatewayTone,
+      location: place?.name ?? "Unassigned place",
+      lastSeenLabel: formatRelativeSeen(gateway.last_seen_at),
+      doorNames,
+    }
+
+    const deviceRows = (gateway.devices ?? []).map((device) => {
+      const deviceTone: KisiResourceTone = device.status === "online" ? "success" : "warning"
+      return {
+        id: device.id,
+        placeId: gateway.building_id,
+        gatewayId: gateway.id,
+        name: device.serial_number,
+        type: deviceType(device),
+        statusLabel: device.status === "online" ? "Online" : "Needs review",
+        tone: deviceTone,
+        location: doorNames[0] ?? place?.name ?? "Unassigned place",
+        lastSeenLabel: formatRelativeSeen(device.last_seen_at),
+        doorNames,
+      } satisfies KisiHardwareResource
+    })
+
+    return [gatewayRow, ...deviceRows]
+  })
 }
 
 function placeIDForAccessScope(
@@ -1008,6 +1221,11 @@ function accessValidityStatus(validFrom?: string, validUntil?: string, rawStatus
   }
 
   return { statusLabel: "Enabled", tone: "success" as KisiResourceTone }
+}
+
+function accessRightNeedsReview(statusLabel: string, reviewedAt?: string) {
+  const normalizedStatus = statusLabel.trim().toLowerCase()
+  return !reviewedAt?.trim() && normalizedStatus !== "" && normalizedStatus !== "enabled" && normalizedStatus !== "active"
 }
 
 function roleAssignmentSubjectType(item: RoleAssignment): KisiAccessRightResource["subjectType"] {
@@ -1142,6 +1360,7 @@ export function buildKisiAccessRightsFromReferenceResources({
 
     return {
       id: assignment.id,
+      sourceType: "role_assignment",
       placeId: roleAssignmentPlaceID(assignment, groupsByID),
       name: subjectType === "Group" || subjectType === "Place" ? scopeLabel : assigneeLabel,
       subjectType,
@@ -1149,6 +1368,9 @@ export function buildKisiAccessRightsFromReferenceResources({
       ruleLabel: roleAssignmentRuleLabel(assignment, rolesByID),
       statusLabel: status.statusLabel,
       tone: status.tone,
+      reviewedAt: assignment.reviewed_at,
+      reviewedBy: assignment.reviewed_by,
+      needsReview: accessRightNeedsReview(status.statusLabel, assignment.reviewed_at),
     } satisfies KisiAccessRightResource
   })
 
@@ -1157,6 +1379,7 @@ export function buildKisiAccessRightsFromReferenceResources({
 
     return {
       id: share.id,
+      sourceType: "share",
       placeId: sharePlaceID(share, doorsByID, groupsByID),
       name: share.grantee_name || share.email || "Access link",
       subjectType: "Access Link",
@@ -1164,6 +1387,9 @@ export function buildKisiAccessRightsFromReferenceResources({
       ruleLabel: share.valid_until?.trim() ? `Expires ${formatAccessDateLabel(share.valid_until)}` : roleName(share.role_id, rolesByID),
       statusLabel: status.statusLabel,
       tone: status.tone,
+      reviewedAt: share.reviewed_at,
+      reviewedBy: share.reviewed_by,
+      needsReview: accessRightNeedsReview(status.statusLabel, share.reviewed_at),
     } satisfies KisiAccessRightResource
   })
 
@@ -1180,22 +1406,19 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
     controllersResult,
     readersResult,
     terminalsResult,
-    gatewaysResult,
     eventSetResult,
-    eventsResult,
     usersResult,
     cardsResult,
     cardAssignmentsResult,
-    walletPassesResult,
     userGroupsResult,
     doorGroupsResult,
+    groupLocksResult,
+    groupZonesResult,
     teamsResult,
     teamMembershipsResult,
     rolesResult,
     roleAssignmentsResult,
     sharesResult,
-    accessPoliciesResult,
-    temporaryAccessResult,
   ] = await Promise.allSettled([
     listPlaces(token, tenantID),
     listFloors(token, tenantID),
@@ -1204,22 +1427,27 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
     listControllers(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
     listReaders(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
     listTerminals(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
-    listGateways(token),
     createEventSet(token, tenantID ? { tenant_id: tenantID } : undefined),
-    listAccessEvents(token, { page: 1, limit: 120 }),
     listAccessUsers(token, tenantID),
     listCards(token, tenantID ? { tenant_id: tenantID } : undefined),
     listCardAssignments(token, tenantID ? { tenant_id: tenantID } : undefined),
-    listWalletPasses(token, tenantID, { page: 1, limit: 120 }),
     listGroups(token, tenantID),
     listDoorGroups(token, tenantID),
+    listGroupLocks(token, tenantID ? { tenant_id: tenantID } : undefined),
+    listGroupZones(token, tenantID ? { tenant_id: tenantID } : undefined),
     listTeams(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
     listTeamMemberships(token, tenantID ? { tenant_id: tenantID } : undefined),
     listRoles(token),
     listRoleAssignments(token, tenantID ? { tenant_id: tenantID } : undefined),
     listShares(token, tenantID ? { tenant_id: tenantID } : undefined),
-    listAccessPolicies(token),
-    listTemporaryAccess(token),
+  ])
+  const useGatewayFallback = isRejected(controllersResult) || isRejected(readersResult) || isRejected(terminalsResult)
+  const [gatewaysResult, eventsResult, walletPassesResult, accessPoliciesResult, temporaryAccessResult] = await Promise.all([
+    settleFallback(useGatewayFallback, () => listGateways(token), [] as Gateway[]),
+    settleFallback(isRejected(eventSetResult), () => listAccessEvents(token, { page: 1, limit: 120 }), [] as AccessEvent[]),
+    settleFallback(isRejected(cardsResult), () => listWalletPasses(token, tenantID, { page: 1, limit: 120 }), [] as WalletPassInstance[]),
+    settleFallback(isRejected(roleAssignmentsResult), () => listAccessPolicies(token), [] as AccessPolicy[]),
+    settleFallback(isRejected(sharesResult), () => listTemporaryAccess(token), [] as TemporaryAccess[]),
   ])
 
   const buildings = filterBuildingsByViewerScope(fulfilledValue<Building[]>(buildingsResult, []), viewer)
@@ -1228,6 +1456,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
   const areas = fulfilledValue<Area[]>(areasResult, []).filter((area) => buildingIDs.has(area.building_id))
   const doors = fulfilledValue<Door[]>(doorsResult, []).filter((door) => buildingIDs.has(door.building_id))
   const controllers = fulfilledValue<Controller[]>(controllersResult, []).filter((controller) => buildingIDs.has(controller.place_id))
+  const controllersByID = new Map(controllers.map((controller) => [controller.id, controller]))
   const readers = fulfilledValue<Reader[]>(readersResult, []).filter((reader) => buildingIDs.has(reader.place_id))
   const terminals = fulfilledValue<Terminal[]>(terminalsResult, []).filter((terminal) => buildingIDs.has(terminal.place_id))
   const gateways = fulfilledValue<Gateway[]>(gatewaysResult, []).filter((gateway) => buildingIDs.has(gateway.building_id))
@@ -1244,6 +1473,8 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
   const walletPasses = isRejected(cardsResult) ? fulfilledValue<WalletPassInstance[]>(walletPassesResult, []) : []
   const userGroups = fulfilledValue<UserGroup[]>(userGroupsResult, [])
   const doorGroups = fulfilledValue<DoorGroup[]>(doorGroupsResult, [])
+  const groupLocks = fulfilledValue<GroupLock[]>(groupLocksResult, [])
+  const groupZones = fulfilledValue<GroupZone[]>(groupZonesResult, []).filter((zone) => buildingIDs.has(zone.place_id))
   const teams = fulfilledValue<Team[]>(teamsResult, []).filter((team) => !team.place_id || buildingIDs.has(team.place_id))
   const teamIDs = new Set(teams.map((team) => team.id))
   const teamMemberships = fulfilledValue<TeamMembership[]>(teamMembershipsResult, []).filter((membership) => teamIDs.has(membership.team_id))
@@ -1263,24 +1494,16 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
   const areasByID = new Map(areas.map((area) => [area.id, area]))
   const doorsByID = new Map(doors.map((door) => [door.id, door]))
   const gatewaysByID = new Map(gateways.map((gateway) => [gateway.id, gateway]))
-  const doorsByGatewayID = new Map<string, Door[]>()
-
-  doors.forEach((door) => {
-    if (!door.gateway_id) {
-      return
-    }
-    const current = doorsByGatewayID.get(door.gateway_id) ?? []
-    current.push(door)
-    doorsByGatewayID.set(door.gateway_id, current)
-  })
 
   const places = buildings
     .map((building) => {
       const placeDoors = doors.filter((door) => door.building_id === building.id)
       const placeGateways = gateways.filter((gateway) => gateway.building_id === building.id)
+      const placeControllers = controllers.filter((controller) => controller.place_id === building.id)
+      const hardwareCount = placeControllers.length > 0 || !useGatewayFallback ? placeControllers.length : placeGateways.length
       const offlineCount =
         placeDoors.filter((door) => door.status === "offline").length +
-        placeGateways.filter((gateway) => gateway.status !== "online").length
+        (placeControllers.length > 0 || !useGatewayFallback ? placeControllers.filter((controller) => controller.status !== "online").length : placeGateways.filter((gateway) => gateway.status !== "online").length)
 
       return {
         id: building.id,
@@ -1288,7 +1511,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         address: building.address || "No address set",
         region: building.region || "Unassigned region",
         doorCount: placeDoors.length,
-        gatewayCount: placeGateways.length,
+        gatewayCount: hardwareCount,
         offlineCount,
         statusLabel: offlineCount > 0 ? `${offlineCount} offline` : "All online",
         tone: offlineCount > 0 ? "warning" : "success",
@@ -1301,6 +1524,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
     .map((floor) => {
       const floorDoors = doors.filter((door) => door.floor_id === floor.id)
       const floorGateways = gateways.filter((gateway) => gateway.building_id === floor.building_id)
+      const floorControllers = controllers.filter((controller) => controller.place_id === floor.building_id)
       const areaNames = areas
         .filter((area) => area.floor_id === floor.id)
         .map((area) => area.name)
@@ -1313,19 +1537,37 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         name: floor.name,
         description: areaNames.length > 0 ? areaNames.join(", ") : "No areas mapped yet",
         doorCount: floorDoors.length,
-        hardwareCount: floorGateways.length,
+        hardwareCount: floorControllers.length > 0 || !useGatewayFallback ? floorControllers.length : floorGateways.length,
         statusLabel: offlineCount > 0 ? "Review" : "Online",
         tone: offlineCount > 0 ? "warning" : "success",
       } satisfies KisiFloorResource
     })
     .sort((left, right) => left.name.localeCompare(right.name, undefined, { numeric: true }))
 
+  const zoneResources = areas
+    .map((area) => {
+      const floor = floorsByID.get(area.floor_id)
+      const areaDoors = doors.filter((door) => door.area_id === area.id)
+      return {
+        id: area.id,
+        placeId: area.building_id,
+        floorId: area.floor_id,
+        floorName: floor?.name ?? "Unassigned floor",
+        name: area.name,
+        description: floor ? `${floor.name} zone` : "Unassigned floor zone",
+        doorCount: areaDoors.length,
+      } satisfies KisiZoneResource
+    })
+    .sort((left, right) => left.name.localeCompare(right.name))
+
   const doorResources = doors
     .map((door) => {
       const floor = floorsByID.get(door.floor_id)
       const area = areasByID.get(door.area_id)
       const gateway = gatewaysByID.get(door.gateway_id)
+      const controller = controllersByID.get(door.gateway_id)
       const devices = gateway?.devices ?? []
+      const referenceReaderCount = readers.filter((reader) => reader.controller_id === door.gateway_id && (reader.lock_ids ?? []).includes(door.id)).length
 
       return {
         id: door.id,
@@ -1337,106 +1579,22 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         kind: titleize(door.kind),
         status: door.status,
         gatewayId: door.gateway_id,
-        gatewaySerial: gateway?.serial_number ?? "Unassigned gateway",
-        deviceCount: devices.length,
+        gatewaySerial: controller?.name ?? gateway?.serial_number ?? "Unassigned gateway",
+        deviceCount: referenceReaderCount > 0 || !useGatewayFallback ? referenceReaderCount : devices.length,
         description: `${titleize(door.kind)} door on ${floor?.name ?? "unassigned floor"}`,
       } satisfies KisiDoorResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
 
-  const doorNamesForLockIDs = (lockIDs: string[]) => lockIDs.map((lockID) => doorsByID.get(lockID)?.name).filter((name): name is string => Boolean(name))
-  const referenceHardwareResources = [
-    ...controllers.map((controller) => {
-      const place = places.find((item) => item.id === controller.place_id)
-      const doorNames = doorNamesForLockIDs(controller.lock_ids ?? [])
-      const tone: KisiResourceTone = controller.status === "online" ? "success" : "warning"
-      return {
-        id: controller.id,
-        placeId: controller.place_id,
-        gatewayId: controller.id,
-        name: controller.name,
-        type: "Controller",
-        statusLabel: controller.status === "online" ? "Online" : "Needs review",
-        tone,
-        location: place?.name ?? "Unassigned place",
-        lastSeenLabel: formatRelativeSeen(controller.last_seen_at),
-        doorNames,
-      } satisfies KisiHardwareResource
-    }),
-    ...readers.map((reader) => {
-      const place = places.find((item) => item.id === reader.place_id)
-      const doorNames = doorNamesForLockIDs(reader.lock_ids ?? [])
-      const tone: KisiResourceTone = reader.status === "online" ? "success" : "warning"
-      return {
-        id: reader.id,
-        placeId: reader.place_id,
-        gatewayId: reader.controller_id,
-        name: reader.name,
-        type: "Reader",
-        statusLabel: reader.status === "online" ? "Online" : "Needs review",
-        tone,
-        location: doorNames[0] ?? place?.name ?? "Unassigned place",
-        lastSeenLabel: formatRelativeSeen(reader.last_seen_at),
-        doorNames,
-      } satisfies KisiHardwareResource
-    }),
-    ...terminals.map((terminal) => {
-      const place = places.find((item) => item.id === terminal.place_id)
-      const tone: KisiResourceTone = terminal.status === "offline" ? "warning" : "success"
-      return {
-        id: terminal.id,
-        placeId: terminal.place_id,
-        gatewayId: terminal.controller_id ?? terminal.id,
-        name: terminal.name,
-        type: "Terminal",
-        statusLabel: terminal.status === "offline" ? "Needs review" : "Online",
-        tone,
-        location: terminal.place?.name ?? place?.name ?? "Unassigned place",
-        lastSeenLabel: formatRelativeSeen(terminal.last_seen_at ?? terminal.updated_at),
-        doorNames: [],
-      } satisfies KisiHardwareResource
-    }),
-  ]
-
-  const gatewayHardwareResources = gateways.flatMap((gateway) => {
-    const place = places.find((item) => item.id === gateway.building_id)
-    const doorNames = gatewayDoorNames(gateway, doorsByID, doorsByGatewayID)
-    const gatewayTone: KisiResourceTone = gateway.status === "online" ? "success" : "warning"
-    const gatewayRow: KisiHardwareResource = {
-      id: gateway.id,
-      placeId: gateway.building_id,
-      gatewayId: gateway.id,
-      name: gateway.serial_number,
-      type: "Gateway",
-      statusLabel: gateway.status === "online" ? "Online" : "Needs review",
-      tone: gatewayTone,
-      location: place?.name ?? "Unassigned place",
-      lastSeenLabel: formatRelativeSeen(gateway.last_seen_at),
-      doorNames,
-    }
-
-    const deviceRows = (gateway.devices ?? []).map((device) => {
-      const deviceTone: KisiResourceTone = device.status === "online" ? "success" : "warning"
-      return {
-        id: device.id,
-        placeId: gateway.building_id,
-        gatewayId: gateway.id,
-        name: device.serial_number,
-        type: deviceType(device),
-        statusLabel: device.status === "online" ? "Online" : "Needs review",
-        tone: deviceTone,
-        location: doorNames[0] ?? place?.name ?? "Unassigned place",
-        lastSeenLabel: formatRelativeSeen(device.last_seen_at),
-        doorNames,
-      } satisfies KisiHardwareResource
-    })
-
-    return [gatewayRow, ...deviceRows]
+  const hardwareResources = buildKisiHardwareFromReferenceResources({
+    controllers,
+    readers,
+    terminals,
+    gateways,
+    doors,
+    places,
+    useGatewayFallback,
   })
-  const hardwareResources =
-    referenceHardwareResources.length > 0 || (!isRejected(controllersResult) && !isRejected(readersResult) && !isRejected(terminalsResult))
-      ? referenceHardwareResources
-      : gatewayHardwareResources
 
   const referenceEventResources = eventSetEvents
     .map((event) => {
@@ -1488,10 +1646,13 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
         name: user.name || formatActor(user.email),
         email: user.email,
         role: productUserRoleLabel(user.role),
+        roleValue: user.role,
+        rawStatus: user.status,
         statusLabel: userStatusLabel(user.status),
         tone,
         accessDateLabel: formatDateLabel(user.created_at),
         sourceLabel: user.sync_source ? titleize(user.sync_source) : "Manual",
+        groupIds: user.group_ids ?? [],
       } satisfies KisiUserResource
     })
     .sort((left, right) => left.name.localeCompare(right.name))
@@ -1586,22 +1747,39 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
       const memberCount = group.members?.length ?? 0
       return {
         id: group.id,
+        tenantID: group.tenant_id,
         placeId: group.building_id && buildingIDs.has(group.building_id) ? group.building_id : "",
         name: group.name,
         kind: "User group",
         memberCount,
         targetLabel: memberCount > 0 ? formatCount(memberCount, "member") : "No members",
         description: group.description || "Directory or manually managed user group.",
+        loginEnabled: group.login_enabled ?? true,
+        geofenceRestrictionEnabled: Boolean(group.geofence_restriction_enabled),
+        geofenceRestrictionRadius: group.geofence_restriction_radius,
+        primaryDeviceRestrictionEnabled: Boolean(group.primary_device_restriction_enabled),
+        managedDeviceRestrictionEnabled: Boolean(group.managed_device_restriction_enabled),
+        readerRestrictionEnabled: Boolean(group.reader_restriction_enabled),
+        timeRestrictionEnabled: Boolean(group.time_restriction_enabled),
+        tapToAccessRestrictionEnabled: Boolean(group.tap_to_access_restriction_enabled),
+        timeRestrictionTimeZone: group.time_restriction_time_zone,
         statusLabel: "Enabled",
         tone: "success",
       } satisfies KisiGroupResource
     }),
     ...doorGroups.map((group) => {
-      const groupDoors = (group.door_ids ?? []).map((doorID) => doorsByID.get(doorID)).filter((door): door is Door => Boolean(door))
+      const relationDoorIDs = groupLocks.filter((lock) => lock.group_id === group.id).map((lock) => lock.lock_id)
+      const doorIDs = groupLocksResult.status === "fulfilled" ? relationDoorIDs : group.door_ids ?? []
+      const groupDoors = doorIDs.map((doorID) => doorsByID.get(doorID)).filter((door): door is Door => Boolean(door))
+      const relationZones = groupZones.filter((zone) => zone.group_id === group.id)
+      const fallbackZoneIDs = Array.from(new Set(groupDoors.map((door) => door.area_id).filter(Boolean)))
+      const zoneIDs = groupZonesResult.status === "fulfilled" ? relationZones.map((zone) => zone.zone_id) : fallbackZoneIDs
+      const zoneFloorIDs = groupZonesResult.status === "fulfilled" ? relationZones.map((zone) => zone.floor_id) : fallbackZoneIDs.map((zoneID) => areasByID.get(zoneID)?.floor_id ?? "").filter(Boolean)
       const placeIDs = Array.from(new Set(groupDoors.map((door) => door.building_id).filter(Boolean)))
       const placeId = placeIDs.length === 1 ? placeIDs[0] : ""
       return {
         id: group.id,
+        tenantID: group.tenant_id,
         placeId,
         name: group.name,
         kind: "Door group",
@@ -1611,6 +1789,9 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
           "No doors"
         ),
         description: placeId ? `${placesByID.get(placeId)?.name ?? "Place"} door group.` : "Door group spanning multiple places.",
+        doorIds: groupDoors.map((door) => door.id),
+        zoneIds: Array.from(new Set(zoneIDs)),
+        zoneFloorIds: Array.from(new Set(zoneFloorIDs)),
         statusLabel: groupDoors.length > 0 ? "Enabled" : "Review",
         tone: groupDoors.length > 0 ? "success" : "warning",
       } satisfies KisiGroupResource
@@ -1661,6 +1842,7 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
   return {
     places,
     floors: floorResources,
+    zones: zoneResources,
     doors: doorResources,
     hardware: hardwareResources,
     events: eventResources,
@@ -1675,13 +1857,15 @@ export async function loadKisiResourceSummary(token: string, viewer: CurrentUser
       isRejected(floorsResult) ||
       isRejected(areasResult) ||
       isRejected(doorsResult) ||
-      ((isRejected(controllersResult) || isRejected(readersResult) || isRejected(terminalsResult)) && isRejected(gatewaysResult)) ||
+      (useGatewayFallback && isRejected(gatewaysResult)) ||
       (isRejected(eventSetResult) && isRejected(eventsResult)) ||
       isRejected(usersResult) ||
       (isRejected(cardsResult) && isRejected(walletPassesResult)) ||
       isRejected(cardAssignmentsResult) ||
       isRejected(userGroupsResult) ||
       isRejected(doorGroupsResult) ||
+      isRejected(groupLocksResult) ||
+      isRejected(groupZonesResult) ||
       isRejected(teamsResult) ||
       isRejected(teamMembershipsResult) ||
       (isRejected(roleAssignmentsResult) && isRejected(accessPoliciesResult)) ||
@@ -1695,13 +1879,14 @@ export function selectKisiPlaceContext(summary: KisiResourceSummary, placeID?: s
   const place =
     summary.places.find((item) => item.id === requestedID) ??
     summary.places.find((item) => slugify(item.name) === requestedSlug) ??
-    summary.places[0] ??
+    (requestedID ? null : summary.places[0]) ??
     null
 
   if (!place) {
     return {
       place: null,
       floors: [],
+      zones: [],
       doors: [],
       hardware: [],
       events: [],
@@ -1716,6 +1901,7 @@ export function selectKisiPlaceContext(summary: KisiResourceSummary, placeID?: s
   return {
     place,
     floors: summary.floors.filter((floor) => floor.placeId === place.id),
+    zones: summary.zones.filter((zone) => zone.placeId === place.id),
     doors: summary.doors.filter((door) => door.placeId === place.id),
     hardware: summary.hardware.filter((item) => item.placeId === place.id),
     events: summary.events.filter((event) => event.placeId === place.id),

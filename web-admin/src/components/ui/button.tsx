@@ -9,17 +9,18 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default:
+          "bg-[#4f55ff] text-white shadow-[0_1px_2px_rgba(35,38,120,0.18)] hover:bg-[#454bea] active:bg-[#3f44d4] disabled:bg-[#eef0f4] disabled:text-[#8d909b] disabled:shadow-none disabled:opacity-100",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-[#d9dbe3] bg-white text-[#2f3037] hover:border-[#8589ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] aria-expanded:border-[#8589ff] aria-expanded:bg-[#f3f4ff] aria-expanded:text-[#3439cc] disabled:border-[#d9dbe3] disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-[#eef0f4] text-[#2f3037] hover:bg-[#e2e5ec] aria-expanded:bg-[#e2e5ec] aria-expanded:text-[#2f3037] disabled:bg-[#f1f2f5] disabled:text-[#8d909b] disabled:opacity-100",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "text-[#2f3037] hover:bg-[#f3f4ff] hover:text-[#3439cc] aria-expanded:bg-[#f3f4ff] aria-expanded:text-[#3439cc] disabled:bg-transparent disabled:text-[#8d909b] disabled:opacity-100",
         interaction:
-          "bg-transparent text-foreground hover:bg-transparent hover:text-interaction focus-visible:border-interaction focus-visible:ring-interaction/30 aria-expanded:text-interaction",
+          "bg-transparent text-foreground hover:bg-transparent hover:text-interaction focus-visible:border-interaction focus-visible:ring-interaction/30 aria-expanded:text-interaction disabled:text-[#8d909b] disabled:opacity-100",
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+          "bg-[#fff5f5] text-[#bd2f2f] hover:bg-[#ffe8e8] hover:text-[#9f1d1d] focus-visible:border-[#d45b5b] focus-visible:ring-[#d45b5b]/20 disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -43,20 +44,18 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean
+    }
+>(function Button({ className, variant = "default", size = "default", asChild = false, ...props }, ref) {
   const Comp = asChild ? Slot.Root : "button"
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -64,6 +63,6 @@ function Button({
       {...props}
     />
   )
-}
+})
 
 export { Button, buttonVariants }

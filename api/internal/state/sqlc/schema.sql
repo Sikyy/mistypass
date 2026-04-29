@@ -142,10 +142,12 @@ create table if not exists mistypass_door_groups (
 
 create table if not exists mistypass_auth_users (
   id text primary key,
+  name text not null default '',
   email text not null,
   role text not null,
   tenant_id text not null default '',
   building_ids jsonb not null default '[]'::jsonb,
+  language text not null default '',
   password_hash bytea,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

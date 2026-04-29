@@ -239,10 +239,12 @@ func (s *PostgresStore) UpsertAuthUser(user auth.User, passwordHash []byte) erro
 	defer cancel()
 	return s.queries.UpsertAuthUser(ctx, sqlcgen.UpsertAuthUserParams{
 		ID:           nextUser.ID,
+		Name:         nextUser.Name,
 		Email:        nextUser.Email,
 		Role:         nextUser.Role,
 		TenantID:     nextUser.TenantID,
 		BuildingIds:  buildingIDsJSON,
+		Language:     nextUser.Language,
 		PasswordHash: cloneBytes(passwordHash),
 	})
 }
@@ -267,9 +269,11 @@ func (s *PostgresStore) FindAuthUserByEmail(email string) (auth.User, []byte, bo
 	}
 	user := auth.User{
 		ID:       row.ID,
+		Name:     row.Name,
 		Email:    row.Email,
 		Role:     row.Role,
 		TenantID: row.TenantID,
+		Language: row.Language,
 	}
 	buildingIDsRaw := []byte(row.BuildingIds)
 	user.BuildingIDs, err = decodeAuthBuildingIDs(buildingIDsRaw)
@@ -303,9 +307,11 @@ func (s *PostgresStore) FindAuthUserByID(userID string) (auth.User, []byte, bool
 	}
 	user := auth.User{
 		ID:       row.ID,
+		Name:     row.Name,
 		Email:    row.Email,
 		Role:     row.Role,
 		TenantID: row.TenantID,
+		Language: row.Language,
 	}
 	buildingIDsRaw := []byte(row.BuildingIds)
 	user.BuildingIDs, err = decodeAuthBuildingIDs(buildingIDsRaw)
@@ -832,14 +838,18 @@ create index if not exists mistypass_gateway_device_tokens_updated_idx on mistyp
 
 create table if not exists mistypass_auth_users (
   id text primary key,
+  name text not null default '',
   email text not null,
   role text not null,
   tenant_id text not null default '',
   building_ids jsonb not null default '[]'::jsonb,
+  language text not null default '',
   password_hash bytea,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+alter table if exists mistypass_auth_users add column if not exists name text not null default '';
+alter table if exists mistypass_auth_users add column if not exists language text not null default '';
 create unique index if not exists mistypass_auth_users_email_idx on mistypass_auth_users(lower(email));
 create index if not exists mistypass_auth_users_updated_idx on mistypass_auth_users(updated_at desc);
 
@@ -1152,10 +1162,12 @@ func gatewayDeviceTokenHash(deviceToken string) string {
 func normalizeAuthUser(user auth.User) (auth.User, bool) {
 	nextUser := auth.User{
 		ID:          strings.TrimSpace(user.ID),
+		Name:        strings.TrimSpace(user.Name),
 		Email:       normalizeAuthEmail(user.Email),
 		Role:        strings.ToLower(strings.TrimSpace(user.Role)),
 		TenantID:    strings.TrimSpace(user.TenantID),
 		BuildingIDs: normalizeAuthIDs(user.BuildingIDs),
+		Language:    normalizeAuthLanguage(user.Language),
 	}
 	if nextUser.ID == "" || nextUser.Email == "" || nextUser.Role == "" {
 		return auth.User{}, false
@@ -1165,6 +1177,16 @@ func normalizeAuthUser(user auth.User) (auth.User, bool) {
 
 func normalizeAuthEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func normalizeAuthLanguage(language string) string {
+	nextLanguage := strings.TrimSpace(language)
+	switch nextLanguage {
+	case "en-US", "id-ID", "zh-CN":
+		return nextLanguage
+	default:
+		return ""
+	}
 }
 
 func normalizeAuthIDs(values []string) []string {

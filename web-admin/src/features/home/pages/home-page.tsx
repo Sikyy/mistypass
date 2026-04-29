@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { KisiAdminShell } from "@/features/kisi-shell/kisi-admin-shell"
 import { formatKisiRoleLabel, parsePlaceRoute, placePath } from "@/features/kisi-shell/navigation"
-import { renderAdaptedPage } from "@/features/kisi-shell/preview-routes"
+import { KisiConsoleRoutes } from "@/features/kisi-shell/routes"
 import {
   listAccessEvents,
   listAlarms,
@@ -44,6 +44,7 @@ import {
 type HomePageProps = {
   token: string
   viewer: CurrentUser
+  onViewerChange: (viewer: CurrentUser) => void
   onLogout: () => void
 }
 
@@ -260,7 +261,7 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
   )
 }
 
-export function HomePage({ token, viewer, onLogout }: HomePageProps) {
+export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePageProps) {
   const personName = formatPersonName(viewer.email)
   const scopeName = formatScopeName(viewer)
   const summaryQuery = useQuery({
@@ -374,7 +375,7 @@ export function HomePage({ token, viewer, onLogout }: HomePageProps) {
                     "h-10 rounded-[6px] px-4",
                     action.primary
                       ? "border-[#4f55ff] bg-[#4f55ff] text-white hover:bg-[#454bea]"
-                      : "border-[#d9dbe3] bg-white text-[#4f55ff] hover:bg-[#fbfbfc]"
+                      : "border-[#d9dbe3] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
                   )}
                 >
                   <Link to={action.to}>
@@ -396,7 +397,13 @@ export function HomePage({ token, viewer, onLogout }: HomePageProps) {
 
   return (
     <KisiAdminShell viewer={viewer} onLogout={onLogout}>
-      {renderAdaptedPage({ pathname: location.pathname, homeContent, token, viewer, onLogout })}
+      <KisiConsoleRoutes
+        homeContent={homeContent}
+        token={token}
+        viewer={viewer}
+        onViewerChange={onViewerChange}
+        onLogout={onLogout}
+      />
     </KisiAdminShell>
   )
 }

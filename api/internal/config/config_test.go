@@ -30,6 +30,74 @@ func TestFromEnvDemoUsersCanBeOverridden(t *testing.T) {
 	}
 }
 
+func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
+	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "")
+	t.Setenv("USER_INVITATION_EMAIL_FROM", "")
+	t.Setenv("USER_INVITATION_RESEND_ENDPOINT", "")
+	t.Setenv("USER_INVITATION_RESEND_API_KEY", "")
+	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "")
+	t.Setenv("USER_INVITATION_PROVIDER_WEBHOOK_SECRET", "")
+
+	cfg := FromEnv()
+	if cfg.UserInvitationEmailProvider != "queue" {
+		t.Fatalf("default invitation provider mismatch: got %s", cfg.UserInvitationEmailProvider)
+	}
+	if cfg.UserInvitationEmailFrom != "no-reply@mistypass.local" {
+		t.Fatalf("default invitation from mismatch: got %s", cfg.UserInvitationEmailFrom)
+	}
+	if cfg.UserInvitationResendTimeout != 5*time.Second {
+		t.Fatalf("default invitation resend timeout mismatch: got %s", cfg.UserInvitationResendTimeout)
+	}
+	if cfg.UserInvitationProviderWebhookSecret != "" {
+		t.Fatalf("default invitation webhook secret mismatch: got %s", cfg.UserInvitationProviderWebhookSecret)
+	}
+
+	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "resend")
+	t.Setenv("USER_INVITATION_EMAIL_FROM", "invites@mistypass.local")
+	t.Setenv("USER_INVITATION_RESEND_ENDPOINT", "https://api.resend.com/emails")
+	t.Setenv("USER_INVITATION_RESEND_API_KEY", "re_invite_token")
+	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "9s")
+	t.Setenv("USER_INVITATION_PROVIDER_WEBHOOK_SECRET", "invite-webhook-secret")
+
+	cfg = FromEnv()
+	if cfg.UserInvitationEmailProvider != "resend" {
+		t.Fatalf("override invitation provider mismatch: got %s", cfg.UserInvitationEmailProvider)
+	}
+	if cfg.UserInvitationEmailFrom != "invites@mistypass.local" {
+		t.Fatalf("override invitation from mismatch: got %s", cfg.UserInvitationEmailFrom)
+	}
+	if cfg.UserInvitationResendEndpoint != "https://api.resend.com/emails" {
+		t.Fatalf("override invitation resend endpoint mismatch: got %s", cfg.UserInvitationResendEndpoint)
+	}
+	if cfg.UserInvitationResendAPIKey != "re_invite_token" {
+		t.Fatalf("override invitation resend api key mismatch: got %s", cfg.UserInvitationResendAPIKey)
+	}
+	if cfg.UserInvitationResendTimeout != 9*time.Second {
+		t.Fatalf("override invitation resend timeout mismatch: got %s", cfg.UserInvitationResendTimeout)
+	}
+	if cfg.UserInvitationProviderWebhookSecret != "invite-webhook-secret" {
+		t.Fatalf("override invitation webhook secret mismatch: got %s", cfg.UserInvitationProviderWebhookSecret)
+	}
+
+	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "invalid-provider")
+	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "500ms")
+	cfg = FromEnv()
+	if cfg.UserInvitationEmailProvider != "queue" {
+		t.Fatalf("invalid invitation provider should fallback to queue, got %s", cfg.UserInvitationEmailProvider)
+	}
+	if cfg.UserInvitationResendTimeout != 5*time.Second {
+		t.Fatalf("sub-second invitation resend timeout should fallback, got %s", cfg.UserInvitationResendTimeout)
+	}
+}
+
+func TestFromEnvCORSOriginDefaultAllowsLocalDevelopmentHosts(t *testing.T) {
+	t.Setenv("CORS_ORIGIN", "")
+	cfg := FromEnv()
+	if cfg.CORSOrigin != "http://localhost:5173,http://127.0.0.1:5173" {
+		t.Fatalf("unexpected CORS origin default: %q", cfg.CORSOrigin)
+	}
+}
+
 func TestConfigValidateRequiresJWTSecretInProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "")

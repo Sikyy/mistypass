@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useEffect, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircleIcon,
   BarChart3Icon,
@@ -8,11 +8,14 @@ import {
   CloudIcon,
   CreditCardIcon,
   KeyRoundIcon,
+  PlusIcon,
   ServerIcon,
   ShieldCheckIcon,
+  Trash2Icon,
   UsersIcon,
 } from "lucide-react"
 
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/kisi/actions"
 import {
   FormField,
   PageFrame,
@@ -22,11 +25,61 @@ import {
   ToggleSwitch,
 } from "@/components/kisi/primitives"
 import { Button } from "@/components/ui/button"
-import { listIntegrations, type CurrentUser, type Integration } from "@/lib/api"
+import {
+  createAlertPolicy,
+  createIntegration,
+  deleteAlertPolicy,
+  deleteIntegration,
+  getIntegration,
+  listAlertPolicies,
+  listIntegrations,
+  previewAlertPolicyCondition,
+  updateIntegration,
+  updateAlertPolicy,
+  type AlertPolicy,
+  type CurrentUser,
+  type Integration,
+} from "@/lib/api"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { getViewerTenantID, isPlatformViewer } from "@/lib/viewer"
 
 type IntegrationRow = [string, string, string, "success" | "warning" | "info"]
+type AlertPolicyRow = [string, string, string, "success" | "warning" | "info"]
+type AlertPolicyCategory = "enterprise_sync_worker" | "wallet_jobs" | "custom"
+type IntegrationDraft = {
+  tenant_id: string
+  type: "identity_provider" | "hris"
+  provider: string
+  status: string
+  sync_mode: string
+  credential_ref: string
+  webhook_secret_ref: string
+  issuer_url: string
+  client_id: string
+  auth_url: string
+}
+type AlertPolicyDraft = {
+  name: string
+  description: string
+  trigger: string
+  severity: string
+  condition_expression: string
+  enabled: boolean
+  threshold: string
+  window_seconds: string
+  cooldown_seconds: string
+  email: boolean
+  whatsapp: boolean
+  receiver_groups: string
+}
 
 function integrationStatus(integration: Integration): IntegrationRow[3] {
   if (!integration.configured || integration.status === "inactive" || integration.status === "pending") {
@@ -49,6 +102,15 @@ function integrationStatusLabel(integration: Integration) {
 }
 
 function liveIntegrationRows(integrations: Integration[], activeTab: string, isSsoScim: boolean): IntegrationRow[] {
+  return visibleIntegrationsForTab(integrations, activeTab, isSsoScim).map((integration) => [
+    integration.name,
+    integrationStatusLabel(integration),
+    integration.description,
+    integrationStatus(integration),
+  ])
+}
+
+function visibleIntegrationsForTab(integrations: Integration[], activeTab: string, isSsoScim: boolean): Integration[] {
   const visible = integrations.filter((integration) => {
     if (isSsoScim) {
       return integration.type === "identity_provider"
@@ -68,12 +130,171 @@ function liveIntegrationRows(integrations: Integration[], activeTab: string, isS
     return false
   })
 
-  return visible.map((integration) => [
-    integration.name,
-    integrationStatusLabel(integration),
-    integration.description,
-    integrationStatus(integration),
-  ])
+  return visible
+}
+
+function defaultIntegrationDraft(tenantID: string): IntegrationDraft {
+  return {
+    tenant_id: tenantID,
+    type: "hris",
+    provider: "talenta",
+    status: "active",
+    sync_mode: "hybrid",
+    credential_ref: "",
+    webhook_secret_ref: "",
+    issuer_url: "",
+    client_id: "",
+    auth_url: "",
+  }
+}
+
+function integrationDraftFromIntegration(integration: Integration, tenantID: string): IntegrationDraft {
+  return {
+    ...defaultIntegrationDraft(tenantID || integration.tenant_id),
+    tenant_id: integration.tenant_id || tenantID,
+    type: integration.type === "identity_provider" ? "identity_provider" : "hris",
+    provider: integration.provider,
+    status: integration.status,
+    sync_mode: integration.sync_mode || (integration.type === "identity_provider" ? "jit" : "hybrid"),
+  }
+}
+
+function formatPolicySeconds(seconds: number) {
+  if (seconds >= 3600 && seconds % 3600 === 0) {
+    return `${seconds / 3600}h`
+  }
+  if (seconds >= 60 && seconds % 60 === 0) {
+    return `${seconds / 60}m`
+  }
+  return `${seconds}s`
+}
+
+function alertPolicyStatusLabel(policy: AlertPolicy) {
+  return policy.enabled && policy.status === "active" ? "Enabled" : "Review"
+}
+
+function alertPolicyTone(policy: AlertPolicy): AlertPolicyRow[3] {
+  return policy.enabled && policy.status === "active" ? "success" : "warning"
+}
+
+function liveAlertPolicyRows(policies: AlertPolicy[], activeTab: string): AlertPolicyRow[] {
+  return policies.map((policy) => {
+    if (activeTab === "Notifications") {
+      const channels = [
+        policy.channels.email ? "Email" : "",
+        policy.channels.whatsapp ? "WhatsApp" : "",
+      ].filter(Boolean)
+      const receivers = policy.receiver_groups?.length ? policy.receiver_groups.join(", ") : "security"
+      return [
+        `${policy.name} notifications`,
+        alertPolicyStatusLabel(policy),
+        `${channels.length > 0 ? channels.join(" + ") : "No channels"} to ${receivers}`,
+        alertPolicyTone(policy),
+      ]
+    }
+    if (activeTab === "Escalation") {
+      return [
+        `${policy.name} escalation`,
+        alertPolicyStatusLabel(policy),
+        `Threshold ${policy.threshold}; cooldown ${formatPolicySeconds(policy.cooldown_seconds)} after each dispatch`,
+        alertPolicyTone(policy),
+      ]
+    }
+    return [
+      policy.name,
+      alertPolicyStatusLabel(policy),
+      `${policy.description} Trigger ${policy.trigger}; window ${formatPolicySeconds(policy.window_seconds)}.`,
+      alertPolicyTone(policy),
+    ]
+  })
+}
+
+function receiverGroupsText(policy: AlertPolicy) {
+  return policy.receiver_groups?.length ? policy.receiver_groups.join(", ") : "security"
+}
+
+function alertPolicyDraftFromPolicy(policy: AlertPolicy): AlertPolicyDraft {
+  return {
+    name: policy.name,
+    description: policy.description,
+    trigger: policy.trigger,
+    severity: policy.severity,
+    condition_expression: policy.condition_expression ?? "",
+    enabled: policy.enabled,
+    threshold: String(policy.threshold),
+    window_seconds: String(policy.window_seconds),
+    cooldown_seconds: String(policy.cooldown_seconds),
+    email: policy.channels.email,
+    whatsapp: policy.channels.whatsapp,
+    receiver_groups: receiverGroupsText(policy),
+  }
+}
+
+function defaultAlertPolicyDraft(category: AlertPolicyCategory): AlertPolicyDraft {
+  const isCustom = category === "custom"
+  return {
+    name: isCustom ? "After-hours access review" : "",
+    description: isCustom ? "Escalate access events that match a custom condition." : "",
+    trigger: isCustom ? "access_denied_after_hours" : category === "wallet_jobs" ? "wallet_job_dlq_threshold" : "worker_failure_threshold",
+    severity: isCustom ? "high" : "high",
+    condition_expression: isCustom ? "event.type == 'access_denied' && event.hour >= 18" : "",
+    enabled: true,
+    threshold: category === "wallet_jobs" ? "20" : "3",
+    window_seconds: "900",
+    cooldown_seconds: "900",
+    email: true,
+    whatsapp: false,
+    receiver_groups: "security",
+  }
+}
+
+function splitReceiverGroups(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function parseAlertPolicyInteger(value: string, label: string, min: number) {
+  const normalized = value.trim()
+  const parsed = Number.parseInt(normalized, 10)
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(`${label} must be ${min === 0 ? "0 or greater" : "1 or greater"}`)
+  }
+  if (!Number.isFinite(parsed) || parsed < min) {
+    throw new Error(`${label} must be ${min === 0 ? "0 or greater" : "1 or greater"}`)
+  }
+  return parsed
+}
+
+function isAlertPolicyDraftDirty(policy: AlertPolicy, draft: AlertPolicyDraft | undefined) {
+  if (!draft) {
+    return false
+  }
+  const currentReceiverGroups = policy.receiver_groups?.length ? policy.receiver_groups : ["security"]
+  return (
+    draft.enabled !== policy.enabled ||
+    draft.threshold.trim() !== String(policy.threshold) ||
+    draft.window_seconds.trim() !== String(policy.window_seconds) ||
+    draft.cooldown_seconds.trim() !== String(policy.cooldown_seconds) ||
+    draft.email !== policy.channels.email ||
+    draft.whatsapp !== policy.channels.whatsapp ||
+    splitReceiverGroups(draft.receiver_groups).join(",") !== currentReceiverGroups.join(",") ||
+    (policy.category === "custom" &&
+      (draft.name.trim() !== policy.name ||
+        draft.description.trim() !== policy.description ||
+        draft.trigger.trim() !== policy.trigger ||
+        draft.severity.trim() !== policy.severity ||
+        draft.condition_expression.trim() !== (policy.condition_expression ?? "")))
+  )
+}
+
+function alertPolicyDraftStatusLabel(draft: AlertPolicyDraft) {
+  return draft.enabled ? "Enabled" : "Review"
+}
+
+function alertPolicyDraftTone(draft: AlertPolicyDraft): AlertPolicyRow[3] {
+  return draft.enabled ? "success" : "warning"
 }
 
 export function OrganizationSetupAdaptedPage({
@@ -85,6 +306,7 @@ export function OrganizationSetupAdaptedPage({
   token: string
   viewer: CurrentUser
 }) {
+  const queryClient = useQueryClient()
   const normalized = title.toLowerCase()
   const isCreatePlace = normalized.includes("create")
   const isAlertPolicies = normalized.includes("alert")
@@ -104,32 +326,294 @@ export function OrganizationSetupAdaptedPage({
             ? ["General", "Floors", "Doors", "Hardware"]
             : ["General", "Communication", "Security", "Advanced"]
   const [activeTab, setActiveTab] = useState(tabs[0])
+  const [alertPolicyDrafts, setAlertPolicyDrafts] = useState<Record<string, AlertPolicyDraft>>({})
+  const [alertPolicyError, setAlertPolicyError] = useState("")
+  const [createAlertPolicyOpen, setCreateAlertPolicyOpen] = useState(false)
+  const [createAlertPolicyTenantID, setCreateAlertPolicyTenantID] = useState("")
+  const [createAlertPolicyCategory, setCreateAlertPolicyCategory] = useState<AlertPolicyCategory>("enterprise_sync_worker")
+  const [createAlertPolicyDraft, setCreateAlertPolicyDraft] = useState<AlertPolicyDraft>(() => defaultAlertPolicyDraft("enterprise_sync_worker"))
+  const [alertPolicyConditionPreview, setAlertPolicyConditionPreview] = useState<{ matched: boolean; condition_expression: string } | null>(null)
+  const [deleteAlertPolicyTarget, setDeleteAlertPolicyTarget] = useState<AlertPolicy | null>(null)
   const tenantID = isPlatformViewer(viewer) ? undefined : getViewerTenantID(viewer)
+  const defaultIntegrationTenantID = tenantID || getViewerTenantID(viewer)
+  const [integrationSheetOpen, setIntegrationSheetOpen] = useState(false)
+  const [editingIntegrationID, setEditingIntegrationID] = useState("")
+  const [integrationDraft, setIntegrationDraft] = useState<IntegrationDraft>(() => defaultIntegrationDraft(defaultIntegrationTenantID))
+  const [integrationError, setIntegrationError] = useState("")
+  const [deleteIntegrationTarget, setDeleteIntegrationTarget] = useState<Integration | null>(null)
   const integrationsQuery = useQuery({
     queryKey: ["reference-integrations", viewer.id, viewer.role, tenantID ?? "platform"],
     queryFn: () => listIntegrations(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
     enabled: isIntegrations || isSsoScim,
     staleTime: 30 * 1000,
   })
+  const integrationDetailQuery = useQuery({
+    queryKey: ["reference-integration-detail", editingIntegrationID, tenantID ?? defaultIntegrationTenantID],
+    queryFn: () => getIntegration(token, editingIntegrationID, tenantID || defaultIntegrationTenantID),
+    enabled: Boolean((isIntegrations || isSsoScim) && integrationSheetOpen && editingIntegrationID),
+  })
+  const alertPoliciesQuery = useQuery({
+    queryKey: ["reference-alert-policies", viewer.id, viewer.role, tenantID ?? "platform"],
+    queryFn: () => listAlertPolicies(token, tenantID ? { tenant_id: tenantID, sort: "name" } : { sort: "name" }),
+    enabled: isAlertPolicies,
+    staleTime: 30 * 1000,
+  })
+  const liveAlertPolicies = alertPoliciesQuery.data ?? []
+  const defaultAlertPolicyTenantID = tenantID || liveAlertPolicies[0]?.tenant_id || getViewerTenantID(viewer)
 
-  const alertRows =
+  useEffect(() => {
+    if (!isAlertPolicies) {
+      return
+    }
+    const nextDrafts = Object.fromEntries((alertPoliciesQuery.data ?? []).map((policy) => [policy.id, alertPolicyDraftFromPolicy(policy)]))
+    setAlertPolicyDrafts(nextDrafts)
+  }, [isAlertPolicies, alertPoliciesQuery.data])
+
+  useEffect(() => {
+    if (!integrationSheetOpen || !editingIntegrationID || !integrationDetailQuery.data) {
+      return
+    }
+    setIntegrationDraft(integrationDraftFromIntegration(integrationDetailQuery.data, defaultIntegrationTenantID))
+  }, [defaultIntegrationTenantID, editingIntegrationID, integrationDetailQuery.data, integrationSheetOpen])
+
+  function updateAlertPolicyDraft(policyID: string, patch: Partial<AlertPolicyDraft>) {
+    setAlertPolicyDrafts((current) => ({
+      ...current,
+      [policyID]: {
+        ...(current[policyID] ?? {
+          name: "",
+          description: "",
+          trigger: "",
+          severity: "high",
+          condition_expression: "",
+          enabled: false,
+          threshold: "",
+          window_seconds: "",
+          cooldown_seconds: "",
+          email: false,
+          whatsapp: false,
+          receiver_groups: "",
+        }),
+        ...patch,
+      },
+    }))
+  }
+
+  function updateIntegrationDraft(patch: Partial<IntegrationDraft>) {
+    setIntegrationDraft((current) => ({ ...current, ...patch }))
+  }
+
+  function openCreateIntegrationSheet() {
+    setEditingIntegrationID("")
+    setIntegrationDraft(defaultIntegrationDraft(defaultIntegrationTenantID))
+    setIntegrationError("")
+    setIntegrationSheetOpen(true)
+  }
+
+  function openEditIntegrationSheet(integration: Integration) {
+    setEditingIntegrationID(integration.id)
+    setIntegrationDraft(integrationDraftFromIntegration(integration, defaultIntegrationTenantID))
+    setIntegrationError("")
+    setIntegrationSheetOpen(true)
+  }
+
+  const alertPoliciesDirty = liveAlertPolicies.some((policy) => isAlertPolicyDraftDirty(policy, alertPolicyDrafts[policy.id]))
+  const saveAlertPoliciesMutation = useMutation({
+    mutationFn: async () => {
+      const dirtyPolicies = liveAlertPolicies.filter((policy) => isAlertPolicyDraftDirty(policy, alertPolicyDrafts[policy.id]))
+      return Promise.all(
+        dirtyPolicies.map((policy) => {
+          const draft = alertPolicyDrafts[policy.id] ?? alertPolicyDraftFromPolicy(policy)
+          if (draft.enabled && !draft.email && !draft.whatsapp) {
+            throw new Error(`${policy.name} needs at least one notification channel`)
+          }
+          return updateAlertPolicy(token, policy.id, {
+            tenant_id: policy.tenant_id,
+            name: policy.category === "custom" ? draft.name.trim() : undefined,
+            description: policy.category === "custom" ? draft.description.trim() : undefined,
+            trigger: policy.category === "custom" ? draft.trigger.trim() : undefined,
+            severity: policy.category === "custom" ? draft.severity.trim() : undefined,
+            condition_expression: policy.category === "custom" ? draft.condition_expression.trim() : undefined,
+            enabled: draft.enabled,
+            threshold: parseAlertPolicyInteger(draft.threshold, "Threshold", 1),
+            window_seconds: parseAlertPolicyInteger(draft.window_seconds, "Window seconds", 1),
+            cooldown_seconds: parseAlertPolicyInteger(draft.cooldown_seconds, "Cooldown seconds", 0),
+            channels: {
+              email: draft.email,
+              whatsapp: draft.whatsapp,
+            },
+            receiver_groups: splitReceiverGroups(draft.receiver_groups),
+            actor: viewer.email,
+          })
+        })
+      )
+    },
+    onSuccess: async () => {
+      setAlertPolicyError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
+    },
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy update failed"),
+  })
+
+  const createAlertPolicyMutation = useMutation({
+    mutationFn: () => {
+      const nextTenantID = createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID
+      if (!nextTenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (createAlertPolicyDraft.enabled && !createAlertPolicyDraft.email && !createAlertPolicyDraft.whatsapp) {
+        throw new Error("Alert policy needs at least one notification channel")
+      }
+      if (createAlertPolicyCategory === "custom" && !createAlertPolicyDraft.trigger.trim()) {
+        throw new Error("Custom policy trigger is required")
+      }
+      return createAlertPolicy(token, {
+        tenant_id: nextTenantID,
+        category: createAlertPolicyCategory,
+        name: createAlertPolicyCategory === "custom" ? createAlertPolicyDraft.name.trim() : undefined,
+        description: createAlertPolicyCategory === "custom" ? createAlertPolicyDraft.description.trim() : undefined,
+        trigger: createAlertPolicyDraft.trigger.trim() || undefined,
+        severity: createAlertPolicyDraft.severity.trim() || undefined,
+        condition_expression: createAlertPolicyCategory === "custom" ? createAlertPolicyDraft.condition_expression.trim() : undefined,
+        enabled: createAlertPolicyDraft.enabled,
+        threshold: parseAlertPolicyInteger(createAlertPolicyDraft.threshold, "Threshold", 1),
+        window_seconds: parseAlertPolicyInteger(createAlertPolicyDraft.window_seconds, "Window seconds", 1),
+        cooldown_seconds: parseAlertPolicyInteger(createAlertPolicyDraft.cooldown_seconds, "Cooldown seconds", 0),
+        channels: {
+          email: createAlertPolicyDraft.email,
+          whatsapp: createAlertPolicyDraft.whatsapp,
+        },
+        receiver_groups: splitReceiverGroups(createAlertPolicyDraft.receiver_groups),
+        actor: viewer.email,
+      })
+    },
+    onSuccess: async () => {
+      setCreateAlertPolicyOpen(false)
+      setCreateAlertPolicyTenantID("")
+      setCreateAlertPolicyCategory("enterprise_sync_worker")
+      setCreateAlertPolicyDraft(defaultAlertPolicyDraft("enterprise_sync_worker"))
+      setAlertPolicyError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
+    },
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy create failed"),
+  })
+
+  const previewAlertPolicyConditionMutation = useMutation({
+    mutationFn: () => {
+      const nextTenantID = createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID
+      if (!nextTenantID) {
+        throw new Error("Tenant ID is required")
+      }
+      if (createAlertPolicyCategory !== "custom" || !createAlertPolicyDraft.condition_expression.trim()) {
+        throw new Error("Condition expression is required")
+      }
+      return previewAlertPolicyCondition(token, {
+        tenant_id: nextTenantID,
+        condition_expression: createAlertPolicyDraft.condition_expression.trim(),
+        event: {
+          type: "access_denied",
+          result: "denied",
+          hour: 20,
+          trigger: createAlertPolicyDraft.trigger.trim() || "access_denied_after_hours",
+          source: "preview",
+        },
+      })
+    },
+    onSuccess: (preview) => {
+      setAlertPolicyConditionPreview({
+        matched: preview.matched,
+        condition_expression: preview.condition_expression,
+      })
+      setAlertPolicyError("")
+    },
+    onError: (error) => {
+      setAlertPolicyConditionPreview(null)
+      setAlertPolicyError(error instanceof Error ? error.message : "Condition preview failed")
+    },
+  })
+
+  const deleteAlertPolicyMutation = useMutation({
+    mutationFn: (policyID: string) => deleteAlertPolicy(token, policyID),
+    onSuccess: async () => {
+      setDeleteAlertPolicyTarget(null)
+      setAlertPolicyError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-alert-policies"] })
+    },
+    onError: (error) => setAlertPolicyError(error instanceof Error ? error.message : "Alert policy delete failed"),
+  })
+
+  const saveIntegrationMutation = useMutation({
+    mutationFn: () => {
+      const nextTenantID = integrationDraft.tenant_id.trim() || defaultIntegrationTenantID
+      if (!nextTenantID) {
+        throw new Error("tenant_id is required")
+      }
+      if (!integrationDraft.provider.trim()) {
+        throw new Error("provider is required")
+      }
+      if (integrationDraft.type === "identity_provider" && (!integrationDraft.issuer_url.trim() || !integrationDraft.client_id.trim()) && !editingIntegrationID) {
+        throw new Error("issuer_url and client_id are required")
+      }
+      const payload = {
+        tenant_id: nextTenantID,
+        type: integrationDraft.type,
+        provider: integrationDraft.provider.trim(),
+        status: integrationDraft.status.trim() || "active",
+        sync_mode: integrationDraft.sync_mode.trim(),
+        credential_ref: integrationDraft.credential_ref.trim() || undefined,
+        webhook_secret_ref: integrationDraft.webhook_secret_ref.trim() || undefined,
+        issuer_url: integrationDraft.issuer_url.trim() || undefined,
+        client_id: integrationDraft.client_id.trim() || undefined,
+        auth_url: integrationDraft.auth_url.trim() || undefined,
+        actor: viewer.email,
+      }
+      return editingIntegrationID
+        ? updateIntegration(token, editingIntegrationID, payload)
+        : createIntegration(token, payload)
+    },
+    onSuccess: async () => {
+      setIntegrationSheetOpen(false)
+      setEditingIntegrationID("")
+      setIntegrationDraft(defaultIntegrationDraft(defaultIntegrationTenantID))
+      setIntegrationError("")
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["reference-integrations"] }),
+        queryClient.invalidateQueries({ queryKey: ["reference-integration-detail"] }),
+      ])
+    },
+    onError: (error) => setIntegrationError(error instanceof Error ? error.message : "Integration save failed"),
+  })
+
+  const deleteIntegrationMutation = useMutation({
+    mutationFn: (integration: Integration) => deleteIntegration(token, integration.id, integration.tenant_id),
+    onSuccess: async () => {
+      setDeleteIntegrationTarget(null)
+      setIntegrationError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-integrations"] })
+    },
+    onError: (error) => setIntegrationError(error instanceof Error ? error.message : "Integration disable failed"),
+  })
+
+  const fallbackAlertRows: AlertPolicyRow[] =
     activeTab === "Notifications"
       ? [
-          ["Security channel", "Enabled", "Send high severity events to #security-ops"],
-          ["Place admin email", "Enabled", "Email assigned Place Admins for place-scoped alerts"],
-          ["Weekly digest", "Review", "Summarize non-urgent access trends every Monday"],
+          ["Security channel", "Enabled", "Send high severity events to #security-ops", "success"],
+          ["Place admin email", "Enabled", "Email assigned Place Admins for place-scoped alerts", "success"],
+          ["Weekly digest", "Review", "Summarize non-urgent access trends every Monday", "warning"],
         ]
       : activeTab === "Escalation"
         ? [
-            ["Door forced open", "Enabled", "Escalate after 2 minutes without acknowledgement"],
-            ["Gateway offline", "Enabled", "Escalate to hardware owner after 10 minutes"],
-            ["Repeated access denied", "Review", "Escalate after 3 denied attempts in 10 minutes"],
+            ["Door forced open", "Enabled", "Escalate after 2 minutes without acknowledgement", "success"],
+            ["Gateway offline", "Enabled", "Escalate to hardware owner after 10 minutes", "success"],
+            ["Repeated access denied", "Review", "Escalate after 3 denied attempts in 10 minutes", "warning"],
           ]
         : [
-            ["Door forced open", "Enabled", "High severity, notify security team immediately"],
-            ["Gateway offline", "Enabled", "Notify place admins after 5 minutes"],
-            ["Repeated access denied", "Review", "Create review item after threshold is met"],
+            ["Door forced open", "Enabled", "High severity, notify security team immediately", "success"],
+            ["Gateway offline", "Enabled", "Notify place admins after 5 minutes", "success"],
+            ["Repeated access denied", "Review", "Create review item after threshold is met", "warning"],
           ]
+  const liveAlertRows = liveAlertPolicyRows(alertPoliciesQuery.data ?? [], activeTab)
+  const alertRows = liveAlertRows.length > 0 ? liveAlertRows : fallbackAlertRows
   const fallbackIntegrationRows: IntegrationRow[] =
     activeTab === "Webhooks"
       ? [
@@ -156,6 +640,7 @@ export function OrganizationSetupAdaptedPage({
               ["Webhook", "Connected", "Door, credential, and alarm event delivery", "success"],
               ["MQTT", "Available", "Gateway event stream for device integrations", "info"],
             ]
+  const visibleIntegrations = visibleIntegrationsForTab(integrationsQuery.data ?? [], activeTab, isSsoScim)
   const liveRows = liveIntegrationRows(integrationsQuery.data ?? [], activeTab, isSsoScim)
   const integrationRows = liveRows.length > 0 ? liveRows : fallbackIntegrationRows
   const billingRows = [
@@ -175,8 +660,27 @@ export function OrganizationSetupAdaptedPage({
         active={activeTab}
         onTabChange={setActiveTab}
         footer={
-          <Button className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea]">
-            {isCreatePlace ? "Create Place" : "Save Changes"}
+          <Button
+            type="button"
+            disabled={
+              isAlertPolicies
+                ? !alertPoliciesDirty || liveAlertPolicies.length === 0 || saveAlertPoliciesMutation.isPending
+                : false
+            }
+            onClick={() => {
+              if (isAlertPolicies) {
+                saveAlertPoliciesMutation.mutate()
+              }
+            }}
+            className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+          >
+            {isCreatePlace
+              ? "Create Place"
+              : isAlertPolicies
+                ? saveAlertPoliciesMutation.isPending
+                  ? "Saving..."
+                  : "Save Policies"
+                : "Save Changes"}
           </Button>
         }
       >
@@ -243,53 +747,262 @@ export function OrganizationSetupAdaptedPage({
                 <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
                 <p className="mt-1 text-sm text-[#6f717c]">Define which events create alerts and who receives them.</p>
               </div>
-              <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:bg-[#fbfbfc]">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!defaultAlertPolicyTenantID || createAlertPolicyMutation.isPending}
+                onClick={() => {
+                  const nextCategory: AlertPolicyCategory = liveAlertPolicies.some((policy) => policy.category === "enterprise_sync_worker" && policy.enabled)
+                    ? "wallet_jobs"
+                    : "enterprise_sync_worker"
+                  setCreateAlertPolicyCategory(nextCategory)
+                  setCreateAlertPolicyDraft(defaultAlertPolicyDraft(nextCategory))
+                  setCreateAlertPolicyTenantID(defaultAlertPolicyTenantID)
+                  setAlertPolicyConditionPreview(null)
+                  setAlertPolicyError("")
+                  setCreateAlertPolicyOpen(true)
+                }}
+                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:border-[#d9dbe3] disabled:text-[#9a9ca7]"
+              >
+                <PlusIcon className="mr-1.5 size-4" />
                 Add Policy
               </Button>
             </div>
+            {alertPolicyError ? (
+              <div className="border-b border-[#f1c27a] bg-[#fff8ed] px-7 py-4 text-sm text-[#8a5a00]">
+                {alertPolicyError}
+              </div>
+            ) : null}
             <div className="divide-y divide-[#eceef2]">
-              {alertRows.map((row, index) => (
-                <div key={row[0]} className="flex gap-5 px-7 py-5">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
-                    <AlertCircleIcon className="size-5 text-[#2f3037]" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                    <p className="mt-1 text-sm text-[#6f717c]">{row[2]}</p>
-                  </div>
-                  <div className="ml-auto flex items-center gap-4">
-                    <StatusDot tone={index === 2 ? "warning" : "success"} label={row[1]} />
-                    <ToggleSwitch enabled={index !== 2} />
-                  </div>
-                </div>
-              ))}
+              {liveAlertPolicies.length > 0
+                ? liveAlertPolicies.map((policy) => {
+                    const draft = alertPolicyDrafts[policy.id] ?? alertPolicyDraftFromPolicy(policy)
+                    const channels = [
+                      draft.email ? "Email" : "",
+                      draft.whatsapp ? "WhatsApp" : "",
+                    ].filter(Boolean)
+                    return (
+                      <div key={policy.id} className="grid gap-5 px-7 py-5 lg:grid-cols-[40px_minmax(220px,1fr)_minmax(320px,1.35fr)_230px] lg:items-start">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                          <AlertCircleIcon className="size-5 text-[#2f3037]" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-[#17171c]">{policy.name}</h3>
+                          <p className="mt-1 text-sm leading-6 text-[#6f717c]">
+                            {activeTab === "Notifications"
+                              ? `${channels.length > 0 ? channels.join(" + ") : "No channels"} to ${splitReceiverGroups(draft.receiver_groups).join(", ") || "security"}`
+                              : activeTab === "Escalation"
+                                ? `Trigger ${policy.trigger}; cooldown ${formatPolicySeconds(Number.parseInt(draft.cooldown_seconds, 10) || 0)}`
+                                : policy.category === "custom" && draft.condition_expression.trim()
+                                  ? `${policy.description} Condition ${draft.condition_expression.trim()}.`
+                                  : `${policy.description} Window ${formatPolicySeconds(Number.parseInt(draft.window_seconds, 10) || 0)}.`}
+                          </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          {activeTab === "Notifications" ? (
+                            <>
+                              <button
+                                type="button"
+                                disabled={saveAlertPoliciesMutation.isPending}
+                                onClick={() => updateAlertPolicyDraft(policy.id, { email: !draft.email })}
+                                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                              >
+                                Email
+                                <ToggleSwitch enabled={draft.email} />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={saveAlertPoliciesMutation.isPending}
+                                onClick={() => updateAlertPolicyDraft(policy.id, { whatsapp: !draft.whatsapp })}
+                                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                              >
+                                WhatsApp
+                                <ToggleSwitch enabled={draft.whatsapp} />
+                              </button>
+                              <label className="block">
+                                <span className="sr-only">Receiver groups</span>
+                                <input
+                                  value={draft.receiver_groups}
+                                  disabled={saveAlertPoliciesMutation.isPending}
+                                  onChange={(event) => updateAlertPolicyDraft(policy.id, { receiver_groups: event.target.value })}
+                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                />
+                              </label>
+                            </>
+                          ) : (
+                            <>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Threshold</span>
+                                <input
+                                  value={draft.threshold}
+                                  disabled={saveAlertPoliciesMutation.isPending}
+                                  inputMode="numeric"
+                                  onChange={(event) => updateAlertPolicyDraft(policy.id, { threshold: event.target.value })}
+                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Window seconds</span>
+                                <input
+                                  value={draft.window_seconds}
+                                  disabled={saveAlertPoliciesMutation.isPending}
+                                  inputMode="numeric"
+                                  onChange={(event) => updateAlertPolicyDraft(policy.id, { window_seconds: event.target.value })}
+                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                />
+                              </label>
+                              <label className="block">
+                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Cooldown seconds</span>
+                                <input
+                                  value={draft.cooldown_seconds}
+                                  disabled={saveAlertPoliciesMutation.isPending}
+                                  inputMode="numeric"
+                                  onChange={(event) => updateAlertPolicyDraft(policy.id, { cooldown_seconds: event.target.value })}
+                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                />
+                              </label>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 lg:justify-end">
+                          <StatusDot tone={alertPolicyDraftTone(draft)} label={alertPolicyDraftStatusLabel(draft)} />
+                          <button
+                            type="button"
+                            disabled={saveAlertPoliciesMutation.isPending || deleteAlertPolicyMutation.isPending}
+                            onClick={() => updateAlertPolicyDraft(policy.id, { enabled: !draft.enabled })}
+                            className="rounded-full disabled:opacity-60"
+                            aria-pressed={draft.enabled}
+                          >
+                            <ToggleSwitch enabled={draft.enabled} />
+                          </button>
+                          <RowActionsMenu
+                            label={`Actions for ${policy.name}`}
+                            items={[
+                              {
+                                id: "delete",
+                                label: "Delete",
+                                icon: Trash2Icon,
+                                destructive: true,
+                                disabled: saveAlertPoliciesMutation.isPending || deleteAlertPolicyMutation.isPending,
+                                onSelect: () => {
+                                  setAlertPolicyError("")
+                                  setDeleteAlertPolicyTarget(policy)
+                                },
+                              },
+                            ]}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                : alertRows.map((row) => (
+                    <div key={row[0]} className="flex gap-5 px-7 py-5">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                        <AlertCircleIcon className="size-5 text-[#2f3037]" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
+                        <p className="mt-1 text-sm text-[#6f717c]">{row[2]}</p>
+                      </div>
+                      <div className="ml-auto flex items-center gap-4">
+                        <StatusDot tone={row[3]} label={row[1]} />
+                        <ToggleSwitch enabled={row[3] === "success"} />
+                      </div>
+                    </div>
+                  ))}
             </div>
           </>
         ) : null}
 
         {isIntegrations || isSsoScim ? (
           <>
-            <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">Connect identity, directory, webhook, and device event systems.</p>
+            <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
+              <div>
+                <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
+                <p className="mt-1 text-sm text-[#6f717c]">Connect identity, directory, webhook, and device event systems.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!defaultIntegrationTenantID || saveIntegrationMutation.isPending}
+                onClick={openCreateIntegrationSheet}
+                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:border-[#d9dbe3] disabled:text-[#9a9ca7]"
+              >
+                <PlusIcon className="mr-1.5 size-4" />
+                Add Integration
+              </Button>
             </div>
+            {integrationError ? (
+              <div className="border-b border-[#f1c27a] bg-[#fff8ed] px-7 py-4 text-sm text-[#8a5a00]">
+                {integrationError}
+              </div>
+            ) : null}
             <div className="grid gap-4 p-7 md:grid-cols-2">
-              {(isSsoScim ? integrationRows.slice(0, 2) : integrationRows).map((row, index) => (
-                <div key={row[0]} className="rounded-[6px] border border-[#eceef2] p-5">
-                  <div className="flex items-start gap-4">
-                    <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-[#fff8ed]" : "bg-[#f1f2f5]")}>
-                      <ShieldCheckIcon className="size-5 text-[#2f3037]" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                      <p className="mt-1 text-sm leading-6 text-[#6f717c]">{row[2]}</p>
-                      <div className="mt-4">
-                        <StatusDot tone={row[3]} label={row[1]} />
+              {visibleIntegrations.length > 0
+                ? visibleIntegrations.map((integration) => (
+                    <div key={integration.id} className="rounded-[6px] border border-[#eceef2] p-5">
+                      <div className="flex items-start gap-4">
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", integrationStatus(integration) === "warning" ? "bg-[#fff8ed]" : "bg-[#f1f2f5]")}>
+                          <ShieldCheckIcon className="size-5 text-[#2f3037]" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-[#17171c]">{integration.name}</h3>
+                              <p className="mt-1 text-sm leading-6 text-[#6f717c]">{integration.description}</p>
+                            </div>
+                            <RowActionsMenu
+                              label={`Actions for ${integration.name}`}
+                              items={[
+                                {
+                                  id: "edit",
+                                  label: "Edit",
+                                  icon: ShieldCheckIcon,
+                                  onSelect: () => openEditIntegrationSheet(integration),
+                                },
+                                {
+                                  id: "disable",
+                                  label: "Disable",
+                                  icon: Trash2Icon,
+                                  destructive: true,
+                                  disabled: deleteIntegrationMutation.isPending || integration.status === "inactive",
+                                  onSelect: () => {
+                                    setIntegrationError("")
+                                    setDeleteIntegrationTarget(integration)
+                                  },
+                                },
+                              ]}
+                            />
+                          </div>
+                          <div className="mt-4 grid gap-3 text-sm text-[#6f717c] sm:grid-cols-2">
+                            <FormField label="Provider" value={integration.provider.toUpperCase()} />
+                            <FormField label="Sync mode" value={integration.sync_mode || "Manual"} />
+                            <FormField label="Source ID" value={integration.source_id || integration.id} />
+                            <FormField label="Last sync" value={integration.last_sync_at || "Not synced"} />
+                          </div>
+                          <div className="mt-4">
+                            <StatusDot tone={integrationStatus(integration)} label={integrationStatusLabel(integration)} />
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  ))
+                : (isSsoScim ? integrationRows.slice(0, 2) : integrationRows).map((row, index) => (
+                    <div key={row[0]} className="rounded-[6px] border border-[#eceef2] p-5">
+                      <div className="flex items-start gap-4">
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-[#fff8ed]" : "bg-[#f1f2f5]")}>
+                          <ShieldCheckIcon className="size-5 text-[#2f3037]" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
+                          <p className="mt-1 text-sm leading-6 text-[#6f717c]">{row[2]}</p>
+                          <div className="mt-4">
+                            <StatusDot tone={row[3]} label={row[1]} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
             </div>
           </>
         ) : null}
@@ -347,7 +1060,17 @@ export function OrganizationSetupAdaptedPage({
                         <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
                         <p className="mt-1 text-sm text-[#6f717c]">{row[1]}</p>
                       </div>
-                      <Button variant="outline" className={cn("ml-auto h-10 rounded-[6px] bg-white px-5", index === 2 ? "border-[#f1b7b2] text-[#d93025]" : "border-[#8589ff] text-[#4f55ff]")}>
+                      <Button
+                        variant="outline"
+                        disabled
+                        title="Reserved action"
+                        className={cn(
+                          "ml-auto h-10 rounded-[6px] bg-white px-5 disabled:border-[#d9dbe3] disabled:bg-[#f5f6f8] disabled:text-[#8d909b]",
+                          index === 2
+                            ? "border-[#f1b7b2] text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d] disabled:hover:bg-[#f5f6f8] disabled:hover:text-[#8d909b]"
+                            : "border-[#8589ff] text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:hover:bg-[#f5f6f8] disabled:hover:text-[#8d909b]"
+                        )}
+                      >
                         {index === 0 ? "Export" : index === 1 ? "Rotate" : "Disable"}
                       </Button>
                     </div>
@@ -372,6 +1095,455 @@ export function OrganizationSetupAdaptedPage({
           </>
         ) : null}
       </SettingsPanel>
+
+      <ConfirmActionDialog
+        open={Boolean(deleteIntegrationTarget)}
+        onOpenChange={(open) => {
+          if (!deleteIntegrationMutation.isPending && !open) {
+            setDeleteIntegrationTarget(null)
+          }
+        }}
+        title="Disable integration"
+        description={
+          <>
+            This marks <span className="font-semibold text-[#17171c]">{deleteIntegrationTarget?.name ?? "this integration"}</span>{" "}
+            as inactive while keeping its audit history.
+          </>
+        }
+        confirmLabel="Disable integration"
+        pending={deleteIntegrationMutation.isPending}
+        disabled={!deleteIntegrationTarget}
+        destructive
+        onConfirm={() => {
+          if (deleteIntegrationTarget) {
+            deleteIntegrationMutation.mutate(deleteIntegrationTarget)
+          }
+        }}
+      />
+
+      <Sheet
+        open={integrationSheetOpen}
+        onOpenChange={(open) => {
+          if (!saveIntegrationMutation.isPending) {
+            setIntegrationSheetOpen(open)
+            if (!open) {
+              setEditingIntegrationID("")
+              setIntegrationError("")
+            }
+          }
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>{editingIntegrationID ? "Edit Integration" : "Add Integration"}</SheetTitle>
+            <SheetDescription>
+              {editingIntegrationID ? "Review detail and update integration status or sync mode." : "Create an identity provider or HRIS integration."}
+            </SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              saveIntegrationMutation.mutate()
+            }}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Tenant ID</span>
+                <input
+                  value={integrationDraft.tenant_id}
+                  disabled={Boolean(tenantID) || saveIntegrationMutation.isPending}
+                  onChange={(event) => updateIntegrationDraft({ tenant_id: event.target.value })}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Type</span>
+                <select
+                  value={integrationDraft.type}
+                  disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
+                  onChange={(event) => {
+                    const nextType = event.target.value as IntegrationDraft["type"]
+                    setIntegrationDraft({
+                      ...defaultIntegrationDraft(integrationDraft.tenant_id || defaultIntegrationTenantID),
+                      type: nextType,
+                      provider: nextType === "identity_provider" ? "oidc" : "talenta",
+                      sync_mode: nextType === "identity_provider" ? "jit" : "hybrid",
+                    })
+                  }}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  <option value="hris">HRIS</option>
+                  <option value="identity_provider">Identity Provider</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Provider</span>
+                <select
+                  value={integrationDraft.provider}
+                  disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
+                  onChange={(event) => updateIntegrationDraft({ provider: event.target.value })}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  {integrationDraft.type === "identity_provider" ? (
+                    <>
+                      <option value="oidc">OIDC</option>
+                      <option value="saml">SAML</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="talenta">Talenta</option>
+                      <option value="gadjian">Gadjian</option>
+                      <option value="greatday">GreatDay</option>
+                      <option value="linovhr">LinovHR</option>
+                      <option value="sunfish">Sunfish</option>
+                    </>
+                  )}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                <select
+                  value={integrationDraft.status}
+                  disabled={saveIntegrationMutation.isPending}
+                  onChange={(event) => updateIntegrationDraft({ status: event.target.value })}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Sync mode</span>
+                <select
+                  value={integrationDraft.sync_mode}
+                  disabled={saveIntegrationMutation.isPending}
+                  onChange={(event) => updateIntegrationDraft({ sync_mode: event.target.value })}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  {integrationDraft.type === "identity_provider" ? (
+                    <>
+                      <option value="jit">JIT</option>
+                      <option value="manual">Manual</option>
+                      <option value="scheduled">Scheduled</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="hybrid">Hybrid</option>
+                      <option value="webhook">Webhook</option>
+                      <option value="pull">Pull</option>
+                    </>
+                  )}
+                </select>
+              </label>
+            </div>
+
+            {integrationDraft.type === "identity_provider" ? (
+              <div className="grid gap-4">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Issuer URL</span>
+                  <input
+                    value={integrationDraft.issuer_url}
+                    disabled={saveIntegrationMutation.isPending}
+                    onChange={(event) => updateIntegrationDraft({ issuer_url: event.target.value })}
+                    placeholder={editingIntegrationID ? "Leave blank to keep current issuer" : "https://idp.example.com"}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Client ID</span>
+                  <input
+                    value={integrationDraft.client_id}
+                    disabled={saveIntegrationMutation.isPending}
+                    onChange={(event) => updateIntegrationDraft({ client_id: event.target.value })}
+                    placeholder={editingIntegrationID ? "Leave blank to keep current client" : "misty-admin"}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Auth URL</span>
+                  <input
+                    value={integrationDraft.auth_url}
+                    disabled={saveIntegrationMutation.isPending}
+                    onChange={(event) => updateIntegrationDraft({ auth_url: event.target.value })}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Credential ref</span>
+                  <input
+                    value={integrationDraft.credential_ref}
+                    disabled={saveIntegrationMutation.isPending}
+                    onChange={(event) => updateIntegrationDraft({ credential_ref: event.target.value })}
+                    placeholder="vault://tenant/hris/provider/api_key"
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Webhook secret ref</span>
+                  <input
+                    value={integrationDraft.webhook_secret_ref}
+                    disabled={saveIntegrationMutation.isPending}
+                    onChange={(event) => updateIntegrationDraft({ webhook_secret_ref: event.target.value })}
+                    placeholder="vault://tenant/hris/provider/webhook_secret"
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+              </div>
+            )}
+
+            {integrationDetailQuery.isPending && editingIntegrationID ? (
+              <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] px-4 py-3 text-sm text-[#6f717c]">
+                Loading integration detail...
+              </div>
+            ) : null}
+            {integrationError ? (
+              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+                {integrationError}
+              </div>
+            ) : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => setIntegrationSheetOpen(false)} className="h-10 rounded-[6px]">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saveIntegrationMutation.isPending || (Boolean(editingIntegrationID) && integrationDetailQuery.isPending)}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              >
+                {saveIntegrationMutation.isPending ? "Saving..." : editingIntegrationID ? "Save Integration" : "Add Integration"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmActionDialog
+        open={Boolean(deleteAlertPolicyTarget)}
+        onOpenChange={(open) => {
+          if (!deleteAlertPolicyMutation.isPending && !open) {
+            setDeleteAlertPolicyTarget(null)
+          }
+        }}
+        title="Delete alert policy"
+        description={
+          <>
+            This removes <span className="font-semibold text-[#17171c]">{deleteAlertPolicyTarget?.name ?? "this policy"}</span>{" "}
+            from alert policy monitoring.
+          </>
+        }
+        confirmLabel="Delete policy"
+        pending={deleteAlertPolicyMutation.isPending}
+        disabled={!deleteAlertPolicyTarget}
+        destructive
+        onConfirm={() => {
+          if (deleteAlertPolicyTarget) {
+            deleteAlertPolicyMutation.mutate(deleteAlertPolicyTarget.id)
+          }
+        }}
+      />
+
+      <Sheet open={createAlertPolicyOpen} onOpenChange={setCreateAlertPolicyOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Policy</SheetTitle>
+            <SheetDescription>Create or reactivate an alert policy for this organization.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              createAlertPolicyMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Tenant ID</span>
+              <input
+                value={createAlertPolicyTenantID}
+                readOnly={Boolean(tenantID)}
+                onChange={(event) => {
+                  setCreateAlertPolicyTenantID(event.target.value)
+                  setAlertPolicyConditionPreview(null)
+                }}
+                className={cn(
+                  "h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]",
+                  tenantID ? "bg-[#fbfbfc]" : "bg-white"
+                )}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Policy type</span>
+              <select
+                value={createAlertPolicyCategory}
+                onChange={(event) => {
+                  const category = event.target.value as AlertPolicyCategory
+                  setCreateAlertPolicyCategory(category)
+                  setCreateAlertPolicyDraft(defaultAlertPolicyDraft(category))
+                  setAlertPolicyConditionPreview(null)
+                }}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="enterprise_sync_worker">Enterprise sync worker</option>
+                <option value="wallet_jobs">Wallet job queue</option>
+                <option value="custom">Custom condition</option>
+              </select>
+            </label>
+            {createAlertPolicyCategory === "custom" ? (
+              <>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Policy name</span>
+                  <input
+                    value={createAlertPolicyDraft.name}
+                    onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, name: event.target.value }))}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Trigger</span>
+                  <input
+                    value={createAlertPolicyDraft.trigger}
+                    onChange={(event) => {
+                      setCreateAlertPolicyDraft((draft) => ({ ...draft, trigger: event.target.value }))
+                      setAlertPolicyConditionPreview(null)
+                    }}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Severity</span>
+                  <select
+                    value={createAlertPolicyDraft.severity}
+                    onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, severity: event.target.value }))}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  >
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Condition expression</span>
+                  <input
+                    value={createAlertPolicyDraft.condition_expression}
+                    onChange={(event) => {
+                      setCreateAlertPolicyDraft((draft) => ({ ...draft, condition_expression: event.target.value }))
+                      setAlertPolicyConditionPreview(null)
+                    }}
+                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  />
+                </label>
+                <div className="flex items-center justify-between gap-3 rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3">
+                  <span className="text-sm font-semibold text-[#17171c]">
+                    {alertPolicyConditionPreview ? (alertPolicyConditionPreview.matched ? "Matched" : "Not matched") : "No preview"}
+                  </span>
+                  <Button
+                    type="button"
+                    disabled={
+                      previewAlertPolicyConditionMutation.isPending ||
+                      !createAlertPolicyDraft.condition_expression.trim() ||
+                      !(createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID)
+                    }
+                    onClick={() => previewAlertPolicyConditionMutation.mutate()}
+                    className="h-9 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-[#2f3037] hover:bg-[#f6f7fb]"
+                  >
+                    <BarChart3Icon className="mr-2 h-4 w-4" />
+                    {previewAlertPolicyConditionMutation.isPending ? "Previewing..." : "Preview"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+            <button
+              type="button"
+              disabled={createAlertPolicyMutation.isPending}
+              onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, enabled: !draft.enabled }))}
+              className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left disabled:bg-[#fbfbfc]"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-[#17171c]">Policy enabled</span>
+                <span className="mt-1 block text-xs text-[#6f717c]">Inactive policies remain listed for review.</span>
+              </span>
+              <ToggleSwitch enabled={createAlertPolicyDraft.enabled} />
+            </button>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Threshold</span>
+                <input
+                  value={createAlertPolicyDraft.threshold}
+                  inputMode="numeric"
+                  onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, threshold: event.target.value }))}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Window</span>
+                <input
+                  value={createAlertPolicyDraft.window_seconds}
+                  inputMode="numeric"
+                  onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, window_seconds: event.target.value }))}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Cooldown</span>
+                <input
+                  value={createAlertPolicyDraft.cooldown_seconds}
+                  inputMode="numeric"
+                  onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, cooldown_seconds: event.target.value }))}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                />
+              </label>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={createAlertPolicyMutation.isPending}
+                onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, email: !draft.email }))}
+                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+              >
+                Email
+                <ToggleSwitch enabled={createAlertPolicyDraft.email} />
+              </button>
+              <button
+                type="button"
+                disabled={createAlertPolicyMutation.isPending}
+                onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, whatsapp: !draft.whatsapp }))}
+                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+              >
+                WhatsApp
+                <ToggleSwitch enabled={createAlertPolicyDraft.whatsapp} />
+              </button>
+            </div>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Receiver groups</span>
+              <input
+                value={createAlertPolicyDraft.receiver_groups}
+                onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, receiver_groups: event.target.value }))}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={
+                  createAlertPolicyMutation.isPending ||
+                  !(createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID) ||
+                  (createAlertPolicyCategory === "custom" && !createAlertPolicyDraft.trigger.trim()) ||
+                  !createAlertPolicyDraft.threshold.trim() ||
+                  !createAlertPolicyDraft.window_seconds.trim() ||
+                  !createAlertPolicyDraft.cooldown_seconds.trim()
+                }
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {createAlertPolicyMutation.isPending ? "Creating..." : "Create Policy"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </PageFrame>
   )
 }

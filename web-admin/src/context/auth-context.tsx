@@ -9,6 +9,7 @@ type AuthContextValue = {
   viewer: CurrentUser | null
   bootstrapping: boolean
   setAuthenticatedSession: (token: string, refreshToken: string, viewer: CurrentUser) => void
+  updateViewer: (viewer: CurrentUser) => void
   logout: () => void
 }
 
@@ -88,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setBootstrapping(false)
   }, [])
 
+  const updateViewer = useCallback((nextViewer: CurrentUser) => {
+    setViewer(nextViewer)
+  }, [])
+
   const logout = useCallback(() => {
     clearSession()
     queryClient.clear()
@@ -101,9 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       viewer,
       bootstrapping,
       setAuthenticatedSession,
+      updateViewer,
       logout,
     }),
-    [token, viewer, bootstrapping, setAuthenticatedSession, logout]
+    [token, viewer, bootstrapping, setAuthenticatedSession, updateViewer, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

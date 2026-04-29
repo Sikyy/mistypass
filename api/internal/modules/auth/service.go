@@ -46,18 +46,22 @@ type LoginResponse struct {
 
 type User struct {
 	ID          string   `json:"id"`
+	Name        string   `json:"name,omitempty"`
 	Email       string   `json:"email"`
 	Role        string   `json:"role"`
 	TenantID    string   `json:"tenant_id"`
 	BuildingIDs []string `json:"building_ids,omitempty"`
+	Language    string   `json:"language,omitempty"`
 }
 
 type tokenClaims struct {
 	UserID      string   `json:"user_id"`
+	Name        string   `json:"name,omitempty"`
 	Email       string   `json:"email"`
 	Role        string   `json:"role"`
 	TenantID    string   `json:"tenant_id,omitempty"`
 	BuildingIDs []string `json:"building_ids,omitempty"`
+	Language    string   `json:"language,omitempty"`
 	TokenType   string   `json:"token_type"`
 	jwt.RegisteredClaims
 }
@@ -296,10 +300,12 @@ func (s *Service) LoginByTrustedIdentity(email string) (LoginResponse, error) {
 
 func (s *Service) LoginByTrustedUser(user User) (LoginResponse, error) {
 	nextUserID := strings.TrimSpace(user.ID)
+	nextName := strings.TrimSpace(user.Name)
 	nextEmail := normalizeEmail(user.Email)
 	nextRole := strings.ToLower(strings.TrimSpace(user.Role))
 	nextTenantID := strings.TrimSpace(user.TenantID)
 	nextBuildingIDs := uniqueNormalizedIDs(user.BuildingIDs)
+	nextLanguage := normalizeLanguage(user.Language)
 
 	if nextUserID == "" || nextEmail == "" || nextRole == "" {
 		return LoginResponse{}, ErrInvalidCredentials
@@ -307,10 +313,12 @@ func (s *Service) LoginByTrustedUser(user User) (LoginResponse, error) {
 
 	trustedUser := User{
 		ID:          nextUserID,
+		Name:        nextName,
 		Email:       nextEmail,
 		Role:        nextRole,
 		TenantID:    nextTenantID,
 		BuildingIDs: nextBuildingIDs,
+		Language:    nextLanguage,
 	}
 
 	passwordHash := []byte(nil)
@@ -543,10 +551,12 @@ func (s *Service) VerifyAccessToken(accessToken string) (User, error) {
 
 	return User{
 		ID:          claims.UserID,
+		Name:        claims.Name,
 		Email:       claims.Email,
 		Role:        claims.Role,
 		TenantID:    claims.TenantID,
 		BuildingIDs: append([]string(nil), claims.BuildingIDs...),
+		Language:    claims.Language,
 	}, nil
 }
 
@@ -592,6 +602,44 @@ func (s *Service) UpdateUserBuildingScope(userID string, buildingIDs []string) (
 	}
 
 	user.BuildingIDs = nextBuildingIDs
+	passwordHash := []byte(nil)
+	record, exists, err := s.findUserByEmailLocked(user.Email)
+	if err != nil {
+		return User{}, ErrUserNotFound
+	}
+	if exists {
+		passwordHash = record.PasswordHash
+	}
+	if err := s.persistUserLocked(user, passwordHash); err != nil {
+		return User{}, ErrUserNotFound
+	}
+
+	user.BuildingIDs = append([]string(nil), user.BuildingIDs...)
+	return user, nil
+}
+
+func (s *Service) UpdateUserProfile(userID, name, language string) (User, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return User{}, ErrUserNotFound
+	}
+	nextName := strings.TrimSpace(name)
+	nextLanguage := normalizeLanguage(language)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, exists, err := s.findUserByIDLocked(nextUserID)
+	if err != nil {
+		return User{}, ErrUserNotFound
+	}
+	if !exists {
+		return User{}, ErrUserNotFound
+	}
+
+	user.Name = nextName
+	user.Language = nextLanguage
+
 	passwordHash := []byte(nil)
 	record, exists, err := s.findUserByEmailLocked(user.Email)
 	if err != nil {
@@ -797,10 +845,12 @@ func (s *Service) signToken(user User, tokenType string, ttl time.Duration) (str
 	now := time.Now().UTC()
 	claims := tokenClaims{
 		UserID:      user.ID,
+		Name:        strings.TrimSpace(user.Name),
 		Email:       user.Email,
 		Role:        user.Role,
 		TenantID:    user.TenantID,
 		BuildingIDs: append([]string(nil), user.BuildingIDs...),
+		Language:    normalizeLanguage(user.Language),
 		TokenType:   tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        jti,
@@ -1525,10 +1575,12 @@ func timePointer(value time.Time) *time.Time {
 func normalizeUser(user User) (User, bool) {
 	nextUser := User{
 		ID:          strings.TrimSpace(user.ID),
+		Name:        strings.TrimSpace(user.Name),
 		Email:       normalizeEmail(user.Email),
 		Role:        strings.ToLower(strings.TrimSpace(user.Role)),
 		TenantID:    strings.TrimSpace(user.TenantID),
 		BuildingIDs: uniqueNormalizedIDs(user.BuildingIDs),
+		Language:    normalizeLanguage(user.Language),
 	}
 	if nextUser.ID == "" || nextUser.Email == "" || nextUser.Role == "" {
 		return User{}, false
@@ -1555,6 +1607,16 @@ func randomTokenID(byteLen int) (string, error) {
 
 func normalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func normalizeLanguage(language string) string {
+	nextLanguage := strings.TrimSpace(language)
+	switch nextLanguage {
+	case "en-US", "id-ID", "zh-CN":
+		return nextLanguage
+	default:
+		return ""
+	}
 }
 
 func uniqueNormalizedIDs(values []string) []string {
@@ -1590,74 +1652,90 @@ func buildDemoUsers() []userRecord {
 		{
 			User: User{
 				ID:       "usr_super_admin_001",
+				Name:     "Super Admin",
 				Email:    "superadmin@mistypass.local",
 				Role:     "super_admin",
 				TenantID: "",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:       "usr_tenant_admin_jkt_001",
+				Name:     "Jakarta Tenant Admin",
 				Email:    "tenant.admin@sudirman.co",
 				Role:     "tenant_admin",
 				TenantID: "tenant_demo_jakarta",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:       "usr_organization_admin_jkt_001",
+				Name:     "Organization Admin",
 				Email:    "organization.admin@mistypass.local",
 				Role:     "tenant_admin",
 				TenantID: "tenant_demo_jakarta",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:       "usr_operator_jkt_001",
+				Name:     "Jakarta Operator",
 				Email:    "ops.jkt.01@mistypass.local",
 				Role:     "operator",
 				TenantID: "tenant_demo_jakarta",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:          "usr_building_admin_jkt_001",
+				Name:        "Sudirman Building Admin",
 				Email:       "building.admin.sudirman@mistypass.local",
 				Role:        "building_admin",
 				TenantID:    "tenant_demo_jakarta",
 				BuildingIDs: []string{"building_demo_001"},
+				Language:    "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:          "usr_place_admin_sudirman_001",
+				Name:        "Sudirman Place Admin",
 				Email:       "place.admin.sudirman@mistypass.local",
 				Role:        "building_admin",
 				TenantID:    "tenant_demo_jakarta",
 				BuildingIDs: []string{"building_demo_001"},
+				Language:    "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:       "usr_tenant_admin_fct_001",
+				Name:     "Factory Tenant Admin",
 				Email:    "tenant.admin@factory.local",
 				Role:     "tenant_admin",
 				TenantID: "tenant_demo_factory",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},
 		{
 			User: User{
 				ID:       "usr_resident_jkt_001",
+				Name:     "Jakarta Resident",
 				Email:    "resident.jakarta@mistypass.local",
 				Role:     "resident",
 				TenantID: "tenant_demo_jakarta",
+				Language: "en-US",
 			},
 			Password: "admin123",
 		},

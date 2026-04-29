@@ -651,6 +651,44 @@ func (s *Service) Register(serialNumber, tenantID, buildingID string, deviceCapa
 	return record, nil
 }
 
+func (s *Service) Deassign(tenantID, gatewayID string) (Gateway, error) {
+	gwID := strings.TrimSpace(gatewayID)
+	if gwID == "" {
+		return Gateway{}, ErrGatewayIDRequired
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if s.gateways[i].ID != gwID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return Gateway{}, ErrGatewayNotFound
+		}
+
+		removed := cloneGateway(s.gateways[i])
+		now := time.Now().UTC()
+		s.releaseSerialInventoryLocked(removed.SerialNumber, removed.TenantID, now)
+		for d := range removed.Devices {
+			if removed.Devices[d].Source == "mistypass_procured" {
+				s.releaseSerialInventoryLocked(removed.Devices[d].SerialNumber, removed.TenantID, now)
+			}
+		}
+
+		s.gateways = append(s.gateways[:i], s.gateways[i+1:]...)
+		s.removeGatewayRuntimeStateLocked(gwID)
+		if err := s.persistLocked(); err != nil {
+			return Gateway{}, err
+		}
+		return removed, nil
+	}
+
+	return Gateway{}, ErrGatewayNotFound
+}
+
 func (s *Service) BindDoor(tenantID, gatewayID, doorID string) (Gateway, error) {
 	gwID := strings.TrimSpace(gatewayID)
 	if gwID == "" {
@@ -846,6 +884,45 @@ func (s *Service) RegisterDevice(
 	}
 
 	return Gateway{}, ErrGatewayNotFound
+}
+
+func (s *Service) DeassignDevice(tenantID, deviceID string) (Gateway, GatewayDevice, error) {
+	devID := strings.TrimSpace(deviceID)
+	devID = strings.TrimPrefix(devID, "terminal_")
+	if devID == "" {
+		return Gateway{}, GatewayDevice{}, ErrGatewayDeviceIDRequired
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			continue
+		}
+		for d := range s.gateways[i].Devices {
+			if s.gateways[i].Devices[d].ID != devID {
+				continue
+			}
+
+			removed := s.gateways[i].Devices[d]
+			if removed.Source == "mistypass_procured" {
+				s.releaseSerialInventoryLocked(removed.SerialNumber, s.gateways[i].TenantID, time.Now().UTC())
+			}
+			s.gateways[i].Devices = append(s.gateways[i].Devices[:d], s.gateways[i].Devices[d+1:]...)
+			s.gateways[i].LastSeenAt = time.Now().UTC()
+			if len(s.gateways[i].Devices) == 0 {
+				s.gateways[i].Status = "offline"
+			}
+			if err := s.persistLocked(); err != nil {
+				return Gateway{}, GatewayDevice{}, err
+			}
+			return s.gateways[i], removed, nil
+		}
+	}
+
+	return Gateway{}, GatewayDevice{}, ErrGatewayDeviceNotFound
 }
 
 func (s *Service) ReportRS485Telemetry(
@@ -1713,12 +1790,16 @@ func (s *Service) persistLocked() error {
 func cloneGateways(items []Gateway) []Gateway {
 	output := make([]Gateway, 0, len(items))
 	for i := range items {
-		record := items[i]
-		record.BoundDoorIDs = append([]string(nil), items[i].BoundDoorIDs...)
-		record.Devices = cloneGatewayDevices(items[i].Devices)
-		output = append(output, record)
+		output = append(output, cloneGateway(items[i]))
 	}
 	return output
+}
+
+func cloneGateway(item Gateway) Gateway {
+	record := item
+	record.BoundDoorIDs = append([]string(nil), item.BoundDoorIDs...)
+	record.Devices = cloneGatewayDevices(item.Devices)
+	return record
 }
 
 func cloneGatewayDevices(items []GatewayDevice) []GatewayDevice {
@@ -2256,6 +2337,53 @@ func (s *Service) findSerialInventoryIndexLocked(serialNumber string) int {
 		}
 	}
 	return -1
+}
+
+func (s *Service) releaseSerialInventoryLocked(serialNumber, tenantID string, now time.Time) {
+	idx := s.findSerialInventoryIndexLocked(serialNumber)
+	if idx < 0 || s.serialInventory[idx].TenantID != tenantID {
+		return
+	}
+	_ = applySerialInventoryStatusTransition(&s.serialInventory[idx], serialInventoryStatusAvailable, "", now)
+}
+
+func (s *Service) removeGatewayRuntimeStateLocked(gatewayID string) {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" {
+		return
+	}
+
+	configStates := make([]GatewayConfigState, 0, len(s.configStates))
+	for i := range s.configStates {
+		if s.configStates[i].GatewayID != nextGatewayID {
+			configStates = append(configStates, s.configStates[i])
+		}
+	}
+	s.configStates = configStates
+
+	eventCheckpoints := make([]GatewayEventCheckpoint, 0, len(s.eventCheckpoints))
+	for i := range s.eventCheckpoints {
+		if s.eventCheckpoints[i].GatewayID != nextGatewayID {
+			eventCheckpoints = append(eventCheckpoints, s.eventCheckpoints[i])
+		}
+	}
+	s.eventCheckpoints = eventCheckpoints
+
+	queueTotals := make([]GatewayQueueIngestTotal, 0, len(s.queueIngestTotals))
+	for i := range s.queueIngestTotals {
+		if s.queueIngestTotals[i].GatewayID != nextGatewayID {
+			queueTotals = append(queueTotals, s.queueIngestTotals[i])
+		}
+	}
+	s.queueIngestTotals = queueTotals
+
+	otaTasks := make([]GatewayOTATask, 0, len(s.otaTasks))
+	for i := range s.otaTasks {
+		if s.otaTasks[i].GatewayID != nextGatewayID {
+			otaTasks = append(otaTasks, s.otaTasks[i])
+		}
+	}
+	s.otaTasks = otaTasks
 }
 
 func (s *Service) findConfigStateIndexLocked(gatewayID string) int {

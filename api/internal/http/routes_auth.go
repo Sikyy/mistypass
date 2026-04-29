@@ -111,3 +111,87 @@ func (s *server) me(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, user)
 }
+
+type currentUserProfileUpdateRequest struct {
+	Name     *string `json:"name,omitempty"`
+	Language *string `json:"language,omitempty"`
+}
+
+func (s *server) getCurrentUserProfile(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, user)
+}
+
+func (s *server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	var request currentUserProfileUpdateRequest
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	nextName := user.Name
+	if request.Name != nil {
+		nextName = *request.Name
+	}
+	nextLanguage := user.Language
+	if request.Language != nil {
+		language, valid := normalizeCurrentUserProfileLanguage(*request.Language)
+		if !valid {
+			writeError(w, http.StatusBadRequest, "unsupported language")
+			return
+		}
+		nextLanguage = language
+	}
+
+	updated, err := s.authService.UpdateUserProfile(user.ID, nextName, nextLanguage)
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrUserNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusBadRequest, err.Error())
+		}
+		return
+	}
+
+	changed := make([]string, 0, 2)
+	if request.Name != nil {
+		changed = append(changed, "name")
+	}
+	if request.Language != nil {
+		changed = append(changed, "language")
+	}
+	s.appendAuditLog(
+		r,
+		updated.TenantID,
+		"auth_user_profile_updated",
+		"user_id="+updated.ID+",changed="+strings.Join(changed, "|"),
+		"auth",
+	)
+
+	writeJSON(w, http.StatusOK, updated)
+}
+
+func normalizeCurrentUserProfileLanguage(language string) (string, bool) {
+	nextLanguage := strings.TrimSpace(language)
+	if nextLanguage == "" {
+		return "", true
+	}
+	switch nextLanguage {
+	case "en-US", "id-ID", "zh-CN":
+		return nextLanguage, true
+	default:
+		return "", false
+	}
+}

@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   ChevronDownIcon,
   Clock3Icon,
   DoorOpenIcon,
   KeyRoundIcon,
   MapPinPlusIcon,
+  PlusIcon,
   SearchIcon,
+  ShieldAlertIcon,
   ShieldCheckIcon,
+  ShieldOffIcon,
+  Trash2Icon,
 } from "lucide-react"
 
+import { ConfirmActionDialog } from "@/components/kisi/actions"
 import {
   FormField,
   PageFrame,
@@ -19,9 +25,44 @@ import {
 } from "@/components/kisi/primitives"
 import { KisiEmptyTableRow } from "@/components/kisi/data-display"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { useKisiPlaceContext } from "@/features/kisi-shell/use-resource-summary"
-import type { CurrentUser } from "@/lib/api"
+import {
+  cancelLockLockdown,
+  createLock,
+  deleteLock,
+  getLock,
+  lockDownLock,
+  unlockLock,
+  updateLock,
+  type CurrentUser,
+  type Lock,
+} from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { getViewerTenantID } from "@/lib/viewer"
+
+type LockAction = "unlock" | "lock_down" | "cancel_lockdown"
+
+function lockKindFromLabel(value: string | undefined): Lock["kind"] {
+  const normalized = value?.toLowerCase().replace(/\s+/g, "-") ?? ""
+  switch (normalized) {
+    case "turnstile":
+    case "server-room":
+    case "elevator":
+    case "parking-gate":
+    case "emergency-exit":
+      return normalized
+    default:
+      return "office"
+  }
+}
 
 export function DoorDetailAdaptedPage({
   token,
@@ -32,11 +73,54 @@ export function DoorDetailAdaptedPage({
   viewer: CurrentUser
   placeID?: string
 }) {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("General")
   const [selectedDoorID, setSelectedDoorID] = useState("")
+  const [doorName, setDoorName] = useState("")
+  const [doorKind, setDoorKind] = useState<Lock["kind"]>("office")
+  const [doorStatus, setDoorStatus] = useState<Lock["status"]>("offline")
+  const [gatewayID, setGatewayID] = useState("")
+  const [addDoorOpen, setAddDoorOpen] = useState(false)
+  const [newDoorName, setNewDoorName] = useState("")
+  const [newDoorFloorID, setNewDoorFloorID] = useState("")
+  const [newDoorAreaID, setNewDoorAreaID] = useState("")
+  const [newDoorGatewayID, setNewDoorGatewayID] = useState("")
+  const [newDoorKind, setNewDoorKind] = useState<Lock["kind"]>("office")
+  const [newDoorStatus, setNewDoorStatus] = useState<Lock["status"]>("online")
+  const [deleteDoorConfirmOpen, setDeleteDoorConfirmOpen] = useState(false)
+  const [actionNotice, setActionNotice] = useState("")
+  const [actionError, setActionError] = useState("")
   const resourceQuery = useKisiPlaceContext(token, viewer, placeID)
-  const { place, doors, hardware, events } = resourceQuery.context
+  const { place, floors, zones, doors, hardware, events } = resourceQuery.context
   const selectedDoor = doors.find((door) => door.id === selectedDoorID) ?? doors[0]
+  const tenantID = getViewerTenantID(viewer)
+  const canCreateDoor = Boolean(tenantID && place && !resourceQuery.usingFallback)
+  const canMutate = Boolean(tenantID && selectedDoor && !resourceQuery.usingFallback)
+  const gatewayOptions = useMemo(() => {
+    const seen = new Set<string>()
+    return hardware.filter((item) => {
+      if (item.type !== "Controller" && item.type !== "Gateway") {
+        return false
+      }
+      const gateway = item.gatewayId || item.id
+      if (!gateway || seen.has(gateway)) {
+        return false
+      }
+      seen.add(gateway)
+      return true
+    })
+  }, [hardware])
+  const newDoorAreaOptions = useMemo(() => {
+    if (!newDoorFloorID) {
+      return zones
+    }
+    return zones.filter((zone) => zone.floorId === newDoorFloorID)
+  }, [newDoorFloorID, zones])
+  const lockDetailQuery = useQuery({
+    queryKey: ["reference-lock-detail", selectedDoor?.id, tenantID],
+    queryFn: () => getLock(token, selectedDoor?.id ?? "", tenantID),
+    enabled: Boolean(selectedDoor?.id && tenantID && !resourceQuery.usingFallback),
+  })
   const selectedHardware = useMemo(() => {
     if (!selectedDoor) {
       return []
@@ -60,22 +144,237 @@ export function DoorDetailAdaptedPage({
     }
   }, [doors, selectedDoorID])
 
-  return (
-    <PageFrame
-      breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Doors"]}
-      title={selectedDoor?.name ?? "Doors"}
-      count={resourceQuery.isPending ? "--" : doors.length}
-      description={selectedDoor ? `${selectedDoor.kind} door on ${selectedDoor.floorName}` : "Door settings and access schedules"}
-      actions={
-        <>
-          <Button variant="interaction" className="h-10 rounded-[6px] text-[#4f55ff]">Lockdown</Button>
-          <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:bg-[#fbfbfc]">Delete Door</Button>
-        </>
+  useEffect(() => {
+    if (!selectedDoor) {
+      setDoorName("")
+      setGatewayID("")
+      setDoorKind("office")
+      setDoorStatus("offline")
+      return
+    }
+    const detail = lockDetailQuery.data?.id === selectedDoor.id ? lockDetailQuery.data : null
+    setDoorName(detail?.name ?? selectedDoor.name)
+    setGatewayID(detail?.gateway_id ?? selectedDoor.gatewayId)
+    setDoorKind(detail?.kind ?? lockKindFromLabel(selectedDoor.kind))
+    setDoorStatus(detail?.status ?? selectedDoor.status)
+  }, [lockDetailQuery.data, selectedDoor])
+
+  useEffect(() => {
+    if (!addDoorOpen) {
+      return
+    }
+    if (!newDoorFloorID && floors[0]) {
+      setNewDoorFloorID(floors[0].id)
+    }
+    if (!newDoorGatewayID && gatewayOptions[0]) {
+      setNewDoorGatewayID(gatewayOptions[0].gatewayId || gatewayOptions[0].id)
+    }
+  }, [addDoorOpen, floors, gatewayOptions, newDoorFloorID, newDoorGatewayID])
+
+  useEffect(() => {
+    if (!addDoorOpen) {
+      return
+    }
+    const areaIsValid = newDoorAreaOptions.some((area) => area.id === newDoorAreaID)
+    if (!areaIsValid) {
+      setNewDoorAreaID(newDoorAreaOptions[0]?.id ?? "")
+    }
+  }, [addDoorOpen, newDoorAreaID, newDoorAreaOptions])
+
+  async function refreshDoors() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["kisi-resource-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["reference-lock-detail"] }),
+    ])
+  }
+
+  const createLockMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID || !place) {
+        throw new Error("place is required")
       }
-    >
+      if (!newDoorFloorID) {
+        throw new Error("floor is required")
+      }
+      if (!newDoorAreaID) {
+        throw new Error("area is required")
+      }
+      return createLock(token, {
+        tenant_id: tenantID,
+        place_id: place.id,
+        building_id: place.id,
+        floor_id: newDoorFloorID,
+        area_id: newDoorAreaID,
+        name: newDoorName.trim(),
+        gateway_id: newDoorGatewayID.trim() || undefined,
+        kind: newDoorKind,
+        status: newDoorStatus,
+      })
+    },
+    onSuccess: async (lock) => {
+      setSelectedDoorID(lock.id)
+      setNewDoorName("")
+      setNewDoorFloorID("")
+      setNewDoorAreaID("")
+      setNewDoorGatewayID("")
+      setNewDoorKind("office")
+      setNewDoorStatus("online")
+      setAddDoorOpen(false)
+      setActionNotice("Door created.")
+      setActionError("")
+      await refreshDoors()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Door create failed")
+    },
+  })
+
+  const updateLockMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID || !selectedDoor) {
+        throw new Error("lock is required")
+      }
+      return updateLock(token, selectedDoor.id, {
+        tenant_id: tenantID,
+        name: doorName.trim(),
+        gateway_id: gatewayID.trim(),
+        kind: doorKind,
+        status: doorStatus,
+      })
+    },
+    onSuccess: async () => {
+      setActionNotice("Door saved.")
+      setActionError("")
+      await refreshDoors()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Door save failed")
+    },
+  })
+
+  const deleteLockMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID || !selectedDoor) {
+        throw new Error("lock is required")
+      }
+      return deleteLock(token, selectedDoor.id, tenantID)
+    },
+    onSuccess: async () => {
+      setSelectedDoorID("")
+      setDeleteDoorConfirmOpen(false)
+      setActionNotice("Door deleted.")
+      setActionError("")
+      await refreshDoors()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Door delete failed")
+    },
+  })
+
+  const lockActionMutation = useMutation({
+    mutationFn: (action: LockAction) => {
+      if (!tenantID || !selectedDoor) {
+        throw new Error("lock is required")
+      }
+      if (action === "unlock") {
+        return unlockLock(token, selectedDoor.id, tenantID)
+      }
+      if (action === "lock_down") {
+        return lockDownLock(token, selectedDoor.id, tenantID)
+      }
+      return cancelLockLockdown(token, selectedDoor.id, tenantID)
+    },
+    onSuccess: async (result) => {
+      const label = result.action === "unlock" ? "Unlock" : result.action === "lock_down" ? "Lockdown" : "Cancel lockdown"
+      setActionNotice(`${label} accepted.`)
+      setActionError("")
+      await refreshDoors()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Door action failed")
+    },
+  })
+
+  return (
+    <>
+      <PageFrame
+        breadcrumbs={["Home", "Places", place?.name ?? "Assigned Place", "Doors"]}
+        title={selectedDoor?.name ?? "Doors"}
+        count={resourceQuery.isPending ? "--" : doors.length}
+        description={selectedDoor ? `${selectedDoor.kind} door on ${selectedDoor.floorName}` : "Door settings and access schedules"}
+        actions={
+          <>
+            <Button
+              disabled={!canCreateDoor}
+              onClick={() => {
+                setActionNotice("")
+                setActionError("")
+                setAddDoorOpen(true)
+              }}
+              className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            >
+              <PlusIcon className="mr-1.5 size-4" />
+              Add Door
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canMutate || lockActionMutation.isPending}
+              onClick={() => lockActionMutation.mutate("unlock")}
+              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            >
+              <DoorOpenIcon className="mr-1.5 size-4" />
+              Unlock
+            </Button>
+            <Button
+              variant="interaction"
+              disabled={!canMutate || lockActionMutation.isPending}
+              onClick={() => lockActionMutation.mutate("lock_down")}
+              className="h-10 rounded-[6px] text-[#4f55ff]"
+            >
+              <ShieldAlertIcon className="mr-1.5 size-4" />
+              Lockdown
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canMutate || lockActionMutation.isPending}
+              onClick={() => lockActionMutation.mutate("cancel_lockdown")}
+              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            >
+              <ShieldOffIcon className="mr-1.5 size-4" />
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canMutate || deleteLockMutation.isPending}
+              onClick={() => {
+                setActionError("")
+                setDeleteDoorConfirmOpen(true)
+              }}
+              className="h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff7f7] hover:text-[#9f1d1d]"
+            >
+              <Trash2Icon className="mr-1.5 size-4" />
+              Delete Door
+            </Button>
+          </>
+        }
+      >
       {resourceQuery.usingFallback ? (
         <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
           Live door resources are unavailable. Showing reference data.
+        </div>
+      ) : null}
+      {actionNotice ? (
+        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+          {actionNotice}
+        </div>
+      ) : null}
+      {actionError ? (
+        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          {actionError}
         </div>
       ) : null}
 
@@ -120,15 +419,69 @@ export function DoorDetailAdaptedPage({
         tabs={["General", "Groups", "Hardware", "Events", "Permissions"]}
         active={activeTab}
         onTabChange={setActiveTab}
-        footer={<Button disabled className="h-10 rounded-[8px] bg-[#eef0f4] px-8 text-[#8d909b]">Save</Button>}
+        footer={
+          <Button
+            disabled={!canMutate || updateLockMutation.isPending || !doorName.trim()}
+            onClick={() => updateLockMutation.mutate()}
+            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+          >
+            {updateLockMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+        }
       >
         {activeTab === "General" ? (
           <>
             <PanelHeader title="General" description="Door name, floor, location, and lock behavior." />
-            <div className="space-y-6 p-7">
-              <FormField label="Name" value={selectedDoor?.name ?? "No door selected"} />
+            <div className="grid gap-6 p-7 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Name</span>
+                <input
+                  value={doorName}
+                  disabled={!selectedDoor}
+                  onChange={(event) => setDoorName(event.target.value)}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Gateway ID</span>
+                <input
+                  value={gatewayID}
+                  disabled={!selectedDoor}
+                  onChange={(event) => setGatewayID(event.target.value)}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Kind</span>
+                <select
+                  value={doorKind}
+                  disabled={!selectedDoor}
+                  onChange={(event) => setDoorKind(event.target.value as Lock["kind"])}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  <option value="office">Office</option>
+                  <option value="turnstile">Turnstile</option>
+                  <option value="server-room">Server Room</option>
+                  <option value="elevator">Elevator</option>
+                  <option value="parking-gate">Parking Gate</option>
+                  <option value="emergency-exit">Emergency Exit</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">Status</span>
+                <select
+                  value={doorStatus}
+                  disabled={!selectedDoor}
+                  onChange={(event) => setDoorStatus(event.target.value as Lock["status"])}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                >
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </label>
               <FormField label="Description" value={selectedDoor?.description ?? "No door selected"} />
               <FormField label="Belongs to floor" value={selectedDoor?.floorName ?? "Unassigned floor"} trailing={<SearchIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label="Area" value={selectedDoor?.areaName ?? "Unassigned area"} />
               <FormField label="Timezone" value="Asia/Jakarta" />
             </div>
           </>
@@ -140,7 +493,10 @@ export function DoorDetailAdaptedPage({
               title="Groups"
               description="Groups that include this door as an access target."
               action={
-                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:bg-[#fbfbfc]">
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                >
                   Add Group
                 </Button>
               }
@@ -239,7 +595,10 @@ export function DoorDetailAdaptedPage({
             <span>Week: Apr 20 - Apr 26</span>
             <span className="text-[#4f55ff]">›</span>
           </div>
-          <Button variant="outline" className="h-11 rounded-[6px] border-[#8589ff] bg-white text-[#4f55ff] hover:bg-[#fbfbfc]">
+          <Button
+            variant="outline"
+            className="h-11 rounded-[6px] border-[#8589ff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+          >
             Add Schedule
             <ChevronDownIcon className="ml-1.5 size-4" />
           </Button>
@@ -274,6 +633,149 @@ export function DoorDetailAdaptedPage({
           </div>
         </div>
       </section>
-    </PageFrame>
+      </PageFrame>
+
+      <ConfirmActionDialog
+        open={deleteDoorConfirmOpen}
+        onOpenChange={(open) => {
+          if (!deleteLockMutation.isPending) {
+            setDeleteDoorConfirmOpen(open)
+          }
+        }}
+        title="Delete door"
+        description={
+          <>
+            This removes <span className="font-semibold text-[#17171c]">{selectedDoor?.name ?? "this door"}</span> from{" "}
+            {place?.name ?? "this place"}.
+          </>
+        }
+        confirmLabel="Delete door"
+        pending={deleteLockMutation.isPending}
+        disabled={!canMutate || !selectedDoor}
+        destructive
+        onConfirm={() => deleteLockMutation.mutate()}
+      />
+
+      <Sheet open={addDoorOpen} onOpenChange={setAddDoorOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Door</SheetTitle>
+            <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              createLockMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name</span>
+              <input
+                value={newDoorName}
+                onChange={(event) => setNewDoorName(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Floor</span>
+              <select
+                value={newDoorFloorID}
+                onChange={(event) => setNewDoorFloorID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="">Select floor</option>
+                {floors.map((floor) => (
+                  <option key={floor.id} value={floor.id}>
+                    {floor.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Area</span>
+              <select
+                value={newDoorAreaID}
+                onChange={(event) => setNewDoorAreaID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="">Select area</option>
+                {newDoorAreaOptions.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Gateway</span>
+              <select
+                value={newDoorGatewayID}
+                onChange={(event) => setNewDoorGatewayID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="">Unassigned</option>
+                {gatewayOptions.map((item) => (
+                  <option key={item.gatewayId || item.id} value={item.gatewayId || item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Kind</span>
+                <select
+                  value={newDoorKind}
+                  onChange={(event) => setNewDoorKind(event.target.value as Lock["kind"])}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                >
+                  <option value="office">Office</option>
+                  <option value="turnstile">Turnstile</option>
+                  <option value="server-room">Server Room</option>
+                  <option value="elevator">Elevator</option>
+                  <option value="parking-gate">Parking Gate</option>
+                  <option value="emergency-exit">Emergency Exit</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Status</span>
+                <select
+                  value={newDoorStatus}
+                  onChange={(event) => setNewDoorStatus(event.target.value as Lock["status"])}
+                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                >
+                  <option value="online">Online</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </label>
+            </div>
+            {actionError ? (
+              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+                {actionError}
+              </div>
+            ) : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => setAddDoorOpen(false)} className="h-10 rounded-[6px]">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  !canCreateDoor ||
+                  createLockMutation.isPending ||
+                  !newDoorName.trim() ||
+                  !newDoorFloorID ||
+                  !newDoorAreaID
+                }
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              >
+                {createLockMutation.isPending ? "Creating..." : "Add Door"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }

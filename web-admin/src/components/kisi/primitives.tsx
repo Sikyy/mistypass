@@ -244,7 +244,7 @@ export function SettingsPanel({
             onClick={() => onTabChange?.(item)}
             className={cn(
               "mb-2 flex h-12 w-full items-center rounded-[6px] px-5 text-left text-base font-semibold",
-              item === active ? "bg-[#4f55ff] text-white" : "text-[#2f3037] hover:bg-[#fbfbfc]"
+              item === active ? "bg-[#4f55ff] text-white" : "text-[#2f3037] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
             )}
           >
             {item}

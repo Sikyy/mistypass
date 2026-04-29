@@ -84,6 +84,12 @@ type server struct {
 	volatileStore                 *redistore.Store
 	workerLeaseStore              workerLeaseStore
 	workerQueueStore              workerQueueStore
+	scheduledReportMu             sync.RWMutex
+	scheduledReports              map[string]referenceScheduledReport
+	scheduledReportSeq            int
+	customAlertPolicyMu           sync.RWMutex
+	customAlertPolicies           map[string]referenceAlertPolicy
+	customAlertPolicySeq          int
 	hrisWebhookReceiptWorkerWake  chan struct{}
 	hrisWebhookDLQWorkerWake      chan struct{}
 	hrisWebhookReceiptWorkerQueue chan enterpriseHRISWebhookReceiptQueuedTask
@@ -287,6 +293,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 	}); err != nil {
 		return nil, err
 	}
+	scheduledReports, scheduledReportSeq := defaultReferenceScheduledReports(time.Now().UTC())
 
 	s := &server{
 		cfg:                           cfg,
@@ -318,6 +325,9 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		apiRateLimitBuckets:           map[string]loginRateLimitBucket{},
 		enterprisePublicRateBuckets:   map[string]loginRateLimitBucket{},
 		enterpriseWebhookRateBuckets:  map[string]loginRateLimitBucket{},
+		scheduledReports:              scheduledReports,
+		scheduledReportSeq:            scheduledReportSeq,
+		customAlertPolicies:           map[string]referenceAlertPolicy{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
 		hrisWebhookDLQWorkerWake:      make(chan struct{}, 1),
 		hrisWebhookReceiptWorkerQueue: make(chan enterpriseHRISWebhookReceiptQueuedTask, enterpriseHRISWebhookQueuedTaskBufferSize),
@@ -388,9 +398,12 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		r.Use(s.withGlobalAPIRateLimit)
 		r.With(s.withLoginRateLimit).Post("/auth/login", s.login)
 		r.With(s.withLoginRateLimit).Post("/auth/external/login", s.externalLogin)
+		r.Get("/openapi.json", s.getOpenAPISpec)
 		r.Post("/auth/refresh", s.refresh)
 		r.With(s.withBearerToken).Post("/auth/logout", s.logout)
 		r.With(s.withBearerToken).Get("/me", s.me)
+		r.With(s.withBearerToken).Get("/user", s.getCurrentUserProfile)
+		r.With(s.withBearerToken).Patch("/user", s.updateCurrentUserProfile)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/tenant/resolve", s.resolveEnterpriseTenantByEmail)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/start", s.enterpriseAuthStart)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/exchange", s.enterpriseAuthExchange)
@@ -399,6 +412,9 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 		r.With(s.withEnterprisePublicRateLimit).Get("/enterprise/auth/oidc/callback", s.enterpriseOIDCCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/saml/callback", s.enterpriseSAMLCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/jit-provision-approvals/external-sync/callback", s.enterpriseJITApprovalExternalSyncCallback)
+		r.With(s.withEnterprisePublicRateLimit).Get("/group_links/verify", s.verifyReferenceGroupLinkToken)
+		r.With(s.withEnterprisePublicRateLimit).Post("/group_links/verify", s.verifyReferenceGroupLinkToken)
+		r.With(s.withEnterpriseWebhookRateLimit).Post("/users/invitations/provider-receipts", s.receiveUserInvitationProviderReceipt)
 
 		r.Route("/app", func(app chi.Router) {
 			app.With(s.withLoginRateLimit).Post("/auth/login", s.appLogin)
@@ -410,6 +426,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 
 				protected.Get("/me", s.appMe)
 				protected.Get("/credentials", s.appCredentials)
+				protected.Post("/credentials/apple-pass", s.appEnrollApplePass)
 				protected.Get("/access/doors", s.appAccessDoors)
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
 				protected.Get("/access/logs", s.appAccessLogs)
@@ -444,22 +461,39 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin")).Patch("/tenants/{tenantID}/status", s.updateTenantStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/tenants/{tenantID}/topology", s.getTenantTopology)
 
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/buildings", s.listBuildings)
-			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/buildings", s.createBuilding)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/places")).Get("/buildings", s.listBuildings)
+			protected.With(s.requireRoles("super_admin", "tenant_admin"), withDeprecatedEndpoint("/api/v1/places")).Post("/buildings", s.createBuilding)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/floors", s.listFloors)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/floors", s.createFloor)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/floors/{floorID}", s.getFloor)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/floors/{floorID}", s.updateFloor)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/floors/{floorID}", s.deleteFloor)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/areas", s.listAreas)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/areas", s.createArea)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/doors", s.listDoors)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/doors", s.createDoor)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/door-groups", s.listDoorGroups)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/door-groups", s.createDoorGroup)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/areas/{areaID}", s.getArea)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/areas/{areaID}", s.updateArea)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/locks")).Get("/doors", s.listDoors)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/locks")).Post("/doors", s.createDoor)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/door_groups")).Get("/door-groups", s.listDoorGroups)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/door_groups")).Post("/door-groups", s.createDoorGroup)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/door_groups", s.listReferenceDoorGroups)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/places", s.listReferencePlaces)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/places", s.createReferencePlace)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/places/{placeID}", s.getReferencePlace)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/places/{placeID}", s.updateReferencePlace)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/places/{placeID}", s.deleteReferencePlace)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/places/{placeID}/lock_down", s.lockDownReferencePlace)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/places/{placeID}/cancel_lockdown", s.cancelReferencePlaceLockdown)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/locks", s.listReferenceLocks)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/locks", s.createReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/locks/{lockID}", s.getReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/locks/{lockID}", s.updateReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/locks/{lockID}", s.deleteReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/locks/{lockID}/unlock", s.unlockReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/locks/{lockID}/lock_down", s.lockDownReferenceLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/locks/{lockID}/cancel_lockdown", s.cancelReferenceLockLockdown)
 
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways", s.listGateways)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/controllers", "/api/v1/readers", "/api/v1/terminals")).Get("/gateways", s.listGateways)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/gateways/serial-inventory", s.listGatewaySerialInventory)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/gateways/serial-inventory/import", s.importGatewaySerialInventory)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/gateways/serial-inventory/import-csv", s.importGatewaySerialInventoryCSV)
@@ -481,45 +515,115 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/ota/tasks/{taskID}/status", s.updateGatewayOTATaskStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/events/checkpoint", s.listGatewayEventCheckpoints)
 
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/access-policies", s.listAccessPolicies)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/access-policies", s.createAccessPolicy)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/access-policies/{policyID}", s.updateAccessPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Get("/access-policies", s.listAccessPolicies)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Post("/access-policies", s.createAccessPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Patch("/access-policies/{policyID}", s.updateAccessPolicy)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/users", s.listUsers)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/users", s.createUser)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/users/{userID}", s.getUser)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/users/{userID}/invite", s.inviteUser)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/users/{userID}/invitations", s.listUserInvitations)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/users/{userID}/invitations/{deliveryID}/receipt", s.recordUserInvitationReceipt)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/users/{userID}", s.updateUser)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/users/{userID}", s.deleteUser)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/user-groups", s.listUserGroups)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/user-groups", s.createUserGroup)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/user-groups/{groupID}", s.updateUserGroup)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/temporary-access", s.listTemporaryAccess)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/temporary-access", s.createTemporaryAccess)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/shares")).Get("/temporary-access", s.listTemporaryAccess)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/shares")).Post("/temporary-access", s.createTemporaryAccess)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/visitor-passes", s.listVisitorPasses)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/visitor-passes", s.createVisitorPass)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/groups", s.listReferenceGroups)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/groups", s.createReferenceGroup)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/groups/{groupID}", s.getReferenceGroup)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/groups/{groupID}", s.updateReferenceGroup)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/groups/{groupID}", s.deleteReferenceGroup)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/group_locks", s.listReferenceGroupLocks)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/group_locks", s.createReferenceGroupLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/group_locks/{groupLockID}", s.deleteReferenceGroupLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/group_zones", s.listReferenceGroupZones)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/group_links", s.listReferenceGroupLinks)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/group_links", s.createReferenceGroupLink)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/group_links/{groupLinkID}", s.getReferenceGroupLink)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/group_links/{groupLinkID}", s.updateReferenceGroupLink)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/group_links/{groupLinkID}", s.deleteReferenceGroupLink)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/controllers", s.listReferenceControllers)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/controllers/{controllerToken}/assign", s.assignReferenceController)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/controllers/{controllerID}/deassign", s.deassignReferenceController)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/controllers/{controllerID}/locks", s.bindReferenceControllerLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/controllers/{controllerID}/locks/{lockID}", s.unbindReferenceControllerLock)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/controllers/{controllerID}/config/publish", s.publishReferenceControllerConfig)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/controllers/{controllerID}/reboot", s.rebootReferenceController)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/readers", s.listReferenceReaders)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/readers/{readerToken}/assign", s.assignReferenceReader)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/readers/{readerID}/deassign", s.deassignReferenceReader)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/readers/{readerID}/reboot", s.rebootReferenceReader)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/terminals", s.listReferenceTerminals)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/terminals/{terminalID}", s.getReferenceTerminal)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/terminals/{terminalID}/reboot", s.rebootReferenceTerminal)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/terminals/{terminalID}/trigger", s.triggerReferenceTerminal)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alert_policies", s.listReferenceAlertPolicies)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Post("/alert_policies/condition_preview", s.previewReferenceAlertPolicyCondition)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Post("/alert_policies/evaluate", s.evaluateReferenceAlertPoliciesForEvent)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/alert_policies", s.createReferenceAlertPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alert_policies/{policyID}", s.getReferenceAlertPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/alert_policies/{policyID}", s.updateReferenceAlertPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/alert_policies/{policyID}", s.deleteReferenceAlertPolicy)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/reports", s.listReferenceReports)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/reports/{reportID}", s.getReferenceReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/reports/{reportID}/download", s.downloadReferenceReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/scheduled_reports", s.listReferenceScheduledReports)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/scheduled_reports", s.createReferenceScheduledReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/scheduled_reports/{scheduledReportID}", s.getReferenceScheduledReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/scheduled_reports/{scheduledReportID}", s.updateReferenceScheduledReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/scheduled_reports/{scheduledReportID}", s.deleteReferenceScheduledReport)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/teams", s.listReferenceTeams)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/teams/{teamID}", s.getReferenceTeam)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/teams", s.createReferenceTeam)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/teams/{teamID}", s.updateReferenceTeam)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/teams/{teamID}", s.deleteReferenceTeam)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/team_memberships", s.listReferenceTeamMemberships)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/team_memberships", s.createReferenceTeamMembership)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/team_memberships/{membershipID}", s.deleteReferenceTeamMembership)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/roles", s.listReferenceRoles)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/roles/{roleID}", s.getReferenceRole)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/role_assignments", s.listReferenceRoleAssignments)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/role_assignments", s.createReferenceRoleAssignment)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/role_assignments/{assignmentID}", s.getReferenceRoleAssignment)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/role_assignments/{assignmentID}", s.updateReferenceRoleAssignment)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/role_assignments/{assignmentID}", s.deleteReferenceRoleAssignment)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/members", s.listReferenceMembers)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/access_rights/schedule_templates", s.listReferenceAccessRightsScheduleTemplates)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/access_rights/schedule", s.updateReferenceAccessRightsSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Post("/access_rights/impact_preview", s.previewReferenceAccessRightsImpact)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/access_rights/review", s.reviewReferenceAccessRights)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/shares", s.listReferenceShares)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/shares", s.createReferenceShare)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/shares/{shareID}", s.getReferenceShare)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/shares/{shareID}", s.updateReferenceShare)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/shares/{shareID}", s.deleteReferenceShare)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/cards", s.listReferenceCards)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/cards/{cardID}", s.getReferenceCard)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards", s.createReferenceCard)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/card_assignments", s.listReferenceCardAssignments)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/card_assignments/{assignmentID}", s.getReferenceCardAssignment)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/card_assignments", s.createReferenceCardAssignment)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards/{cardID}/assign", s.assignReferenceCard)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards/{cardID}/deassign", s.deassignReferenceCard)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards/{cardID}/activate", s.activateReferenceCard)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards/{cardID}/deactivate", s.deactivateReferenceCard)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cards/{cardID}/revoke", s.revokeReferenceCard)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Post("/event_sets", s.createReferenceEventSet)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/event_sets/{eventSetID}", s.getReferenceEventSet)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/meta", s.getReferenceEventMetadata)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/types", s.listReferenceEventTypes)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/integrations", s.listReferenceIntegrations)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/integrations", s.createReferenceIntegration)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/integrations/{integrationID}", s.getReferenceIntegration)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/integrations/{integrationID}", s.updateReferenceIntegration)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/integrations/{integrationID}", s.deleteReferenceIntegration)
 
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/access", s.listAccessEvents)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/event_sets")).Get("/events/access", s.listAccessEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/device", s.listDeviceEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/stream", s.streamEvents)
 
@@ -546,7 +650,7 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/passes/issue", s.issueWalletPass)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/passes/issue-batch", s.issueWalletPassBatch)
-			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/passes", s.listWalletPasses)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator"), withDeprecatedEndpoint("/api/v1/cards", "/api/v1/card_assignments")).Get("/wallet/passes", s.listWalletPasses)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/passes/{passID}", s.getWalletPass)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/passes/{passID}/save-link", s.getWalletPassSaveLink)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/wallet/passes/{passID}/suspend", s.suspendWalletPass)
@@ -555,6 +659,14 @@ func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/deliveries", s.listWalletPassDeliveries)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/deliveries/dispatch", s.dispatchWalletPassDelivery)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/deliveries/{notificationID}/retry", s.retryWalletPassDelivery)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/physical-card-vendors", s.listWalletPhysicalCardVendors)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/physical-card-inventory", s.listWalletPhysicalCardInventory)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/physical-card-inventory", s.createWalletPhysicalCardInventoryItem)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/physical-card-inventory/scan", s.scanWalletPhysicalCardInventory)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/physical-card-inventory/import", s.importWalletPhysicalCardInventory)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/physical-card-inventory/import-csv", s.importWalletPhysicalCardInventoryCSV)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/wallet/physical-card-inventory/batch-status", s.batchUpdateWalletPhysicalCardInventoryStatus)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/wallet/physical-card-inventory/{inventoryID}/status", s.updateWalletPhysicalCardInventoryStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/wallet/physical-card-tasks", s.listWalletPhysicalCardTasks)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/wallet/physical-card-tasks", s.createWalletPhysicalCardTask)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/wallet/physical-card-tasks/{taskID}/status", s.updateWalletPhysicalCardTaskStatus)
@@ -766,9 +878,15 @@ func cloneGatewayDeviceTokenMap(input map[string]string) map[string]string {
 
 func (s *server) withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", s.cfg.CORSOrigin)
+		if origin := allowedCORSOrigin(s.cfg.CORSOrigin, r.Header.Get("Origin")); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			if origin != "*" {
+				w.Header().Add("Vary", "Origin")
+			}
+		}
 		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Collection-Range, Deprecation, Link, X-MistyPass-Replacement")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -777,6 +895,34 @@ func (s *server) withCORS(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func allowedCORSOrigin(configuredOrigin, requestOrigin string) string {
+	configuredOrigin = strings.TrimSpace(configuredOrigin)
+	if configuredOrigin == "" {
+		return ""
+	}
+	requestOrigin = strings.TrimSpace(requestOrigin)
+	fallbackOrigin := ""
+	for _, candidate := range strings.Split(configuredOrigin, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if fallbackOrigin == "" {
+			fallbackOrigin = candidate
+		}
+		if candidate == "*" {
+			return candidate
+		}
+		if requestOrigin != "" && candidate == requestOrigin {
+			return requestOrigin
+		}
+	}
+	if requestOrigin == "" {
+		return fallbackOrigin
+	}
+	return ""
 }
 
 func (s *server) withLoginRateLimit(next http.Handler) http.Handler {
@@ -1201,16 +1347,60 @@ func (s *server) appCredentials(w http.ResponseWriter, r *http.Request) {
 		}
 
 		items = append(items, map[string]any{
-			"id":        passes[i].ID,
-			"type":      "wallet",
-			"status":    passes[i].Status,
-			"save_link": passes[i].SaveLink,
-			"issued_at": passes[i].IssuedAt,
+			"id":              passes[i].ID,
+			"type":            firstNonEmptyString(passes[i].CredentialKind, "wallet"),
+			"provider":        passes[i].Provider,
+			"credential_kind": passes[i].CredentialKind,
+			"status":          passes[i].Status,
+			"save_link":       passes[i].SaveLink,
+			"issued_at":       passes[i].IssuedAt,
 		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
+	})
+}
+
+func (s *server) appEnrollApplePass(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	var request struct {
+		DeviceID   string `json:"device_id"`
+		PassSerial string `json:"pass_serial"`
+		ExpiresAt  string `json:"expires_at"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	enrolled, err := s.walletSvc.EnrollApplePass(
+		user.TenantID,
+		user.ID,
+		request.DeviceID,
+		request.PassSerial,
+		request.ExpiresAt,
+		firstNonEmptyString(user.Email, user.ID, "resident"),
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, wallet.ErrTargetIDRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"pass":              enrolled,
+		"credential_kind":   "apple_wallet",
+		"enrollment_source": "self_service",
 	})
 }
 
@@ -4009,7 +4199,7 @@ func buildEnterpriseSyncWorkerAlertSummary(logs []audit.Log) []enterpriseSyncWor
 		if logs[i].At.Before(entry.FirstSeenAt) {
 			entry.FirstSeenAt = logs[i].At
 		}
-		if logs[i].At.After(entry.LastSeenAt) || logs[i].At.Equal(entry.LastSeenAt) {
+		if !exists || logs[i].At.After(entry.LastSeenAt) {
 			metrics := parseEnterpriseSyncWorkerAlertMetrics(logs[i].Target)
 			entry.LastSeenAt = logs[i].At
 			entry.LastFailed = metrics.Failed
@@ -7768,12 +7958,66 @@ func (s *server) buildingScopeForRequest(w http.ResponseWriter, r *http.Request)
 	}
 
 	scope := normalizeBuildingScope(user.BuildingIDs)
+	if scope == nil {
+		scope = map[string]struct{}{}
+	}
+	for buildingID := range s.buildingScopeFromRoleAssignments(user) {
+		scope[buildingID] = struct{}{}
+	}
 	if len(scope) == 0 {
 		writeError(w, http.StatusForbidden, "building scope forbidden")
 		return nil, false
 	}
 
 	return scope, true
+}
+
+func (s *server) buildingScopeFromRoleAssignments(user auth.User) map[string]struct{} {
+	scope := map[string]struct{}{}
+	if s == nil || s.accessSvc == nil {
+		return scope
+	}
+	tenantID := strings.TrimSpace(user.TenantID)
+	if tenantID == "" {
+		return scope
+	}
+
+	userID := strings.TrimSpace(user.ID)
+	userEmail := strings.ToLower(strings.TrimSpace(user.Email))
+	userTeamIDs := map[string]struct{}{}
+	for _, membership := range s.accessSvc.ListTeamMemberships(tenantID) {
+		if strings.EqualFold(strings.TrimSpace(membership.MemberType), "User") &&
+			((userID != "" && strings.TrimSpace(membership.MemberID) == userID) ||
+				(userEmail != "" && strings.EqualFold(strings.TrimSpace(membership.MemberEmail), userEmail))) {
+			if teamID := strings.TrimSpace(membership.TeamID); teamID != "" {
+				userTeamIDs[teamID] = struct{}{}
+			}
+		}
+	}
+
+	for _, assignment := range s.accessSvc.ListRoleAssignments(tenantID) {
+		if strings.TrimSpace(assignment.RoleID) != "role_place_admin" ||
+			!strings.EqualFold(strings.TrimSpace(assignment.AppliesToType), "Place") {
+			continue
+		}
+		placeID := strings.TrimSpace(assignment.AppliesToID)
+		if placeID == "" {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(assignment.AssigneeType)) {
+		case "user":
+			if (userID != "" && strings.TrimSpace(assignment.AssigneeID) == userID) ||
+				(userEmail != "" && strings.EqualFold(strings.TrimSpace(assignment.AssigneeEmail), userEmail)) {
+				scope[placeID] = struct{}{}
+			}
+		case "team":
+			if _, exists := userTeamIDs[strings.TrimSpace(assignment.AssigneeID)]; exists {
+				scope[placeID] = struct{}{}
+			}
+		}
+	}
+
+	return scope
 }
 
 func (s *server) requireBuildingScope(w http.ResponseWriter, scope map[string]struct{}, buildingID string) bool {

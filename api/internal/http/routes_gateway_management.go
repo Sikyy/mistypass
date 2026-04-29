@@ -368,6 +368,7 @@ func (s *server) registerGateway(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, created)
+	s.appendAuditLog(r, tenantID, "gateway_registered", fmt.Sprintf("gateway_id=%s,place_id=%s,serial_number=%s", created.ID, created.BuildingID, created.SerialNumber), "gateway")
 }
 
 func (s *server) bindGatewayDoor(w http.ResponseWriter, r *http.Request) {
@@ -421,6 +422,7 @@ func (s *server) bindGatewayDoor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, updated)
+	s.appendAuditLog(r, tenantID, "gateway_door_bound", fmt.Sprintf("gateway_id=%s,door_id=%s,place_id=%s", updated.ID, strings.TrimSpace(request.DoorID), updated.BuildingID), "gateway")
 }
 
 func (s *server) unbindGatewayDoor(w http.ResponseWriter, r *http.Request) {
@@ -474,6 +476,7 @@ func (s *server) unbindGatewayDoor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, updated)
+	s.appendAuditLog(r, tenantID, "gateway_door_unbound", fmt.Sprintf("gateway_id=%s,door_id=%s,place_id=%s", updated.ID, strings.TrimSpace(request.DoorID), updated.BuildingID), "gateway")
 }
 
 func (s *server) registerGatewayDevice(w http.ResponseWriter, r *http.Request) {
@@ -546,6 +549,9 @@ func (s *server) registerGatewayDevice(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, updated)
+	if device, exists := gatewayDeviceBySerial(updated, request.SerialNumber); exists {
+		s.appendAuditLog(r, tenantID, "gateway_device_registered", fmt.Sprintf("gateway_id=%s,device_id=%s,serial_number=%s,kind=%s,protocol=%s,status=%s", updated.ID, device.ID, device.SerialNumber, device.Kind, device.Protocol, device.Status), "gateway")
+	}
 }
 
 func (s *server) reportGatewayDeviceRS485Telemetry(w http.ResponseWriter, r *http.Request) {
@@ -711,6 +717,7 @@ func (s *server) publishGatewayConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, ack)
+	s.appendAuditLog(r, tenantID, "gateway_config_published", fmt.Sprintf("gateway_id=%s,version=%s,task_id=%s", ack.GatewayID, strings.TrimSpace(request.Version), ack.TaskID), "gateway")
 }
 
 func (s *server) rebootGateway(w http.ResponseWriter, r *http.Request) {
@@ -747,6 +754,7 @@ func (s *server) rebootGateway(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, ack)
+	s.appendAuditLog(r, tenantID, "gateway_reboot_queued", fmt.Sprintf("gateway_id=%s,task_id=%s", ack.GatewayID, ack.TaskID), "gateway")
 }
 
 func (s *server) getGatewayMQTTBootstrap(w http.ResponseWriter, r *http.Request) {

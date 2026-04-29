@@ -17,6 +17,8 @@ export type Building = {
   name: string
   address: string
   region?: string
+  status?: "active" | "archived"
+  archived_at?: string
   created_at: string
 }
 
@@ -54,11 +56,42 @@ export type Door = {
 
 export type Lock = Door
 
+export type SpaceActionResult = {
+  id: string
+  resource_type: "PlaceAction" | "LockAction"
+  tenant_id: string
+  place_id?: string
+  lock_id?: string
+  action: "unlock" | "lock_down" | "cancel_lockdown"
+  status: string
+  lock_count?: number
+  created_at: string
+}
+
 export type DoorGroup = {
   id: string
   tenant_id: string
   name: string
   door_ids?: string[]
+  created_at: string
+}
+
+export type GroupLock = {
+  id: string
+  tenant_id: string
+  group_id: string
+  lock_id: string
+  created_at: string
+}
+
+export type GroupZone = {
+  id: string
+  tenant_id: string
+  group_id: string
+  zone_id: string
+  place_id: string
+  floor_id: string
+  name: string
   created_at: string
 }
 
@@ -183,6 +216,29 @@ export type Integration = {
   updated_at: string
 }
 
+export type AlertPolicy = {
+  id: string
+  resource_type: "AlertPolicy"
+  tenant_id: string
+  name: string
+  description: string
+  category: "enterprise_sync_worker" | "wallet_jobs" | string
+  trigger: string
+  severity: string
+  condition_expression?: string
+  status: "active" | "inactive" | string
+  enabled: boolean
+  threshold: number
+  window_seconds: number
+  cooldown_seconds: number
+  channels: {
+    email: boolean
+    whatsapp: boolean
+  }
+  receiver_groups?: string[]
+  updated_at: string
+}
+
 export type GatewaySerialInventoryProductType =
   | "gateway"
   | "reader"
@@ -288,15 +344,81 @@ export type AccessUser = {
   created_at: string
 }
 
+export type UserInvitationDelivery = {
+  id: string
+  resource_type: "UserInvitationDelivery"
+  tenant_id: string
+  user_id: string
+  email: string
+  place_id?: string
+  delivery_method: "email" | "email_qr"
+  status: "queued" | "sent" | "failed"
+  provider?: string
+  provider_delivery_id?: string
+  provider_error?: string
+  retryable?: boolean
+  queued_at: string
+  delivered_at?: string
+  updated_at: string
+}
+
 export type UserGroup = {
   id: string
+  resource_type?: "Group"
   tenant_id: string
   building_id?: string
+  place_id?: string
   name: string
   description: string
+  login_enabled?: boolean
+  geofence_restriction_enabled?: boolean
+  geofence_restriction_radius?: number
+  primary_device_restriction_enabled?: boolean
+  managed_device_restriction_enabled?: boolean
+  reader_restriction_enabled?: boolean
+  time_restriction_enabled?: boolean
+  tap_to_access_restriction_enabled?: boolean
+  time_restriction_time_zone?: string
+  users_count?: number
+  locks_count?: number
+  elevator_stops_count?: number
   members?: string[]
   created_at: string
   updated_at: string
+}
+
+export type GroupLink = {
+  id: string
+  resource_type: "GroupLink"
+  tenant_id: string
+  group_id: string
+  group_name?: string
+  name: string
+  email?: string
+  phone?: string
+  last_used_at?: string
+  link_enabled: boolean
+  quick_response_code_type?: "online" | "offline" | string
+  valid_from?: string
+  valid_until?: string
+  created_by_type?: "User" | "MarketplaceInstallation" | string
+  created_by_id?: string
+  created_by_email?: string
+  created_by_name?: string
+  issued_by_id?: string
+  secret?: string
+  quick_response_code_token?: string
+  quick_response_code_image?: string
+  created_at: string
+  updated_at: string
+}
+
+export type GroupLinkVerification = {
+  valid: boolean
+  status: string
+  verified_at: string
+  claimed_at?: string
+  group_link: GroupLink
 }
 
 export type Team = {
@@ -346,6 +468,8 @@ export type RoleAssignment = {
   assignee_email?: string
   valid_from?: string
   valid_until?: string
+  reviewed_at?: string
+  reviewed_by?: string
   created_at: string
   updated_at: string
 }
@@ -364,11 +488,14 @@ export type TemporaryAccess = {
   grantee_email: string
   mobile_model?: string
   pass_type?: string
+  valid_from?: string
   valid_until: string
   authorized_by_id?: string
   authorized_by_email?: string
   authorized_by_role?: string
   authorized_at?: string
+  reviewed_at?: string
+  reviewed_by?: string
   created_at: string
 }
 
@@ -379,16 +506,93 @@ export type Share = {
   group_id?: string
   role_id: string
   place_id?: string
+  area_id?: string
   lock_id?: string
   valid_from?: string
   valid_until: string
   status: string
   delivery_method: "wallet" | "email_qr"
   grantee_name?: string
+  grantee_phone?: string
+  mobile_model?: string
+  pass_type?: string
   authorized_by_id?: string
   authorized_by_email?: string
   authorized_by_role?: string
+  authorized_at?: string
+  reviewed_at?: string
+  reviewed_by?: string
   created_at: string
+}
+
+export type AccessRightImpactItem = {
+  source_type: "role_assignment" | "share"
+  id: string
+  name: string
+  target: string
+  status: string
+  needs_review: boolean
+  reviewed_at?: string
+  reviewed_by?: string
+  affected_users: number
+  affected_teams: number
+  affected_groups: number
+  affected_places: number
+  affected_locks: number
+  role_id?: string
+  applies_to_type?: RoleAssignment["applies_to_type"]
+  applies_to_id?: string
+  assignee_type?: RoleAssignment["assignee_type"]
+  assignee_id?: string
+  provider_record_id?: string
+}
+
+export type AccessRightsImpactPreview = {
+  tenant_id: string
+  selected_count: number
+  needs_review_count: number
+  affected_users: number
+  affected_teams: number
+  affected_groups: number
+  affected_places: number
+  affected_locks: number
+  items: AccessRightImpactItem[]
+}
+
+export type AccessRightsSelectionPayload = {
+  tenant_id: string
+  role_assignment_ids?: string[]
+  share_ids?: string[]
+  reviewed_by?: string
+}
+
+export type AccessRightsReviewResult = {
+  tenant_id: string
+  reviewed_at: string
+  reviewed_by: string
+  reviewed_count: number
+  skipped_count: number
+  reviewed_role_assignment_ids?: string[]
+  reviewed_share_ids?: string[]
+}
+
+export type AccessRightsScheduleUpdateResult = {
+  tenant_id: string
+  valid_from?: string
+  valid_until: string
+  updated_count: number
+  updated_role_assignment_ids?: string[]
+  updated_share_ids?: string[]
+}
+
+export type AccessRightsScheduleTemplate = {
+  id: string
+  name: string
+  description?: string
+  valid_from?: string
+  valid_until?: string
+  duration_days?: number
+  source_types?: Array<AccessRightImpactItem["source_type"]>
 }
 
 export type VisitorPass = {
@@ -427,6 +631,7 @@ export type DeviceEvent = {
 
 export type EventSetEvent = {
   uuid: string
+  tenant_id?: string
   type: string
   actor_type?: string
   actor_id?: string
@@ -436,7 +641,9 @@ export type EventSetEvent = {
   object_id?: string
   object_name?: string
   place_id?: string
+  area_id?: string
   lock_id?: string
+  gateway_id?: string
   success: boolean
   result: string
   detail?: string
@@ -457,6 +664,79 @@ export type EventSet = {
   event_object_type?: string
   events: EventSetEvent[]
   cursor?: string
+}
+
+export type ReportMetric = {
+  key: string
+  label: string
+  value: number | string | boolean | null
+  unit?: string
+}
+
+export type Report = {
+  id: string
+  resource_type: "Report"
+  tenant_id: string
+  name: string
+  description?: string
+  category: "access" | "doors" | "audit" | string
+  report_type: string
+  status: "ready" | "running" | "failed" | string
+  severity?: "info" | "warning" | "danger" | string
+  place_id?: string
+  period_start: string
+  period_end: string
+  generated_at: string
+  format: "csv" | "json" | string
+  download_url: string
+  metrics: ReportMetric[]
+}
+
+export type ScheduledReport = {
+  id: string
+  resource_type: "ScheduledReport"
+  tenant_id: string
+  report_id: string
+  name: string
+  status: "active" | "paused" | string
+  cadence: "daily" | "weekly" | "monthly" | string
+  format: "csv" | "json" | string
+  place_id?: string
+  recipients?: string[]
+  last_run_at?: string
+  next_run_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type AlertPolicyConditionPreview = {
+  policy_id?: string
+  condition_expression: string
+  matched: boolean
+  event: Record<string, unknown>
+}
+
+export type AlertPolicyEventEvaluation = {
+  tenant_id: string
+  event: Record<string, unknown>
+  evaluated_count: number
+  matched_count: number
+  matches: Array<{
+    policy_id: string
+    name: string
+    trigger: string
+    severity: string
+    condition_expression?: string
+    channels: AlertPolicy["channels"]
+    receiver_groups: string[]
+    window_seconds: number
+    cooldown_seconds: number
+    notification_summary: string
+  }>
+  errors?: Array<{
+    policy_id: string
+    error: string
+  }>
 }
 
 export type Alarm = {
@@ -493,10 +773,12 @@ export type UserRole = "super_admin" | "tenant_admin" | "operator" | "building_a
 
 export type CurrentUser = {
   id: string
+  name?: string
   email: string
   role: UserRole
   tenant_id: string
   building_ids?: string[]
+  language?: "en-US" | "id-ID" | "zh-CN" | string
 }
 
 export type EnterpriseIDPConfig = {
@@ -807,6 +1089,7 @@ export type EnterpriseOffsetListResponse<T> = {
   limit: number
   next_offset?: number
   has_more: boolean
+  pagination?: OffsetPaginationPayload | null
 }
 
 export type EnterpriseHRISWebhookRuntimeCounts = {
@@ -1103,16 +1386,18 @@ export type Card = {
   id: string
   resource_type: "Card"
   tenant_id: string
-  status: "activated" | "deactivated" | "unassigned"
+  status: "activated" | "deactivated" | "unassigned" | "revoked"
   token: string
   uid?: string
   card_number?: string
   provider: string
+  credential_kind: "google_wallet" | "apple_wallet" | "physical_card" | "credential"
   template_id: string
   user_id?: string
   assignee_type?: "User" | "Guest"
   assignee_id?: string
   activation_token?: string
+  save_link?: string
   last_used_at?: string
   issued_at: string
   expires_at?: string
@@ -1144,11 +1429,43 @@ export type WalletPhysicalCardTask = {
   task_type: "issue" | "reissue" | "loss_report"
   status: "queued" | "printing" | "ready" | "issued" | "reported_lost" | "cancelled"
   card_number?: string
+  inventory_id?: string
+  vendor_id?: string
+  vendor_name?: string
   note?: string
   pass_status: "issued" | "active" | "suspended" | "revoked"
   completed_at?: string
   created_by: string
   updated_by: string
+  created_at: string
+  updated_at: string
+}
+
+export type WalletPhysicalCardVendor = {
+  id: string
+  tenant_id: string
+  name: string
+  provider: string
+  status: "active" | "inactive" | string
+  created_at: string
+  updated_at: string
+}
+
+export type WalletPhysicalCardInventoryGovernanceStatus = "available" | "frozen" | "scrapped"
+
+export type WalletPhysicalCardInventoryItem = {
+  id: string
+  tenant_id: string
+  card_number: string
+  uid?: string
+  vendor_id?: string
+  vendor_name?: string
+  source?: string
+  reader_id?: string
+  status: "available" | "reserved" | "issued" | "lost" | "frozen" | "scrapped"
+  assigned_pass_id?: string
+  active_task_id?: string
+  scanned_at?: string
   created_at: string
   updated_at: string
 }
@@ -1358,13 +1675,17 @@ export type ServerSentEvent = {
   data: string
 }
 
-class APIError extends Error {
+export class APIError extends Error {
   readonly status: number
+  readonly code?: string
+  readonly responseStatus?: string
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, options: { code?: string; responseStatus?: string } = {}) {
     super(message)
     this.name = "APIError"
     this.status = status
+    this.code = options.code
+    this.responseStatus = options.responseStatus
   }
 }
 
@@ -1386,17 +1707,41 @@ function resolveAuthToken(token: string | undefined): string | undefined {
   return getToken() ?? undefined
 }
 
-async function parseErrorMessage(response: Response): Promise<string> {
+export async function parseAPIErrorDetails(response: Response): Promise<{
+  message: string
+  code?: string
+  responseStatus?: string
+}> {
   const fallback = `${response.status} ${response.statusText}`
   try {
-    const payload = (await response.json()) as { error?: string }
-    if (payload.error) {
-      return payload.error
+    const payload = (await response.json()) as {
+      error?: unknown
+      error_description?: unknown
+      message?: unknown
+      code?: unknown
+      status?: unknown
+    }
+    const error = typeof payload.error === "string" && payload.error.trim() ? payload.error.trim() : undefined
+    const description =
+      typeof payload.error_description === "string" && payload.error_description.trim()
+        ? payload.error_description.trim()
+        : undefined
+    const message = typeof payload.message === "string" && payload.message.trim() ? payload.message.trim() : undefined
+    const code = typeof payload.code === "string" && payload.code.trim() ? payload.code.trim() : undefined
+    const responseStatus =
+      typeof payload.status === "string" && payload.status.trim()
+        ? payload.status.trim()
+        : typeof payload.status === "number" && Number.isFinite(payload.status)
+          ? String(payload.status)
+          : undefined
+    return {
+      message: error ?? message ?? description ?? fallback,
+      code,
+      responseStatus,
     }
   } catch {
-    return fallback
+    return { message: fallback }
   }
-  return fallback
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -1460,11 +1805,14 @@ async function request<T>(path: string, init: RequestInit, token: string | undef
   }
 
   if (!response.ok) {
-    const message = await parseErrorMessage(response)
+    const errorDetails = await parseAPIErrorDetails(response)
     if (response.status === 401) {
       clearSession()
     }
-    throw new APIError(response.status, message)
+    throw new APIError(response.status, errorDetails.message, {
+      code: errorDetails.code,
+      responseStatus: errorDetails.responseStatus,
+    })
   }
 
   if (response.status === 204) {
@@ -1482,7 +1830,19 @@ async function requestItems<T>(path: string, token: string | undefined): Promise
   return Array.isArray(payload?.items) ? payload.items : []
 }
 
-function normalizeOffsetListResponse<T>(
+type OffsetPaginationPayload = {
+  total?: number
+  offset?: number
+  limit?: number
+  next_offset?: number
+  has_more?: boolean
+}
+
+function normalizePaginationNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.floor(value) : fallback
+}
+
+export function normalizeOffsetListResponse<T>(
   payload:
     | EnterpriseOffsetListResponse<T>
     | {
@@ -1492,33 +1852,32 @@ function normalizeOffsetListResponse<T>(
         limit?: number
         next_offset?: number
         has_more?: boolean
+        pagination?: OffsetPaginationPayload | null
       }
     | T[]
     | null
 ): EnterpriseOffsetListResponse<T> {
   const normalizedPayload = payload && !Array.isArray(payload) ? payload : null
+  const pagination = normalizedPayload?.pagination ?? null
   const items = Array.isArray(payload) ? payload : Array.isArray(normalizedPayload?.items) ? normalizedPayload.items : []
-  const total =
-    typeof normalizedPayload?.total === "number" && Number.isFinite(normalizedPayload.total)
-      ? Math.max(0, Math.floor(normalizedPayload.total))
-      : items.length
-  const offset =
-    typeof normalizedPayload?.offset === "number" && Number.isFinite(normalizedPayload.offset) && normalizedPayload.offset >= 0
-      ? Math.floor(normalizedPayload.offset)
-      : 0
-  const limit =
-    typeof normalizedPayload?.limit === "number" && Number.isFinite(normalizedPayload.limit) && normalizedPayload.limit >= 0
-      ? Math.floor(normalizedPayload.limit)
-      : items.length
+  const total = normalizePaginationNumber(normalizedPayload?.total ?? pagination?.total, items.length)
+  const offset = normalizePaginationNumber(normalizedPayload?.offset ?? pagination?.offset, 0)
+  const limit = normalizePaginationNumber(normalizedPayload?.limit ?? pagination?.limit, items.length)
   const nextOffset =
     typeof normalizedPayload?.next_offset === "number" &&
     Number.isFinite(normalizedPayload.next_offset) &&
     normalizedPayload.next_offset >= 0
       ? Math.floor(normalizedPayload.next_offset)
+      : typeof pagination?.next_offset === "number" &&
+          Number.isFinite(pagination.next_offset) &&
+          pagination.next_offset >= 0
+        ? Math.floor(pagination.next_offset)
       : undefined
   const hasMore =
     typeof normalizedPayload?.has_more === "boolean"
       ? normalizedPayload.has_more
+      : typeof pagination?.has_more === "boolean"
+        ? pagination.has_more
       : typeof nextOffset === "number"
         ? nextOffset < total
         : offset + items.length < total
@@ -1622,8 +1981,11 @@ async function requestText(path: string, token: string | undefined): Promise<str
   }
 
   if (!response.ok) {
-    const message = await parseErrorMessage(response)
-    throw new APIError(response.status, message)
+    const errorDetails = await parseAPIErrorDetails(response)
+    throw new APIError(response.status, errorDetails.message, {
+      code: errorDetails.code,
+      responseStatus: errorDetails.responseStatus,
+    })
   }
 
   return response.text()
@@ -1662,8 +2024,11 @@ export async function consumeServerSentEvents(args: {
     }
 
     if (!response.ok) {
-      const message = await parseErrorMessage(response)
-      throw new APIError(response.status, message)
+      const errorDetails = await parseAPIErrorDetails(response)
+      throw new APIError(response.status, errorDetails.message, {
+        code: errorDetails.code,
+        responseStatus: errorDetails.responseStatus,
+      })
     }
 
     const reader = response.body?.getReader()
@@ -1751,6 +2116,27 @@ export async function getCurrentUser(token: string | undefined): Promise<Current
   return request<CurrentUser>("/api/v1/me", { method: "GET" }, token)
 }
 
+export async function getCurrentUserProfile(token: string | undefined): Promise<CurrentUser> {
+  return request<CurrentUser>("/api/v1/user", { method: "GET" }, token)
+}
+
+export async function updateCurrentUser(
+  token: string | undefined,
+  payload: {
+    name?: string
+    language?: string
+  }
+): Promise<CurrentUser> {
+  return request<CurrentUser>(
+    "/api/v1/user",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
 export async function listTenants(token: string | undefined): Promise<Tenant[]> {
   return requestItems<Tenant>("/api/v1/tenants", token)
 }
@@ -1793,11 +2179,82 @@ export async function getTenantTopology(token: string | undefined, tenantID: str
 }
 
 export async function listBuildings(token: string | undefined, tenantID?: string): Promise<Building[]> {
-  return requestItems<Building>(withTenantQuery("/api/v1/buildings", tenantID), token)
+  return requestItems<Building>(withTenantQuery("/api/v1/places", tenantID), token)
 }
 
 export async function listPlaces(token: string | undefined, tenantID?: string): Promise<Place[]> {
   return requestItems<Place>(withTenantQuery("/api/v1/places", tenantID), token)
+}
+
+export async function createPlace(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    name: string
+    address?: string
+    region?: string
+  }
+): Promise<Place> {
+  return request<Place>(
+    "/api/v1/places",
+    {
+      method: "POST",
+      body: JSON.stringify({ place: payload }),
+    },
+    token
+  )
+}
+
+export async function getPlace(token: string | undefined, placeID: string, tenantID?: string): Promise<Place> {
+  return request<Place>(
+    withTenantQuery(`/api/v1/places/${encodePathSegment(placeID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function updatePlace(
+  token: string | undefined,
+  placeID: string,
+  payload: {
+    tenant_id?: string
+    name?: string
+    address?: string
+    region?: string
+  }
+): Promise<Place> {
+  return request<Place>(
+    `/api/v1/places/${encodePathSegment(placeID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ place: payload }),
+    },
+    token
+  )
+}
+
+export async function deletePlace(token: string | undefined, placeID: string, tenantID?: string): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/places/${encodePathSegment(placeID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function lockDownPlace(token: string | undefined, placeID: string, tenantID?: string): Promise<SpaceActionResult> {
+  return request<SpaceActionResult>(
+    withTenantQuery(`/api/v1/places/${encodePathSegment(placeID)}/lock_down`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function cancelPlaceLockdown(token: string | undefined, placeID: string, tenantID?: string): Promise<SpaceActionResult> {
+  return request<SpaceActionResult>(
+    withTenantQuery(`/api/v1/places/${encodePathSegment(placeID)}/cancel_lockdown`, tenantID),
+    { method: "POST" },
+    token
+  )
 }
 
 export async function createBuilding(
@@ -1810,10 +2267,10 @@ export async function createBuilding(
   }
 ): Promise<Building> {
   return request<Building>(
-    "/api/v1/buildings",
+    "/api/v1/places",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ place: payload }),
     },
     token
   )
@@ -1828,6 +2285,7 @@ export async function createFloor(
   payload: {
     tenant_id: string
     building_id: string
+    place_id?: string
     name: string
   }
 ): Promise<Floor> {
@@ -1837,6 +2295,42 @@ export async function createFloor(
       method: "POST",
       body: JSON.stringify(payload),
     },
+    token
+  )
+}
+
+export async function getFloor(token: string | undefined, floorID: string, tenantID?: string): Promise<Floor> {
+  return request<Floor>(
+    withTenantQuery(`/api/v1/floors/${encodePathSegment(floorID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function updateFloor(
+  token: string | undefined,
+  floorID: string,
+  payload: {
+    tenant_id?: string
+    building_id?: string
+    place_id?: string
+    name?: string
+  }
+): Promise<Floor> {
+  return request<Floor>(
+    `/api/v1/floors/${encodePathSegment(floorID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function deleteFloor(token: string | undefined, floorID: string, tenantID?: string): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/floors/${encodePathSegment(floorID)}`, tenantID),
+    { method: "DELETE" },
     token
   )
 }
@@ -1864,8 +2358,29 @@ export async function createArea(
   )
 }
 
+export async function updateArea(
+  token: string | undefined,
+  areaID: string,
+  payload: {
+    tenant_id?: string
+    building_id?: string
+    place_id?: string
+    floor_id?: string
+    name?: string
+  }
+): Promise<Area> {
+  return request<Area>(
+    `/api/v1/areas/${encodePathSegment(areaID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
 export async function listDoors(token: string | undefined, tenantID?: string): Promise<Door[]> {
-  return requestItems<Door>(withTenantQuery("/api/v1/doors", tenantID), token)
+  return requestItems<Door>(withTenantQuery("/api/v1/locks", tenantID), token)
 }
 
 export async function listLocks(token: string | undefined, tenantID?: string, placeID?: string): Promise<Lock[]> {
@@ -1876,6 +2391,95 @@ export async function listLocks(token: string | undefined, tenantID?: string, pl
     path = `${path}${separator}place_id=${encodeURIComponent(nextPlaceID)}`
   }
   return requestItems<Lock>(path, token)
+}
+
+export async function createLock(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    place_id?: string
+    building_id?: string
+    floor_id: string
+    area_id: string
+    name: string
+    gateway_id?: string
+    kind?: Door["kind"]
+    status?: Door["status"]
+  }
+): Promise<Lock> {
+  return request<Lock>(
+    "/api/v1/locks",
+    {
+      method: "POST",
+      body: JSON.stringify({ lock: payload }),
+    },
+    token
+  )
+}
+
+export async function getLock(token: string | undefined, lockID: string, tenantID?: string): Promise<Lock> {
+  return request<Lock>(
+    withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function updateLock(
+  token: string | undefined,
+  lockID: string,
+  payload: {
+    tenant_id?: string
+    place_id?: string
+    building_id?: string
+    floor_id?: string
+    area_id?: string
+    name?: string
+    gateway_id?: string
+    kind?: Door["kind"]
+    status?: Door["status"]
+  }
+): Promise<Lock> {
+  return request<Lock>(
+    `/api/v1/locks/${encodePathSegment(lockID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ lock: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteLock(token: string | undefined, lockID: string, tenantID?: string): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function unlockLock(token: string | undefined, lockID: string, tenantID?: string): Promise<SpaceActionResult> {
+  return request<SpaceActionResult>(
+    withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}/unlock`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function lockDownLock(token: string | undefined, lockID: string, tenantID?: string): Promise<SpaceActionResult> {
+  return request<SpaceActionResult>(
+    withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}/lock_down`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function cancelLockLockdown(token: string | undefined, lockID: string, tenantID?: string): Promise<SpaceActionResult> {
+  return request<SpaceActionResult>(
+    withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}/cancel_lockdown`, tenantID),
+    { method: "POST" },
+    token
+  )
 }
 
 export async function createDoor(
@@ -1892,17 +2496,111 @@ export async function createDoor(
   }
 ): Promise<Door> {
   return request<Door>(
-    "/api/v1/doors",
+    "/api/v1/locks",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ lock: payload }),
     },
     token
   )
 }
 
+const gatewayDeviceProtocols = new Set<NonNullable<GatewayDevice["protocol"]>>([
+  "wiegand_26",
+  "wiegand_34",
+  "osdp_v2",
+  "rs485",
+  "ble",
+])
+
+function normalizeReferenceGatewayDeviceProtocol(protocol: string | undefined): GatewayDevice["protocol"] | undefined {
+  const normalized = protocol?.trim().toLowerCase().replace(/-/g, "_")
+  if (!normalized) {
+    return undefined
+  }
+  return gatewayDeviceProtocols.has(normalized as NonNullable<GatewayDevice["protocol"]>)
+    ? (normalized as GatewayDevice["protocol"])
+    : undefined
+}
+
+function referenceGatewayDeviceStatus(status: string | undefined): GatewayDevice["status"] {
+  return status === "offline" ? "offline" : "online"
+}
+
+function referenceControllerCapacity(controller: Controller, deviceCount: number) {
+  const parsedCapacity = controller.description?.match(/\b(\d+)\s*[- ]?device\b/i)?.[1]
+  const capacity = parsedCapacity ? Number.parseInt(parsedCapacity, 10) : 0
+  return Math.max(Number.isFinite(capacity) ? capacity : 0, deviceCount, controller.lock_ids?.length ?? 0, 4)
+}
+
+function buildReferenceGatewayDevices(
+  controllerID: string,
+  readers: Reader[],
+  terminals: Terminal[],
+  readersByID: Map<string, Reader>
+): GatewayDevice[] {
+  const readerDevices = readers
+    .filter((reader) => reader.controller_id === controllerID)
+    .map((reader) => ({
+      id: reader.id,
+      gateway_id: controllerID,
+      serial_number: reader.device_id || reader.token || reader.name || reader.id,
+      kind: "reader",
+      source: "mistypass_procured",
+      protocol: normalizeReferenceGatewayDeviceProtocol(reader.protocol),
+      status: referenceGatewayDeviceStatus(reader.status),
+      last_seen_at: reader.last_seen_at,
+    }) satisfies GatewayDevice)
+
+  const terminalDevices = terminals
+    .filter((terminal) => {
+      if (terminal.controller_id === controllerID) {
+        return true
+      }
+      return terminal.reader_id ? readersByID.get(terminal.reader_id)?.controller_id === controllerID : false
+    })
+    .map((terminal) => ({
+      id: terminal.id,
+      gateway_id: controllerID,
+      serial_number: terminal.name || terminal.id,
+      kind: "terminal",
+      source: "mistypass_procured",
+      status: referenceGatewayDeviceStatus(terminal.status),
+      last_seen_at: terminal.last_seen_at ?? terminal.updated_at,
+    }) satisfies GatewayDevice)
+
+  return [...readerDevices, ...terminalDevices]
+}
+
+function mapReferenceHardwareToGateways(controllers: Controller[], readers: Reader[], terminals: Terminal[]): Gateway[] {
+  const readersByID = new Map(readers.map((reader) => [reader.id, reader]))
+  return controllers.map((controller) => {
+    const devices = buildReferenceGatewayDevices(controller.id, readers, terminals, readersByID)
+    return {
+      id: controller.id,
+      tenant_id: controller.tenant_id,
+      serial_number: controller.device_id || controller.token || controller.name || controller.id,
+      building_id: controller.place_id,
+      device_capacity: referenceControllerCapacity(controller, devices.length),
+      devices,
+      status: controller.status,
+      last_seen_at: controller.last_seen_at,
+      bound_door_ids: controller.lock_ids ?? [],
+    } satisfies Gateway
+  })
+}
+
 export async function listGateways(token: string | undefined): Promise<Gateway[]> {
-  return requestItems<Gateway>("/api/v1/gateways", token)
+  try {
+    const [controllers, readers, terminals] = await Promise.all([
+      listControllers(token, { sort: "name" }),
+      listReaders(token, { sort: "name" }),
+      listTerminals(token, { sort: "name" }),
+    ])
+    return mapReferenceHardwareToGateways(controllers, readers, terminals)
+  } catch {
+    return requestItems<Gateway>("/api/v1/gateways", token)
+  }
 }
 
 export async function listControllers(
@@ -1975,6 +2673,180 @@ export async function listTerminals(
   if (options?.sort?.trim()) query.set("sort", options.sort.trim())
   const suffix = query.toString()
   return requestItems<Terminal>(suffix ? `/api/v1/terminals?${suffix}` : "/api/v1/terminals", token)
+}
+
+export async function fetchTerminal(
+  token: string | undefined,
+  terminalID: string,
+  tenantID?: string
+): Promise<Terminal> {
+  return request<Terminal>(
+    withTenantQuery(`/api/v1/terminals/${encodePathSegment(terminalID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function assignController(
+  token: string | undefined,
+  controllerToken: string,
+  payload: {
+    tenant_id: string
+    place_id?: string
+    building_id?: string
+    device_capacity?: number
+  }
+): Promise<Controller> {
+  return request<Controller>(
+    `/api/v1/controllers/${encodePathSegment(controllerToken)}/assign`,
+    {
+      method: "POST",
+      body: JSON.stringify({ controller: payload }),
+    },
+    token
+  )
+}
+
+export async function assignReader(
+  token: string | undefined,
+  readerToken: string,
+  payload: {
+    tenant_id: string
+    controller_id: string
+    kind?: "reader" | "door_controller" | "relay" | "sensor" | "legacy_reader" | "legacy_controller"
+    source?: "mistypass_procured" | "legacy_integration"
+    protocol?: "wiegand_26" | "wiegand_34" | "osdp_v2" | "rs485" | "ble"
+    status?: "online" | "offline"
+  }
+): Promise<Reader> {
+  return request<Reader>(
+    `/api/v1/readers/${encodePathSegment(readerToken)}/assign`,
+    {
+      method: "POST",
+      body: JSON.stringify({ reader: payload }),
+    },
+    token
+  )
+}
+
+export async function deassignController(
+  token: string | undefined,
+  controllerID: string,
+  tenantID?: string
+): Promise<Controller> {
+  return request<Controller>(
+    withTenantQuery(`/api/v1/controllers/${encodePathSegment(controllerID)}/deassign`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function deassignReader(
+  token: string | undefined,
+  readerID: string,
+  tenantID?: string
+): Promise<Reader> {
+  return request<Reader>(
+    withTenantQuery(`/api/v1/readers/${encodePathSegment(readerID)}/deassign`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function bindControllerLock(
+  token: string | undefined,
+  controllerID: string,
+  lockID: string,
+  tenantID?: string
+): Promise<Controller> {
+  return request<Controller>(
+    withTenantQuery(`/api/v1/controllers/${encodePathSegment(controllerID)}/locks`, tenantID),
+    {
+      method: "POST",
+      body: JSON.stringify({ tenant_id: tenantID, lock_id: lockID }),
+    },
+    token
+  )
+}
+
+export async function unbindControllerLock(
+  token: string | undefined,
+  controllerID: string,
+  lockID: string,
+  tenantID?: string
+): Promise<void> {
+  return request<void>(
+    withTenantQuery(
+      `/api/v1/controllers/${encodePathSegment(controllerID)}/locks/${encodePathSegment(lockID)}`,
+      tenantID
+    ),
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function publishControllerConfig(
+  token: string | undefined,
+  controllerID: string,
+  version: string,
+  tenantID?: string
+): Promise<GatewayCommandAck> {
+  return request<GatewayCommandAck>(
+    withTenantQuery(`/api/v1/controllers/${encodePathSegment(controllerID)}/config/publish`, tenantID),
+    {
+      method: "POST",
+      body: JSON.stringify({ controller: { tenant_id: tenantID, version } }),
+    },
+    token
+  )
+}
+
+export async function rebootController(
+  token: string | undefined,
+  controllerID: string,
+  tenantID?: string
+): Promise<GatewayCommandAck> {
+  return request<GatewayCommandAck>(
+    withTenantQuery(`/api/v1/controllers/${encodePathSegment(controllerID)}/reboot`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function rebootReader(
+  token: string | undefined,
+  readerID: string,
+  tenantID?: string
+): Promise<GatewayCommandAck> {
+  return request<GatewayCommandAck>(
+    withTenantQuery(`/api/v1/readers/${encodePathSegment(readerID)}/reboot`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function rebootTerminal(
+  token: string | undefined,
+  terminalID: string,
+  tenantID?: string
+): Promise<GatewayCommandAck> {
+  return request<GatewayCommandAck>(
+    withTenantQuery(`/api/v1/terminals/${encodePathSegment(terminalID)}/reboot`, tenantID),
+    { method: "POST" },
+    token
+  )
+}
+
+export async function triggerTerminal(
+  token: string | undefined,
+  terminalID: string,
+  tenantID?: string
+): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/terminals/${encodePathSegment(terminalID)}/trigger`, tenantID),
+    { method: "POST" },
+    token
+  )
 }
 
 function buildGatewaySerialInventoryPath(
@@ -2121,19 +2993,58 @@ export async function registerGateway(
   )
 }
 
+async function gatewayFromReferenceControllerMutation(
+  token: string | undefined,
+  controller: Controller,
+  previousGateway?: Gateway
+): Promise<Gateway> {
+  try {
+    const gateways = await listGateways(token)
+    const refreshed = gateways.find((gateway) => gateway.id === controller.id)
+    if (refreshed) {
+      return refreshed
+    }
+  } catch {
+    // Keep the mutation result usable when the follow-up read is unavailable.
+  }
+
+  const mapped = mapReferenceHardwareToGateways([controller], [], [])[0]
+  return previousGateway
+    ? {
+        ...mapped,
+        devices: previousGateway.devices,
+      }
+    : mapped
+}
+
+async function findGatewaySnapshot(token: string | undefined, gatewayID: string): Promise<Gateway | undefined> {
+  try {
+    const gateways = await listGateways(token)
+    return gateways.find((gateway) => gateway.id === gatewayID)
+  } catch {
+    return undefined
+  }
+}
+
 export async function bindGatewayDoor(
   token: string | undefined,
   gatewayID: string,
   doorID: string
 ): Promise<Gateway> {
-  return request<Gateway>(
-    `/api/v1/gateways/${encodePathSegment(gatewayID)}/bind-door`,
-    {
-      method: "POST",
-      body: JSON.stringify({ door_id: doorID }),
-    },
-    token
-  )
+  try {
+    const previousGateway = await findGatewaySnapshot(token, gatewayID)
+    const updatedController = await bindControllerLock(token, gatewayID, doorID)
+    return gatewayFromReferenceControllerMutation(token, updatedController, previousGateway)
+  } catch {
+    return request<Gateway>(
+      `/api/v1/gateways/${encodePathSegment(gatewayID)}/bind-door`,
+      {
+        method: "POST",
+        body: JSON.stringify({ door_id: doorID }),
+      },
+      token
+    )
+  }
 }
 
 export async function unbindGatewayDoor(
@@ -2141,14 +3052,40 @@ export async function unbindGatewayDoor(
   gatewayID: string,
   doorID: string
 ): Promise<Gateway> {
-  return request<Gateway>(
-    `/api/v1/gateways/${encodePathSegment(gatewayID)}/unbind-door`,
-    {
-      method: "POST",
-      body: JSON.stringify({ door_id: doorID }),
-    },
-    token
-  )
+  const previousGateway = await findGatewaySnapshot(token, gatewayID)
+  try {
+    await unbindControllerLock(token, gatewayID, doorID)
+  } catch {
+    return request<Gateway>(
+      `/api/v1/gateways/${encodePathSegment(gatewayID)}/unbind-door`,
+      {
+        method: "POST",
+        body: JSON.stringify({ door_id: doorID }),
+      },
+      token
+    )
+  }
+
+  const refreshedGateway = await findGatewaySnapshot(token, gatewayID)
+  if (refreshedGateway) {
+    return refreshedGateway
+  }
+  if (previousGateway) {
+    return {
+      ...previousGateway,
+      bound_door_ids: (previousGateway.bound_door_ids ?? []).filter((boundDoorID) => boundDoorID !== doorID),
+    }
+  }
+  return {
+    id: gatewayID,
+    tenant_id: "",
+    serial_number: gatewayID,
+    building_id: "",
+    device_capacity: 4,
+    status: "online",
+    last_seen_at: "",
+    bound_door_ids: [],
+  }
 }
 
 export async function registerGatewayDevice(
@@ -2228,24 +3165,32 @@ export async function publishGatewayConfig(
   gatewayID: string,
   version: string
 ): Promise<GatewayCommandAck> {
-  return request<GatewayCommandAck>(
-    `/api/v1/gateways/${encodePathSegment(gatewayID)}/config/publish`,
-    {
-      method: "POST",
-      body: JSON.stringify({ version }),
-    },
-    token
-  )
+  try {
+    return await publishControllerConfig(token, gatewayID, version)
+  } catch {
+    return request<GatewayCommandAck>(
+      `/api/v1/gateways/${encodePathSegment(gatewayID)}/config/publish`,
+      {
+        method: "POST",
+        body: JSON.stringify({ version }),
+      },
+      token
+    )
+  }
 }
 
 export async function rebootGateway(token: string | undefined, gatewayID: string): Promise<GatewayCommandAck> {
-  return request<GatewayCommandAck>(
-    `/api/v1/gateways/${encodePathSegment(gatewayID)}/reboot`,
-    {
-      method: "POST",
-    },
-    token
-  )
+  try {
+    return await rebootController(token, gatewayID)
+  } catch {
+    return request<GatewayCommandAck>(
+      `/api/v1/gateways/${encodePathSegment(gatewayID)}/reboot`,
+      {
+        method: "POST",
+      },
+      token
+    )
+  }
 }
 
 export async function listGatewayEventCheckpointSummary(
@@ -2292,6 +3237,135 @@ export async function listAccessPolicies(token: string | undefined): Promise<Acc
 export async function listAccessUsers(token: string | undefined, tenantID?: string): Promise<AccessUser[]> {
   return requestItems<AccessUser>(withTenantQuery("/api/v1/users", tenantID), token)
 }
+
+export async function createAccessUser(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    building_id?: string
+    name: string
+    email: string
+    role?: string
+    status?: string
+    group_ids?: string[]
+  }
+): Promise<AccessUser> {
+  return request<AccessUser>(
+    "/api/v1/users",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function fetchAccessUser(
+  token: string | undefined,
+  userID: string,
+  tenantID?: string
+): Promise<AccessUser> {
+  return request<AccessUser>(
+    withTenantQuery(`/api/v1/users/${encodePathSegment(userID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function updateAccessUser(
+  token: string | undefined,
+  userID: string,
+  payload: {
+    tenant_id?: string
+    building_id?: string
+    name?: string
+    email?: string
+    role?: string
+    status?: string
+    group_ids?: string[]
+  }
+): Promise<AccessUser> {
+  return request<AccessUser>(
+    `/api/v1/users/${encodePathSegment(userID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function deleteAccessUser(
+  token: string | undefined,
+  userID: string,
+  tenantID?: string
+): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/users/${encodePathSegment(userID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function sendAccessUserInvitation(
+  token: string | undefined,
+  userID: string,
+  payload: {
+    tenant_id?: string
+    delivery_method?: UserInvitationDelivery["delivery_method"]
+  } = {}
+): Promise<UserInvitationDelivery> {
+  return request<UserInvitationDelivery>(
+    `/api/v1/users/${encodePathSegment(userID)}/invite`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function listAccessUserInvitations(
+  token: string | undefined,
+  userID: string,
+  tenantID?: string
+): Promise<UserInvitationDelivery[]> {
+  return requestItems<UserInvitationDelivery>(
+    withTenantQuery(`/api/v1/users/${encodePathSegment(userID)}/invitations`, tenantID),
+    token
+  )
+}
+
+export async function recordAccessUserInvitationReceipt(
+  token: string | undefined,
+  userID: string,
+  deliveryID: string,
+  payload: {
+    tenant_id?: string
+    status: "sent" | "failed"
+    provider?: string
+    provider_delivery_id?: string
+    provider_error?: string
+    retryable?: boolean
+  }
+): Promise<UserInvitationDelivery> {
+  return request<UserInvitationDelivery>(
+    `/api/v1/users/${encodePathSegment(userID)}/invitations/${encodePathSegment(deliveryID)}/receipt`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export const fetchUser = fetchAccessUser
+export const createUser = createAccessUser
+export const updateUser = updateAccessUser
+export const deleteUser = deleteAccessUser
+export const sendUserInvitation = sendAccessUserInvitation
+export const listUserInvitations = listAccessUserInvitations
+export const recordUserInvitationReceipt = recordAccessUserInvitationReceipt
 
 export async function createAccessPolicy(
   token: string | undefined,
@@ -2342,7 +3416,7 @@ export async function updateAccessPolicy(
 }
 
 export async function listUserGroups(token: string | undefined): Promise<UserGroup[]> {
-  return requestItems<UserGroup>("/api/v1/user-groups", token)
+  return requestItems<UserGroup>("/api/v1/groups", token)
 }
 
 export async function listGroups(token: string | undefined, tenantID?: string, placeID?: string): Promise<UserGroup[]> {
@@ -2355,8 +3429,272 @@ export async function listGroups(token: string | undefined, tenantID?: string, p
   return requestItems<UserGroup>(path, token)
 }
 
+export async function getGroup(token: string | undefined, groupID: string, tenantID?: string): Promise<UserGroup> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<UserGroup>(
+    suffix ? `/api/v1/groups/${encodePathSegment(groupID)}?${suffix}` : `/api/v1/groups/${encodePathSegment(groupID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createGroup(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    place_id?: string
+    building_id?: string
+    name: string
+    description?: string
+    login_enabled?: boolean
+    geofence_restriction_enabled?: boolean
+    geofence_restriction_radius?: number
+    primary_device_restriction_enabled?: boolean
+    managed_device_restriction_enabled?: boolean
+    reader_restriction_enabled?: boolean
+    time_restriction_enabled?: boolean
+    tap_to_access_restriction_enabled?: boolean
+    time_restriction_time_zone?: string
+    member_ids?: string[]
+    members?: string[]
+  }
+): Promise<UserGroup> {
+  return request<UserGroup>(
+    "/api/v1/groups",
+    {
+      method: "POST",
+      body: JSON.stringify({ group: payload }),
+    },
+    token
+  )
+}
+
+export async function updateGroup(
+  token: string | undefined,
+  groupID: string,
+  payload: {
+    tenant_id?: string
+    place_id?: string
+    building_id?: string
+    name?: string
+    description?: string
+    login_enabled?: boolean
+    geofence_restriction_enabled?: boolean
+    geofence_restriction_radius?: number
+    primary_device_restriction_enabled?: boolean
+    managed_device_restriction_enabled?: boolean
+    reader_restriction_enabled?: boolean
+    time_restriction_enabled?: boolean
+    tap_to_access_restriction_enabled?: boolean
+    time_restriction_time_zone?: string
+    member_ids?: string[]
+    members?: string[]
+  }
+): Promise<UserGroup> {
+  return request<UserGroup>(
+    `/api/v1/groups/${encodePathSegment(groupID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ group: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteGroup(token: string | undefined, groupID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/groups/${encodePathSegment(groupID)}?${suffix}` : `/api/v1/groups/${encodePathSegment(groupID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function listGroupLinks(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    group_id?: string
+    ids?: string[]
+    query?: string
+    sort?: "name" | "-name" | "valid_until" | "-valid_until" | "group_name" | "-group_name"
+  }
+): Promise<GroupLink[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.group_id?.trim()) query.set("group_id", options.group_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<GroupLink>(suffix ? `/api/v1/group_links?${suffix}` : "/api/v1/group_links", token)
+}
+
+export async function createGroupLink(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    group_id: string
+    name: string
+    email?: string
+    phone?: string
+    link_enabled?: boolean
+    quick_response_code_type?: "online" | "offline" | ""
+    valid_from?: string
+    valid_until?: string
+  }
+): Promise<GroupLink> {
+  return request<GroupLink>(
+    "/api/v1/group_links",
+    {
+      method: "POST",
+      body: JSON.stringify({ group_link: payload }),
+    },
+    token
+  )
+}
+
+export async function getGroupLink(token: string | undefined, groupLinkID: string, tenantID?: string): Promise<GroupLink> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<GroupLink>(
+    suffix ? `/api/v1/group_links/${encodePathSegment(groupLinkID)}?${suffix}` : `/api/v1/group_links/${encodePathSegment(groupLinkID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function verifyGroupLinkToken(
+  token: string | undefined,
+  payload: {
+    tenant_id?: string
+    token?: string
+    secret?: string
+    quick_response_code_token?: string
+  }
+): Promise<GroupLinkVerification> {
+  return request<GroupLinkVerification>(
+    "/api/v1/group_links/verify",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function updateGroupLink(
+  token: string | undefined,
+  groupLinkID: string,
+  payload: {
+    tenant_id?: string
+    group_id?: string
+    name?: string
+    email?: string
+    phone?: string
+    link_enabled?: boolean
+    quick_response_code_type?: "online" | "offline" | ""
+    valid_from?: string
+    valid_until?: string
+  }
+): Promise<GroupLink> {
+  return request<GroupLink>(
+    `/api/v1/group_links/${encodePathSegment(groupLinkID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ group_link: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteGroupLink(token: string | undefined, groupLinkID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/group_links/${encodePathSegment(groupLinkID)}?${suffix}` : `/api/v1/group_links/${encodePathSegment(groupLinkID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function listDoorGroups(token: string | undefined, tenantID?: string): Promise<DoorGroup[]> {
-  return requestItems<DoorGroup>(withTenantQuery("/api/v1/door-groups", tenantID), token)
+  return requestItems<DoorGroup>(withTenantQuery("/api/v1/door_groups", tenantID), token)
+}
+
+export async function listGroupLocks(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    group_id?: string
+    lock_id?: string
+    place_id?: string
+  }
+): Promise<GroupLock[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.group_id?.trim()) query.set("group_id", options.group_id.trim())
+  if (options?.lock_id?.trim()) query.set("lock_id", options.lock_id.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  const suffix = query.toString()
+  return requestItems<GroupLock>(suffix ? `/api/v1/group_locks?${suffix}` : "/api/v1/group_locks", token)
+}
+
+export async function listGroupZones(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    group_id?: string
+    zone_id?: string
+    area_id?: string
+    place_id?: string
+  }
+): Promise<GroupZone[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.group_id?.trim()) query.set("group_id", options.group_id.trim())
+  if (options?.zone_id?.trim()) query.set("zone_id", options.zone_id.trim())
+  if (options?.area_id?.trim()) query.set("area_id", options.area_id.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  const suffix = query.toString()
+  return requestItems<GroupZone>(suffix ? `/api/v1/group_zones?${suffix}` : "/api/v1/group_zones", token)
+}
+
+export async function createGroupLock(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    group_id: string
+    lock_id: string
+    door_id?: string
+    place_id?: string
+  }
+): Promise<GroupLock> {
+  return request<GroupLock>(
+    "/api/v1/group_locks",
+    {
+      method: "POST",
+      body: JSON.stringify({ group_lock: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteGroupLock(token: string | undefined, groupLockID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/group_locks/${encodePathSegment(groupLockID)}?${suffix}` : `/api/v1/group_locks/${encodePathSegment(groupLockID)}`,
+    { method: "DELETE" },
+    token
+  )
 }
 
 export async function listTeams(
@@ -2381,6 +3719,71 @@ export async function listTeams(
   return requestItems<Team>(suffix ? `/api/v1/teams?${suffix}` : "/api/v1/teams", token)
 }
 
+export async function getTeam(token: string | undefined, teamID: string, tenantID?: string): Promise<Team> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Team>(
+    suffix ? `/api/v1/teams/${encodePathSegment(teamID)}?${suffix}` : `/api/v1/teams/${encodePathSegment(teamID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createTeam(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    name: string
+    scope?: Team["scope"]
+    place_id?: string
+    description?: string
+    source?: string
+  }
+): Promise<Team> {
+  return request<Team>(
+    "/api/v1/teams",
+    {
+      method: "POST",
+      body: JSON.stringify({ team: payload }),
+    },
+    token
+  )
+}
+
+export async function updateTeam(
+  token: string | undefined,
+  teamID: string,
+  payload: {
+    tenant_id?: string
+    name: string
+    scope?: Team["scope"]
+    place_id?: string
+    description?: string
+    source?: string
+  }
+): Promise<Team> {
+  return request<Team>(
+    `/api/v1/teams/${encodePathSegment(teamID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ team: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteTeam(token: string | undefined, teamID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/teams/${encodePathSegment(teamID)}?${suffix}` : `/api/v1/teams/${encodePathSegment(teamID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function listTeamMemberships(
   token: string | undefined,
   options?: {
@@ -2401,6 +3804,39 @@ export async function listTeamMemberships(
   return requestItems<TeamMembership>(suffix ? `/api/v1/team_memberships?${suffix}` : "/api/v1/team_memberships", token)
 }
 
+export async function createTeamMembership(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    team_id: string
+    member_type: TeamMembership["member_type"]
+    member_id: string
+    member_email?: string
+    member_name?: string
+    source?: string
+  }
+): Promise<TeamMembership> {
+  return request<TeamMembership>(
+    "/api/v1/team_memberships",
+    {
+      method: "POST",
+      body: JSON.stringify({ team_membership: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteTeamMembership(token: string | undefined, membershipID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/team_memberships/${encodePathSegment(membershipID)}?${suffix}` : `/api/v1/team_memberships/${encodePathSegment(membershipID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function createUserGroup(
   token: string | undefined,
   payload: {
@@ -2411,10 +3847,10 @@ export async function createUserGroup(
   }
 ): Promise<UserGroup> {
   return request<UserGroup>(
-    "/api/v1/user-groups",
+    "/api/v1/groups",
     {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ group: payload }),
     },
     token
   )
@@ -2430,22 +3866,36 @@ export async function updateUserGroup(
   }
 ): Promise<UserGroup> {
   return request<UserGroup>(
-    `/api/v1/user-groups/${encodePathSegment(groupID)}`,
+    `/api/v1/groups/${encodePathSegment(groupID)}`,
     {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ group: payload }),
     },
     token
   )
 }
 
 export async function listTemporaryAccess(token: string | undefined): Promise<TemporaryAccess[]> {
-  return requestItems<TemporaryAccess>("/api/v1/temporary-access", token)
+  const shares = await listShares(token)
+  return shares.map(temporaryAccessFromShare)
 }
 
 export async function listRoles(token: string | undefined, appliesTo?: Role["applies_to"]): Promise<Role[]> {
   const path = appliesTo ? `/api/v1/roles?applies_to=${encodeURIComponent(appliesTo)}` : "/api/v1/roles"
   return requestItems<Role>(path, token)
+}
+
+export async function listAccessRightsScheduleTemplates(
+  token: string | undefined,
+  tenantID?: string
+): Promise<AccessRightsScheduleTemplate[]> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return requestItems<AccessRightsScheduleTemplate>(
+    suffix ? `/api/v1/access_rights/schedule_templates?${suffix}` : "/api/v1/access_rights/schedule_templates",
+    token
+  )
 }
 
 export async function listRoleAssignments(
@@ -2470,11 +3920,84 @@ export async function listRoleAssignments(
   return requestItems<RoleAssignment>(suffix ? `/api/v1/role_assignments?${suffix}` : "/api/v1/role_assignments", token)
 }
 
+export async function getRoleAssignment(token: string | undefined, assignmentID: string, tenantID?: string): Promise<RoleAssignment> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<RoleAssignment>(
+    suffix ? `/api/v1/role_assignments/${encodePathSegment(assignmentID)}?${suffix}` : `/api/v1/role_assignments/${encodePathSegment(assignmentID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createRoleAssignment(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    role_id: string
+    applies_to_type: RoleAssignment["applies_to_type"]
+    applies_to_id: string
+    assignee_type: RoleAssignment["assignee_type"]
+    assignee_id: string
+    assignee_email?: string
+    valid_from?: string
+    valid_until?: string
+  }
+): Promise<RoleAssignment> {
+  return request<RoleAssignment>(
+    "/api/v1/role_assignments",
+    {
+      method: "POST",
+      body: JSON.stringify({ role_assignment: payload }),
+    },
+    token
+  )
+}
+
+export async function updateRoleAssignment(
+  token: string | undefined,
+  assignmentID: string,
+  payload: {
+    tenant_id?: string
+    role_id: string
+    applies_to_type: RoleAssignment["applies_to_type"]
+    applies_to_id: string
+    assignee_type: RoleAssignment["assignee_type"]
+    assignee_id: string
+    assignee_email?: string
+    valid_from?: string
+    valid_until?: string
+  }
+): Promise<RoleAssignment> {
+  return request<RoleAssignment>(
+    `/api/v1/role_assignments/${encodePathSegment(assignmentID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ role_assignment: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteRoleAssignment(token: string | undefined, assignmentID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/role_assignments/${encodePathSegment(assignmentID)}?${suffix}` : `/api/v1/role_assignments/${encodePathSegment(assignmentID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function listShares(
   token: string | undefined,
   options?: {
     tenant_id?: string
+    group_id?: string
     place_id?: string
+    area_id?: string
     lock_id?: string
     role_id?: string
     email?: string
@@ -2482,12 +4005,140 @@ export async function listShares(
 ): Promise<Share[]> {
   const query = new URLSearchParams()
   if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.group_id?.trim()) query.set("group_id", options.group_id.trim())
   if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.area_id?.trim()) query.set("area_id", options.area_id.trim())
   if (options?.lock_id?.trim()) query.set("lock_id", options.lock_id.trim())
   if (options?.role_id?.trim()) query.set("role_id", options.role_id.trim())
   if (options?.email?.trim()) query.set("email", options.email.trim())
   const suffix = query.toString()
   return requestItems<Share>(suffix ? `/api/v1/shares?${suffix}` : "/api/v1/shares", token)
+}
+
+export async function getShare(token: string | undefined, shareID: string, tenantID?: string): Promise<Share> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Share>(
+    suffix ? `/api/v1/shares/${encodePathSegment(shareID)}?${suffix}` : `/api/v1/shares/${encodePathSegment(shareID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createShare(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    email: string
+    group_id?: string
+    role_id?: string
+    place_id?: string
+    area_id?: string
+    lock_id?: string
+    valid_from?: string
+    valid_until: string
+    delivery_method?: Share["delivery_method"]
+    grantee_name?: string
+    grantee_phone?: string
+    mobile_model?: string
+    pass_type?: string
+  }
+): Promise<Share> {
+  return request<Share>(
+    "/api/v1/shares",
+    {
+      method: "POST",
+      body: JSON.stringify({ share: payload }),
+    },
+    token
+  )
+}
+
+export async function updateShare(
+  token: string | undefined,
+  shareID: string,
+  payload: {
+    tenant_id?: string
+    email?: string
+    group_id?: string
+    role_id?: string
+    place_id?: string
+    area_id?: string
+    lock_id?: string
+    valid_from?: string
+    valid_until?: string
+    delivery_method?: Share["delivery_method"]
+    grantee_name?: string
+    grantee_phone?: string
+    mobile_model?: string
+    pass_type?: string
+  }
+): Promise<Share> {
+  return request<Share>(
+    `/api/v1/shares/${encodePathSegment(shareID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ share: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteShare(token: string | undefined, shareID: string, tenantID?: string): Promise<void> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<void>(
+    suffix ? `/api/v1/shares/${encodePathSegment(shareID)}?${suffix}` : `/api/v1/shares/${encodePathSegment(shareID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function previewAccessRightsImpact(
+  token: string | undefined,
+  payload: AccessRightsSelectionPayload
+): Promise<AccessRightsImpactPreview> {
+  return request<AccessRightsImpactPreview>(
+    "/api/v1/access_rights/impact_preview",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function reviewAccessRights(
+  token: string | undefined,
+  payload: AccessRightsSelectionPayload
+): Promise<AccessRightsReviewResult> {
+  return request<AccessRightsReviewResult>(
+    "/api/v1/access_rights/review",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function updateAccessRightsSchedule(
+  token: string | undefined,
+  payload: AccessRightsSelectionPayload & {
+    valid_from?: string
+    valid_until: string
+  }
+): Promise<AccessRightsScheduleUpdateResult> {
+  return request<AccessRightsScheduleUpdateResult>(
+    "/api/v1/access_rights/schedule",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
 }
 
 export async function createTemporaryAccess(
@@ -2508,14 +4159,53 @@ export async function createTemporaryAccess(
     valid_until: string
   }
 ): Promise<TemporaryAccess> {
-  return request<TemporaryAccess>(
-    "/api/v1/temporary-access",
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    token
-  )
+  const created = await createShare(token, {
+    tenant_id: payload.tenant_id,
+    email: payload.grantee_email,
+    place_id: payload.building_id,
+    area_id: payload.area_id,
+    lock_id: payload.door_id,
+    delivery_method: payload.delivery_method,
+    grantee_name: payload.grantee_name,
+    grantee_phone: payload.grantee_phone,
+    mobile_model: payload.mobile_model,
+    pass_type: payload.pass_type,
+    valid_until: payload.valid_until,
+  })
+  return temporaryAccessFromShare(created)
+}
+
+function temporaryAccessFromShare(item: Share): TemporaryAccess {
+  const scopeType: TemporaryAccess["scope_type"] = item.lock_id
+    ? "door"
+    : item.area_id
+      ? "area"
+      : item.place_id
+        ? "building"
+        : "all"
+  return {
+    id: item.id,
+    tenant_id: item.tenant_id,
+    scope_type: scopeType,
+    building_id: item.place_id,
+    area_id: item.area_id,
+    door_id: item.lock_id,
+    delivery_method: item.delivery_method,
+    grantee_name: item.grantee_name ?? item.email,
+    grantee_phone: item.grantee_phone ?? "",
+    grantee_email: item.email,
+    mobile_model: item.mobile_model,
+    pass_type: item.pass_type,
+    valid_from: item.valid_from,
+    valid_until: item.valid_until,
+    authorized_by_id: item.authorized_by_id,
+    authorized_by_email: item.authorized_by_email,
+    authorized_by_role: item.authorized_by_role,
+    authorized_at: item.authorized_at,
+    reviewed_at: item.reviewed_at,
+    reviewed_by: item.reviewed_by,
+    created_at: item.created_at,
+  }
 }
 
 export async function listVisitorPasses(token: string | undefined): Promise<VisitorPass[]> {
@@ -2564,7 +4254,27 @@ export async function createVisitorPass(
 }
 
 export async function listAccessEvents(token: string | undefined, options?: ListPageOptions): Promise<AccessEvent[]> {
-  return requestItems<AccessEvent>(withPageQuery("/api/v1/events/access", options), token)
+  const eventSet = await createEventSet(token, { event_object_type: "Lock" })
+  const items = eventSet.events.map(accessEventFromEventSetEvent)
+  const page = typeof options?.page === "number" && Number.isFinite(options.page) && options.page > 0 ? Math.floor(options.page) : 1
+  const limit = typeof options?.limit === "number" && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : items.length
+  return items.slice((page - 1) * limit, page * limit)
+}
+
+function accessEventFromEventSetEvent(item: EventSetEvent): AccessEvent {
+  const result = item.result === "success" || item.result === "denied" || item.result === "warning" ? item.result : item.success ? "success" : "warning"
+  return {
+    id: item.uuid,
+    tenant_id: item.tenant_id ?? "",
+    building_id: item.place_id ?? "",
+    area_id: item.area_id ?? "",
+    type: item.type,
+    actor: item.actor_name || item.actor_email || item.actor_id || "system",
+    door_id: item.lock_id || item.object_id || "",
+    gateway_id: item.gateway_id ?? "",
+    result,
+    at: item.created_at,
+  }
 }
 
 export async function listDeviceEvents(token: string | undefined, options?: ListPageOptions): Promise<DeviceEvent[]> {
@@ -2642,6 +4352,137 @@ export async function listEventTypes(token: string | undefined): Promise<string[
   return request<string[]>("/api/v1/events/types", { method: "GET" }, token)
 }
 
+function withReportQuery(
+  path: string,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+    category?: string
+    query?: string
+    report_id?: string
+    status?: string
+  }
+): string {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.place_id?.trim()) query.set("place_id", options.place_id.trim())
+  if (options?.category?.trim()) query.set("category", options.category.trim())
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.report_id?.trim()) query.set("report_id", options.report_id.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  const suffix = query.toString()
+  return suffix ? `${path}?${suffix}` : path
+}
+
+export async function listReports(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+    category?: string
+    query?: string
+  }
+): Promise<Report[]> {
+  return requestItems<Report>(withReportQuery("/api/v1/reports", options), token)
+}
+
+export async function getReport(
+  token: string | undefined,
+  reportID: string,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+  }
+): Promise<Report> {
+  return request<Report>(
+    withReportQuery(`/api/v1/reports/${encodePathSegment(reportID)}`, options),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function downloadReportCSV(
+  token: string | undefined,
+  reportID: string,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+  }
+): Promise<string> {
+  return requestText(withReportQuery(`/api/v1/reports/${encodePathSegment(reportID)}/download`, options), token)
+}
+
+export async function listScheduledReports(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    place_id?: string
+    report_id?: string
+    status?: string
+  }
+): Promise<ScheduledReport[]> {
+  return requestItems<ScheduledReport>(withReportQuery("/api/v1/scheduled_reports", options), token)
+}
+
+export async function createScheduledReport(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    report_id: string
+    name?: string
+    status?: string
+    cadence?: string
+    format?: string
+    place_id?: string
+    recipients: string[]
+  }
+): Promise<ScheduledReport> {
+  return request<ScheduledReport>(
+    "/api/v1/scheduled_reports",
+    {
+      method: "POST",
+      body: JSON.stringify({ scheduled_report: payload }),
+    },
+    token
+  )
+}
+
+export async function updateScheduledReport(
+  token: string | undefined,
+  scheduledReportID: string,
+  payload: {
+    tenant_id?: string
+    report_id?: string
+    name?: string
+    status?: string
+    cadence?: string
+    format?: string
+    place_id?: string
+    recipients?: string[]
+  }
+): Promise<ScheduledReport> {
+  return request<ScheduledReport>(
+    `/api/v1/scheduled_reports/${encodePathSegment(scheduledReportID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ scheduled_report: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteScheduledReport(
+  token: string | undefined,
+  scheduledReportID: string,
+  tenantID?: string
+): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/scheduled_reports/${encodePathSegment(scheduledReportID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
 export async function listIntegrations(
   token: string | undefined,
   options?: {
@@ -2664,6 +4505,222 @@ export async function listIntegrations(
   if (options?.sort?.trim()) query.set("sort", options.sort.trim())
   const suffix = query.toString()
   return requestItems<Integration>(suffix ? `/api/v1/integrations?${suffix}` : "/api/v1/integrations", token)
+}
+
+export type IntegrationMutationPayload = {
+  tenant_id?: string
+  type?: Integration["type"]
+  provider?: string
+  status?: string
+  sync_mode?: string
+  credential_ref?: string
+  webhook_secret_ref?: string
+  issuer_url?: string
+  client_id?: string
+  auth_url?: string
+  token_url?: string
+  jwks_url?: string
+  user_info_url?: string
+  saml_acs_url?: string
+  saml_x509_cert?: string
+  scopes?: string[]
+  actor?: string
+}
+
+export async function getIntegration(
+  token: string | undefined,
+  integrationID: string,
+  tenantID?: string
+): Promise<Integration> {
+  return request<Integration>(
+    withTenantQuery(`/api/v1/integrations/${encodePathSegment(integrationID)}`, tenantID),
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createIntegration(
+  token: string | undefined,
+  payload: IntegrationMutationPayload
+): Promise<Integration> {
+  return request<Integration>(
+    "/api/v1/integrations",
+    {
+      method: "POST",
+      body: JSON.stringify({ integration: payload }),
+    },
+    token
+  )
+}
+
+export async function updateIntegration(
+  token: string | undefined,
+  integrationID: string,
+  payload: IntegrationMutationPayload
+): Promise<Integration> {
+  return request<Integration>(
+    `/api/v1/integrations/${encodePathSegment(integrationID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ integration: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteIntegration(
+  token: string | undefined,
+  integrationID: string,
+  tenantID?: string
+): Promise<void> {
+  return request<void>(
+    withTenantQuery(`/api/v1/integrations/${encodePathSegment(integrationID)}`, tenantID),
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function listAlertPolicies(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    ids?: string[]
+    category?: string
+    trigger?: string
+    status?: string
+    query?: string
+    sort?: "name" | "-name"
+  }
+): Promise<AlertPolicy[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
+  if (options?.category?.trim()) query.set("category", options.category.trim())
+  if (options?.trigger?.trim()) query.set("trigger", options.trigger.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.query?.trim()) query.set("query", options.query.trim())
+  if (options?.sort?.trim()) query.set("sort", options.sort.trim())
+  const suffix = query.toString()
+  return requestItems<AlertPolicy>(suffix ? `/api/v1/alert_policies?${suffix}` : "/api/v1/alert_policies", token)
+}
+
+export async function getAlertPolicy(token: string | undefined, policyID: string): Promise<AlertPolicy> {
+  return request<AlertPolicy>(
+    `/api/v1/alert_policies/${encodePathSegment(policyID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createAlertPolicy(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    category: "enterprise_sync_worker" | "wallet_jobs" | string
+    name?: string
+    description?: string
+    trigger?: string
+    severity?: string
+    condition_expression?: string
+    status?: string
+    enabled?: boolean
+    threshold?: number
+    window_seconds?: number
+    cooldown_seconds?: number
+    channels?: {
+      email?: boolean
+      whatsapp?: boolean
+    }
+    receiver_groups?: string[]
+    actor?: string
+  }
+): Promise<AlertPolicy> {
+  return request<AlertPolicy>(
+    "/api/v1/alert_policies",
+    {
+      method: "POST",
+      body: JSON.stringify({ alert_policy: payload }),
+    },
+    token
+  )
+}
+
+export async function updateAlertPolicy(
+  token: string | undefined,
+  policyID: string,
+  payload: {
+    tenant_id?: string
+    name?: string
+    description?: string
+    trigger?: string
+    severity?: string
+    condition_expression?: string
+    status?: string
+    enabled?: boolean
+    threshold?: number
+    window_seconds?: number
+    cooldown_seconds?: number
+    channels?: {
+      email?: boolean
+      whatsapp?: boolean
+    }
+    receiver_groups?: string[]
+    actor?: string
+  }
+): Promise<AlertPolicy> {
+  return request<AlertPolicy>(
+    `/api/v1/alert_policies/${encodePathSegment(policyID)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ alert_policy: payload }),
+    },
+    token
+  )
+}
+
+export async function deleteAlertPolicy(token: string | undefined, policyID: string): Promise<void> {
+  return request<void>(
+    `/api/v1/alert_policies/${encodePathSegment(policyID)}`,
+    { method: "DELETE" },
+    token
+  )
+}
+
+export async function previewAlertPolicyCondition(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    policy_id?: string
+    condition_expression?: string
+    event?: Record<string, unknown>
+  }
+): Promise<AlertPolicyConditionPreview> {
+  return request<AlertPolicyConditionPreview>(
+    "/api/v1/alert_policies/condition_preview",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function evaluateAlertPoliciesForEvent(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    policy_ids?: string[]
+    event: Record<string, unknown>
+  }
+): Promise<AlertPolicyEventEvaluation> {
+  return request<AlertPolicyEventEvaluation>(
+    "/api/v1/alert_policies/evaluate",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
 }
 
 export async function listAlarms(token: string | undefined, options?: ListPageOptions): Promise<Alarm[]> {
@@ -3624,12 +5681,20 @@ export async function issueWalletPassBatch(
   )
 }
 
+export async function listWalletJobs(token: string | undefined, tenantID?: string): Promise<WalletIssueJob[]> {
+  return requestItems<WalletIssueJob>(withTenantQuery("/api/v1/wallet/jobs", tenantID), token)
+}
+
 export async function listWalletPasses(
   token: string | undefined,
   tenantID?: string,
   options?: ListPageOptions
 ): Promise<WalletPassInstance[]> {
-  return requestItems<WalletPassInstance>(withPageQuery(withTenantQuery("/api/v1/wallet/passes", tenantID), options), token)
+  const cards = await listCards(token, tenantID ? { tenant_id: tenantID } : undefined)
+  const items = cards.map(walletPassFromCard)
+  const page = typeof options?.page === "number" && Number.isFinite(options.page) && options.page > 0 ? Math.floor(options.page) : 1
+  const limit = typeof options?.limit === "number" && Number.isFinite(options.limit) && options.limit > 0 ? Math.floor(options.limit) : items.length
+  return items.slice((page - 1) * limit, page * limit)
 }
 
 export async function getWalletPass(token: string | undefined, passID: string, tenantID?: string): Promise<WalletPassInstance> {
@@ -3638,6 +5703,41 @@ export async function getWalletPass(token: string | undefined, passID: string, t
     { method: "GET" },
     token
   )
+}
+
+function walletPassFromCard(card: Card): WalletPassInstance {
+  const targetType: WalletPassInstance["target_type"] = card.assignee_type === "Guest" ? "visitor" : "user"
+  return {
+    id: card.id,
+    tenant_id: card.tenant_id,
+    provider: card.provider,
+    template_id: card.template_id,
+    target_type: targetType,
+    target_id: card.assignee_id || card.user_id || "",
+    object_id: card.token || card.uid || card.card_number || card.id,
+    status: walletPassStatusFromCard(card.status),
+    save_link: card.save_link ?? "",
+    expires_at: card.expires_at,
+    issued_at: card.issued_at,
+    created_by: "",
+    updated_by: "",
+    created_at: card.created_at,
+    updated_at: card.updated_at,
+  }
+}
+
+function walletPassStatusFromCard(status: Card["status"]): WalletPassInstance["status"] {
+  switch (status) {
+    case "activated":
+      return "active"
+    case "deactivated":
+      return "suspended"
+    case "revoked":
+      return "revoked"
+    case "unassigned":
+    default:
+      return "issued"
+  }
 }
 
 export async function getWalletPassSaveLink(token: string | undefined, passID: string, tenantID?: string): Promise<string> {
@@ -3651,6 +5751,153 @@ export async function getWalletPassSaveLink(token: string | undefined, passID: s
 
 export async function listWalletPhysicalCardTasks(token: string | undefined, tenantID?: string): Promise<WalletPhysicalCardTask[]> {
   return requestItems<WalletPhysicalCardTask>(withTenantQuery("/api/v1/wallet/physical-card-tasks", tenantID), token)
+}
+
+export async function listWalletPhysicalCardVendors(token: string | undefined, tenantID?: string): Promise<WalletPhysicalCardVendor[]> {
+  return requestItems<WalletPhysicalCardVendor>(withTenantQuery("/api/v1/wallet/physical-card-vendors", tenantID), token)
+}
+
+export async function listWalletPhysicalCardInventory(
+  token: string | undefined,
+  options?: {
+    tenant_id?: string
+    status?: WalletPhysicalCardInventoryItem["status"]
+  }
+): Promise<WalletPhysicalCardInventoryItem[]> {
+  const query = new URLSearchParams()
+  if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
+  if (options?.status?.trim()) query.set("status", options.status.trim())
+  const suffix = query.toString()
+  return requestItems<WalletPhysicalCardInventoryItem>(
+    suffix ? `/api/v1/wallet/physical-card-inventory?${suffix}` : "/api/v1/wallet/physical-card-inventory",
+    token
+  )
+}
+
+export async function createWalletPhysicalCardInventoryItem(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    card_number: string
+    uid?: string
+    vendor_id?: string
+    status?: WalletPhysicalCardInventoryItem["status"]
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem> {
+  return request<WalletPhysicalCardInventoryItem>(
+    "/api/v1/wallet/physical-card-inventory",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function scanWalletPhysicalCardInventoryItem(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    uid: string
+    card_number?: string
+    reader_id?: string
+    vendor_id?: string
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem> {
+  return request<WalletPhysicalCardInventoryItem>(
+    "/api/v1/wallet/physical-card-inventory/scan",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function importWalletPhysicalCardInventory(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    items: Array<{
+      card_number: string
+      uid?: string
+      vendor_id?: string
+      status?: WalletPhysicalCardInventoryItem["status"]
+    }>
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem[]> {
+  const response = await request<{ items: WalletPhysicalCardInventoryItem[] }>(
+    "/api/v1/wallet/physical-card-inventory/import",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+  return response.items ?? []
+}
+
+export async function importWalletPhysicalCardInventoryCSV(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    csv_content: string
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem[]> {
+  const response = await request<{ items: WalletPhysicalCardInventoryItem[] }>(
+    "/api/v1/wallet/physical-card-inventory/import-csv",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+  return response.items ?? []
+}
+
+export async function updateWalletPhysicalCardInventoryStatus(
+  token: string | undefined,
+  inventoryID: string,
+  payload: {
+    tenant_id: string
+    status: WalletPhysicalCardInventoryGovernanceStatus
+    reason?: string
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem> {
+  return request<WalletPhysicalCardInventoryItem>(
+    `/api/v1/wallet/physical-card-inventory/${encodePathSegment(inventoryID)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function batchUpdateWalletPhysicalCardInventoryStatus(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    inventory_ids: string[]
+    status: WalletPhysicalCardInventoryGovernanceStatus
+    reason?: string
+    actor?: string
+  }
+): Promise<WalletPhysicalCardInventoryItem[]> {
+  const response = await request<{ items: WalletPhysicalCardInventoryItem[] }>(
+    "/api/v1/wallet/physical-card-inventory/batch-status",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+  return response.items ?? []
 }
 
 export async function listWalletPassDeliveries(
@@ -3723,6 +5970,8 @@ export async function createWalletPhysicalCardTask(
     pass_id: string
     task_type: "issue" | "reissue" | "loss_report"
     card_number?: string
+    inventory_id?: string
+    vendor_id?: string
     note?: string
     actor?: string
   }
@@ -3823,6 +6072,8 @@ export async function listCards(
     tenant_id?: string
     ids?: string[]
     status?: Card["status"]
+    provider?: string
+    credential_kind?: Card["credential_kind"]
     user_id?: string
     token?: string
     uid?: string
@@ -3834,6 +6085,8 @@ export async function listCards(
   if (options?.tenant_id?.trim()) query.set("tenant_id", options.tenant_id.trim())
   if (options?.ids && options.ids.length > 0) query.set("ids", options.ids.join(","))
   if (options?.status?.trim()) query.set("status", options.status.trim())
+  if (options?.provider?.trim()) query.set("provider", options.provider.trim())
+  if (options?.credential_kind?.trim()) query.set("credential_kind", options.credential_kind.trim())
   if (options?.user_id?.trim()) query.set("user_id", options.user_id.trim())
   if (options?.token?.trim()) query.set("token", options.token.trim())
   if (options?.uid?.trim()) query.set("uid", options.uid.trim())
@@ -3841,6 +6094,17 @@ export async function listCards(
   if (options?.card_id?.trim()) query.set("card_id", options.card_id.trim())
   const suffix = query.toString()
   return requestItems<Card>(suffix ? `/api/v1/cards?${suffix}` : "/api/v1/cards", token)
+}
+
+export async function getCard(token: string | undefined, cardID: string, tenantID?: string): Promise<Card> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Card>(
+    suffix ? `/api/v1/cards/${encodePathSegment(cardID)}?${suffix}` : `/api/v1/cards/${encodePathSegment(cardID)}`,
+    { method: "GET" },
+    token
+  )
 }
 
 export async function listCardAssignments(
@@ -3865,6 +6129,132 @@ export async function listCardAssignments(
   if (options?.user_id?.trim()) query.set("user_id", options.user_id.trim())
   const suffix = query.toString()
   return requestItems<CardAssignment>(suffix ? `/api/v1/card_assignments?${suffix}` : "/api/v1/card_assignments", token)
+}
+
+export async function getCardAssignment(token: string | undefined, assignmentID: string, tenantID?: string): Promise<CardAssignment> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<CardAssignment>(
+    suffix ? `/api/v1/card_assignments/${encodePathSegment(assignmentID)}?${suffix}` : `/api/v1/card_assignments/${encodePathSegment(assignmentID)}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function createCard(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    template_id?: string
+    token?: string
+    uid?: string
+    card_number?: string
+    type?: string
+    assignee_type?: "User" | "Guest"
+    assignee_id?: string
+    user_id?: string
+    guest_id?: string
+    email?: string
+    expires_at?: string
+  }
+): Promise<Card> {
+  return request<Card>(
+    "/api/v1/cards",
+    {
+      method: "POST",
+      body: JSON.stringify({ card: payload }),
+    },
+    token
+  )
+}
+
+export async function createCardAssignment(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    card_id: string
+    assignee_type: "User" | "Guest"
+    assignee_id?: string
+    user_id?: string
+    guest_id?: string
+    email?: string
+  }
+): Promise<CardAssignment> {
+  return request<CardAssignment>(
+    "/api/v1/card_assignments",
+    {
+      method: "POST",
+      body: JSON.stringify({ card_assignment: payload }),
+    },
+    token
+  )
+}
+
+export async function assignCard(
+  token: string | undefined,
+  cardID: string,
+  payload: {
+    tenant_id: string
+    assignee_type?: "User" | "Guest"
+    assignee_id?: string
+    user_id?: string
+    guest_id?: string
+    email?: string
+  }
+): Promise<Card> {
+  return request<Card>(
+    `/api/v1/cards/${encodePathSegment(cardID)}/assign`,
+    {
+      method: "POST",
+      body: JSON.stringify({ card: payload }),
+    },
+    token
+  )
+}
+
+export async function deassignCard(token: string | undefined, cardID: string, tenantID?: string): Promise<Card> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Card>(
+    suffix ? `/api/v1/cards/${encodePathSegment(cardID)}/deassign?${suffix}` : `/api/v1/cards/${encodePathSegment(cardID)}/deassign`,
+    { method: "POST" },
+    token
+  )
+}
+
+export async function activateCard(token: string | undefined, cardID: string, tenantID?: string): Promise<Card> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Card>(
+    suffix ? `/api/v1/cards/${encodePathSegment(cardID)}/activate?${suffix}` : `/api/v1/cards/${encodePathSegment(cardID)}/activate`,
+    { method: "POST" },
+    token
+  )
+}
+
+export async function deactivateCard(token: string | undefined, cardID: string, tenantID?: string): Promise<Card> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Card>(
+    suffix ? `/api/v1/cards/${encodePathSegment(cardID)}/deactivate?${suffix}` : `/api/v1/cards/${encodePathSegment(cardID)}/deactivate`,
+    { method: "POST" },
+    token
+  )
+}
+
+export async function revokeCard(token: string | undefined, cardID: string, tenantID?: string): Promise<Card> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) query.set("tenant_id", tenantID.trim())
+  const suffix = query.toString()
+  return request<Card>(
+    suffix ? `/api/v1/cards/${encodePathSegment(cardID)}/revoke?${suffix}` : `/api/v1/cards/${encodePathSegment(cardID)}/revoke`,
+    { method: "POST" },
+    token
+  )
 }
 
 function buildWalletJobMetricsPath(options: {

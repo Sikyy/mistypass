@@ -58,6 +58,105 @@ func TestCreateTopologySuccess(t *testing.T) {
 	}
 }
 
+func TestDeleteBuildingArchivesPlaceAndRemovesActiveTopology(t *testing.T) {
+	svc := NewService()
+
+	building, err := svc.CreateBuilding("tenant_custom", "Archive Hub", "Jl. Archive 1", "ID-JK")
+	if err != nil {
+		t.Fatalf("CreateBuilding returned error: %v", err)
+	}
+	floor, err := svc.CreateFloor("tenant_custom", building.ID, "L1")
+	if err != nil {
+		t.Fatalf("CreateFloor returned error: %v", err)
+	}
+	area, err := svc.CreateArea("tenant_custom", building.ID, floor.ID, "Lobby")
+	if err != nil {
+		t.Fatalf("CreateArea returned error: %v", err)
+	}
+	door, err := svc.CreateDoor("tenant_custom", building.ID, floor.ID, area.ID, "Lobby Door", "gw_archive", "office", "online")
+	if err != nil {
+		t.Fatalf("CreateDoor returned error: %v", err)
+	}
+
+	if err := svc.DeleteBuilding("tenant_custom", building.ID); err != nil {
+		t.Fatalf("DeleteBuilding returned error: %v", err)
+	}
+	if _, err := svc.GetBuilding("tenant_custom", building.ID); !errors.Is(err, ErrBuildingNotFound) {
+		t.Fatalf("expected archived building to be hidden from active detail, got %v", err)
+	}
+	archived, err := svc.GetBuildingIncludingArchived("tenant_custom", building.ID)
+	if err != nil {
+		t.Fatalf("GetBuildingIncludingArchived returned error: %v", err)
+	}
+	if archived.Status != "archived" || archived.ArchivedAt == nil {
+		t.Fatalf("expected archived building metadata, got %#v", archived)
+	}
+	for _, item := range svc.ListBuildings("tenant_custom") {
+		if item.ID == building.ID {
+			t.Fatalf("expected active building list to exclude archived building")
+		}
+	}
+	foundArchived := false
+	for _, item := range svc.ListBuildingsIncludingArchived("tenant_custom") {
+		if item.ID == building.ID && item.Status == "archived" {
+			foundArchived = true
+		}
+	}
+	if !foundArchived {
+		t.Fatalf("expected archived building to remain queryable")
+	}
+	if _, err := svc.GetDoor("tenant_custom", door.ID); !errors.Is(err, ErrDoorNotFound) {
+		t.Fatalf("expected archived building door to be removed from active topology, got %v", err)
+	}
+	topology, err := svc.TopologyByTenant("tenant_custom")
+	if err != nil {
+		t.Fatalf("TopologyByTenant returned error: %v", err)
+	}
+	if len(topology.Buildings) != 0 || len(topology.Floors) != 0 || len(topology.Areas) != 0 || len(topology.Doors) != 0 {
+		t.Fatalf("expected archived topology to be hidden, got %+v", topology)
+	}
+}
+
+func TestUpdateAreaKeepsDoorTopologyConsistent(t *testing.T) {
+	svc := NewService()
+
+	building, err := svc.CreateBuilding("tenant_custom", "Topology Hub", "Jl. Example 2", "ID-JK")
+	if err != nil {
+		t.Fatalf("CreateBuilding returned error: %v", err)
+	}
+	firstFloor, err := svc.CreateFloor("tenant_custom", building.ID, "L1")
+	if err != nil {
+		t.Fatalf("CreateFloor first returned error: %v", err)
+	}
+	secondFloor, err := svc.CreateFloor("tenant_custom", building.ID, "L2")
+	if err != nil {
+		t.Fatalf("CreateFloor second returned error: %v", err)
+	}
+	area, err := svc.CreateArea("tenant_custom", building.ID, firstFloor.ID, "Lobby")
+	if err != nil {
+		t.Fatalf("CreateArea returned error: %v", err)
+	}
+	door, err := svc.CreateDoor("tenant_custom", building.ID, firstFloor.ID, area.ID, "Lobby Door", "gw_01", "office", "online")
+	if err != nil {
+		t.Fatalf("CreateDoor returned error: %v", err)
+	}
+
+	updated, err := svc.UpdateArea("tenant_custom", area.ID, building.ID, secondFloor.ID, "Level 2 Lobby")
+	if err != nil {
+		t.Fatalf("UpdateArea returned error: %v", err)
+	}
+	if updated.Name != "Level 2 Lobby" || updated.FloorID != secondFloor.ID {
+		t.Fatalf("unexpected updated area: %#v", updated)
+	}
+	updatedDoor, err := svc.GetDoor("tenant_custom", door.ID)
+	if err != nil {
+		t.Fatalf("GetDoor returned error: %v", err)
+	}
+	if updatedDoor.FloorID != secondFloor.ID || updatedDoor.BuildingID != building.ID {
+		t.Fatalf("expected door topology to follow updated area, got %#v", updatedDoor)
+	}
+}
+
 func TestCreateTopologyRejectsTenantOwnershipMismatch(t *testing.T) {
 	svc := NewService()
 
