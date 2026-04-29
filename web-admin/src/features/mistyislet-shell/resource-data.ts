@@ -1,3 +1,4 @@
+import i18next from "i18next"
 import {
   createEventSet,
   listAccessEvents,
@@ -297,7 +298,7 @@ const fallbackFloors: MistyisletFloorResource[] = [
     description: "Lobby, reception, visitor turnstiles",
     doorCount: 4,
     hardwareCount: 3,
-    statusLabel: "Online",
+    statusLabel: i18next.t("common.online"),
     tone: "success",
   },
   {
@@ -307,7 +308,7 @@ const fallbackFloors: MistyisletFloorResource[] = [
     description: "Office access and meeting rooms",
     doorCount: 5,
     hardwareCount: 2,
-    statusLabel: "Online",
+    statusLabel: i18next.t("common.online"),
     tone: "success",
   },
   {
@@ -395,7 +396,7 @@ const fallbackHardware: MistyisletHardwareResource[] = [
     gatewayId: "gw-sudirman-a",
     name: "MP-GW-JK",
     type: "Gateway",
-    statusLabel: "Online",
+    statusLabel: i18next.t("common.online"),
     tone: "success",
     location: "Sudirman Hub",
     lastSeenLabel: "2 minutes ago",
@@ -407,7 +408,7 @@ const fallbackHardware: MistyisletHardwareResource[] = [
     gatewayId: "gw-sudirman-a",
     name: "Reader Pro 11F",
     type: "Reader",
-    statusLabel: "Online",
+    statusLabel: i18next.t("common.online"),
     tone: "success",
     location: "11th Floor Entry",
     lastSeenLabel: "2 minutes ago",
@@ -476,7 +477,7 @@ const fallbackUsers: MistyisletUserResource[] = [
     name: "Andra Saputra",
     email: "andra.saputra@tenant.local",
     role: "Admin",
-    statusLabel: "Active",
+    statusLabel: i18next.t("common.active"),
     tone: "success",
     accessDateLabel: "Apr 13, 2026",
     sourceLabel: "Manual",
@@ -487,7 +488,7 @@ const fallbackUsers: MistyisletUserResource[] = [
     name: "Dina Wijaya",
     email: "dina.wijaya@tenant.local",
     role: "Member",
-    statusLabel: "Active",
+    statusLabel: i18next.t("common.active"),
     tone: "success",
     accessDateLabel: "Unconfirmed user",
     sourceLabel: "Directory",
@@ -509,7 +510,7 @@ const fallbackUsers: MistyisletUserResource[] = [
     name: "Rina Hartono",
     email: "rina.hartono@tenant.local",
     role: "Place Admin",
-    statusLabel: "Suspended",
+    statusLabel: i18next.t("common.suspended"),
     tone: "danger",
     accessDateLabel: "Mar 28, 2026",
     sourceLabel: "Manual",
@@ -522,7 +523,7 @@ const fallbackCredentials: MistyisletCredentialResource[] = [
     user: "Andra Saputra",
     userID: "user-andra",
     type: "Mobile",
-    statusLabel: "Active",
+    statusLabel: i18next.t("common.active"),
     tone: "success",
     issuedLabel: "Apr 26, 2026",
     expiresLabel: "No expiry",
@@ -554,33 +555,33 @@ const fallbackGroups: MistyisletGroupResource[] = [
     id: "group-service-personnel",
     placeId: "sudirman-hub",
     name: "Service Personnel",
-    kind: "Door group",
+    kind: i18next.t("common.group"),
     memberCount: 18,
     targetLabel: "Garage, 11th Floor Entry",
     description: "People and access resources used by service teams.",
     zoneIds: ["zone-sudirman-garage"],
     zoneFloorIds: ["sudirman-parking"],
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
   {
     id: "group-lobby-staff",
     placeId: "sudirman-hub",
     name: "Lobby Staff",
-    kind: "Door group",
+    kind: i18next.t("common.group"),
     memberCount: 12,
     targetLabel: "Lobby Turnstile",
     description: "Front desk and visitor handling access.",
     zoneIds: ["zone-sudirman-lobby"],
     zoneFloorIds: ["sudirman-1f"],
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
   {
     id: "group-vendor-temporary",
     placeId: "kuningan-tower",
     name: "Vendor Temporary",
-    kind: "User group",
+    kind: i18next.t("common.group"),
     memberCount: 6,
     targetLabel: "Temporary assignments",
     description: "Short-term vendor access awaiting review.",
@@ -599,7 +600,7 @@ const fallbackTeams: MistyisletTeamResource[] = [
     description: "Office engineering staff managed through directory sync.",
     memberCount: 2,
     accessRightCount: 1,
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
   {
@@ -611,7 +612,7 @@ const fallbackTeams: MistyisletTeamResource[] = [
     description: "Building operations and facility support.",
     memberCount: 1,
     accessRightCount: 1,
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
 ]
@@ -625,7 +626,7 @@ const fallbackTeamMemberships: MistyisletTeamMembershipResource[] = [
     name: "Andra Saputra",
     email: "andra.saputra@tenant.local",
     sourceLabel: "SCIM",
-    statusLabel: "Active",
+    statusLabel: i18next.t("common.active"),
     tone: "success",
   },
   {
@@ -636,7 +637,7 @@ const fallbackTeamMemberships: MistyisletTeamMembershipResource[] = [
     name: "Dina Wijaya",
     email: "dina.wijaya@tenant.local",
     sourceLabel: "SCIM",
-    statusLabel: "Active",
+    statusLabel: i18next.t("common.active"),
     tone: "success",
   },
 ]
@@ -649,7 +650,7 @@ const fallbackAccessRights: MistyisletAccessRightResource[] = [
     subjectType: "Group",
     targetLabel: "Garage, 11th Floor Entry",
     ruleLabel: "Weekdays 08:00-18:00",
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
   {
@@ -659,7 +660,7 @@ const fallbackAccessRights: MistyisletAccessRightResource[] = [
     subjectType: "Group",
     targetLabel: "Lobby Turnstile",
     ruleLabel: "Always",
-    statusLabel: "Enabled",
+    statusLabel: i18next.t("common.enabled"),
     tone: "success",
   },
   {
@@ -855,13 +856,13 @@ function userTone(status: string): MistyisletResourceTone {
 function userStatusLabel(status: string) {
   const normalized = status.trim().toLowerCase()
   if (normalized === "active" || normalized === "enabled") {
-    return "Active"
+    return i18next.t("common.active")
   }
   if (normalized === "pending" || normalized === "invited" || normalized === "unconfirmed") {
     return "Pending"
   }
   if (normalized === "suspended" || normalized === "disabled" || normalized === "inactive") {
-    return "Suspended"
+    return i18next.t("common.suspended")
   }
   return titleize(status || "Unknown")
 }
@@ -880,13 +881,13 @@ function credentialTone(status: string): MistyisletResourceTone {
 function credentialStatusLabel(status: string) {
   const normalized = status.trim().toLowerCase()
   if (normalized === "active") {
-    return "Active"
+    return i18next.t("common.active")
   }
   if (normalized === "issued" || normalized === "pending") {
     return "Pending"
   }
   if (normalized === "suspended") {
-    return "Suspended"
+    return i18next.t("common.suspended")
   }
   if (normalized === "revoked") {
     return "Revoked"
@@ -916,7 +917,7 @@ function cardCredentialType(card: Card) {
 
 function credentialStatusLabelFromCard(status: Card["status"]) {
   if (status === "activated") {
-    return "Active"
+    return i18next.t("common.active")
   }
   if (status === "unassigned") {
     return "Pending"
@@ -924,7 +925,7 @@ function credentialStatusLabelFromCard(status: Card["status"]) {
   if (status === "revoked") {
     return "Revoked"
   }
-  return "Suspended"
+  return i18next.t("common.suspended")
 }
 
 function credentialToneFromCard(status: Card["status"]): MistyisletResourceTone {
@@ -940,10 +941,10 @@ function credentialToneFromCard(status: Card["status"]): MistyisletResourceTone 
 function productUserRoleLabel(role: string) {
   const normalized = role.trim().toLowerCase()
   if (normalized === "super_admin" || normalized === "tenant_admin") {
-    return "Organization Admin"
+    return i18next.t("common.orgAdmin")
   }
   if (normalized === "building_admin" || normalized === "operator") {
-    return "Place Admin"
+    return i18next.t("kisi.users.placeAdminRole")
   }
   return titleize(role || "Member")
 }
@@ -1156,7 +1157,7 @@ function targetLabelForAccessScope(
 
 function policyStatusLabel(status: AccessPolicy["status"]) {
   if (status === "active") {
-    return "Enabled"
+    return i18next.t("common.enabled")
   }
   if (status === "draft") {
     return "Review"
@@ -1177,9 +1178,9 @@ function policyTone(status: AccessPolicy["status"]): MistyisletResourceTone {
 function temporaryAccessStatus(item: TemporaryAccess) {
   const expiresAt = new Date(item.valid_until)
   if (!Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
-    return { statusLabel: "Expired", tone: "danger" as MistyisletResourceTone }
+    return { statusLabel: i18next.t("common.expired"), tone: "danger" as MistyisletResourceTone }
   }
-  return { statusLabel: "Enabled", tone: "success" as MistyisletResourceTone }
+  return { statusLabel: i18next.t("common.enabled"), tone: "success" as MistyisletResourceTone }
 }
 
 function formatAccessDateLabel(value?: string, fallback = "No expiry") {
@@ -1212,15 +1213,15 @@ function accessValidityStatus(validFrom?: string, validUntil?: string, rawStatus
 
   const startsAt = validFrom?.trim() ? new Date(validFrom).getTime() : Number.NaN
   if (!Number.isNaN(startsAt) && startsAt > Date.now()) {
-    return { statusLabel: "Scheduled", tone: "warning" as MistyisletResourceTone }
+    return { statusLabel: i18next.t("common.scheduled"), tone: "warning" as MistyisletResourceTone }
   }
 
   const expiresAt = validUntil?.trim() ? new Date(validUntil).getTime() : Number.NaN
   if (!Number.isNaN(expiresAt) && expiresAt < Date.now()) {
-    return { statusLabel: "Expired", tone: "danger" as MistyisletResourceTone }
+    return { statusLabel: i18next.t("common.expired"), tone: "danger" as MistyisletResourceTone }
   }
 
-  return { statusLabel: "Enabled", tone: "success" as MistyisletResourceTone }
+  return { statusLabel: i18next.t("common.enabled"), tone: "success" as MistyisletResourceTone }
 }
 
 function accessRightNeedsReview(statusLabel: string, reviewedAt?: string) {
@@ -1678,7 +1679,7 @@ export async function loadMistyisletResourceSummary(token: string, viewer: Curre
         description: team.description || "Team membership used for batch Access Rights.",
         memberCount: memberships.length,
         accessRightCount,
-        statusLabel: "Enabled",
+        statusLabel: i18next.t("common.enabled"),
         tone: "success",
       } satisfies MistyisletTeamResource
     })
@@ -1750,9 +1751,9 @@ export async function loadMistyisletResourceSummary(token: string, viewer: Curre
         tenantID: group.tenant_id,
         placeId: group.building_id && buildingIDs.has(group.building_id) ? group.building_id : "",
         name: group.name,
-        kind: "User group",
+        kind: i18next.t("common.group"),
         memberCount,
-        targetLabel: memberCount > 0 ? formatCount(memberCount, "member") : "No members",
+        targetLabel: memberCount > 0 ? formatCount(memberCount, "member") : i18next.t("kisi.teams.noMembers"),
         description: group.description || "Directory or manually managed user group.",
         loginEnabled: group.login_enabled ?? true,
         geofenceRestrictionEnabled: Boolean(group.geofence_restriction_enabled),
@@ -1763,7 +1764,7 @@ export async function loadMistyisletResourceSummary(token: string, viewer: Curre
         timeRestrictionEnabled: Boolean(group.time_restriction_enabled),
         tapToAccessRestrictionEnabled: Boolean(group.tap_to_access_restriction_enabled),
         timeRestrictionTimeZone: group.time_restriction_time_zone,
-        statusLabel: "Enabled",
+        statusLabel: i18next.t("common.enabled"),
         tone: "success",
       } satisfies MistyisletGroupResource
     }),
@@ -1782,7 +1783,7 @@ export async function loadMistyisletResourceSummary(token: string, viewer: Curre
         tenantID: group.tenant_id,
         placeId,
         name: group.name,
-        kind: "Door group",
+        kind: i18next.t("common.group"),
         memberCount: groupDoors.length,
         targetLabel: compactListSummary(
           groupDoors.map((door) => door.name),

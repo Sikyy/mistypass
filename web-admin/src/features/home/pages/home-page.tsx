@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useLocation, useNavigate } from "react-router-dom"
@@ -142,7 +143,7 @@ function scopedByBuilding<T extends { building_id: string }>(
 
 function accessActivity(event: AccessEvent): HomeActivity {
   const action =
-    event.result === "success" ? "Access granted" : event.result === "denied" ? "Access denied" : "Access warning"
+    event.result === "success" ? i18next.t("kisi.home.accessGranted") : event.result === "denied" ? i18next.t("kisi.home.accessDenied") : i18next.t("kisi.home.accessWarning")
 
   return {
     id: `access-${event.id}`,

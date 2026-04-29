@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useMutation } from "@tanstack/react-query"
 import { ChevronDownIcon, CloudIcon, SearchIcon, Trash2Icon, UserIcon } from "lucide-react"
@@ -76,7 +77,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
       onViewerChange(updatedViewer)
       setProfileName(profileNameForViewer(updatedViewer))
       setProfileLanguage(normalizedProfileLanguage(updatedViewer.language))
-      setProfileFeedback({ tone: "success", message: "Profile saved" })
+      setProfileFeedback({ tone: "success", message: i18next.t("kisi.myAccount.profileSaved") })
     },
     onError: (error) => {
       setProfileFeedback({
@@ -205,9 +206,9 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.description")}</p>
             </div>
             {[
-              ["Password", "Enabled", "Last changed 18 days ago"],
-              ["Single Sign-On", "Organization managed", "SAML is configured by an administrator"],
-              ["Active browser session", "Current", "Chrome on macOS"],
+              [i18next.t("common.status"), i18next.t("common.enabled"), "Last changed 18 days ago"],
+              ["SSO", i18next.t("common.organization"), "SAML is configured by an administrator"],
+              [i18next.t("common.active"), i18next.t("common.status"), "Chrome on macOS"],
             ].map((row, index) => (
               <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_170px_1fr] md:items-center">
                 <span className="font-semibold text-[#17171c]">{row[0]}</span>
@@ -225,8 +226,8 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.credentials")}</p>
             </div>
             {[
-              ["Mobile credential", "Active", "Used for app unlocks"],
-              ["Access link", "Pending", "Expires in 7 days"],
+              [i18next.t("kisi.credentials.title"), i18next.t("common.active"), "Used for app unlocks"],
+              [i18next.t("kisi.accessRights.accessLink"), i18next.t("common.scheduled"), "Expires in 7 days"],
             ].map((row, index) => (
               <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_170px_1fr] md:items-center">
                 <span className="font-semibold text-[#17171c]">{row[0]}</span>

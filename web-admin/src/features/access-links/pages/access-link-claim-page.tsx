@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams, useSearchParams } from "react-router-dom"
@@ -37,7 +38,7 @@ function firstTokenValue(values: Array<string | undefined | null>) {
 function formatDateTime(value?: string) {
   const trimmed = value?.trim()
   if (!trimmed) {
-    return "Not set"
+    return i18next.t("common.noDataFound")
   }
   const timestamp = new Date(trimmed)
   if (Number.isNaN(timestamp.getTime())) {
@@ -53,7 +54,7 @@ function statusMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message
   }
-  return "Access link verification failed"
+  return i18next.t("kisi.accessLink.unavailable")
 }
 
 function AccessLinkDetail({ result }: { result: GroupLinkVerification }) {
@@ -184,7 +185,7 @@ export function AccessLinkClaimPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={!manualToken.trim() || verificationQuery.isFetching}>
-                {verificationQuery.isFetching ? "Verifying..." : "Verify access"}
+                {verificationQuery.isFetching ? t("common.loading") : t("kisi.accessLink.accessToken")}
                 <ArrowRightIcon className="ml-1.5 size-4" />
               </Button>
             </form>

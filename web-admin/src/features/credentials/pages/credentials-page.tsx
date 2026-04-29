@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -75,15 +76,15 @@ import {
 
 function credentialStatusLabel(status: Card["status"]) {
   if (status === "activated") {
-    return "Active"
+    return i18next.t("common.active")
   }
   if (status === "unassigned") {
-    return "Pending"
+    return i18next.t("common.scheduled")
   }
   if (status === "revoked") {
-    return "Revoked"
+    return i18next.t("common.expired")
   }
-  return "Suspended"
+  return i18next.t("common.suspended")
 }
 
 function credentialTone(status: Card["status"]) {
@@ -106,20 +107,20 @@ function statusText(value: string) {
 
 function credentialKindLabel(kind: Card["credential_kind"]) {
   if (kind === "google_wallet") {
-    return "Google Wallet"
+    return i18next.t("kisi.credentials.googleWallet")
   }
   if (kind === "apple_wallet") {
-    return "Apple Wallet"
+    return i18next.t("kisi.credentials.appleWallet")
   }
   if (kind === "physical_card") {
-    return "Physical Card"
+    return i18next.t("kisi.credentials.physicalCard")
   }
-  return "Credential"
+  return i18next.t("kisi.credentials.title")
 }
 
 function detailDateLabel(value?: string) {
   if (!value?.trim()) {
-    return "None"
+    return "-"
   }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) {
@@ -365,7 +366,7 @@ export function CredentialsAdaptedPage({
       [row.user, row.type, row.statusLabel, row.issuedLabel, row.expiresLabel].join(" ").toLowerCase().includes(query.trim().toLowerCase())
     return matchesTab && matchesQuery
   })
-  const tabs = ["Active", "Pending", "Suspended", "Revoked"]
+  const tabs = [t("common.active"), t("common.scheduled"), t("common.suspended"), t("common.expired")]
   const selectedUser = users.find((user) => user.id === selectedUserID) ?? users[0]
   const selectedBatchUsers = users.filter((user) => selectedBatchUserIDs.includes(user.id))
   const detailCardQuery = useQuery<Card>({

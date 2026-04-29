@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -114,29 +115,29 @@ export function GroupsAdaptedPage({
   const restrictions = [
     {
       key: "primary_device_restriction_enabled",
-      title: "Primary Device Restriction",
-      description: "Only allow unlocks from primary smartphones.",
+      title: i18next.t("kisi.groups.restrictions"),
+      description: i18next.t("kisi.groups.permDesc"),
       enabled: Boolean(currentGroup?.primaryDeviceRestrictionEnabled),
       icon: ShieldCheckIcon,
     },
     {
       key: "login_enabled",
-      title: "Allow App Access",
+      title: i18next.t("common.permissions"),
       description: "If enabled, users may access using Mistyislet mobile and web apps.",
       enabled: currentGroup?.loginEnabled ?? true,
       icon: CreditCardIcon,
     },
     {
       key: "geofence_restriction_enabled",
-      title: "Geofence Restriction",
+      title: i18next.t("kisi.groups.restrictions"),
       description: `Require users to be near the place location${currentGroup?.geofenceRestrictionRadius ? ` within ${currentGroup.geofenceRestrictionRadius}m` : ""}.`,
       enabled: Boolean(currentGroup?.geofenceRestrictionEnabled),
       icon: MapPinPlusIcon,
     },
     {
       key: "reader_restriction_enabled",
-      title: "Reader Restriction",
-      description: "Require unlocks at the reader for this group's doors.",
+      title: i18next.t("kisi.groups.restrictions"),
+      description: i18next.t("kisi.groups.permDesc"),
       enabled: Boolean(currentGroup?.readerRestrictionEnabled),
       icon: DoorOpenIcon,
     },
@@ -594,7 +595,7 @@ export function GroupsAdaptedPage({
                 <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{row.name}</span>
                   <span className="text-sm text-[#2f3037]">{row.floorName}</span>
-                  <StatusDot tone={row.status === "online" ? "success" : "warning"} label={row.status === "online" ? "Online" : "Review"} />
+                  <StatusDot tone={row.status === "online" ? "success" : "warning"} label={row.status === "online" ? t("common.online") : t("common.status")} />
                   <Button
                     type="button"
                     variant="ghost"

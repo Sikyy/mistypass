@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CalendarClockIcon, CheckIcon, EyeIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
@@ -88,9 +89,9 @@ function applyScheduleTemplate(
 }
 
 function formatTimeWindows(windows: TimeWindow[]): string {
-  if (!windows.length) return "No time restriction"
+  if (!windows.length) return i18next.t("common.general")
   return windows.map((tw) => {
-    const days = tw.day_of_week_set === "weekday" ? "Mon–Fri" : tw.day_of_week_set === "weekend" ? "Sat–Sun" : tw.day_of_week_set === "all" ? "Every day" : tw.day_of_week_set
+    const days = tw.day_of_week_set === "weekday" ? i18next.t("common.general") : tw.day_of_week_set === "weekend" ? i18next.t("common.general") : tw.day_of_week_set === "all" ? i18next.t("common.general") : tw.day_of_week_set
     return `${days} ${tw.start_time}–${tw.end_time}`
   }).join(", ")
 }
