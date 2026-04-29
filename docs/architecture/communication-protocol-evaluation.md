@@ -172,70 +172,97 @@ Gateway → WSS://cloud:443/nats → NATS Server
                                      └────────────────────┘
 ```
 
-### 4.1 核心学习：Kisi 的端口 fallback 策略
+### 4.1 核心学习：Kisi 的安全模型
 
-Kisi 最聪明的设计不是协议本身，而是 **端口 fallback**：
-- **TCP 31314**：专用端口，性能最优
-- **TCP 993**：IMAP 端口，绝大多数企业防火墙默认开放（用于邮件）
-- **TCP 443**：HTTPS 端口，几乎所有网络都开放
+Kisi 真正值得学的不是它的私有传输协议（Electric Imp 平台绑定），而是：
 
-这意味着 Kisi 的 Controller 几乎可以在任何网络环境下连上云端。**我们应该学习这个策略。**
+1. **mTLS（双向证书认证）**：每台设备有独立的客户端证书，Cloud 和设备互相验证身份
+2. **仅出站连接**：设备主动连 Cloud，不需要入站端口/防火墙打洞
+3. **per-device 密钥**：AES-GCM-AEAD，设备级密钥隔离
+4. **本地判定优先**：门禁放行不依赖 Cloud 实时 round-trip
 
-### 4.2 三层设计
+**不应该学的**：
+- 自研 raw TLS 私有协议（需要硬件/固件/安全芯片/运维全链路配套，当前阶段不现实）
+- 多端口 fallback（31314→993→443 是 Electric Imp 平台的设计，不是通用方案）
+
+### 4.2 架构决策：443-only + mTLS
+
+**所有 Gateway ↔ Cloud 通信走 443 端口，用标准协议 + 设备证书认证。**
+
+```
+┌──────────────────────────────────────────────────┐
+│                 Mistyislet Cloud :443              │
+│                                                    │
+│  ┌─────────────────┐  ┌────────────────────────┐ │
+│  │ HTTPS + mTLS    │  │ WSS (MQTT) + mTLS      │ │
+│  │ 配置/注册/事件   │  │ 实时命令/状态/推送      │ │
+│  └────────┬────────┘  └───────────┬────────────┘ │
+│           │          内部          │              │
+│           └──────── NATS ─────────┘              │
+│                    :4222                          │
+└──────────────────────────────────────────────────┘
+                        │
+                   全部 :443 出站
+                        │
+              ┌─────────┴─────────┐
+              │     Gateway       │
+              │  per-device cert  │
+              │  本地 access rule  │
+              └───────────────────┘
+```
+
+### 4.3 三层设计
 
 | 层 | 协议 | 用途 | 端口 |
 |---|---|---|---|
-| **管理层** | HTTPS REST API | 管理后台、配置下发、设备注册 | 443 |
-| **设备通信层** | MQTT over TLS | Gateway 实时命令和事件 | **8883 → 993 → 443 (WSS) fallback** |
-| **内部总线层** | NATS | API 微服务间通信、事件路由 | 4222（内部） |
+| **管理层** | HTTPS + mTLS | 设备注册、拉配置、事件上报、OTA、证书轮换 | 443 |
+| **实时层** | WSS + mTLS（MQTT over WebSocket） | 远程开门、lockdown、在线状态推送 | 443 |
+| **内部总线层** | NATS | API 微服务间通信、事件路由、开发调试 | 4222（内部，不暴露） |
 
-### 4.3 Gateway 端口 fallback 策略（学习 Kisi）
+**为什么 443-only**：
+- 印尼任何网络（政府/工厂/学校/写字楼）都开放 443
+- 不需要客户 IT 配合开额外端口
+- HTTPS 和 WSS 共用 443，由 path 区分（`/api/v1/gateway/*` vs `/ws/gateway`）
+- 与企业代理/WAF 兼容
+
+### 4.4 Gateway 通信模式
+
+| 场景 | 连接方式 | 说明 |
+|---|---|---|
+| **正常在线** | WSS :443 (MQTT over WebSocket) | 持久连接，实时命令推送 + 事件上报 |
+| **WSS 不可用** | HTTPS :443 pull/push | 定时拉配置 + 批量上报事件 |
+| **开发调试** | NATS :4222 | Gateway Simulator 直连（仅开发环境） |
+
+Gateway 启动时优先建立 WSS 持久连接；如果 WebSocket 被代理/防火墙阻断，自动降级为 HTTPS pull/push。
+
+### 4.5 设备认证：per-device client certificate
 
 ```
-Gateway 启动 → 尝试 MQTT TLS :8883
-  ↓ 失败
-尝试 MQTT TLS :993 (借用 IMAP 端口)
-  ↓ 失败
-尝试 MQTT over WebSocket :443 (借用 HTTPS 端口)
-  ↓ 失败
-降级为 HTTPS pull/push :443
+1. Gateway 首次注册：
+   POST /api/v1/gateway/register (bootstrap token)
+   → Cloud 签发 per-device client certificate
+   → Gateway 保存证书到安全存储
+
+2. 后续通信：
+   所有 HTTPS/WSS 请求携带 client certificate (mTLS)
+   Cloud 验证证书 → 解析 gateway_id + tenant_id
+   → 无需额外 token 交换
 ```
-
-这样无论客户的网络环境多严格，Gateway 总能连上。
-
-### 4.4 Gateway 端支持三种模式
-
-| 模式 | 适用场景 | 通信方式 | 实时性 | 配置 |
-|---|---|---|---|---|
-| **MQTT 模式（默认）** | 写字楼、园区 | MQTT/TLS，端口 fallback | 毫秒级 | `COMM_MODE=mqtt` |
-| **HTTPS 模式** | 极端受限网络 | HTTPS pull/push :443 | 秒级 | `COMM_MODE=https` |
-| **NATS 模式** | 内网部署、开发调试 | NATS :4222 | 毫秒级 | `COMM_MODE=nats` |
-
-### 4.5 为什么选 MQTT 作为设备通信主协议
-
-1. **IoT 生态最成熟**：ESP32、Linux ARM、Arduino 都有生产级 MQTT 库
-2. **QoS 保证**：QoS 1/2 保证消息不丢，适合门禁安全场景
-3. **Retained Message**：离线设备上线后立即获取最新配置
-4. **遗嘱消息 (LWT)**：设备离线自动通知 Cloud
-5. **带宽效率高**：协议头仅 2 字节，适合印尼带宽受限场景
-6. **端口 fallback 可行**：MQTT over TLS 可以跑在 993/443 上
-7. **行业共识**：IoT 门锁/传感器领域 MQTT 是事实标准
-
-**NATS 继续保留为内部总线**：API 微服务间通信、事件路由、Gateway Simulator 开发测试。
 
 ### 4.6 与 Kisi 架构的对比
 
 | 维度 | Kisi | Mistyislet |
 |---|---|---|
-| 设备通信协议 | Electric Imp 私有二进制协议 | **MQTT**（开放标准） |
-| 端口 fallback | 31314 → 993 → 443 | **8883 → 993 → 443** |
-| 本地通信 | AES-UDP :62435 | **待定**（可复用 AES-UDP 或 BLE） |
+| 传输协议 | Electric Imp 私有二进制协议 | **HTTPS + WSS (MQTT)**（开放标准） |
+| 端口 | 31314（主）→ 993 → 443/80 | **443-only** |
+| 设备认证 | PKI mTLS（Electric Imp 管理） | **PKI mTLS（自管 CA）** |
+| 实时推送 | TLS 持久连接 | **WSS 持久连接**（同等实时性） |
+| 本地通信 | AES-UDP :62435 | **待定** |
 | 离线判定 | 本地缓存策略 | **本地 access_rules 缓存**（已实现） |
-| 远程开门 | 持久连接即时推送 | **MQTT 即时推送**（同等实时性） |
-| OTA | RSA+AES 签名 :443/80 | **待实现** |
-| 设备认证 | PKI mutual TLS | **MQTT client cert + bootstrap token** |
+| OTA | RSA+AES :443/80 | **HTTPS :443**（待实现） |
+| 平台绑定 | **绑定 Electric Imp** | **无绑定，开放标准** |
 
-**核心差异**：Kisi 用私有协议绑定了 Electric Imp 平台。我们用 MQTT 开放标准，设备端不绑定任何平台，更灵活。
+**核心策略**：学 Kisi 的安全模型（mTLS + per-device cert + 仅出站 + 本地判定），不学它的私有传输（Electric Imp 绑定）。用 HTTPS/WSS 开放标准达到同等效果。
 
 ### 4.4 印尼各场景推荐配置
 

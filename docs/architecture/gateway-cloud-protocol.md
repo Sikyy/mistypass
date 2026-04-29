@@ -37,31 +37,39 @@ Kisi Controller Pro 使用 **Electric Imp 平台的 TLS 持久连接**（非 HTT
 
 ### 结论和建议
 
-**不需要换成 Kisi 的方案（私有协议，绑定平台）。我们用 MQTT + 端口 fallback 策略，效果等价但更开放：**
+**学 Kisi 的安全模型（mTLS + per-device cert），不学它的私有传输协议（Electric Imp 绑定）。**
+
+生产架构：**443-only + mTLS**，用开放标准达到同等安全和实时性。
 
 ```
-┌─────────────────────────────────────────────┐
-│  Cloud API                                   │
-│  ┌─────────────┐  ┌──────────────────────┐  │
-│  │ NATS (内部)  │  │ HTTPS Gateway API     │  │
-│  │ 低延迟推送   │  │ 设备注册/配置/事件     │  │
-│  └──────┬──────┘  └──────────┬───────────┘  │
-│         │                     │              │
-└─────────┼─────────────────────┼──────────────┘
-          │                     │
-    ┌─────┴─────┐         ┌────┴────┐
-    │ Gateway    │         │ Gateway  │
-    │ (内网/低延迟)│        │ (公网/NAT)│
-    │ NATS client│         │ HTTPS pull│
-    └───────────┘         └──────────┘
+┌──────────────────────────────────────────────────┐
+│              Mistyislet Cloud :443                 │
+│                                                    │
+│  ┌──────────────────┐  ┌───────────────────────┐ │
+│  │ HTTPS + mTLS     │  │ WSS (MQTT) + mTLS     │ │
+│  │ 注册/配置/事件/OTA│  │ 实时命令/状态推送      │ │
+│  └────────┬─────────┘  └──────────┬────────────┘ │
+│           │           内部         │              │
+│           └──────── NATS ─────────┘              │
+│                    :4222                          │
+└──────────────────────────────────────────────────┘
+                        │
+                   全部 :443 出站
+                   per-device client cert
+                        │
+              ┌─────────┴─────────┐
+              │     Gateway       │
+              │  mTLS 设备证书    │
+              │  本地 access rule  │
+              └───────────────────┘
 ```
 
-- **NATS**：用于**内网部署、低延迟场景**（办公室/园区内 Gateway 直连 NATS，远程开门实时响应）
-- **HTTPS pull/push**：用于**公网部署、防火墙受限场景**（Gateway 只需 HTTPS 出站，策略 pull + 事件 batch push）
-- **Gateway 端**：同时支持两种模式，启动时按配置选择
-- **Cloud 端**：同时接受两种来源的事件，统一写入 event store
+- **HTTPS :443 + mTLS**：设备注册、拉配置、事件上报、OTA、证书轮换
+- **WSS :443 + mTLS**：实时远程开门、lockdown、在线状态（MQTT over WebSocket 作为实现）
+- **NATS :4222**：Cloud 内部总线 + 开发调试用 Gateway Simulator
+- **443-only**：任何网络都开放 443，不需要客户 IT 配合开端口
 
-**当前 MVP 阶段用 NATS 是对的**——快速验证、实时反馈、开发调试方便。生产部署时加上 HTTPS pull 模式作为 fallback。
+**当前 MVP 阶段用 NATS 开发调试是正确的。** 生产部署时 Gateway 走 HTTPS/WSS :443 + mTLS。
 
 ---
 
@@ -334,12 +342,24 @@ Gateway: 收到 lock_down → 标记门为 lockdown → 拒绝所有本地放行
 
 ## 7. 安全要求
 
-| 要求 | NATS 模式 | HTTPS 模式 |
+### 7.1 设备认证模型（学习 Kisi mTLS）
+
+| 阶段 | 机制 |
+|---|---|
+| 首次注册 | Bootstrap token（一次性），Cloud 签发 per-device client cert |
+| 后续通信 | mTLS — 每次 HTTPS/WSS 请求携带 client cert，Cloud 验证 |
+| 证书轮换 | Cloud 主动推新 cert（通过 WSS），或设备定期拉取 |
+| 证书撤销 | Cloud 维护 CRL/OCSP，网关被删除时即时撤销 |
+
+### 7.2 各通道安全
+
+| 要求 | 生产（HTTPS/WSS :443） | 开发（NATS :4222） |
 |---|---|---|
-| 传输加密 | NATS TLS | HTTPS TLS |
-| 设备认证 | NATS credential (token/nkey) | Bootstrap token + device cert |
-| 消息签名 | 可选（NATS nkey 已含） | HMAC-SHA256 |
-| 重放防护 | request_id + timestamp | idempotency_key + checkpoint |
+| 传输加密 | TLS 1.2+ (mTLS) | NATS TLS（可选） |
+| 设备认证 | per-device client certificate | NATS token/nkey |
+| 消息签名 | TLS 已含完整性 | 可选 |
+| 重放防护 | request_id + timestamp + idempotency_key | request_id |
+| 密钥存储 | 设备安全存储（Linux keyring 或文件加密） | 明文（开发环境） |
 
 ---
 
