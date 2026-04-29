@@ -374,7 +374,7 @@ API 规则、目标 endpoint 表格、迁移期 adapter 对照和前后端进度
 | P0 | destructive mutation 审计已完成：reference 关键写操作 audit baseline 已覆盖全资源域；legacy 全域写操作审计（user/user-group/visitor-pass/alarm/tenant/floor/area/MFA/state-replay/wallet 全链路）已补齐并有回归测试；未来启用 Organization Advanced 写入前必须先接确认和审计 | 直接影响数据安全与用户误操作风险 |
 | P0 | Place Admin scope guard 与 demo 登录稳定性回归；Role Assignment / Access Rights 跨 Place 写入 smoke 和 Operator 只读写保护 smoke 已补，继续补更多 Place route smoke | 这是两类管理账号可用性的底线 |
 | P0 | 每轮保持 `typecheck`、unit、build、关键 smoke 通过 | 当前改动跨 API、adapter、UI，回归面大 |
-| P1 | Users 批量治理与 Access Rights 复杂 schedule 规则/节假日例外 | 补齐 People & Access 的日常运营闭环 |
+| P1 | Users 批量治理已完成；Access Rights 复杂 schedule 已落地（TimeWindow + ExceptionDates + HolidayCalendar + evaluate endpoint）| People & Access 日常运营闭环已基本补齐 |
 | P1 | Credentials Apple Pass `.pkpass`/设备回调、实体卡完整运营视图与供应商真实 API | Google Wallet、Apple Pass self-service、Access Link、实体卡 scan/inventory/task/status baseline 已可用，下一步是 Apple Wallet 真实协议和运营深度 |
 | P2 | i18n、移动端视觉、旧后台 archive、OpenAPI 资源 schema 细化、bundle 拆分 | 影响体验和维护成本，但可在核心闭环稳定后集中处理 |
 

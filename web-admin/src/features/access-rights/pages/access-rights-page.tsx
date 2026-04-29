@@ -36,6 +36,7 @@ import {
   type Role,
   type RoleAssignment,
   type Share,
+  type TimeWindow,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { getViewerTenantID } from "@/lib/viewer"
@@ -71,7 +72,8 @@ function applyScheduleTemplate(
   templateID: string,
   templates: AccessRightsScheduleTemplate[],
   setValidFromValue: (value: string) => void,
-  setValidUntilValue: (value: string) => void
+  setValidUntilValue: (value: string) => void,
+  setTimeWindows?: (value: TimeWindow[]) => void
 ) {
   const template = templates.find((item) => item.id === templateID)
   if (!template) {
@@ -79,6 +81,17 @@ function applyScheduleTemplate(
   }
   setValidFromValue(template.valid_from ?? "")
   setValidUntilValue(template.valid_until ?? "")
+  if (setTimeWindows) {
+    setTimeWindows(template.time_windows ?? [])
+  }
+}
+
+function formatTimeWindows(windows: TimeWindow[]): string {
+  if (!windows.length) return "No time restriction"
+  return windows.map((tw) => {
+    const days = tw.day_of_week_set === "weekday" ? "Mon–Fri" : tw.day_of_week_set === "weekend" ? "Sat–Sun" : tw.day_of_week_set === "all" ? "Every day" : tw.day_of_week_set
+    return `${days} ${tw.start_time}–${tw.end_time}`
+  }).join(", ")
 }
 
 function accessRightNeedsReview(row: AccessRightRow) {

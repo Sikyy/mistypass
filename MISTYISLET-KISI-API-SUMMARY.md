@@ -107,7 +107,7 @@ Bundled Reference 提供这些认证方式：
 | 范围 | 缺口 | 当前替代 | 优先级 |
 |---|---|---|---:|
 | Reports advanced | 排程投递持久化、更多导出格式、报表模板参数化 | 当前已有 `/reports` 聚合、CSV download 与 `/scheduled_reports` baseline CRUD | P2 |
-| Access Rights schedule | 复杂时间窗、节假日/例外规则 | 当前已有 `valid_from` / `valid_until` baseline、schedule template baseline、批量 schedule edit 与 review/impact preview | P1 |
+| Access Rights schedule | 更复杂的季节性/轮换规则 | TimeWindow（day_of_week_set + start_time/end_time）和 ExceptionDates 已落地到 RoleAssignment/Share，HolidayCalendar per-tenant CRUD 已接，schedule evaluate endpoint 支持时间窗+假日+例外日期评估，schedule templates 已补 weekday/extended/24h 预设 | P2 |
 | Teams governance | SCIM source diff、成员批量导入、team access review | 当前支持 team/membership CRUD 与 role assignment flow | P1 |
 | Users governance | 目录差异审阅、批量 role/group 变更细化 | `batch-status`、`batch-delete`、`batch-invite`、`export-csv`、`import-csv` 已落地；前端已接真正的 batch endpoint 替换 Promise.all 并发，CSV 导出/导入按钮已接 | P2 |
 | Alert Policy advanced execution | 渠道升级策略、通知持久化到 DB | 事件驱动调度器已落地：event subscriber 自动评估 enabled custom policies 并 dispatch 通知，cooldown 机制防止重复通知，`GET /alert_policies/notifications` 已支持 tenant/policy/severity/status 过滤；剩余渠道升级策略和 DB 级持久化 | P2 |

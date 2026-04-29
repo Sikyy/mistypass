@@ -109,33 +109,61 @@ type Role struct {
 	BuiltIn     bool            `json:"built_in"`
 }
 
+type TimeWindow struct {
+	StartTime    string `json:"start_time"`
+	EndTime      string `json:"end_time"`
+	DayOfWeekSet string `json:"day_of_week_set"`
+	Timezone     string `json:"timezone,omitempty"`
+}
+
+type HolidayCalendar struct {
+	ID        string         `json:"id"`
+	TenantID  string         `json:"tenant_id"`
+	Name      string         `json:"name"`
+	Country   string         `json:"country,omitempty"`
+	Entries   []HolidayEntry `json:"entries"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
+type HolidayEntry struct {
+	Date        string `json:"date"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 type RoleAssignment struct {
-	ID            string    `json:"id"`
-	TenantID      string    `json:"tenant_id"`
-	RoleID        string    `json:"role_id"`
-	AppliesToType string    `json:"applies_to_type"`
-	AppliesToID   string    `json:"applies_to_id"`
-	AssigneeType  string    `json:"assignee_type"`
-	AssigneeID    string    `json:"assignee_id"`
-	AssigneeEmail string    `json:"assignee_email,omitempty"`
-	ValidFrom     string    `json:"valid_from,omitempty"`
-	ValidUntil    string    `json:"valid_until,omitempty"`
-	ReviewedAt    string    `json:"reviewed_at,omitempty"`
-	ReviewedBy    string    `json:"reviewed_by,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID                string       `json:"id"`
+	TenantID          string       `json:"tenant_id"`
+	RoleID            string       `json:"role_id"`
+	AppliesToType     string       `json:"applies_to_type"`
+	AppliesToID       string       `json:"applies_to_id"`
+	AssigneeType      string       `json:"assignee_type"`
+	AssigneeID        string       `json:"assignee_id"`
+	AssigneeEmail     string       `json:"assignee_email,omitempty"`
+	ValidFrom         string       `json:"valid_from,omitempty"`
+	ValidUntil        string       `json:"valid_until,omitempty"`
+	TimeWindows       []TimeWindow `json:"time_windows,omitempty"`
+	ExceptionDates    []string     `json:"exception_dates,omitempty"`
+	HolidayCalendarID string       `json:"holiday_calendar_id,omitempty"`
+	ReviewedAt        string       `json:"reviewed_at,omitempty"`
+	ReviewedBy        string       `json:"reviewed_by,omitempty"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
 }
 
 type RoleAssignmentInput struct {
-	TenantID      string
-	RoleID        string
-	AppliesToType string
-	AppliesToID   string
-	AssigneeType  string
-	AssigneeID    string
-	AssigneeEmail string
-	ValidFrom     string
-	ValidUntil    string
+	TenantID          string
+	RoleID            string
+	AppliesToType     string
+	AppliesToID       string
+	AssigneeType      string
+	AssigneeID        string
+	AssigneeEmail     string
+	ValidFrom         string
+	ValidUntil        string
+	TimeWindows       []TimeWindow
+	ExceptionDates    []string
+	HolidayCalendarID string
 }
 
 type Policy struct {
@@ -329,15 +357,18 @@ type TemporaryAccess struct {
 	GranteeEmail      string    `json:"grantee_email"`
 	MobileModel       string    `json:"mobile_model,omitempty"`
 	PassType          string    `json:"pass_type,omitempty"`
-	ValidFrom         string    `json:"valid_from,omitempty"`
-	ValidUntil        string    `json:"valid_until"`
-	AuthorizedByID    string    `json:"authorized_by_id,omitempty"`
-	AuthorizedByEmail string    `json:"authorized_by_email,omitempty"`
-	AuthorizedByRole  string    `json:"authorized_by_role,omitempty"`
-	AuthorizedAt      time.Time `json:"authorized_at"`
-	ReviewedAt        string    `json:"reviewed_at,omitempty"`
-	ReviewedBy        string    `json:"reviewed_by,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
+	ValidFrom          string       `json:"valid_from,omitempty"`
+	ValidUntil         string       `json:"valid_until"`
+	TimeWindows        []TimeWindow `json:"time_windows,omitempty"`
+	ExceptionDates     []string     `json:"exception_dates,omitempty"`
+	HolidayCalendarID  string       `json:"holiday_calendar_id,omitempty"`
+	AuthorizedByID     string       `json:"authorized_by_id,omitempty"`
+	AuthorizedByEmail  string       `json:"authorized_by_email,omitempty"`
+	AuthorizedByRole   string       `json:"authorized_by_role,omitempty"`
+	AuthorizedAt       time.Time    `json:"authorized_at"`
+	ReviewedAt         string       `json:"reviewed_at,omitempty"`
+	ReviewedBy         string       `json:"reviewed_by,omitempty"`
+	CreatedAt          time.Time    `json:"created_at"`
 }
 
 type TemporaryAccessInput struct {
@@ -418,6 +449,7 @@ type Service struct {
 	teams                    []Team
 	teamMemberships          []TeamMembership
 	groupLinks               []GroupLink
+	holidayCalendars         []HolidayCalendar
 	stateStore               StateStore
 }
 
@@ -3810,4 +3842,285 @@ func accessSyncIdentityKey(source, ref string) string {
 		return ""
 	}
 	return nextSource + ":" + nextRef
+}
+
+// --- Holiday Calendar ---
+
+var ErrHolidayCalendarNameRequired = errors.New("holiday calendar name is required")
+var ErrHolidayCalendarNotFound = errors.New("holiday calendar not found")
+
+func (s *Service) ListHolidayCalendars(tenantID string) []HolidayCalendar {
+	filterTenantID := strings.TrimSpace(tenantID)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]HolidayCalendar, 0, len(s.holidayCalendars))
+	for i := range s.holidayCalendars {
+		if filterTenantID != "" && s.holidayCalendars[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.holidayCalendars[i])
+	}
+	return items
+}
+
+func (s *Service) GetHolidayCalendar(tenantID, calendarID string) (HolidayCalendar, error) {
+	filterTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(calendarID)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for i := range s.holidayCalendars {
+		if s.holidayCalendars[i].ID != nextID {
+			continue
+		}
+		if filterTenantID != "" && s.holidayCalendars[i].TenantID != filterTenantID {
+			continue
+		}
+		return s.holidayCalendars[i], nil
+	}
+	return HolidayCalendar{}, ErrHolidayCalendarNotFound
+}
+
+func (s *Service) CreateHolidayCalendar(tenantID, name, country string, entries []HolidayEntry) (HolidayCalendar, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return HolidayCalendar{}, ErrTenantIDRequired
+	}
+	nextName := strings.TrimSpace(name)
+	if nextName == "" {
+		return HolidayCalendar{}, ErrHolidayCalendarNameRequired
+	}
+	idBytes := make([]byte, 6)
+	rand.Read(idBytes)
+	now := time.Now().UTC()
+	cal := HolidayCalendar{
+		ID:        "hcal_" + hex.EncodeToString(idBytes),
+		TenantID:  nextTenantID,
+		Name:      nextName,
+		Country:   strings.TrimSpace(country),
+		Entries:   normalizeHolidayEntries(entries),
+		UpdatedAt: now,
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.holidayCalendars = append(s.holidayCalendars, cal)
+	_ = s.persistLocked()
+	return cal, nil
+}
+
+func (s *Service) UpdateHolidayCalendar(tenantID, calendarID, name, country string, entries []HolidayEntry) (HolidayCalendar, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(calendarID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.holidayCalendars {
+		if s.holidayCalendars[i].ID != nextID {
+			continue
+		}
+		if nextTenantID != "" && s.holidayCalendars[i].TenantID != nextTenantID {
+			continue
+		}
+		if n := strings.TrimSpace(name); n != "" {
+			s.holidayCalendars[i].Name = n
+		}
+		if c := strings.TrimSpace(country); c != "" {
+			s.holidayCalendars[i].Country = c
+		}
+		if entries != nil {
+			s.holidayCalendars[i].Entries = normalizeHolidayEntries(entries)
+		}
+		s.holidayCalendars[i].UpdatedAt = time.Now().UTC()
+		_ = s.persistLocked()
+		return s.holidayCalendars[i], nil
+	}
+	return HolidayCalendar{}, ErrHolidayCalendarNotFound
+}
+
+func (s *Service) DeleteHolidayCalendar(tenantID, calendarID string) error {
+	nextTenantID := strings.TrimSpace(tenantID)
+	nextID := strings.TrimSpace(calendarID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.holidayCalendars {
+		if s.holidayCalendars[i].ID != nextID {
+			continue
+		}
+		if nextTenantID != "" && s.holidayCalendars[i].TenantID != nextTenantID {
+			continue
+		}
+		s.holidayCalendars = append(s.holidayCalendars[:i], s.holidayCalendars[i+1:]...)
+		_ = s.persistLocked()
+		return nil
+	}
+	return ErrHolidayCalendarNotFound
+}
+
+func normalizeHolidayEntries(entries []HolidayEntry) []HolidayEntry {
+	if entries == nil {
+		return nil
+	}
+	result := make([]HolidayEntry, 0, len(entries))
+	for _, e := range entries {
+		date := strings.TrimSpace(e.Date)
+		if date == "" {
+			continue
+		}
+		result = append(result, HolidayEntry{
+			Date:        date,
+			Name:        strings.TrimSpace(e.Name),
+			Description: strings.TrimSpace(e.Description),
+		})
+	}
+	return result
+}
+
+// --- Schedule Evaluation ---
+
+type ScheduleEvaluation struct {
+	IsActive         bool         `json:"is_active"`
+	Reason           string       `json:"reason"`
+	ValidFrom        string       `json:"valid_from,omitempty"`
+	ValidUntil       string       `json:"valid_until,omitempty"`
+	TimeWindows      []TimeWindow `json:"time_windows,omitempty"`
+	ExceptionDates   []string     `json:"exception_dates,omitempty"`
+	HolidayCalendar  string       `json:"holiday_calendar,omitempty"`
+	EvaluatedAt      string       `json:"evaluated_at"`
+	NextActiveWindow string       `json:"next_active_window,omitempty"`
+}
+
+func EvaluateSchedule(now time.Time, validFrom, validUntil string, timeWindows []TimeWindow, exceptionDates []string, holidays []HolidayEntry) ScheduleEvaluation {
+	eval := ScheduleEvaluation{
+		EvaluatedAt: now.UTC().Format(time.RFC3339),
+		ValidFrom:   validFrom,
+		ValidUntil:  validUntil,
+		TimeWindows: timeWindows,
+	}
+
+	// check date range
+	if validFrom != "" {
+		from, err := time.Parse(time.RFC3339, validFrom)
+		if err == nil && now.Before(from) {
+			eval.Reason = "not_yet_valid"
+			return eval
+		}
+	}
+	if validUntil != "" {
+		until, err := time.Parse(time.RFC3339, validUntil)
+		if err == nil && now.After(until) {
+			eval.Reason = "expired"
+			return eval
+		}
+	}
+
+	// check exception dates
+	todayStr := now.Format("2006-01-02")
+	for _, d := range exceptionDates {
+		if strings.TrimSpace(d) == todayStr {
+			eval.Reason = "exception_date"
+			return eval
+		}
+	}
+
+	// check holiday calendar
+	for _, h := range holidays {
+		if strings.TrimSpace(h.Date) == todayStr {
+			eval.Reason = "holiday:" + h.Name
+			return eval
+		}
+	}
+
+	// check time windows
+	if len(timeWindows) > 0 {
+		inWindow := false
+		for _, tw := range timeWindows {
+			if isInTimeWindow(now, tw) {
+				inWindow = true
+				break
+			}
+		}
+		if !inWindow {
+			eval.Reason = "outside_time_window"
+			return eval
+		}
+	}
+
+	eval.IsActive = true
+	eval.Reason = "active"
+	return eval
+}
+
+func isInTimeWindow(now time.Time, tw TimeWindow) bool {
+	// check day of week
+	if !isDayInSet(now.Weekday(), tw.DayOfWeekSet) {
+		return false
+	}
+	// check time range
+	startTime := parseHHMM(tw.StartTime)
+	endTime := parseHHMM(tw.EndTime)
+	if startTime < 0 || endTime < 0 {
+		return true // invalid time range means no restriction
+	}
+	currentMinutes := now.Hour()*60 + now.Minute()
+	return currentMinutes >= startTime && currentMinutes < endTime
+}
+
+func isDayInSet(weekday time.Weekday, daySet string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(daySet))
+	if normalized == "" || normalized == "all" || normalized == "everyday" {
+		return true
+	}
+	if normalized == "weekday" || normalized == "weekdays" {
+		return weekday >= time.Monday && weekday <= time.Friday
+	}
+	if normalized == "weekend" || normalized == "weekends" {
+		return weekday == time.Saturday || weekday == time.Sunday
+	}
+	// parse comma-separated ISO days: 1=Mon, 7=Sun
+	isoDay := int(weekday)
+	if isoDay == 0 {
+		isoDay = 7 // Sunday
+	}
+	for _, part := range strings.Split(normalized, ",") {
+		d := strings.TrimSpace(part)
+		if d == "" {
+			continue
+		}
+		n := 0
+		for _, ch := range d {
+			if ch >= '0' && ch <= '9' {
+				n = n*10 + int(ch-'0')
+			}
+		}
+		if n == isoDay {
+			return true
+		}
+	}
+	return false
+}
+
+func parseHHMM(s string) int {
+	parts := strings.SplitN(strings.TrimSpace(s), ":", 2)
+	if len(parts) != 2 {
+		return -1
+	}
+	h, hErr := strings.CutPrefix(parts[0], "0")
+	if hErr {
+		// trimmed leading zero
+	}
+	_ = h
+	hour := 0
+	for _, ch := range strings.TrimSpace(parts[0]) {
+		if ch >= '0' && ch <= '9' {
+			hour = hour*10 + int(ch-'0')
+		}
+	}
+	minute := 0
+	for _, ch := range strings.TrimSpace(parts[1]) {
+		if ch >= '0' && ch <= '9' {
+			minute = minute*10 + int(ch-'0')
+		}
+	}
+	if hour > 23 || minute > 59 {
+		return -1
+	}
+	return hour*60 + minute
 }

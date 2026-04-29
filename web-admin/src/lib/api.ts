@@ -585,6 +585,37 @@ export type AccessRightsScheduleUpdateResult = {
   updated_share_ids?: string[]
 }
 
+export type TimeWindow = {
+  start_time: string
+  end_time: string
+  day_of_week_set: string
+  timezone?: string
+}
+
+export type HolidayEntry = {
+  date: string
+  name: string
+  description?: string
+}
+
+export type HolidayCalendar = {
+  id: string
+  tenant_id: string
+  name: string
+  country?: string
+  entries: HolidayEntry[]
+  updated_at: string
+}
+
+export type ScheduleEvaluation = {
+  is_active: boolean
+  reason: string
+  valid_from?: string
+  valid_until?: string
+  time_windows?: TimeWindow[]
+  evaluated_at: string
+}
+
 export type AccessRightsScheduleTemplate = {
   id: string
   name: string
@@ -592,6 +623,7 @@ export type AccessRightsScheduleTemplate = {
   valid_from?: string
   valid_until?: string
   duration_days?: number
+  time_windows?: TimeWindow[]
   source_types?: Array<AccessRightImpactItem["source_type"]>
 }
 
@@ -3983,6 +4015,70 @@ export async function listAccessRightsScheduleTemplates(
   const suffix = query.toString()
   return requestItems<AccessRightsScheduleTemplate>(
     suffix ? `/api/v1/access_rights/schedule_templates?${suffix}` : "/api/v1/access_rights/schedule_templates",
+    token
+  )
+}
+
+export async function evaluateAccessRightsSchedule(
+  token: string | undefined,
+  payload: {
+    tenant_id?: string
+    valid_from?: string
+    valid_until?: string
+    time_windows?: TimeWindow[]
+    exception_dates?: string[]
+    holiday_calendar_id?: string
+    evaluate_at?: string
+  }
+): Promise<ScheduleEvaluation> {
+  return request<ScheduleEvaluation>(
+    "/api/v1/access_rights/schedule/evaluate",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function listHolidayCalendars(
+  token: string | undefined,
+  tenantID?: string
+): Promise<HolidayCalendar[]> {
+  return requestItems<HolidayCalendar>(
+    withTenantQuery("/api/v1/holiday_calendars", tenantID),
+    token
+  )
+}
+
+export async function createHolidayCalendar(
+  token: string | undefined,
+  payload: { tenant_id: string; name: string; country?: string; entries: HolidayEntry[] }
+): Promise<HolidayCalendar> {
+  return request<HolidayCalendar>(
+    "/api/v1/holiday_calendars",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function updateHolidayCalendar(
+  token: string | undefined,
+  calendarID: string,
+  payload: { name?: string; country?: string; entries?: HolidayEntry[] }
+): Promise<HolidayCalendar> {
+  return request<HolidayCalendar>(
+    `/api/v1/holiday_calendars/${encodePathSegment(calendarID)}`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function deleteHolidayCalendar(
+  token: string | undefined,
+  calendarID: string,
+  tenantID?: string
+): Promise<void> {
+  await request<void>(
+    withTenantQuery(`/api/v1/holiday_calendars/${encodePathSegment(calendarID)}`, tenantID),
+    { method: "DELETE" },
     token
   )
 }

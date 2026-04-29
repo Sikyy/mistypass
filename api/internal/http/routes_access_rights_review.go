@@ -1,11 +1,13 @@
 package httpx
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/space"
 )
@@ -57,13 +59,14 @@ type referenceAccessRightImpactItem struct {
 }
 
 type referenceAccessRightsScheduleTemplate struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description,omitempty"`
-	ValidFrom    string   `json:"valid_from,omitempty"`
-	ValidUntil   string   `json:"valid_until,omitempty"`
-	DurationDays int      `json:"duration_days,omitempty"`
-	SourceTypes  []string `json:"source_types,omitempty"`
+	ID           string              `json:"id"`
+	Name         string              `json:"name"`
+	Description  string              `json:"description,omitempty"`
+	ValidFrom    string              `json:"valid_from,omitempty"`
+	ValidUntil   string              `json:"valid_until,omitempty"`
+	DurationDays int                 `json:"duration_days,omitempty"`
+	TimeWindows  []access.TimeWindow `json:"time_windows,omitempty"`
+	SourceTypes  []string            `json:"source_types,omitempty"`
 }
 
 type referenceAccessRightsImpactPreview struct {
@@ -291,6 +294,33 @@ func referenceAccessRightsScheduleTemplates(now time.Time) []referenceAccessRigh
 			ValidUntil:   generatedAt.Add(8 * 24 * time.Hour).Format(time.RFC3339),
 			DurationDays: 7,
 			SourceTypes:  sourceTypes,
+		},
+		{
+			ID:          "weekdays_business_hours",
+			Name:        "Weekdays, business hours",
+			Description: "Monday to Friday, 07:00–19:00.",
+			TimeWindows: []access.TimeWindow{
+				{StartTime: "07:00", EndTime: "19:00", DayOfWeekSet: "weekday"},
+			},
+			SourceTypes: sourceTypes,
+		},
+		{
+			ID:          "weekdays_extended",
+			Name:        "Weekdays, extended hours",
+			Description: "Monday to Friday, 06:00–22:00.",
+			TimeWindows: []access.TimeWindow{
+				{StartTime: "06:00", EndTime: "22:00", DayOfWeekSet: "weekday"},
+			},
+			SourceTypes: sourceTypes,
+		},
+		{
+			ID:          "everyday_24h",
+			Name:        "Every day, 24 hours",
+			Description: "All days, no time restriction.",
+			TimeWindows: []access.TimeWindow{
+				{StartTime: "00:00", EndTime: "23:59", DayOfWeekSet: "all"},
+			},
+			SourceTypes: sourceTypes,
 		},
 	}
 }
@@ -654,4 +684,154 @@ func uniqueStrings(items []string) []string {
 		output = append(output, nextItem)
 	}
 	return output
+}
+
+// --- Schedule Evaluation ---
+
+func (s *server) evaluateReferenceAccessRightsSchedule(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	var request struct {
+		TenantID          string              `json:"tenant_id"`
+		ValidFrom         string              `json:"valid_from"`
+		ValidUntil        string              `json:"valid_until"`
+		TimeWindows       []access.TimeWindow `json:"time_windows"`
+		ExceptionDates    []string            `json:"exception_dates"`
+		HolidayCalendarID string              `json:"holiday_calendar_id"`
+		EvaluateAt        string              `json:"evaluate_at"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if request.TenantID != "" {
+		tenantID = request.TenantID
+	}
+
+	now := time.Now().UTC()
+	if request.EvaluateAt != "" {
+		if parsed, err := time.Parse(time.RFC3339, request.EvaluateAt); err == nil {
+			now = parsed
+		}
+	}
+
+	var holidays []access.HolidayEntry
+	calID := strings.TrimSpace(request.HolidayCalendarID)
+	if calID != "" {
+		if cal, err := s.accessSvc.GetHolidayCalendar(tenantID, calID); err == nil {
+			holidays = cal.Entries
+		}
+	}
+
+	eval := access.EvaluateSchedule(now, request.ValidFrom, request.ValidUntil, request.TimeWindows, request.ExceptionDates, holidays)
+	writeJSON(w, http.StatusOK, eval)
+}
+
+// --- Holiday Calendar CRUD ---
+
+func (s *server) listHolidayCalendars(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": s.accessSvc.ListHolidayCalendars(tenantID),
+	})
+}
+
+func (s *server) createHolidayCalendar(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID string                `json:"tenant_id"`
+		Name     string                `json:"name"`
+		Country  string                `json:"country"`
+		Entries  []access.HolidayEntry `json:"entries"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, request.TenantID)
+	if !ok {
+		return
+	}
+	cal, err := s.accessSvc.CreateHolidayCalendar(tenantID, request.Name, request.Country, request.Entries)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrHolidayCalendarNameRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	s.appendAuditLog(r, tenantID, "holiday_calendar_created", fmt.Sprintf("calendar_id=%s,name=%s,entries=%d", cal.ID, cal.Name, len(cal.Entries)), "access")
+	writeJSON(w, http.StatusCreated, cal)
+}
+
+func (s *server) getHolidayCalendar(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	cal, err := s.accessSvc.GetHolidayCalendar(tenantID, chi.URLParam(r, "calendarID"))
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrHolidayCalendarNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	writeJSON(w, http.StatusOK, cal)
+}
+
+func (s *server) updateHolidayCalendar(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	var request struct {
+		Name    string                `json:"name"`
+		Country string                `json:"country"`
+		Entries []access.HolidayEntry `json:"entries"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	cal, err := s.accessSvc.UpdateHolidayCalendar(tenantID, chi.URLParam(r, "calendarID"), request.Name, request.Country, request.Entries)
+	if err != nil {
+		switch {
+		case errors.Is(err, access.ErrHolidayCalendarNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	s.appendAuditLog(r, tenantID, "holiday_calendar_updated", fmt.Sprintf("calendar_id=%s,name=%s,entries=%d", cal.ID, cal.Name, len(cal.Entries)), "access")
+	writeJSON(w, http.StatusOK, cal)
+}
+
+func (s *server) deleteHolidayCalendar(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	calendarID := chi.URLParam(r, "calendarID")
+	if err := s.accessSvc.DeleteHolidayCalendar(tenantID, calendarID); err != nil {
+		switch {
+		case errors.Is(err, access.ErrHolidayCalendarNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	s.appendAuditLog(r, tenantID, "holiday_calendar_deleted", fmt.Sprintf("calendar_id=%s", calendarID), "access")
+	w.WriteHeader(http.StatusNoContent)
 }
