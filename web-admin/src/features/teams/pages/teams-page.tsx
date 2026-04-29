@@ -194,7 +194,7 @@ export function TeamsAdaptedPage({
     onSuccess: async (team) => {
       setSelectedTeamID(team.id)
       setTeamSheetOpen(false)
-      setActionNotice("Team created.")
+      setActionNotice(t("kisi.teams.created"))
       setActionError("")
       await refreshTeams()
     },
@@ -216,7 +216,7 @@ export function TeamsAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Team saved.")
+      setActionNotice(t("kisi.teams.saved"))
       setActionError("")
       await refreshTeams()
     },
@@ -233,7 +233,7 @@ export function TeamsAdaptedPage({
     onSuccess: async () => {
       setSelectedTeamID("")
       setDeleteTeamConfirmOpen(false)
-      setActionNotice("Team deleted.")
+      setActionNotice(t("kisi.teams.deleted"))
       setActionError("")
       await refreshTeams()
     },
@@ -257,7 +257,7 @@ export function TeamsAdaptedPage({
     },
     onSuccess: async () => {
       setMemberSheetOpen(false)
-      setActionNotice("Member added.")
+      setActionNotice(t("kisi.teams.memberAdded"))
       setActionError("")
       await refreshTeams()
     },
@@ -273,7 +273,7 @@ export function TeamsAdaptedPage({
     },
     onSuccess: async () => {
       setDeleteMembershipTarget(null)
-      setActionNotice("Member removed.")
+      setActionNotice(t("kisi.teams.memberRemoved"))
       setActionError("")
       await refreshTeams()
     },
@@ -301,7 +301,7 @@ export function TeamsAdaptedPage({
     },
     onSuccess: async () => {
       setAccessSheetOpen(false)
-      setActionNotice("Access right assigned.")
+      setActionNotice(t("kisi.teams.assignAR"))
       setActionError("")
       await refreshTeams()
     },
@@ -314,7 +314,7 @@ export function TeamsAdaptedPage({
       breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Teams"] : ["Home", "Teams"]}
       title={selectedTeam?.name ?? "Teams"}
       count={resourceQuery.isPending ? "--" : teams.length}
-      description="Use teams to group similar users and assign Access Rights in batches"
+      description={t("kisi.teams.pageDesc")}
       actions={
         <>
           <Button
@@ -424,7 +424,7 @@ export function TeamsAdaptedPage({
       >
         {activeTab === "General" ? (
           <>
-            <PanelHeader title="General" description="Team identity and ownership." />
+            <PanelHeader title={t("common.general")} description={t("kisi.teams.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.teamName")}</span>
@@ -435,7 +435,7 @@ export function TeamsAdaptedPage({
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 />
               </label>
-              <FormField label="Owner" value="Organization Admin" />
+              <FormField label={t("kisi.teams.owner")} value="Organization Admin" />
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.defaultPlace")}</span>
                 <div className="relative">
@@ -481,8 +481,8 @@ export function TeamsAdaptedPage({
         {activeTab === "Members" ? (
           <>
             <PanelHeader
-              title="Members"
-              description="Users assigned directly or through directory sync."
+              title={t("common.members")}
+              description={t("kisi.teams.membersDesc")}
               action={
                 <Button
                   variant="outline"
@@ -546,8 +546,8 @@ export function TeamsAdaptedPage({
         {activeTab === "Access Rights" ? (
           <>
             <PanelHeader
-              title="Access Rights"
-              description="Access Rights assigned to every current and future member of this team."
+              title={t("kisi.teams.accessRights")}
+              description={t("kisi.teams.arDesc")}
               action={
                 <Button
                   variant="outline"
@@ -577,7 +577,7 @@ export function TeamsAdaptedPage({
 
         {activeTab === "Settings" ? (
           <>
-            <PanelHeader title="Settings" description="Directory sync and lifecycle automation." />
+            <PanelHeader title={t("common.settings")} description={t("kisi.teams.settingsDesc")} />
             <SettingToggleRows
               rows={[
                 ["Sync from SCIM", true, "Maintain team membership from the connected directory.", ShieldCheckIcon],
@@ -597,7 +597,7 @@ export function TeamsAdaptedPage({
             setDeleteTeamConfirmOpen(open)
           }
         }}
-        title="Delete team"
+        title={t("kisi.teams.deleteTeam")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{selectedTeam?.name ?? "this team"}</span> and its team
@@ -618,7 +618,7 @@ export function TeamsAdaptedPage({
             setDeleteMembershipTarget(null)
           }
         }}
-        title="Remove team member"
+        title={t("kisi.teams.removeTeamMember")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{deleteMembershipTarget?.name ?? "this member"}</span>{" "}

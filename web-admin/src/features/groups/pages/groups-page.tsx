@@ -536,9 +536,9 @@ export function GroupsAdaptedPage({
                 />
               </label>
               <FormField label="Access enabled" value={currentGroup?.statusLabel ?? "Unavailable"} trailing={<ToggleSwitch enabled={currentGroup?.tone !== "danger"} />} />
-              <FormField label="Default role" value="Basic" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
-              <FormField label="Place scope" value={placeScoped ? placeContext.place?.name ?? "Assigned Place" : "All organization places"} />
-              <FormField label="Assigned rights" value={`${currentAccessRights.length} access rights`} />
+              <FormField label={t("kisi.groups.defaultRole")} value="Basic" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.groups.placeScope")} value={placeScoped ? placeContext.place?.name ?? "Assigned Place" : "All organization places"} />
+              <FormField label={t("kisi.teams.accessRights")} value={`${currentAccessRights.length} access rights`} />
             </div>
           </>
         ) : null}
@@ -546,7 +546,7 @@ export function GroupsAdaptedPage({
         {activeTab === "Members" ? (
           <>
             <PanelHeader
-              title="Members"
+              title={t("common.members")}
               description={t("kisi.groups.membersDesc")}
               action={
                 <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
@@ -570,7 +570,7 @@ export function GroupsAdaptedPage({
         {activeTab === "Doors" ? (
           <>
             <PanelHeader
-              title="Doors"
+              title={t("kisi.groups.doors")}
               description={t("kisi.groups.doorsDesc")}
               action={
                 <Button
@@ -632,7 +632,7 @@ export function GroupsAdaptedPage({
         {activeTab === "Links" ? (
           <>
             <PanelHeader
-              title="Links"
+              title={t("kisi.groups.links")}
               description={t("kisi.groups.linksDesc")}
               action={
                 <Button
@@ -770,7 +770,7 @@ export function GroupsAdaptedPage({
             setDeleteGroupConfirmOpen(open)
           }
         }}
-        title="Delete group"
+        title={t("kisi.groups.deleteGroup")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{currentGroup?.name ?? "this group"}</span> and its
@@ -795,7 +795,7 @@ export function GroupsAdaptedPage({
             setDeleteLinkTarget(null)
           }
         }}
-        title="Delete access link"
+        title={t("common.delete")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{deleteLinkTarget?.name ?? "this link"}</span>. Existing

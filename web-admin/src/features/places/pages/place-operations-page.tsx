@@ -43,7 +43,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
     <PageFrame
       breadcrumbs={[t("common.home"), "Places", "Assigned Place", title]}
       title={title}
-      description="Place-scoped configuration following the same flat Mistyislet layout"
+      description={t("kisi.orgSetup.description")}
     >
       <SettingsPanel
         tabs={["Overview", "Rules", "Events", "Settings"]}
@@ -53,7 +53,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
       >
         {activeTab === "Overview" ? (
           <>
-            <PanelHeader title="Overview" description={`Current ${title.toLowerCase()} configuration for this place.`} />
+            <PanelHeader title={t("common.general")} description={`Current ${title.toLowerCase()} configuration for this place.`} />
             <div className="divide-y divide-[#eceef2]">
               {rows.map((row, index) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[240px_160px_1fr] md:items-center">
@@ -68,7 +68,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
 
         {activeTab === "Rules" ? (
           <>
-            <PanelHeader title="Rules" description="Policies and thresholds for this operation area." />
+            <PanelHeader title={t("common.permissions")} description={t("common.permissions")} />
             <SettingToggleRows
               rows={[
                 [`Enable ${title}`, title !== "Elevators", `Turn on ${title.toLowerCase()} workflows for this place.`, ShieldCheckIcon],
@@ -81,7 +81,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
 
         {activeTab === "Events" ? (
           <>
-            <PanelHeader title="Events" description={`Recent ${title.toLowerCase()} events and audit changes.`} />
+            <PanelHeader title={t("common.events")} description={`Recent ${title.toLowerCase()} events and audit changes.`} />
             <div className="divide-y divide-[#eceef2]">
               {[
                 ["12:02 PM", `${title} policy evaluated`, "Success"],
@@ -100,12 +100,12 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
 
         {activeTab === "Settings" ? (
           <>
-            <PanelHeader title="Settings" description="Default administrators, retention, and integration behavior." />
+            <PanelHeader title={t("common.settings")} description={t("common.settings")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
-              <FormField label="Owner" value="Place Admin" />
-              <FormField label="Retention" value="365 days" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
-              <FormField label="Notification channel" value="#security-sudirman" />
-              <FormField label="API scope" value="Place scoped" />
+              <FormField label={t("kisi.teams.owner")} value="Place Admin" />
+              <FormField label={t("common.status")} value="365 days" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.orgSetup.notifications")} value="#security-sudirman" />
+              <FormField label={t("common.scope")} value="Place scoped" />
             </div>
           </>
         ) : null}

@@ -618,7 +618,7 @@ export function AccessRightsAdaptedPage({
     <>
       <PageFrame
         breadcrumbs={placeScoped ? ["Home", "Places", placeContext.place?.name ?? "Assigned Place", "Access Rights"] : ["Home", "Access Rights"]}
-        title="Access Rights"
+        title={t("kisi.teams.accessRights")}
         count={resourceQuery.isPending ? "--" : accessRights.length}
         description={t("kisi.accessRights.pageDesc")}
         actions={

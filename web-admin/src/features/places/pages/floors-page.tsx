@@ -360,9 +360,9 @@ export function FloorsAdaptedPage({
                     className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                   />
                 </label>
-                <FormField label="Description" value={selectedFloor?.description ?? "No areas mapped yet"} />
-                <FormField label="Default group" value="Engineering Team access" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
-                <FormField label="Timezone" value="Asia/Jakarta" />
+                <FormField label={t("common.description")} value={selectedFloor?.description ?? "No areas mapped yet"} />
+                <FormField label={t("common.group")} value="Engineering Team access" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+                <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
               </div>
             </>
 	          ) : null}
@@ -370,7 +370,7 @@ export function FloorsAdaptedPage({
           {activeTab === "Areas" ? (
             <>
               <PanelHeader
-                title="Areas"
+                title={t("kisi.floors.areas")}
                 description={t("kisi.floors.description")}
                 action={
                   <Button
@@ -419,9 +419,9 @@ export function FloorsAdaptedPage({
                       className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                     />
                   </label>
-                  <FormField label="Door count" value={selectedArea ? String(selectedArea.doorCount) : "No area selected"} />
-                  <FormField label="Floor" value={selectedFloor?.name ?? "No floor selected"} />
-                  <FormField label="Place" value={place?.name ?? "Assigned Place"} />
+                  <FormField label={t("kisi.doors.title")} value={selectedArea ? String(selectedArea.doorCount) : "No area selected"} />
+                  <FormField label={t("kisi.doors.floor")} value={selectedFloor?.name ?? "No floor selected"} />
+                  <FormField label={t("common.place")} value={place?.name ?? "Assigned Place"} />
                 </div>
               </div>
             </>
@@ -486,7 +486,7 @@ export function FloorsAdaptedPage({
             setDeleteFloorTarget(null)
           }
         }}
-        title="Delete floor"
+        title={t("kisi.floors.deleteFloor")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{deleteFloorTarget?.name ?? "this floor"}</span> from{" "}

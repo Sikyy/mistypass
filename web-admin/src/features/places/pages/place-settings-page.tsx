@@ -97,7 +97,7 @@ export function PlaceSettingsAdaptedPage({
       })
     },
     onSuccess: async () => {
-      setActionNotice("Place saved.")
+      setActionNotice(t("common.save"))
       setActionError("")
       await refreshPlace()
     },
@@ -150,7 +150,7 @@ export function PlaceSettingsAdaptedPage({
       <PageFrame
         breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Place Settings"]}
         title={place?.name ?? "Place Settings"}
-        description="Configure this place's identity, timezone, and access behavior"
+        description={t("kisi.floors.description")}
       >
       {resourceQuery.usingFallback ? (
         <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
@@ -183,7 +183,7 @@ export function PlaceSettingsAdaptedPage({
       >
         {activeTab === "General" ? (
           <>
-            <PanelHeader title="General" description="Place name, address, and timezone." />
+            <PanelHeader title={t("common.general")} description={t("kisi.floors.description")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
@@ -194,7 +194,7 @@ export function PlaceSettingsAdaptedPage({
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 />
               </label>
-              <FormField label="Timezone" value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.description")}</span>
                 <input
@@ -213,14 +213,14 @@ export function PlaceSettingsAdaptedPage({
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
                 />
               </label>
-              <FormField label="Default floor" value="1st Floor" />
+              <FormField label={t("kisi.doors.floor")} value="1st Floor" />
             </div>
           </>
         ) : null}
 
         {activeTab === "Access" ? (
           <>
-            <PanelHeader title="Access" description="Place-wide access defaults." />
+            <PanelHeader title={t("common.permissions")} description={t("kisi.floors.description")} />
             <SettingToggleRows
               rows={[
                 ["Allow mobile unlocks", true, "Users with valid Access Rights can unlock from mobile apps.", CreditCardIcon],
@@ -233,7 +233,7 @@ export function PlaceSettingsAdaptedPage({
 
         {activeTab === "Schedules" ? (
           <>
-            <PanelHeader title="Schedules" description="Reusable schedules for door and group restrictions." />
+            <PanelHeader title={t("kisi.accessRights.schedule")} description={t("kisi.floors.description")} />
             <div className="divide-y divide-[#eceef2]">
               {[
                 ["Business Hours", "Mon-Fri 08:00-18:00", "Default group schedule"],
@@ -252,7 +252,7 @@ export function PlaceSettingsAdaptedPage({
 
         {activeTab === "Notifications" ? (
           <>
-            <PanelHeader title="Notifications" description="Place admin alert routing." />
+            <PanelHeader title={t("kisi.orgSetup.notifications")} description={t("kisi.floors.description")} />
             <SettingToggleRows
               rows={[
                 ["Door forced open", true, "Notify place admins and security channel immediately.", BellIcon],
@@ -265,7 +265,7 @@ export function PlaceSettingsAdaptedPage({
 
         {activeTab === "Advanced" ? (
           <>
-            <PanelHeader title="Advanced" description="Dangerous actions and data export controls." />
+            <PanelHeader title={t("common.settings")} description={t("kisi.floors.description")} />
             <div className="space-y-4 p-7">
               {[
                 ["Export place audit log", "Generate CSV for unlocks, denials, and admin changes."],

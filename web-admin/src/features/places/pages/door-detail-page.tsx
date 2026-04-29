@@ -481,10 +481,10 @@ export function DoorDetailAdaptedPage({
                   <option value="offline">{t("common.offline")}</option>
                 </select>
               </label>
-              <FormField label="Description" value={selectedDoor?.description ?? "No door selected"} />
-              <FormField label="Belongs to floor" value={selectedDoor?.floorName ?? "Unassigned floor"} trailing={<SearchIcon className="size-4 text-[#6f717c]" />} />
-              <FormField label="Area" value={selectedDoor?.areaName ?? "Unassigned area"} />
-              <FormField label="Timezone" value="Asia/Jakarta" />
+              <FormField label={t("common.description")} value={selectedDoor?.description ?? "No door selected"} />
+              <FormField label={t("kisi.doors.belongsToFloor")} value={selectedDoor?.floorName ?? "Unassigned floor"} trailing={<SearchIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.doors.area")} value={selectedDoor?.areaName ?? "Unassigned area"} />
+              <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
             </div>
           </>
         ) : null}
@@ -492,7 +492,7 @@ export function DoorDetailAdaptedPage({
         {activeTab === "Groups" ? (
           <>
             <PanelHeader
-              title="Groups"
+              title={t("kisi.groups.title")}
               description={t("kisi.doors.groupsDesc")}
               action={
                 <Button
@@ -644,7 +644,7 @@ export function DoorDetailAdaptedPage({
             setDeleteDoorConfirmOpen(open)
           }
         }}
-        title="Delete door"
+        title={t("kisi.doors.deleteDialog")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{selectedDoor?.name ?? "this door"}</span> from{" "}

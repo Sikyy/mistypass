@@ -902,7 +902,7 @@ export function CredentialsAdaptedPage({
   return (
     <PageFrame
       breadcrumbs={[t("common.home"), "Credentials"]}
-      title="Credentials"
+      title={t("kisi.credentials.title")}
       count={resourceQuery.isPending ? "--" : rows.length}
       description={t("kisi.credentials.title")}
       actions={
@@ -1052,7 +1052,7 @@ export function CredentialsAdaptedPage({
         </div>
         <div className="flex items-center gap-3 border-b border-[#eceef2] bg-[#fbfbfc] p-5">
           <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search credentials..." />
-          <MistyisletFilterButton label="Type" className="gap-2" />
+          <MistyisletFilterButton label={t("common.type")} className="gap-2" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
@@ -1275,18 +1275,18 @@ export function CredentialsAdaptedPage({
                   <StatusDot tone={credentialTone(detailCard.status)} label={credentialStatusLabel(detailCard.status)} />
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <CredentialDetailField label="Credential ID" value={detailCard.id} />
-                  <CredentialDetailField label="Credential type" value={credentialKindLabel(detailCard.credential_kind)} />
+                  <CredentialDetailField label={t("kisi.credentials.title")} value={detailCard.id} />
+                  <CredentialDetailField label={t("common.type")} value={credentialKindLabel(detailCard.credential_kind)} />
                   <CredentialDetailField label="Token" value={detailCard.token} />
                   <CredentialDetailField label="UID" value={detailCard.uid} />
-                  <CredentialDetailField label="Card number" value={detailCard.card_number} />
-                  <CredentialDetailField label="Provider" value={detailCard.provider} />
+                  <CredentialDetailField label={t("kisi.credentials.physicalCard")} value={detailCard.card_number} />
+                  <CredentialDetailField label={t("kisi.orgSetup.provider")} value={detailCard.provider} />
                   <CredentialDetailField label="Save link" value={detailCard.save_link} />
-                  <CredentialDetailField label="Activation token" value={detailCard.activation_token} />
-                  <CredentialDetailField label="Issued" value={detailDateLabel(detailCard.issued_at)} />
-                  <CredentialDetailField label="Expires" value={detailDateLabel(detailCard.expires_at)} />
-                  <CredentialDetailField label="Last used" value={detailDateLabel(detailCard.last_used_at)} />
-                  <CredentialDetailField label="Updated" value={detailDateLabel(detailCard.updated_at)} />
+                  <CredentialDetailField label="Token" value={detailCard.activation_token} />
+                  <CredentialDetailField label={t("kisi.credentials.issued")} value={detailDateLabel(detailCard.issued_at)} />
+                  <CredentialDetailField label={t("common.validUntil")} value={detailDateLabel(detailCard.expires_at)} />
+                  <CredentialDetailField label={t("common.status")} value={detailDateLabel(detailCard.last_used_at)} />
+                  <CredentialDetailField label={t("common.status")} value={detailDateLabel(detailCard.updated_at)} />
                 </dl>
               </section>
 
@@ -1296,10 +1296,10 @@ export function CredentialsAdaptedPage({
                   <p className="mt-1 text-xs text-[#6f717c]">{detailAssignmentQuery.isPending ? "Loading assignment..." : detailAssignment?.id || "No assignment"}</p>
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <CredentialDetailField label="Assignment status" value={detailAssignment?.status ? credentialStatusLabel(detailAssignment.card.status) : "None"} />
-                  <CredentialDetailField label="Assignee type" value={detailCard.assignee_type} />
-                  <CredentialDetailField label="Assignee ID" value={detailCard.assignee_id || detailCard.user_id} />
-                  <CredentialDetailField label="User ID" value={detailCard.user_id || detailAssignment?.user_id} />
+                  <CredentialDetailField label={t("common.status")} value={detailAssignment?.status ? credentialStatusLabel(detailAssignment.card.status) : "None"} />
+                  <CredentialDetailField label={t("common.assigneeType")} value={detailCard.assignee_type} />
+                  <CredentialDetailField label={t("common.user")} value={detailCard.assignee_id || detailCard.user_id} />
+                  <CredentialDetailField label={t("common.user")} value={detailCard.user_id || detailAssignment?.user_id} />
                 </dl>
                 <form
                   className="mt-5 space-y-4"

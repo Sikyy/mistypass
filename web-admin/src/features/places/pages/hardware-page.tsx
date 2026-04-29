@@ -270,7 +270,7 @@ export function HardwareAdaptedPage({
       return bindControllerLock(token, selectedGatewayID, bindDoorID, tenantID)
     },
     onSuccess: async () => {
-      setActionNotice("Door bound to hardware.")
+      setActionNotice(t("kisi.hardware.bindDoor"))
       setActionError("")
       await refreshHardware()
     },
@@ -289,7 +289,7 @@ export function HardwareAdaptedPage({
     },
     onSuccess: async () => {
       setUnbindDoorTarget(null)
-      setActionNotice("Door removed from hardware.")
+      setActionNotice(t("common.remove"))
       setActionError("")
       await refreshHardware()
     },
@@ -352,7 +352,7 @@ export function HardwareAdaptedPage({
     },
     onSuccess: async () => {
       setHardwareCommandTarget(null)
-      setActionNotice("Terminal trigger sent.")
+      setActionNotice(t("kisi.hardware.trigger"))
       setActionError("")
       await refreshHardware()
     },
@@ -378,7 +378,7 @@ export function HardwareAdaptedPage({
     onSuccess: async () => {
       setSelectedDeviceID("")
       setDeassignTarget(null)
-      setActionNotice("Hardware deassigned.")
+      setActionNotice(t("kisi.hardware.deassign"))
       setActionError("")
       await refreshHardware()
     },
@@ -419,7 +419,7 @@ export function HardwareAdaptedPage({
         breadcrumbs={[t("common.home"), "Places", place?.name ?? "Assigned Place", "Hardware"]}
         title={t("kisi.hardware.title")}
         count={resourceQuery.isPending ? "--" : hardware.length}
-        description="Gateways, controllers, readers, and terminals assigned to this place"
+        description={t("kisi.hardware.description")}
         actions={
           <Button
             disabled={!canManageHardware}
@@ -495,9 +495,9 @@ export function HardwareAdaptedPage({
           <>
             <PanelHeader title={selectedDevice?.name ?? "No device selected"} description={t("kisi.hardware.description")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
-              <FormField label="Device name" value={selectedDevice?.name ?? "No device selected"} />
-              <FormField label="Type" value={selectedDevice?.type ?? "Unassigned"} />
-              <FormField label="Place" value={place?.name ?? "Assigned Place"} />
+              <FormField label={t("kisi.hardware.device")} value={selectedDevice?.name ?? "No device selected"} />
+              <FormField label={t("common.type")} value={selectedDevice?.type ?? "Unassigned"} />
+              <FormField label={t("common.place")} value={place?.name ?? "Assigned Place"} />
               <FormField label="Last heartbeat" value={selectedDevice?.lastSeenLabel ?? "Unknown"} />
             </div>
           </>
@@ -506,8 +506,8 @@ export function HardwareAdaptedPage({
         {activeTab === "Doors" ? (
           <>
             <PanelHeader
-              title="Doors"
-              description="Doors connected to this device or gateway path."
+              title={t("kisi.doors.title")}
+              description={t("kisi.hardware.description")}
               action={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <select
@@ -592,8 +592,8 @@ export function HardwareAdaptedPage({
         {activeTab === "Settings" ? (
           <>
             <PanelHeader
-              title="Settings"
-              description="Remote management and diagnostics."
+              title={t("common.settings")}
+              description={t("common.settings")}
               action={
                 <div className="flex flex-wrap gap-3">
                   <Button
@@ -677,7 +677,7 @@ export function HardwareAdaptedPage({
                   className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
                 />
               </label>
-              <FormField label="Controller ID" value={selectedGatewayID || "No controller selected"} />
+              <FormField label={t("common.controller")} value={selectedGatewayID || "No controller selected"} />
             </div>
             <SettingToggleRows
               rows={[
@@ -745,7 +745,7 @@ export function HardwareAdaptedPage({
             setUnbindDoorTarget(null)
           }
         }}
-        title="Remove door binding"
+        title={t("common.remove")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{unbindDoorTarget?.door.name ?? "this door"}</span> from{" "}
@@ -770,7 +770,7 @@ export function HardwareAdaptedPage({
             setDeassignTarget(null)
           }
         }}
-        title="Deassign hardware"
+        title={t("kisi.hardware.deassign")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{deassignTarget?.name ?? "this hardware"}</span> from{" "}

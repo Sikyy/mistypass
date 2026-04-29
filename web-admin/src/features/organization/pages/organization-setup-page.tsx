@@ -697,10 +697,10 @@ export function OrganizationSetupAdaptedPage({
             </div>
             {activeTab === "General" ? (
               <div className="grid gap-6 p-7 md:grid-cols-2">
-                <FormField label="Place name" value="Sudirman Hub" />
-                <FormField label="Timezone" value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
-                <FormField label="Address" value="Jakarta, Indonesia" />
-                <FormField label="Default admin" value="Place Admin" />
+                <FormField label={t("common.name")} value="Sudirman Hub" />
+                <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+                <FormField label={t("common.description")} value="Jakarta, Indonesia" />
+                <FormField label={t("common.placeAdmin")} value="Place Admin" />
               </div>
             ) : null}
             {activeTab === "Floors" ? (
@@ -980,10 +980,10 @@ export function OrganizationSetupAdaptedPage({
                             />
                           </div>
                           <div className="mt-4 grid gap-3 text-sm text-[#6f717c] sm:grid-cols-2">
-                            <FormField label="Provider" value={integration.provider.toUpperCase()} />
-                            <FormField label="Sync mode" value={integration.sync_mode || "Manual"} />
-                            <FormField label="Source ID" value={integration.source_id || integration.id} />
-                            <FormField label="Last sync" value={integration.last_sync_at || "Not synced"} />
+                            <FormField label={t("kisi.orgSetup.provider")} value={integration.provider.toUpperCase()} />
+                            <FormField label={t("kisi.orgSetup.syncMode")} value={integration.sync_mode || "Manual"} />
+                            <FormField label={t("common.name")} value={integration.source_id || integration.id} />
+                            <FormField label={t("common.status")} value={integration.last_sync_at || "Not synced"} />
                           </div>
                           <div className="mt-4">
                             <StatusDot tone={integrationStatus(integration)} label={integrationStatusLabel(integration)} />
@@ -1074,7 +1074,7 @@ export function OrganizationSetupAdaptedPage({
                       <Button
                         variant="outline"
                         disabled
-                        title="Reserved action"
+                        title={t("kisi.orgSetup.comingSoon")}
                         className={cn(
                           "ml-auto h-10 rounded-[6px] bg-white px-5 disabled:border-[#d9dbe3] disabled:bg-[#f5f6f8] disabled:text-[#8d909b]",
                           index === 2
@@ -1114,7 +1114,7 @@ export function OrganizationSetupAdaptedPage({
             setDeleteIntegrationTarget(null)
           }
         }}
-        title="Disable integration"
+        title={t("common.disabled")}
         description={
           <>
             This marks <span className="font-semibold text-[#17171c]">{deleteIntegrationTarget?.name ?? "this integration"}</span>{" "}
@@ -1339,7 +1339,7 @@ export function OrganizationSetupAdaptedPage({
             setDeleteAlertPolicyTarget(null)
           }
         }}
-        title="Delete alert policy"
+        title={t("common.delete")}
         description={
           <>
             This removes <span className="font-semibold text-[#17171c]">{deleteAlertPolicyTarget?.name ?? "this policy"}</span>{" "}

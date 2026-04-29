@@ -166,7 +166,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
       return updateUser(token, user.id, buildUpdatePayload(nextStatus))
     },
     onSuccess: async (updated) => {
-      setActionNotice("User saved.")
+      setActionNotice(t("common.save"))
       setActionError("")
       setName(updated.name)
       setEmail(updated.email)
@@ -212,7 +212,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
       })
     },
     onSuccess: () => {
-      setActionNotice("User invitation queued.")
+      setActionNotice(t("kisi.users.inviteQueued"))
       setActionError("")
       void queryClient.invalidateQueries({ queryKey: ["access-user-invitations", userID] })
     },
@@ -239,7 +239,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
       <PageFrame
         breadcrumbs={[t("common.home"), "Users"]}
         title={title}
-        description="User profile, permissions, credentials, and event history"
+        description={t("kisi.myAccount.description")}
         actions={
           <>
             <Button
@@ -316,7 +316,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
         >
           {activeTab === "General" ? (
             <>
-              <PanelHeader title="General" description="Basic identity, role, and account status." />
+              <PanelHeader title={t("common.general")} description={t("kisi.myAccount.description")} />
               <div className="grid gap-8 p-7 lg:grid-cols-[1fr_260px]">
                 <div className="space-y-6">
                   <div className="grid gap-6 md:grid-cols-2">
@@ -427,8 +427,8 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
           {activeTab === "Access Rights" ? (
             <>
               <PanelHeader
-                title="Access Rights"
-                description="Access Rights connect users, teams, places, groups, and schedules."
+                title={t("kisi.teams.accessRights")}
+                description={t("kisi.accessRights.pageDesc")}
                 action={
                   <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
                     <Link to="/access-rights">{t("common.shareAccess")}</Link>
@@ -471,8 +471,8 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
           {activeTab === "Credentials" ? (
             <>
               <PanelHeader
-                title="Credentials"
-                description="Credentials available to this user."
+                title={t("kisi.credentials.title")}
+                description={t("kisi.credentials.title")}
                 action={
                   <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
                     <Link to="/credentials">{t("kisi.credentials.issue")}</Link>
@@ -497,7 +497,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
 
           {activeTab === "Logins" ? (
             <>
-              <PanelHeader title="Logins" description="Sign-in methods, SSO binding, and recent sessions." />
+              <PanelHeader title={t("kisi.myAccount.logins")} description={t("kisi.myAccount.description")} />
               <div className="divide-y divide-[#eceef2]">
                 {[
                   { label: "Email", detail: user?.email ?? "No email", state: userStatusLabel(status), Icon: KeyRoundIcon },
@@ -541,7 +541,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
 
           {activeTab === "Analytics" ? (
             <>
-              <PanelHeader title="Analytics" description="Per-user access trends and recent denial reasons." />
+              <PanelHeader title={t("kisi.reports.title")} description={t("kisi.myAccount.description")} />
               <div className="grid gap-4 p-7 md:grid-cols-3">
                 {[
                   ["Assigned groups", String(groupIDsFromText(groupIDsText).length), buildingID || "No place"],
@@ -560,7 +560,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
 
           {activeTab === "Events" ? (
             <>
-              <PanelHeader title="Events" description="Recent user-related access and credential events." />
+              <PanelHeader title={t("common.events")} description={t("kisi.myAccount.description")} />
               <div className="divide-y divide-[#eceef2]">
                 {eventRows.map((row, index) => (
                   <div key={`${row[0]}-${row[1]}`} className="grid gap-3 px-7 py-5 text-sm md:grid-cols-[170px_180px_180px_1fr] md:items-center">
@@ -579,7 +579,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
       <ConfirmActionDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
-        title="Delete user"
+        title={t("common.delete")}
         description={user ? `Delete ${user.name} and remove their direct group, team, and role assignment references.` : "Delete this user."}
         confirmLabel="Delete User"
         destructive

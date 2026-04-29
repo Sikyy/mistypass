@@ -225,7 +225,7 @@ export function UsersAdaptedPage({
       a.download = "users.csv"
       a.click()
       URL.revokeObjectURL(url)
-      setActionNotice("Users exported.")
+      setActionNotice(t("kisi.users.exported"))
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Export failed")
     }

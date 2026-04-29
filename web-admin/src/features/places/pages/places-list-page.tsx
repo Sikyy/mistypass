@@ -51,7 +51,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
       setPlaceName("")
       setAddress("")
       setRegion("ID-JK")
-      setActionNotice("Place created.")
+      setActionNotice(t("kisi.places.created"))
       setActionError("")
       await queryClient.invalidateQueries({ queryKey: ["kisi-resource-summary"] })
     },
@@ -65,9 +65,9 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
     <>
       <PageFrame
         breadcrumbs={[t("common.home"), "Places"]}
-        title="Places"
+        title={t("kisi.places.title")}
         count={resourceQuery.isPending ? "--" : places.length}
-        description="Open a place to switch into Place Admin navigation"
+        description={t("kisi.places.description")}
         actions={
           <Button
             disabled={!canMutate}
