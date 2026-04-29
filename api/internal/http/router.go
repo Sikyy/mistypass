@@ -8631,16 +8631,24 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 	s.gatewayTokenMu.RLock()
 	expected, exists := s.gatewayDeviceTokens[nextGatewayID]
 	s.gatewayTokenMu.RUnlock()
-	if !exists || strings.TrimSpace(expected) == "" {
-		writeError(w, http.StatusUnauthorized, "device not registered")
-		return false
-	}
-	if provided != expected {
-		writeError(w, http.StatusUnauthorized, "invalid device token")
-		return false
+	if exists && strings.TrimSpace(expected) != "" {
+		if provided == expected {
+			return true
+		}
 	}
 
-	return true
+	// Fallback: accept bootstrap token for unregistered/demo devices
+	bootstrapToken := strings.TrimSpace(s.cfg.GatewayBootstrapToken)
+	if bootstrapToken != "" && provided == bootstrapToken {
+		return true
+	}
+
+	if !exists || strings.TrimSpace(expected) == "" {
+		writeError(w, http.StatusUnauthorized, "device not registered")
+	} else {
+		writeError(w, http.StatusUnauthorized, "invalid device token")
+	}
+	return false
 }
 
 func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.Request) bool {
