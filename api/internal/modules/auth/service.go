@@ -81,7 +81,13 @@ type adminMFAState struct {
 	Secret        string
 	PendingSecret string
 	Enabled       bool
+	RecoveryCodes []mfaRecoveryCode // one-time backup codes
 	UpdatedAt     time.Time
+}
+
+type mfaRecoveryCode struct {
+	CodeHash string // bcrypt hash of the code
+	Used     bool
 }
 
 type AdminMFAStatus struct {
@@ -89,6 +95,11 @@ type AdminMFAStatus struct {
 	Enabled   bool       `json:"enabled"`
 	Pending   bool       `json:"pending"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
+type AdminMFARecoveryCodes struct {
+	UserID string   `json:"user_id"`
+	Codes  []string `json:"codes"` // plaintext codes, shown only once
 }
 
 type AdminMFAEnrollment struct {
@@ -101,7 +112,13 @@ type AdminMFAPersistenceState struct {
 	Secret        string
 	PendingSecret string
 	Enabled       bool
+	RecoveryCodes []MFARecoveryCodePersistence `json:"recovery_codes,omitempty"`
 	UpdatedAt     time.Time
+}
+
+type MFARecoveryCodePersistence struct {
+	CodeHash string `json:"code_hash"`
+	Used     bool   `json:"used"`
 }
 
 type Persistence interface {
@@ -726,14 +743,14 @@ func (s *Service) StartAdminMFAEnrollment(userID, issuer string) (AdminMFAEnroll
 	}, nil
 }
 
-func (s *Service) EnableAdminMFA(userID, code string) (AdminMFAStatus, error) {
+func (s *Service) EnableAdminMFA(userID, code string) (AdminMFAStatus, *AdminMFARecoveryCodes, error) {
 	nextUserID := strings.TrimSpace(userID)
 	if nextUserID == "" {
-		return AdminMFAStatus{}, ErrUserNotFound
+		return AdminMFAStatus{}, nil, ErrUserNotFound
 	}
 	nextCode := strings.TrimSpace(code)
 	if nextCode == "" {
-		return AdminMFAStatus{}, ErrAdminMFARequired
+		return AdminMFAStatus{}, nil, ErrAdminMFARequired
 	}
 
 	s.mu.Lock()
@@ -741,29 +758,37 @@ func (s *Service) EnableAdminMFA(userID, code string) (AdminMFAStatus, error) {
 
 	user, exists, err := s.findUserByIDLocked(nextUserID)
 	if err != nil || !exists {
-		return AdminMFAStatus{}, ErrUserNotFound
+		return AdminMFAStatus{}, nil, ErrUserNotFound
 	}
 	if !isAdminRole(user.Role) {
-		return AdminMFAStatus{}, ErrUserRoleUnsupported
+		return AdminMFAStatus{}, nil, ErrUserRoleUnsupported
 	}
 
 	state, exists, err := s.findAdminMFAStateLocked(nextUserID)
 	if err != nil {
-		return AdminMFAStatus{}, err
+		return AdminMFAStatus{}, nil, err
 	}
 	if !exists || strings.TrimSpace(state.PendingSecret) == "" {
-		return AdminMFAStatus{}, ErrAdminMFANotConfigured
+		return AdminMFAStatus{}, nil, ErrAdminMFANotConfigured
 	}
 	if !verifyTOTPCode(state.PendingSecret, nextCode, time.Now().UTC()) {
-		return AdminMFAStatus{}, ErrInvalidMFACode
+		return AdminMFAStatus{}, nil, ErrInvalidMFACode
 	}
 
 	state.Secret = state.PendingSecret
 	state.PendingSecret = ""
 	state.Enabled = true
 	state.UpdatedAt = time.Now().UTC()
+
+	// Generate one-time recovery codes
+	plaintextCodes, hashedCodes, err := generateRecoveryCodes(8)
+	if err != nil {
+		return AdminMFAStatus{}, nil, err
+	}
+	state.RecoveryCodes = hashedCodes
+
 	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
-		return AdminMFAStatus{}, err
+		return AdminMFAStatus{}, nil, err
 	}
 
 	return AdminMFAStatus{
@@ -771,6 +796,44 @@ func (s *Service) EnableAdminMFA(userID, code string) (AdminMFAStatus, error) {
 		Enabled:   true,
 		Pending:   false,
 		UpdatedAt: timePointer(state.UpdatedAt),
+	}, &AdminMFARecoveryCodes{
+		UserID: nextUserID,
+		Codes:  plaintextCodes,
+	}, nil
+}
+
+// RegenerateAdminMFARecoveryCodes generates a new set of recovery codes, invalidating old ones.
+func (s *Service) RegenerateAdminMFARecoveryCodes(userID string) (*AdminMFARecoveryCodes, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return nil, ErrUserNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	state, exists, err := s.findAdminMFAStateLocked(nextUserID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists || !state.Enabled {
+		return nil, ErrAdminMFANotConfigured
+	}
+
+	plaintextCodes, hashedCodes, err := generateRecoveryCodes(8)
+	if err != nil {
+		return nil, err
+	}
+	state.RecoveryCodes = hashedCodes
+	state.UpdatedAt = time.Now().UTC()
+
+	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
+		return nil, err
+	}
+
+	return &AdminMFARecoveryCodes{
+		UserID: nextUserID,
+		Codes:  plaintextCodes,
 	}, nil
 }
 
@@ -1285,10 +1348,19 @@ func (s *Service) enforceAdminMFA(user User, mfaCode string) error {
 	if nextCode == "" {
 		return ErrAdminMFARequired
 	}
-	if !verifyTOTPCode(state.Secret, nextCode, time.Now().UTC()) {
-		return ErrInvalidMFACode
+	// Try TOTP first
+	if verifyTOTPCode(state.Secret, nextCode, time.Now().UTC()) {
+		return nil
 	}
-	return nil
+	// Try recovery code as fallback (single-use, consumed on match)
+	updatedCodes, matched := verifyAndConsumeRecoveryCode(state.RecoveryCodes, nextCode)
+	if matched {
+		state.RecoveryCodes = updatedCodes
+		state.UpdatedAt = time.Now().UTC()
+		_ = s.persistAdminMFAStateLocked(user.ID, state)
+		return nil
+	}
+	return ErrInvalidMFACode
 }
 
 func (s *Service) findUserByEmailLocked(email string) (userRecord, bool, error) {
@@ -1605,10 +1677,17 @@ func (s *Service) enforceAdminMFALocked(user User, mfaCode string) error {
 	if nextCode == "" {
 		return ErrAdminMFARequired
 	}
-	if !verifyTOTPCode(state.Secret, nextCode, time.Now().UTC()) {
-		return ErrInvalidMFACode
+	if verifyTOTPCode(state.Secret, nextCode, time.Now().UTC()) {
+		return nil
 	}
-	return nil
+	updatedCodes, matched := verifyAndConsumeRecoveryCode(state.RecoveryCodes, nextCode)
+	if matched {
+		state.RecoveryCodes = updatedCodes
+		state.UpdatedAt = time.Now().UTC()
+		_ = s.persistAdminMFAStateLocked(user.ID, state)
+		return nil
+	}
+	return ErrInvalidMFACode
 }
 
 func isAdminRole(role string) bool {
@@ -1621,19 +1700,29 @@ func isAdminRole(role string) bool {
 }
 
 func adminMFAStateForPersistence(state adminMFAState) AdminMFAPersistenceState {
+	codes := make([]MFARecoveryCodePersistence, 0, len(state.RecoveryCodes))
+	for _, c := range state.RecoveryCodes {
+		codes = append(codes, MFARecoveryCodePersistence{CodeHash: c.CodeHash, Used: c.Used})
+	}
 	return AdminMFAPersistenceState{
 		Secret:        strings.TrimSpace(state.Secret),
 		PendingSecret: strings.TrimSpace(state.PendingSecret),
 		Enabled:       state.Enabled,
+		RecoveryCodes: codes,
 		UpdatedAt:     state.UpdatedAt.UTC(),
 	}
 }
 
 func adminMFAStateFromPersistence(state AdminMFAPersistenceState) adminMFAState {
+	codes := make([]mfaRecoveryCode, 0, len(state.RecoveryCodes))
+	for _, c := range state.RecoveryCodes {
+		codes = append(codes, mfaRecoveryCode{CodeHash: c.CodeHash, Used: c.Used})
+	}
 	return adminMFAState{
 		Secret:        strings.TrimSpace(state.Secret),
 		PendingSecret: strings.TrimSpace(state.PendingSecret),
 		Enabled:       state.Enabled,
+		RecoveryCodes: codes,
 		UpdatedAt:     state.UpdatedAt.UTC(),
 	}
 }
@@ -1920,6 +2009,41 @@ func verifyPassword(passwordHash []byte, plain string) bool {
 		return false
 	}
 	return bcrypt.CompareHashAndPassword(passwordHash, []byte(plain)) == nil
+}
+
+// generateRecoveryCodes creates n one-time recovery codes and their bcrypt hashes.
+func generateRecoveryCodes(n int) (plaintext []string, hashed []mfaRecoveryCode, err error) {
+	plaintext = make([]string, 0, n)
+	hashed = make([]mfaRecoveryCode, 0, n)
+	for i := 0; i < n; i++ {
+		raw := make([]byte, 4)
+		if _, err := rand.Read(raw); err != nil {
+			return nil, nil, err
+		}
+		code := fmt.Sprintf("%08X", raw)
+		hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, nil, err
+		}
+		plaintext = append(plaintext, code)
+		hashed = append(hashed, mfaRecoveryCode{CodeHash: string(hash), Used: false})
+	}
+	return plaintext, hashed, nil
+}
+
+// verifyAndConsumeRecoveryCode checks if the code matches any unused recovery code.
+// If matched, marks it as used and returns true.
+func verifyAndConsumeRecoveryCode(codes []mfaRecoveryCode, code string) ([]mfaRecoveryCode, bool) {
+	for i := range codes {
+		if codes[i].Used {
+			continue
+		}
+		if bcrypt.CompareHashAndPassword([]byte(codes[i].CodeHash), []byte(code)) == nil {
+			codes[i].Used = true
+			return codes, true
+		}
+	}
+	return codes, false
 }
 
 // ValidatePasswordPolicy checks that a password meets minimum security requirements:

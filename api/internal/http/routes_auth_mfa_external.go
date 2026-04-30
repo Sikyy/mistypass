@@ -78,7 +78,7 @@ func (s *server) enableAdminMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, err := s.authService.EnableAdminMFA(user.ID, request.Code)
+	status, recoveryCodes, err := s.authService.EnableAdminMFA(user.ID, request.Code)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrAdminMFARequired):
@@ -97,7 +97,10 @@ func (s *server) enableAdminMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.appendAuditLog(r, user.TenantID, "admin_mfa_enabled", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
-	writeJSON(w, http.StatusOK, status)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":         status,
+		"recovery_codes": recoveryCodes,
+	})
 }
 
 func (s *server) disableAdminMFA(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +123,28 @@ func (s *server) disableAdminMFA(w http.ResponseWriter, r *http.Request) {
 	}
 	s.appendAuditLog(r, user.TenantID, "admin_mfa_disabled", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
 	writeJSON(w, http.StatusOK, status)
+}
+
+func (s *server) regenerateAdminMFARecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	codes, err := s.authService.RegenerateAdminMFARecoveryCodes(user.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrAdminMFANotConfigured):
+			writeError(w, http.StatusConflict, err.Error())
+		case errors.Is(err, auth.ErrUserNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	s.appendAuditLog(r, user.TenantID, "admin_mfa_recovery_codes_regenerated", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
+	writeJSON(w, http.StatusOK, codes)
 }
 
 func (s *server) externalLogin(w http.ResponseWriter, r *http.Request) {

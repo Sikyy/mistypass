@@ -107,12 +107,15 @@ func TestAdminMFALoginFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build totp enable code failed: %v", err)
 	}
-	status, err := svc.EnableAdminMFA("usr_super_admin_001", enableCode)
+	status, recoveryCodes, err := svc.EnableAdminMFA("usr_super_admin_001", enableCode)
 	if err != nil {
 		t.Fatalf("enable admin mfa failed: %v", err)
 	}
 	if !status.Enabled {
 		t.Fatalf("expected enabled mfa status")
+	}
+	if recoveryCodes == nil || len(recoveryCodes.Codes) != 8 {
+		t.Fatalf("expected 8 recovery codes, got %v", recoveryCodes)
 	}
 
 	_, err = svc.Login(LoginRequest{
@@ -175,7 +178,7 @@ func TestAdminMFAStatePersistsAcrossServiceRecreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build totp enable code failed: %v", err)
 	}
-	if _, err := svc.EnableAdminMFA("usr_super_admin_001", enableCode); err != nil {
+	if _, _, err := svc.EnableAdminMFA("usr_super_admin_001", enableCode); err != nil {
 		t.Fatalf("enable admin mfa failed: %v", err)
 	}
 

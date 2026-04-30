@@ -479,6 +479,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/setup", s.setupAdminMFA)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/enable", s.enableAdminMFA)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/disable", s.disableAdminMFA)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/regenerate-recovery-codes", s.regenerateAdminMFARecoveryCodes)
 
 			protected.Get("/auth/mfa/user/status", s.getUserMFAStatus)
 			protected.Post("/auth/mfa/user/setup", s.setupUserMFA)
