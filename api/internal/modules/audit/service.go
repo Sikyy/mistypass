@@ -1,8 +1,11 @@
 package audit
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +20,8 @@ type Log struct {
 	Target   string    `json:"target"`
 	Source   string    `json:"source"`
 	At       time.Time `json:"at"`
+	PrevHash string    `json:"prev_hash,omitempty"` // HMAC-SHA256 hash of the previous log entry
+	Hash     string    `json:"hash,omitempty"`      // HMAC-SHA256 hash of this entry (includes PrevHash)
 }
 
 type StateStore interface {
@@ -38,6 +43,7 @@ type Service struct {
 	webhookConfigs    map[string]WebhookConfig
 	webhookDeliveries []WebhookDelivery
 	stateStore        StateStore
+	hmacKey           []byte // HMAC key for audit log chain integrity
 }
 
 func NewService() *Service {
@@ -158,11 +164,84 @@ func (s *Service) Append(tenantID, actor, role, action, target, source string) (
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Build HMAC chain: new entry links to the previous head
+	if len(s.hmacKey) > 0 {
+		prevHash := ""
+		if len(s.logs) > 0 {
+			prevHash = s.logs[0].Hash
+		}
+		record.PrevHash = prevHash
+		record.Hash = computeAuditLogHMAC(s.hmacKey, record)
+	}
+
 	s.logs = append([]Log{record}, s.logs...)
 	if err := s.persistLocked(); err != nil {
 		return Log{}, err
 	}
 	return record, nil
+}
+
+// SetHMACKey configures the HMAC key for audit log chain integrity.
+// If set, all new log entries will include PrevHash and Hash fields.
+func (s *Service) SetHMACKey(key []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hmacKey = make([]byte, len(key))
+	copy(s.hmacKey, key)
+}
+
+// VerifyChain verifies the HMAC chain integrity of audit logs for a tenant.
+// Returns the index of the first broken link, or -1 if the chain is intact.
+func (s *Service) VerifyChain(tenantID string) (brokenAt int, total int, err error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if len(s.hmacKey) == 0 {
+		return -1, 0, fmt.Errorf("hmac key not configured")
+	}
+
+	// Collect logs for this tenant (logs are stored newest-first)
+	var tenantLogs []Log
+	for i := range s.logs {
+		if s.logs[i].TenantID == strings.TrimSpace(tenantID) {
+			tenantLogs = append(tenantLogs, s.logs[i])
+		}
+	}
+
+	for i, entry := range tenantLogs {
+		if entry.Hash == "" {
+			continue // pre-HMAC entry, skip
+		}
+		expected := computeAuditLogHMAC(s.hmacKey, entry)
+		if entry.Hash != expected {
+			return i, len(tenantLogs), nil
+		}
+		// Verify chain link: this entry's PrevHash should match the next entry's Hash
+		// (logs are newest-first, so next in slice = older = previous in chain)
+		if i+1 < len(tenantLogs) && tenantLogs[i+1].Hash != "" {
+			if entry.PrevHash != tenantLogs[i+1].Hash {
+				return i, len(tenantLogs), nil
+			}
+		}
+	}
+
+	return -1, len(tenantLogs), nil
+}
+
+// computeAuditLogHMAC computes the HMAC-SHA256 of an audit log entry.
+// The hash covers all content fields + PrevHash, but not the Hash field itself.
+func computeAuditLogHMAC(key []byte, entry Log) string {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(entry.ID))
+	mac.Write([]byte(entry.TenantID))
+	mac.Write([]byte(entry.Actor))
+	mac.Write([]byte(entry.Role))
+	mac.Write([]byte(entry.Action))
+	mac.Write([]byte(entry.Target))
+	mac.Write([]byte(entry.Source))
+	mac.Write([]byte(entry.At.Format(time.RFC3339Nano)))
+	mac.Write([]byte(entry.PrevHash))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func (s *Service) restoreFromStateStore() error {

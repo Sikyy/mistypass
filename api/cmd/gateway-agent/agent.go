@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -485,5 +486,10 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("X-Device-Token", token)
 	}
+	// Per-request nonce + timestamp for replay protection
+	nonceBytes := make([]byte, 16)
+	crand.Read(nonceBytes)
+	req.Header.Set("X-Request-Nonce", hex.EncodeToString(nonceBytes))
+	req.Header.Set("X-Request-Timestamp", time.Now().UTC().Format(time.RFC3339))
 	return a.httpClient().Do(req)
 }

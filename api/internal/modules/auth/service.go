@@ -26,6 +26,7 @@ var ErrAdminMFAEnrollmentRequired = errors.New("admin mfa enrollment is required
 var ErrAdminMFARequired = errors.New("admin mfa code is required")
 var ErrInvalidMFACode = errors.New("invalid admin mfa code")
 var ErrAdminMFANotConfigured = errors.New("admin mfa is not configured")
+var ErrPasswordTooWeak = errors.New("password must be at least 8 characters with uppercase, lowercase, and digit")
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -1919,6 +1920,29 @@ func verifyPassword(passwordHash []byte, plain string) bool {
 		return false
 	}
 	return bcrypt.CompareHashAndPassword(passwordHash, []byte(plain)) == nil
+}
+
+// ValidatePasswordPolicy checks that a password meets minimum security requirements:
+// at least 8 characters, at least 1 uppercase letter, 1 lowercase letter, and 1 digit.
+func ValidatePasswordPolicy(password string) error {
+	if len(password) < 8 {
+		return ErrPasswordTooWeak
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, ch := range password {
+		switch {
+		case ch >= 'A' && ch <= 'Z':
+			hasUpper = true
+		case ch >= 'a' && ch <= 'z':
+			hasLower = true
+		case ch >= '0' && ch <= '9':
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return ErrPasswordTooWeak
+	}
+	return nil
 }
 
 func ephemeralJWTSecret() string {

@@ -101,6 +101,8 @@ type server struct {
 	messageBus                    bus.Publisher
 	externalAuthHTTPClient        *http.Client
 	hrisHTTPClient                *http.Client
+	gatewayNonceMu                sync.Mutex
+	gatewayNonces                 map[string]time.Time // nonce → expiry (5-min dedup window)
 }
 
 type enterpriseHRISWebhookReceiptQueuedTask struct {
@@ -264,6 +266,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if err != nil {
 			return nil, nil, err
 		}
+		if jwtSecret := strings.TrimSpace(cfg.JWTSecret); jwtSecret != "" {
+			auditHMACKey := sha256.Sum256([]byte("mistypass-audit-hmac:" + jwtSecret))
+			auditSvc.SetHMACKey(auditHMACKey[:])
+		}
 		walletSvc, err = wallet.NewServiceWithStateStore(stateStore)
 		if err != nil {
 			return nil, nil, err
@@ -330,6 +336,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		gatewayDeviceTokens:           map[string]string{},
 		gatewayBatchFailureSeen:       map[string]struct{}{},
 		gatewayAuthzAckVersion:        map[string]string{},
+		gatewayNonces:                 map[string]time.Time{},
 		loginRateLimitBuckets:         map[string]loginRateLimitBucket{},
 		apiRateLimitBuckets:           map[string]loginRateLimitBucket{},
 		enterprisePublicRateBuckets:   map[string]loginRateLimitBucket{},
@@ -1580,6 +1587,9 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
 		return
 	}
+	if !s.validateGatewayRequestNonce(w, r) {
+		return
+	}
 
 	snapshot, err := s.gatewaySvc.PullConfig(request.TenantID, request.GatewayID)
 	if err != nil {
@@ -2038,6 +2048,9 @@ func (s *server) gatewayBootstrapEventsBatch(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+		return
+	}
+	if !s.validateGatewayRequestNonce(w, r) {
 		return
 	}
 	queue := normalizeGatewayCheckpointQueue(request.Queue)
@@ -8677,6 +8690,55 @@ func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusUnauthorized, "invalid gateway bootstrap token")
 		return false
 	}
+
+	return true
+}
+
+// validateGatewayRequestNonce checks the X-Request-Nonce and X-Request-Timestamp headers
+// for replay protection. Returns true if valid (or if headers are absent for backwards compat).
+func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Request) bool {
+	nonce := strings.TrimSpace(r.Header.Get("X-Request-Nonce"))
+	tsRaw := strings.TrimSpace(r.Header.Get("X-Request-Timestamp"))
+
+	// Backwards compatible: if no nonce headers, allow (old agents)
+	if nonce == "" && tsRaw == "" {
+		return true
+	}
+
+	// If one is present, both must be present
+	if nonce == "" || tsRaw == "" {
+		writeError(w, http.StatusBadRequest, "X-Request-Nonce and X-Request-Timestamp must both be present")
+		return false
+	}
+
+	// Validate timestamp within 5-minute window
+	ts, err := time.Parse(time.RFC3339, tsRaw)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid X-Request-Timestamp format")
+		return false
+	}
+	const nonceWindow = 5 * time.Minute
+	now := time.Now().UTC()
+	if now.Sub(ts) > nonceWindow || ts.Sub(now) > nonceWindow {
+		writeError(w, http.StatusUnauthorized, "request timestamp outside acceptable window")
+		return false
+	}
+
+	// Check nonce uniqueness
+	s.gatewayNonceMu.Lock()
+	// Clean expired nonces first
+	for k, exp := range s.gatewayNonces {
+		if now.After(exp) {
+			delete(s.gatewayNonces, k)
+		}
+	}
+	if _, exists := s.gatewayNonces[nonce]; exists {
+		s.gatewayNonceMu.Unlock()
+		writeError(w, http.StatusConflict, "duplicate request nonce")
+		return false
+	}
+	s.gatewayNonces[nonce] = now.Add(nonceWindow)
+	s.gatewayNonceMu.Unlock()
 
 	return true
 }
