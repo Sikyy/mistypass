@@ -595,6 +595,7 @@ func TestCreateListAndUpdateOTATask(t *testing.T) {
 		"v2.4.1",
 		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"", // firmware_signature (optional)
 		"tenant-admin@example.com",
 	)
 	if err != nil {
@@ -638,6 +639,7 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
 		"",
 		"",
+		"",
 	)
 	if err != ErrGatewayOTAFirmwareVersionRequired {
 		t.Fatalf("unexpected missing version error: %v", err)
@@ -647,6 +649,7 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"tenant_demo_jakarta",
 		"gw_demo_001",
 		"v2.4.1",
+		"",
 		"",
 		"",
 		"",
@@ -661,6 +664,7 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"v2.4.1",
 		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
 		"invalid_sha256",
+		"",
 		"",
 	)
 	if err != ErrGatewayOTAFirmwareSHA256Invalid {

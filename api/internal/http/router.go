@@ -8621,7 +8621,7 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 		}
 		// Fallback: accept bootstrap token for unregistered/demo devices
 		bootstrapToken := strings.TrimSpace(s.cfg.GatewayBootstrapToken)
-		if bootstrapToken != "" && provided == bootstrapToken {
+		if bootstrapToken != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(bootstrapToken)) == 1 {
 			return true
 		}
 		if !exists {
@@ -8637,14 +8637,14 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 	expected, exists := s.gatewayDeviceTokens[nextGatewayID]
 	s.gatewayTokenMu.RUnlock()
 	if exists && strings.TrimSpace(expected) != "" {
-		if provided == expected {
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1 {
 			return true
 		}
 	}
 
 	// Fallback: accept bootstrap token for unregistered/demo devices
 	bootstrapToken := strings.TrimSpace(s.cfg.GatewayBootstrapToken)
-	if bootstrapToken != "" && provided == bootstrapToken {
+	if bootstrapToken != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(bootstrapToken)) == 1 {
 		return true
 	}
 

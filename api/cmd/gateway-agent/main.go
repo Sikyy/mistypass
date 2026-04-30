@@ -35,6 +35,11 @@ func main() {
 	relayGPIO := flag.Int("relay-gpio", -1, "GPIO pin number for relay (e.g. 73 for PC9 on OPi Zero3). -1 disables GPIO.")
 	relayRS485 := flag.String("relay-rs485", "", "RS485 serial device for Modbus relay (e.g. /dev/ttyUSB0). Empty disables RS485.")
 	unlockDuration := flag.Duration("unlock-duration", 5*time.Second, "How long to hold relay open for unlock")
+	deviceTokenFile := flag.String("token-file", "/var/lib/mistypass/device-token", "File to persist device token across restarts")
+	tlsPin := flag.String("tls-pin-sha256", "", "SHA256 hash of Cloud API TLS certificate SPKI for certificate pinning (hex-encoded)")
+	rulesCacheTTL := flag.Duration("rules-cache-ttl", 24*time.Hour, "Max age of cached access rules before denying all access (0 = no TTL)")
+	readerLockID := flag.String("reader-lock-id", "", "Lock ID that this reader controls (enables PC/SC NFC reader, e.g. door_jkt_001)")
+	readerPoll := flag.Duration("reader-poll", 300*time.Millisecond, "NFC reader polling interval")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -45,11 +50,14 @@ func main() {
 		gatewayID:          *gatewayID,
 		tenantID:           *tenantID,
 		bootstrapToken:     *bootstrapToken,
+		deviceTokenFile:    *deviceTokenFile,
 		configPollInterval: *configPollInterval,
 		heartbeatInterval:  *heartbeatInterval,
 		unlockDuration:     *unlockDuration,
 		relayGPIOPin:       *relayGPIO,
 		relayRS485Device:   *relayRS485,
+		tlsPinSHA256:       *tlsPin,
+		rulesCacheTTL:      *rulesCacheTTL,
 	}
 
 	logger.Info("gateway agent starting",
@@ -78,10 +86,23 @@ func main() {
 	} else {
 		fmt.Println("Relay:    disabled (dry-run mode)")
 	}
+
+	// Start PC/SC NFC reader if lock ID is configured
+	var nfcReader *PCSCReader
+	if *readerLockID != "" {
+		fmt.Println(formatPCSCReaderInfo())
+		nfcReader = NewPCSCReader(logger, *readerLockID, *readerPoll, agent.HandleCredentialPresented)
+		if err := nfcReader.Start(); err != nil {
+			logger.Warn("NFC reader failed to start, falling back to stdin", "error", err)
+		} else {
+			fmt.Printf("Reader:   PC/SC NFC → %s\n", *readerLockID)
+		}
+	}
+
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
-	// Start stdin credential input for testing
+	// Start stdin credential input for testing (always available)
 	startStdinInput(agent, logger)
 
 	sigCh := make(chan os.Signal, 1)
@@ -89,5 +110,8 @@ func main() {
 	<-sigCh
 
 	logger.Info("shutting down gateway agent")
+	if nfcReader != nil {
+		nfcReader.Stop()
+	}
 	agent.Stop()
 }

@@ -235,6 +235,13 @@ func NewService() *Service {
 		},
 		doorGroups: []DoorGroup{
 			{
+				ID:        "ug_common_office_jkt",
+				TenantID:  "tenant_demo_jakarta",
+				Name:      "Common Office Access",
+				DoorIDs:   []string{"door_jkt_001"},
+				CreatedAt: now,
+			},
+			{
 				ID:        "dg_1001",
 				TenantID:  "tenant_demo_jakarta",
 				Name:      "Lobby Turnstiles",

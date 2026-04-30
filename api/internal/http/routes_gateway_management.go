@@ -823,10 +823,11 @@ func (s *server) getGatewayMQTTBootstrap(w http.ResponseWriter, r *http.Request)
 func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 	gatewayID := chi.URLParam(r, "gatewayID")
 	var request struct {
-		TenantID        string `json:"tenant_id"`
-		FirmwareVersion string `json:"firmware_version"`
-		FirmwareURL     string `json:"firmware_url"`
-		FirmwareSHA256  string `json:"firmware_sha256"`
+		TenantID          string `json:"tenant_id"`
+		FirmwareVersion   string `json:"firmware_version"`
+		FirmwareURL       string `json:"firmware_url"`
+		FirmwareSHA256    string `json:"firmware_sha256"`
+		FirmwareSignature string `json:"firmware_signature"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -856,6 +857,7 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		request.FirmwareVersion,
 		request.FirmwareURL,
 		request.FirmwareSHA256,
+		request.FirmwareSignature,
 		requestActor(r),
 	)
 	if err != nil {
@@ -865,7 +867,8 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, gateway.ErrGatewayIDRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareVersionRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareURLRequired),
-			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Invalid):
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Invalid),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSignatureInvalid):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, err.Error())

@@ -776,7 +776,7 @@ func TestReferenceResourceEndpointsMapPlacesLocksAndShares(t *testing.T) {
 		t.Fatalf("expected door groups extension collection range, got %q", got)
 	}
 	if !strings.Contains(doorGroupsRecorder.Body.String(), `"pagination"`) ||
-		!strings.Contains(doorGroupsRecorder.Body.String(), `"id":"dg_`) {
+		!strings.Contains(doorGroupsRecorder.Body.String(), `"id":`) {
 		t.Fatalf("expected door groups extension wrapper payload, body=%s", doorGroupsRecorder.Body.String())
 	}
 

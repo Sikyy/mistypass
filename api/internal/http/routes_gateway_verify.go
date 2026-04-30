@@ -175,20 +175,22 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 
 // resolveCredentialToUser maps a credential to a user ID.
 func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (string, bool) {
+	now := time.Now().UTC()
+
 	switch credType {
 	case "nfc_uid":
 		// Check physical card inventory by UID
 		for _, item := range s.walletSvc.ListPhysicalCardInventory(tenantID, "") {
 			if strings.EqualFold(item.UID, credData) && item.AssignedPassID != "" {
 				pass, err := s.walletSvc.GetPass(tenantID, item.AssignedPassID)
-				if err == nil && pass.TargetType == "user" && pass.Status == "active" {
+				if err == nil && pass.TargetType == "user" && pass.Status == "active" && !isPassExpired(pass.ExpiresAt, now) {
 					return pass.TargetID, true
 				}
 			}
 		}
 		// Also check passes directly by UID
 		for _, pass := range s.walletSvc.ListPasses(tenantID) {
-			if strings.EqualFold(pass.UID, credData) && pass.TargetType == "user" && pass.Status == "active" {
+			if strings.EqualFold(pass.UID, credData) && pass.TargetType == "user" && pass.Status == "active" && !isPassExpired(pass.ExpiresAt, now) {
 				return pass.TargetID, true
 			}
 		}
@@ -197,7 +199,7 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 		for _, item := range s.walletSvc.ListPhysicalCardInventory(tenantID, "") {
 			if strings.EqualFold(item.CardNumber, credData) && item.AssignedPassID != "" {
 				pass, err := s.walletSvc.GetPass(tenantID, item.AssignedPassID)
-				if err == nil && pass.TargetType == "user" && pass.Status == "active" {
+				if err == nil && pass.TargetType == "user" && pass.Status == "active" && !isPassExpired(pass.ExpiresAt, now) {
 					return pass.TargetID, true
 				}
 			}
@@ -206,7 +208,7 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 	case "ble_token":
 		// Check passes by token
 		for _, pass := range s.walletSvc.ListPasses(tenantID) {
-			if pass.Token == credData && pass.TargetType == "user" && pass.Status == "active" {
+			if pass.Token == credData && pass.TargetType == "user" && pass.Status == "active" && !isPassExpired(pass.ExpiresAt, now) {
 				return pass.TargetID, true
 			}
 		}
@@ -215,8 +217,12 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 		// Check group links by token
 		for _, link := range s.accessSvc.ListGroupLinks(tenantID) {
 			if link.Secret == credData || link.QuickResponseCodeToken == credData {
-				// QR code grants group access, not individual user access
-				// Return a synthetic "qr_visitor" user for now
+				if !link.LinkEnabled {
+					return "", false
+				}
+				if isGroupLinkExpired(link.ValidUntil, now) {
+					return "", false
+				}
 				return "qr_visitor:" + link.GroupID, true
 			}
 		}
@@ -225,48 +231,54 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 	return "", false
 }
 
-// checkUserLockAccess checks if any of the user's groups grant access to the lock.
+// isPassExpired returns true if the pass has an expiration time that has passed.
+func isPassExpired(expiresAt string, now time.Time) bool {
+	ea := strings.TrimSpace(expiresAt)
+	if ea == "" {
+		return false
+	}
+	t, err := time.Parse(time.RFC3339, ea)
+	if err != nil {
+		return false
+	}
+	return now.After(t)
+}
+
+// isGroupLinkExpired returns true if the group link has a valid_until time that has passed.
+func isGroupLinkExpired(validUntil string, now time.Time) bool {
+	vu := strings.TrimSpace(validUntil)
+	if vu == "" {
+		return false
+	}
+	t, err := time.Parse(time.RFC3339, vu)
+	if err != nil {
+		return false
+	}
+	return now.After(t)
+}
+
+// checkUserLockAccess checks if any of the user's groups grant access to the lock
+// via explicit group_locks binding (user_group_id == door_group_id && door_group contains lock).
 func (s *server) checkUserLockAccess(tenantID string, userGroupIDs []string, lockID string) (bool, string) {
 	if len(userGroupIDs) == 0 {
 		return false, ""
 	}
 
-	// Get all door groups for the tenant
+	userGroupSet := make(map[string]struct{}, len(userGroupIDs))
+	for _, ugID := range userGroupIDs {
+		userGroupSet[ugID] = struct{}{}
+	}
+
+	// Check door groups: user's group ID must match the door group ID,
+	// and that door group must explicitly contain the target lock.
 	doorGroups := s.spaceSvc.ListDoorGroups(tenantID)
-
-	// For MVP: check if any door group contains the lock, and has a matching user group
-	// In the reference model, group_locks binds user groups to locks via door groups.
-	// The mapping is: user belongs to UserGroup → DoorGroup (same name or explicit binding) → DoorIDs
 	for _, dg := range doorGroups {
-		for _, doorID := range dg.DoorIDs {
-			if doorID != lockID {
-				continue
-			}
-			// Found a door group containing this lock.
-			// Check if any user group matches.
-			for _, ugID := range userGroupIDs {
-				// For MVP: any user in any group has access to doors in any door group of same tenant.
-				// This is intentionally permissive for MVP validation.
-				// Production would need explicit group_locks binding.
-				_ = ugID
-				return true, dg.Name
-			}
-		}
-	}
-
-	// Also check: if the lock is in a building and user has a group in that building
-	door, err := s.spaceSvc.GetDoor(tenantID, lockID)
-	if err != nil {
-		return false, ""
-	}
-	userGroups := s.accessSvc.ListUserGroups(tenantID)
-	for _, ug := range userGroups {
-		if ug.BuildingID != door.BuildingID && ug.PlaceID != door.BuildingID {
+		if _, bound := userGroupSet[dg.ID]; !bound {
 			continue
 		}
-		for _, ugID := range userGroupIDs {
-			if ugID == ug.ID {
-				return true, ug.Name
+		for _, doorID := range dg.DoorIDs {
+			if doorID == lockID {
+				return true, dg.Name
 			}
 		}
 	}

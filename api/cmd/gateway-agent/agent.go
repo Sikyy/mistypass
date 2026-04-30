@@ -2,11 +2,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -19,18 +23,23 @@ type Agent struct {
 	gatewayID          string
 	tenantID           string
 	bootstrapToken     string
+	deviceTokenFile    string // path to persist device token across restarts
 	configPollInterval time.Duration
 	heartbeatInterval  time.Duration
 	unlockDuration     time.Duration
 	relayGPIOPin       int
 	relayRS485Device   string
+	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
 
-	mu          sync.RWMutex
-	accessRules []AccessRule
-	ruleVersion string
-	eventQueue  []AccessEvent
-	stopCh      chan struct{}
-	relay       RelayDriver
+	mu              sync.RWMutex
+	deviceToken     string // device-specific token obtained from registration
+	accessRules     []AccessRule
+	ruleVersion     string
+	rulesUpdatedAt  time.Time     // when access rules were last successfully pulled
+	rulesCacheTTL   time.Duration // max age of cached rules before denying access (0 = no TTL)
+	eventQueue      []AccessEvent
+	stopCh          chan struct{}
+	relay           RelayDriver
 }
 
 // AccessRule is a local credential → lock mapping for offline decision.
@@ -72,6 +81,19 @@ func (a *Agent) Start() error {
 		a.relay = &DryRunRelay{logger: a.logger}
 	}
 
+	// Load persisted device token if available
+	if err := a.loadDeviceToken(); err != nil {
+		a.logger.Debug("no persisted device token found, will register", "error", err)
+	}
+
+	// If no device token, register with bootstrap token
+	if a.activeToken() == a.bootstrapToken {
+		a.logger.Info("no device token, attempting registration with bootstrap token")
+		if err := a.registerDevice(); err != nil {
+			a.logger.Warn("device registration failed, falling back to bootstrap token", "error", err)
+		}
+	}
+
 	// Initial config pull
 	if err := a.pullConfig(); err != nil {
 		a.logger.Warn("initial config pull failed, will retry", "error", err)
@@ -83,6 +105,112 @@ func (a *Agent) Start() error {
 	go a.eventPushLoop()
 
 	return nil
+}
+
+// registerDevice calls the bootstrap register endpoint and stores the returned device token.
+func (a *Agent) registerDevice() error {
+	body, _ := json.Marshal(map[string]any{
+		"serial_number":   a.gatewayID,
+		"tenant_id":       a.tenantID,
+		"building_id":     "",
+		"device_capacity": 4,
+	})
+
+	url := strings.TrimRight(a.apiURL, "/") + "/api/v1/gateway/register"
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("register request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Bootstrap-Token", a.bootstrapToken)
+
+	resp, err := a.httpClient().Do(req)
+	if err != nil {
+		return fmt.Errorf("register call: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusConflict {
+		// Already registered — this is OK, keep using bootstrap token until
+		// we implement a token re-issue flow
+		a.logger.Info("device already registered, using bootstrap token as fallback")
+		return nil
+	}
+	if resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("register status=%d body=%s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		GatewayID   string `json:"gateway_id"`
+		DeviceToken string `json:"device_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("register decode: %w", err)
+	}
+
+	if result.DeviceToken == "" {
+		return fmt.Errorf("register returned empty device token")
+	}
+
+	a.mu.Lock()
+	a.deviceToken = result.DeviceToken
+	if result.GatewayID != "" {
+		a.gatewayID = result.GatewayID
+	}
+	a.mu.Unlock()
+
+	if err := a.saveDeviceToken(); err != nil {
+		a.logger.Error("failed to persist device token", "error", err)
+	}
+
+	a.logger.Info("device registered, device token obtained", "gateway_id", a.gatewayID)
+	return nil
+}
+
+// activeToken returns the best available token: device token if available, otherwise bootstrap.
+func (a *Agent) activeToken() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.deviceToken != "" {
+		return a.deviceToken
+	}
+	return a.bootstrapToken
+}
+
+// loadDeviceToken reads the device token from the persisted file.
+func (a *Agent) loadDeviceToken() error {
+	if a.deviceTokenFile == "" {
+		return fmt.Errorf("no device token file configured")
+	}
+	data, err := os.ReadFile(a.deviceTokenFile)
+	if err != nil {
+		return err
+	}
+	token := strings.TrimSpace(string(data))
+	if token == "" {
+		return fmt.Errorf("device token file is empty")
+	}
+	a.mu.Lock()
+	a.deviceToken = token
+	a.mu.Unlock()
+	a.logger.Info("loaded persisted device token")
+	return nil
+}
+
+// saveDeviceToken writes the device token to a local file for persistence across restarts.
+func (a *Agent) saveDeviceToken() error {
+	if a.deviceTokenFile == "" {
+		return nil
+	}
+	a.mu.RLock()
+	token := a.deviceToken
+	a.mu.RUnlock()
+	if token == "" {
+		return nil
+	}
+	// Write with restrictive permissions (owner read/write only)
+	return os.WriteFile(a.deviceTokenFile, []byte(token), 0600)
 }
 
 func (a *Agent) Stop() {
@@ -126,6 +254,7 @@ func (a *Agent) pullConfig() error {
 	a.mu.Lock()
 	a.accessRules = result.AuthzCache.AccessRules
 	a.ruleVersion = result.AuthzCache.Version
+	a.rulesUpdatedAt = time.Now().UTC()
 	a.mu.Unlock()
 
 	a.logger.Info("config pulled",
@@ -231,9 +360,17 @@ func (a *Agent) pushEvents() {
 // --- Local Access Decision ---
 
 // VerifyCredential checks the local access rule cache and returns allow/deny.
+// If rulesCacheTTL is set and the cached rules are older than the TTL, all access is denied.
 func (a *Agent) VerifyCredential(credentialType, credentialData, lockID string) (decision string, userID string, userEmail string) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
+
+	// Deny all access if rules cache has expired
+	if a.rulesCacheTTL > 0 && !a.rulesUpdatedAt.IsZero() {
+		if time.Since(a.rulesUpdatedAt) > a.rulesCacheTTL {
+			return "deny", "", ""
+		}
+	}
 
 	normalizedData := strings.ToUpper(strings.TrimSpace(credentialData))
 	normalizedType := strings.ToLower(strings.TrimSpace(credentialType))
@@ -275,7 +412,15 @@ func (a *Agent) HandleCredentialPresented(credentialType, credentialData, lockID
 			logger.Error("relay unlock failed", "error", err)
 		}
 	} else {
-		logger.Warn("ACCESS DENIED")
+		// Check if denial is due to stale cache
+		a.mu.RLock()
+		cacheStale := a.rulesCacheTTL > 0 && !a.rulesUpdatedAt.IsZero() && time.Since(a.rulesUpdatedAt) > a.rulesCacheTTL
+		a.mu.RUnlock()
+		if cacheStale {
+			logger.Error("ACCESS DENIED — rules cache expired, all access blocked until Cloud resync")
+		} else {
+			logger.Warn("ACCESS DENIED")
+		}
 	}
 
 	eventType := "access_denied"
@@ -296,6 +441,33 @@ func (a *Agent) HandleCredentialPresented(credentialType, credentialData, lockID
 
 // --- HTTP Client ---
 
+func (a *Agent) httpClient() *http.Client {
+	if a.tlsPinSHA256 == "" {
+		return http.DefaultClient
+	}
+	pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
+	if err != nil || len(pinBytes) != sha256.Size {
+		a.logger.Warn("invalid tls-pin-sha256, falling back to default TLS", "error", err)
+		return http.DefaultClient
+	}
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				VerifyConnection: func(cs tls.ConnectionState) error {
+					for _, cert := range cs.PeerCertificates {
+						spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+						if hex.EncodeToString(spkiHash[:]) == a.tlsPinSHA256 {
+							return nil
+						}
+					}
+					return fmt.Errorf("TLS certificate pinning failed: no certificate matched pin %s", a.tlsPinSHA256)
+				},
+			},
+		},
+	}
+}
+
 func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, error) {
 	url := strings.TrimRight(a.apiURL, "/") + path
 	var bodyReader io.Reader
@@ -308,9 +480,10 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	if a.bootstrapToken != "" {
-		req.Header.Set("Authorization", "Bearer "+a.bootstrapToken)
-		req.Header.Set("X-Device-Token", a.bootstrapToken)
+	token := a.activeToken()
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-Device-Token", token)
 	}
-	return http.DefaultClient.Do(req)
+	return a.httpClient().Do(req)
 }

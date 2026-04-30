@@ -59,6 +59,7 @@ var ErrGatewayOTATaskIDRequired = errors.New("gateway ota task_id is required")
 var ErrGatewayOTAFirmwareVersionRequired = errors.New("gateway ota firmware_version is required")
 var ErrGatewayOTAFirmwareURLRequired = errors.New("gateway ota firmware_url is required")
 var ErrGatewayOTAFirmwareSHA256Invalid = errors.New("gateway ota firmware_sha256 is invalid")
+var ErrGatewayOTAFirmwareSignatureInvalid = errors.New("gateway ota firmware_signature is invalid (expected hex-encoded Ed25519 signature)")
 var ErrGatewayOTATaskStatusInvalid = errors.New("gateway ota task status is invalid")
 var ErrGatewayOTATaskNotFound = errors.New("gateway ota task not found")
 
@@ -242,18 +243,19 @@ type GatewayQueueIngestTotal struct {
 }
 
 type GatewayOTATask struct {
-	ID              string    `json:"id"`
-	GatewayID       string    `json:"gateway_id"`
-	TenantID        string    `json:"tenant_id"`
-	FirmwareVersion string    `json:"firmware_version"`
-	FirmwareURL     string    `json:"firmware_url"`
-	FirmwareSHA256  string    `json:"firmware_sha256,omitempty"`
-	Status          string    `json:"status"`
-	ErrorMessage    string    `json:"error_message,omitempty"`
-	RequestedBy     string    `json:"requested_by,omitempty"`
-	UpdatedBy       string    `json:"updated_by,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                string    `json:"id"`
+	GatewayID         string    `json:"gateway_id"`
+	TenantID          string    `json:"tenant_id"`
+	FirmwareVersion   string    `json:"firmware_version"`
+	FirmwareURL       string    `json:"firmware_url"`
+	FirmwareSHA256    string    `json:"firmware_sha256,omitempty"`
+	FirmwareSignature string    `json:"firmware_signature,omitempty"` // Ed25519 signature of firmware binary (hex-encoded)
+	Status            string    `json:"status"`
+	ErrorMessage      string    `json:"error_message,omitempty"`
+	RequestedBy       string    `json:"requested_by,omitempty"`
+	UpdatedBy         string    `json:"updated_by,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type StateStore interface {
@@ -1602,6 +1604,7 @@ func (s *Service) CreateOTATask(
 	firmwareVersion,
 	firmwareURL,
 	firmwareSHA256,
+	firmwareSignature,
 	requestedBy string,
 ) (GatewayOTATask, error) {
 	gwID := strings.TrimSpace(gatewayID)
@@ -1619,6 +1622,10 @@ func (s *Service) CreateOTATask(
 	nextSHA256 := strings.ToLower(strings.TrimSpace(firmwareSHA256))
 	if nextSHA256 != "" && !isValidSHA256Hex(nextSHA256) {
 		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
+	}
+	nextSignature := strings.ToLower(strings.TrimSpace(firmwareSignature))
+	if nextSignature != "" && !isValidEd25519SignatureHex(nextSignature) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
 	}
 	taskID, err := otaTaskID()
 	if err != nil {
@@ -1649,17 +1656,18 @@ func (s *Service) CreateOTATask(
 	}
 
 	task := GatewayOTATask{
-		ID:              taskID,
-		GatewayID:       gwID,
-		TenantID:        taskTenantID,
-		FirmwareVersion: nextVersion,
-		FirmwareURL:     nextURL,
-		FirmwareSHA256:  nextSHA256,
-		Status:          gatewayOTATaskStatusQueued,
-		RequestedBy:     nextRequestedBy,
-		UpdatedBy:       nextRequestedBy,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ID:                taskID,
+		GatewayID:         gwID,
+		TenantID:          taskTenantID,
+		FirmwareVersion:   nextVersion,
+		FirmwareURL:       nextURL,
+		FirmwareSHA256:    nextSHA256,
+		FirmwareSignature: nextSignature,
+		Status:            gatewayOTATaskStatusQueued,
+		RequestedBy:       nextRequestedBy,
+		UpdatedBy:         nextRequestedBy,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 	s.otaTasks = append([]GatewayOTATask{task}, s.otaTasks...)
 	if err := s.persistLocked(); err != nil {
@@ -2517,6 +2525,15 @@ func normalizeGatewayOTATaskStatus(status string) (string, error) {
 
 func isValidSHA256Hex(value string) bool {
 	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
+// isValidEd25519SignatureHex validates a hex-encoded Ed25519 signature (64 bytes = 128 hex chars).
+func isValidEd25519SignatureHex(value string) bool {
+	if len(value) != 128 {
 		return false
 	}
 	_, err := hex.DecodeString(value)

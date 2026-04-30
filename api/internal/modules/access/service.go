@@ -526,6 +526,17 @@ func NewService() *Service {
 				GroupIDs:   []string{"ug_common_office_jkt"},
 				CreatedAt:  now,
 			},
+			{
+				ID:         "usr_resident_siky_001",
+				TenantID:   "tenant_demo_jakarta",
+				BuildingID: "building_demo_001",
+				Name:       "Siky",
+				Email:      "siky",
+				Role:       "employee",
+				Status:     "active",
+				GroupIDs:   []string{"ug_common_office_jkt"},
+				CreatedAt:  now,
+			},
 		},
 		userGroups: []UserGroup{
 			{
