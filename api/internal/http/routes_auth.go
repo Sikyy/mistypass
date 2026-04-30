@@ -18,6 +18,8 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 	response, err := s.authService.Login(request)
 	if err != nil {
 		switch {
+		case errors.Is(err, auth.ErrPasswordAuthDisabled):
+			writeError(w, http.StatusForbidden, err.Error())
 		case errors.Is(err, auth.ErrAdminMFAEnrollmentRequired):
 			writeError(w, http.StatusForbidden, err.Error())
 		case errors.Is(err, auth.ErrAdminMFARequired), errors.Is(err, auth.ErrInvalidMFACode):

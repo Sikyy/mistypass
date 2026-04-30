@@ -475,6 +475,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.Use(s.withBearerToken)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/auth/users/{userID}/building-scope", s.getAuthUserBuildingScope)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/auth/users/{userID}/building-scope", s.updateAuthUserBuildingScope)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/auth/users/{userID}/password-auth", s.updateAuthUserPasswordAuth)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/auth/mfa/admin/status", s.getAdminMFAStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/setup", s.setupAdminMFA)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/auth/mfa/admin/enable", s.enableAdminMFA)
@@ -3788,6 +3789,35 @@ func (s *server) updateAuthUserBuildingScope(w http.ResponseWriter, r *http.Requ
 		"role":         updated.Role,
 		"tenant_id":    updated.TenantID,
 		"building_ids": updated.BuildingIDs,
+	})
+}
+
+func (s *server) updateAuthUserPasswordAuth(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "userID")
+	var request struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	updated, err := s.authService.UpdateUserPasswordAuth(userID, request.Enabled)
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrUserNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	actor, _ := authenticatedUser(r)
+	s.appendAuditLog(r, updated.TenantID, "auth_user_password_auth_updated",
+		fmt.Sprintf("user_id=%s,enabled=%v,by=%s", updated.ID, request.Enabled, actor.Email), "auth")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user_id":               updated.ID,
+		"email":                 updated.Email,
+		"password_auth_enabled": updated.PasswordAuthEnabled,
 	})
 }
 

@@ -46,14 +46,17 @@ type LoginResponse struct {
 }
 
 type User struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name,omitempty"`
-	Email       string   `json:"email"`
-	Role        string   `json:"role"`
-	TenantID    string   `json:"tenant_id"`
-	BuildingIDs []string `json:"building_ids,omitempty"`
-	Language    string   `json:"language,omitempty"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name,omitempty"`
+	Email                string   `json:"email"`
+	Role                 string   `json:"role"`
+	TenantID             string   `json:"tenant_id"`
+	BuildingIDs          []string `json:"building_ids,omitempty"`
+	Language             string   `json:"language,omitempty"`
+	PasswordAuthEnabled  bool     `json:"password_auth_enabled"` // false = SSO-only, password login rejected
 }
+
+var ErrPasswordAuthDisabled = errors.New("password authentication is disabled for this user, use SSO")
 
 type tokenClaims struct {
 	UserID      string   `json:"user_id"`
@@ -285,6 +288,9 @@ func (s *Service) Login(request LoginRequest) (LoginResponse, error) {
 	}
 	if !exists || !verifyPassword(record.PasswordHash, password) {
 		return LoginResponse{}, ErrInvalidCredentials
+	}
+	if !record.User.PasswordAuthEnabled {
+		return LoginResponse{}, ErrPasswordAuthDisabled
 	}
 	if err := s.enforceAdminMFA(record.User, request.MFACode); err != nil {
 		return LoginResponse{}, err
@@ -633,6 +639,33 @@ func (s *Service) UpdateUserBuildingScope(userID string, buildingIDs []string) (
 	}
 
 	user.BuildingIDs = append([]string(nil), user.BuildingIDs...)
+	return user, nil
+}
+
+func (s *Service) UpdateUserPasswordAuth(userID string, enabled bool) (User, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return User{}, ErrUserNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	user, exists, err := s.findUserByIDLocked(nextUserID)
+	if err != nil || !exists {
+		return User{}, ErrUserNotFound
+	}
+
+	user.PasswordAuthEnabled = enabled
+	passwordHash := []byte(nil)
+	record, exists, err := s.findUserByEmailLocked(user.Email)
+	if err == nil && exists {
+		passwordHash = record.PasswordHash
+	}
+	if err := s.persistUserLocked(user, passwordHash); err != nil {
+		return User{}, err
+	}
+
 	return user, nil
 }
 
@@ -1450,6 +1483,11 @@ func (s *Service) cacheUserLocked(user User, passwordHash []byte) {
 
 	cachedUser := user
 	cachedUser.BuildingIDs = append([]string(nil), user.BuildingIDs...)
+	// Backward compat: users with password hash but no explicit PasswordAuthEnabled
+	// default to enabled (pre-existing users before this field was added)
+	if len(passwordHash) > 0 && !cachedUser.PasswordAuthEnabled {
+		cachedUser.PasswordAuthEnabled = true
+	}
 	s.usersByID[user.ID] = cachedUser
 	s.usersByEmail[nextEmail] = userRecord{
 		User:         cachedUser,
@@ -1813,13 +1851,14 @@ func timePointer(value time.Time) *time.Time {
 
 func normalizeUser(user User) (User, bool) {
 	nextUser := User{
-		ID:          strings.TrimSpace(user.ID),
-		Name:        strings.TrimSpace(user.Name),
-		Email:       normalizeEmail(user.Email),
-		Role:        strings.ToLower(strings.TrimSpace(user.Role)),
-		TenantID:    strings.TrimSpace(user.TenantID),
-		BuildingIDs: uniqueNormalizedIDs(user.BuildingIDs),
-		Language:    normalizeLanguage(user.Language),
+		ID:                  strings.TrimSpace(user.ID),
+		Name:                strings.TrimSpace(user.Name),
+		Email:               normalizeEmail(user.Email),
+		Role:                strings.ToLower(strings.TrimSpace(user.Role)),
+		TenantID:            strings.TrimSpace(user.TenantID),
+		BuildingIDs:         uniqueNormalizedIDs(user.BuildingIDs),
+		Language:            normalizeLanguage(user.Language),
+		PasswordAuthEnabled: user.PasswordAuthEnabled,
 	}
 	if nextUser.ID == "" || nextUser.Email == "" || nextUser.Role == "" {
 		return User{}, false
@@ -1992,6 +2031,7 @@ func buildDemoUsers() []userRecord {
 	}
 	result := make([]userRecord, 0, len(seed))
 	for i := range seed {
+		seed[i].User.PasswordAuthEnabled = true // demo users always have password auth
 		hash, err := bcrypt.GenerateFromPassword([]byte(seed[i].Password), bcrypt.DefaultCost)
 		if err != nil {
 			panic(fmt.Sprintf("hash demo user password failed for %s: %v", seed[i].User.Email, err))

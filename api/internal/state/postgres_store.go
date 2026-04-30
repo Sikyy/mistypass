@@ -1161,13 +1161,14 @@ func gatewayDeviceTokenHash(deviceToken string) string {
 
 func normalizeAuthUser(user auth.User) (auth.User, bool) {
 	nextUser := auth.User{
-		ID:          strings.TrimSpace(user.ID),
-		Name:        strings.TrimSpace(user.Name),
-		Email:       normalizeAuthEmail(user.Email),
-		Role:        strings.ToLower(strings.TrimSpace(user.Role)),
-		TenantID:    strings.TrimSpace(user.TenantID),
-		BuildingIDs: normalizeAuthIDs(user.BuildingIDs),
-		Language:    normalizeAuthLanguage(user.Language),
+		ID:                  strings.TrimSpace(user.ID),
+		Name:                strings.TrimSpace(user.Name),
+		Email:               normalizeAuthEmail(user.Email),
+		Role:                strings.ToLower(strings.TrimSpace(user.Role)),
+		TenantID:            strings.TrimSpace(user.TenantID),
+		BuildingIDs:         normalizeAuthIDs(user.BuildingIDs),
+		Language:            normalizeAuthLanguage(user.Language),
+		PasswordAuthEnabled: user.PasswordAuthEnabled,
 	}
 	if nextUser.ID == "" || nextUser.Email == "" || nextUser.Role == "" {
 		return auth.User{}, false
