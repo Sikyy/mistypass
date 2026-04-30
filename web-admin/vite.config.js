@@ -38,6 +38,12 @@ export default defineConfig({
                     if (id.includes("qrcode")) {
                         return "vendor-qrcode";
                     }
+                    if (id.includes("i18next") || id.includes("react-i18next")) {
+                        return "vendor-i18n";
+                    }
+                    if (id.includes("zod")) {
+                        return "vendor-zod";
+                    }
                     return;
                 },
             },

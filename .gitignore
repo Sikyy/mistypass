@@ -24,3 +24,10 @@ docker-compose.*.override.yml
 .vscode/
 
 .aider*
+
+# Compiled binaries
+api/gateway-agent
+api/gateway-simulator
+
+# Screenshots / images not part of docs
+*.png

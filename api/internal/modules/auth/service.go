@@ -1888,6 +1888,17 @@ func buildDemoUsers() []userRecord {
 			},
 			Password: "admin123",
 		},
+		{
+			User: User{
+				ID:       "usr_resident_siky_001",
+				Name:     "Siky",
+				Email:    "siky",
+				Role:     "resident",
+				TenantID: "tenant_demo_jakarta",
+				Language: "zh-CN",
+			},
+			Password: "65552588",
+		},
 	}
 	result := make([]userRecord, 0, len(seed))
 	for i := range seed {
