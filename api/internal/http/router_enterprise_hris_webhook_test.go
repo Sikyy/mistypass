@@ -6385,7 +6385,7 @@ func TestReceiveEnterpriseHRISWebhookReceiptWorkerRetriesAfterCooldown(t *testin
 		hrisNormalizerRegistry: hris.NewRegistry(normalizer),
 	}
 
-	_, err := s.enterpriseSvc.CreateDomainMapping("tenant_demo_jakarta", "retry-sync.local", "active")
+	_, err := s.enterpriseSvc.CreateDomainMapping("tenant_demo_jakarta", "replay-sync.local", "active")
 	if err != nil {
 		t.Fatalf("create domain mapping should succeed: %v", err)
 	}
@@ -6472,11 +6472,11 @@ func TestReceiveEnterpriseHRISWebhookReceiptWorkerRetriesAfterCooldown(t *testin
 	if record.AttemptCount != 2 {
 		t.Fatalf("expected second attempt to increment attempt_count to 2, got %d", record.AttemptCount)
 	}
-	if len(s.enterpriseSvc.ListEmployees("tenant_demo_jakarta")) != 1 {
-		t.Fatalf("expected retry path to sync one enterprise employee")
+	if len(s.enterpriseSvc.ListEmployees("tenant_demo_jakarta")) != 2 {
+		t.Fatalf("expected retry path to sync one enterprise employee (1 seeded + 1 synced)")
 	}
-	if len(s.accessSvc.ListUsers("tenant_demo_jakarta")) != 1 {
-		t.Fatalf("expected retry path to sync one access user")
+	if len(s.accessSvc.ListUsers("tenant_demo_jakarta")) != 4 {
+		t.Fatalf("expected retry path to sync one access user (3 seeded + 1 synced)")
 	}
 	if len(s.hrisDLQSvc.ListEntries("tenant_demo_jakarta", connector.ID, 10)) != 0 {
 		t.Fatalf("expected successful retry to avoid DLQ entries")
