@@ -550,6 +550,9 @@ type OrganizationSettings struct {
 	WebAuthnEnabled       bool      `json:"webauthn_enabled"`
 	PasswordPolicy        string    `json:"password_policy"`
 	SessionTimeoutMinutes int       `json:"session_timeout_minutes"`
+	WebhookSigningKey     string    `json:"webhook_signing_key,omitempty"`
+	WebhookRotatedAt      time.Time `json:"webhook_rotated_at,omitempty"`
+	Status                string    `json:"status"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
@@ -4796,6 +4799,7 @@ func defaultOrganizationSettings(tenantID string) OrganizationSettings {
 		EnforceMFA:            false,
 		PasswordPolicy:        "standard",
 		SessionTimeoutMinutes: 480,
+		Status:                "active",
 		UpdatedAt:             time.Now().UTC(),
 	}
 }
@@ -4878,6 +4882,122 @@ func (s *Service) UpdateOrganizationSettings(
 		return OrganizationSettings{}, err
 	}
 	return settings, nil
+}
+
+func (s *Service) RotateWebhookSecret(tenantID string) (string, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return "", ErrTenantIDRequired
+	}
+
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return "", err
+	}
+	newKey := hex.EncodeToString(secret)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	settings, exists := s.organizationSettings[nextTenantID]
+	if !exists {
+		settings = defaultOrganizationSettings(nextTenantID)
+	}
+
+	settings.WebhookSigningKey = newKey
+	settings.WebhookRotatedAt = time.Now().UTC()
+	settings.UpdatedAt = time.Now().UTC()
+	s.organizationSettings[nextTenantID] = settings
+
+	if err := s.persistLocked(); err != nil {
+		return "", err
+	}
+	return newKey, nil
+}
+
+func (s *Service) DisableOrganization(tenantID string) error {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return ErrTenantIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	settings, exists := s.organizationSettings[nextTenantID]
+	if !exists {
+		settings = defaultOrganizationSettings(nextTenantID)
+	}
+
+	settings.Status = "disabled"
+	settings.UpdatedAt = time.Now().UTC()
+	s.organizationSettings[nextTenantID] = settings
+
+	if err := s.persistLocked(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Service) TransferOrganization(sourceTenantID, targetTenantID string) error {
+	source := strings.TrimSpace(sourceTenantID)
+	target := strings.TrimSpace(targetTenantID)
+	if source == "" || target == "" {
+		return ErrTenantIDRequired
+	}
+	if source == target {
+		return errors.New("source and target tenant must be different")
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Reassign all users from source to target tenant
+	for i := range s.users {
+		if s.users[i].TenantID == source {
+			s.users[i].TenantID = target
+		}
+	}
+
+	// Reassign all user groups
+	for i := range s.userGroups {
+		if s.userGroups[i].TenantID == source {
+			s.userGroups[i].TenantID = target
+		}
+	}
+
+	// Reassign all access policies
+	for i := range s.policies {
+		if s.policies[i].TenantID == source {
+			s.policies[i].TenantID = target
+		}
+	}
+
+	// Reassign invitation deliveries
+	for i := range s.userInvitationDeliveries {
+		if s.userInvitationDeliveries[i].TenantID == source {
+			s.userInvitationDeliveries[i].TenantID = target
+		}
+	}
+
+	// Reassign role assignments
+	for i := range s.roleAssignments {
+		if s.roleAssignments[i].TenantID == source {
+			s.roleAssignments[i].TenantID = target
+		}
+	}
+
+	// Move organization settings: mark source as transferred, copy to target if needed
+	if sourceSettings, exists := s.organizationSettings[source]; exists {
+		sourceSettings.Status = "transferred"
+		sourceSettings.UpdatedAt = time.Now().UTC()
+		s.organizationSettings[source] = sourceSettings
+	}
+
+	if err := s.persistLocked(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // --- Schedule Evaluation ---

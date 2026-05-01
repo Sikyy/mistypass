@@ -3,6 +3,7 @@ package httpx
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 func (s *server) getOrganizationSettings(w http.ResponseWriter, r *http.Request) {
@@ -63,17 +64,34 @@ func (s *server) exportOrganizationAudit(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) rotateOrganizationWebhooks(w http.ResponseWriter, r *http.Request) {
-	_, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
 	}
-	writeError(w, http.StatusNotImplemented, "webhook secret rotation is not yet implemented")
+	newKey, err := s.accessSvc.RotateWebhookSecret(tenantID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.appendAuditLog(r, tenantID, "webhook_secret_rotated", "webhook_signing_key", "access")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"webhook_signing_key": newKey,
+		"rotated_at":          time.Now().UTC().Format(time.RFC3339),
+	})
 }
 
 func (s *server) disableOrganization(w http.ResponseWriter, r *http.Request) {
-	_, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
 	}
-	writeError(w, http.StatusNotImplemented, "organization disable is not yet implemented")
+	if err := s.accessSvc.DisableOrganization(tenantID); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.appendAuditLog(r, tenantID, "organization_disabled", fmt.Sprintf("tenant_id=%s", tenantID), "access")
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "disabled",
+		"message": "organization has been disabled",
+	})
 }

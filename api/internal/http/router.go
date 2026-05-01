@@ -613,6 +613,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/organization/export-audit", s.exportOrganizationAudit)
 			protected.With(s.requireRoles("super_admin")).Post("/organization/rotate-webhooks", s.rotateOrganizationWebhooks)
 			protected.With(s.requireRoles("super_admin")).Post("/organization/disable", s.disableOrganization)
+			protected.With(s.requireRoles("super_admin")).Post("/organization/transfer", s.transferOrganization)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/invitations", s.listInvitations)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/invitations/{deliveryID}", s.getInvitation)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/invitations/{deliveryID}/cancel", s.cancelInvitation)
