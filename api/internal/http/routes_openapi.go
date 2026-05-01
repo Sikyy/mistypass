@@ -866,9 +866,31 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPatch, Path: "/api/v1/guests/{guestID}/status", OperationID: "updateGuestStatus", Tag: "Visitors", Summary: "Update guest status (check-in, check-out, cancel)."},
 		{Method: http.MethodDelete, Path: "/api/v1/guests/{guestID}", OperationID: "deleteGuest", Tag: "Visitors", Summary: "Delete a guest record.", NoContent: true},
 
+		// Analytics
+		{Method: http.MethodGet, Path: "/api/v1/analytics/access-summary", OperationID: "getAccessSummary", Tag: "Analytics", Summary: "Access event counts by result, door, day, and peak hour."},
+		{Method: http.MethodGet, Path: "/api/v1/analytics/door-activity", OperationID: "getDoorActivity", Tag: "Analytics", Summary: "Per-door access count, unique users, and hourly distribution."},
+		{Method: http.MethodGet, Path: "/api/v1/analytics/alarm-metrics", OperationID: "getAlarmMetrics", Tag: "Analytics", Summary: "Alarm counts by severity and status with mean resolution time."},
+
+		// Alarm Schedules
+		{Method: http.MethodGet, Path: "/api/v1/alarm-schedules", OperationID: "fetchAlarmSchedules", Tag: "Alarm Schedules", Summary: "List alarm schedules.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/alarm-schedules", OperationID: "createAlarmSchedule", Tag: "Alarm Schedules", Summary: "Create a recurring alarm schedule.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/alarm-schedules/calendar", OperationID: "getAlarmScheduleCalendar", Tag: "Alarm Schedules", Summary: "Weekly calendar view of all active alarm schedules."},
+		{Method: http.MethodGet, Path: "/api/v1/alarm-schedules/{scheduleID}", OperationID: "fetchAlarmSchedule", Tag: "Alarm Schedules", Summary: "Fetch an alarm schedule."},
+		{Method: http.MethodPatch, Path: "/api/v1/alarm-schedules/{scheduleID}", OperationID: "updateAlarmSchedule", Tag: "Alarm Schedules", Summary: "Update an alarm schedule."},
+		{Method: http.MethodDelete, Path: "/api/v1/alarm-schedules/{scheduleID}", OperationID: "deleteAlarmSchedule", Tag: "Alarm Schedules", Summary: "Delete an alarm schedule.", NoContent: true},
+
+		// Cameras (stubs — awaiting hardware integration)
+		{Method: http.MethodGet, Path: "/api/v1/cameras", OperationID: "fetchCameras", Tag: "Cameras", Summary: "List cameras (stub — integration planned).", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/cameras", OperationID: "createCamera", Tag: "Cameras", Summary: "Register a camera (not yet implemented)."},
+		{Method: http.MethodGet, Path: "/api/v1/cameras/{cameraID}", OperationID: "fetchCamera", Tag: "Cameras", Summary: "Fetch a camera (not yet implemented)."},
+		{Method: http.MethodDelete, Path: "/api/v1/cameras/{cameraID}", OperationID: "deleteCamera", Tag: "Cameras", Summary: "Delete a camera (not yet implemented).", NoContent: true},
+
 		// Organization Settings
 		{Method: http.MethodGet, Path: "/api/v1/organization/settings", OperationID: "fetchOrganizationSettings", Tag: "Organization", Summary: "Fetch organization settings."},
 		{Method: http.MethodPatch, Path: "/api/v1/organization/settings", OperationID: "updateOrganizationSettings", Tag: "Organization", Summary: "Update organization settings."},
+		{Method: http.MethodPost, Path: "/api/v1/organization/transfer", OperationID: "transferOrganization", Tag: "Organization", Summary: "Transfer all resources from one tenant to another (super_admin only)."},
+		{Method: http.MethodPost, Path: "/api/v1/organization/disable", OperationID: "disableOrganization", Tag: "Organization", Summary: "Disable an organization."},
+		{Method: http.MethodPost, Path: "/api/v1/organization/export-audit", OperationID: "exportOrganizationAudit", Tag: "Organization", Summary: "Export organization audit log (not yet implemented)."},
 
 		// Gateway Bootstrap (device token auth)
 		{Method: http.MethodPost, Path: "/api/v1/gateway/register", OperationID: "registerGatewayBootstrap", Tag: "Gateway Bootstrap", Summary: "Register a new gateway.", Created: true, Public: true},
