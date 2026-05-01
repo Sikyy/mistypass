@@ -63,11 +63,9 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RoleScopeBanner } from "@/components/role-scope-banner"
-import { isMistyisletPreviewRoute } from "@/features/mistyislet-shell/navigation"
+// Legacy shell removed — all routes now use AppShell
 
-const HomePage = lazy(() =>
-  import("@/features/home/pages/home-page").then((module) => ({ default: module.HomePage }))
-)
+// HomePage lazy import removed — legacy shell no longer used
 import { listAlarms, type CurrentUser } from "@/lib/api"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/context/auth-context"
@@ -88,9 +86,7 @@ import {
   isPlatformViewer,
 } from "@/lib/viewer"
 
-const DashboardPage = lazy(() =>
-  import("@/features/legacy/pages/dashboard-page").then((module) => ({ default: module.DashboardPage }))
-)
+// DashboardPage lazy import removed — legacy shell no longer used
 const TenantsPage = lazy(() =>
   import("@/features/legacy/pages/tenants-page").then((module) => ({ default: module.TenantsPage }))
 )
@@ -730,16 +726,6 @@ export default function App() {
 
   if (location.pathname === "/login" || location.pathname === "/") {
     return <Navigate to="/home" replace />
-  }
-
-  const usesMistyisletShell = isMistyisletPreviewRoute(location.pathname)
-
-  if (usesMistyisletShell) {
-    return (
-      <Suspense fallback={<RouteFallback />}>
-        <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
-      </Suspense>
-    )
   }
 
   return <AppShell token={token} viewer={viewer} onLogout={logout} />
