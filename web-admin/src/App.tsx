@@ -522,7 +522,8 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           <main className="relative flex-1 px-4 py-5 md:px-6">
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-                <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+                <Route path="/home" element={<Navigate to="/places" replace />} />
+                <Route path="/dashboard" element={<Navigate to="/places" replace />} />
                 <Route
                   path="/tenants"
                   element={
