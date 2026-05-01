@@ -51,6 +51,11 @@ const mistyisletPreviewRoutePrefixes = [
   "/event-history",
   "/reports",
   "/organization",
+  "/analytics",
+  "/network",
+  "/alarm-schedules",
+  "/visitors",
+  "/elevators",
 ]
 
 export type PlaceRouteMatch = {
@@ -88,7 +93,10 @@ export function organizationNavSections(t: TFunction): NavSection[] {
       title: t("kisi.shell.navEventsReports"),
       entries: [
         { label: t("kisi.shell.navEventHistory"), icon: HistoryIcon, to: "/event-history" },
-        { label: t("kisi.shell.navReports"), icon: BarChart3Icon, to: "/reports" },
+        { label: "Analytics", icon: BarChart3Icon, to: "/analytics" },
+        { label: t("kisi.shell.navReports"), icon: FileTextIcon, to: "/reports" },
+        { label: "Network", icon: ServerIcon, to: "/network" },
+        { label: "Alarm Schedules", icon: CalendarClockIcon, to: "/alarm-schedules" },
       ],
     },
     {

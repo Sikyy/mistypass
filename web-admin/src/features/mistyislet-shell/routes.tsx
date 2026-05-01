@@ -66,6 +66,21 @@ const InvitationsAdaptedPage = lazy(() =>
 const UsersAdaptedPage = lazy(() =>
   import("@/features/users/pages/users-page").then((module) => ({ default: module.UsersAdaptedPage }))
 )
+const AnalyticsPage = lazy(() =>
+  import("@/features/analytics/pages/analytics-page").then((module) => ({ default: module.AnalyticsPage }))
+)
+const NetworkTopologyPage = lazy(() =>
+  import("@/features/network/pages/network-topology-page").then((module) => ({ default: module.NetworkTopologyPage }))
+)
+const AlarmSchedulePage = lazy(() =>
+  import("@/features/alarms/pages/alarm-schedule-page").then((module) => ({ default: module.AlarmSchedulePage }))
+)
+const ReportSchedulePage = lazy(() =>
+  import("@/features/reports/pages/report-schedule-page").then((module) => ({ default: module.ReportSchedulePage }))
+)
+const VisitorsPage = lazy(() =>
+  import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
+)
 
 type MistyisletConsoleRoutesProps = {
   homeContent: ReactNode
@@ -189,7 +204,11 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/invitations" element={<InvitationsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/credentials" element={<CredentialsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/event-history" element={<EventHistoryAdaptedPage token={token} viewer={viewer} />} />
-        <Route path="/reports" element={<ReportsAdaptedPage token={token} viewer={viewer} />} />
+        <Route path="/reports" element={<ReportSchedulePage token={token} viewer={viewer} />} />
+        <Route path="/analytics" element={<AnalyticsPage token={token} viewer={viewer} />} />
+        <Route path="/network" element={<NetworkTopologyPage token={token} viewer={viewer} />} />
+        <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
+        <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />
         <Route path="/places/assigned/:section" element={<AssignedPlaceRedirect />} />
