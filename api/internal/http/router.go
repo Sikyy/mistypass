@@ -386,9 +386,15 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	// Attach secret vault for encrypting MFA TOTP secrets at rest.
 	// Derives a separate key from the HRIS vault master key using HKDF domain separation.
 	if masterKey := strings.TrimSpace(cfg.HRISVaultMasterKey); masterKey != "" {
-		mfaVault := secretcrypto.NewVault(masterKey, "mfa-totp-secrets")
+		var mfaVault *secretcrypto.Vault
+		if prevKey := strings.TrimSpace(cfg.HRISVaultMasterKeyPrevious); prevKey != "" {
+			mfaVault = secretcrypto.NewVaultWithRotation(masterKey, "mfa-totp-secrets", prevKey)
+			s.logger.Info("mfa secret vault enabled with key rotation", "versions", mfaVault.KeyVersionCount(), "current", mfaVault.CurrentVersion())
+		} else {
+			mfaVault = secretcrypto.NewVault(masterKey, "mfa-totp-secrets")
+			s.logger.Info("mfa secret vault enabled (AES-256-GCM + HKDF)")
+		}
 		s.authService.SetSecretVault(mfaVault)
-		s.logger.Info("mfa secret vault enabled (AES-256-GCM + HKDF)")
 	}
 	if strings.TrimSpace(cfg.RedisAddr) != "" {
 		redisStore, err := redistore.New(redistore.Options{

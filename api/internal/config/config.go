@@ -109,6 +109,7 @@ type Config struct {
 	EnterpriseHRISPullWorkerAlertFailureThreshold                int
 	EnterpriseHRISPullWorkerLockTTL                              time.Duration
 	HRISVaultMasterKey                                           string
+	HRISVaultMasterKeyPrevious                                   string // for key rotation
 	GatewayEventsBatchForceRetryableError                        bool
 	GatewayEventsBatchForceRetryablePrefix                       string
 	WalletJobProcessDefaultMaxRetry                              int
@@ -273,6 +274,7 @@ func loadEnterpriseConfig(cfg *Config) {
 	loadEnterpriseHRISWebhookDLQConfig(cfg)
 	loadEnterpriseHRISPullConfig(cfg)
 	cfg.HRISVaultMasterKey = envString("HRIS_VAULT_MASTER_KEY")
+	cfg.HRISVaultMasterKeyPrevious = envString("HRIS_VAULT_MASTER_KEY_PREVIOUS")
 }
 
 func loadEnterpriseSyncReconcileConfig(cfg *Config) {

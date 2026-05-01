@@ -182,8 +182,8 @@ type passwordResetToken struct {
 // SecretVault encrypts/decrypts secrets at rest (TOTP secrets, etc.).
 // If nil, secrets are stored in plaintext (backward compat for dev/test).
 type SecretVault interface {
-	Encrypt(plaintext string) (nonce string, ciphertext string, err error)
-	Decrypt(nonce, ciphertext string) (string, error)
+	EncryptVersioned(plaintext string) (string, error)
+	DecryptVersioned(value string) (string, error)
 	IsConfigured() bool
 }
 
@@ -1681,15 +1681,15 @@ func (s *Service) findAdminMFAState(userID string) (adminMFAState, bool, error) 
 		return adminMFAState{}, false, nil
 	}
 
-	// Decrypt secrets if encrypted
+	// Decrypt secrets if encrypted (supports versioned, legacy, and plaintext formats)
 	s.mu.RLock()
 	vault := s.secretVault
 	s.mu.RUnlock()
 	if vault != nil && vault.IsConfigured() {
-		if dec, err := s.decryptMFAField(persisted.Secret); err == nil {
+		if dec, err := vault.DecryptVersioned(persisted.Secret); err == nil {
 			persisted.Secret = dec
 		}
-		if dec, err := s.decryptMFAField(persisted.PendingSecret); err == nil {
+		if dec, err := vault.DecryptVersioned(persisted.PendingSecret); err == nil {
 			persisted.PendingSecret = dec
 		}
 	}
@@ -2039,12 +2039,12 @@ func (s *Service) findAdminMFAStateLocked(userID string) (adminMFAState, bool, e
 		return adminMFAState{}, false, nil
 	}
 
-	// Decrypt secrets if encrypted (prefixed with "enc:")
+	// Decrypt secrets if encrypted (supports versioned, legacy, and plaintext formats)
 	if s.secretVault != nil && s.secretVault.IsConfigured() {
-		if dec, err := s.decryptMFAField(persisted.Secret); err == nil {
+		if dec, err := s.secretVault.DecryptVersioned(persisted.Secret); err == nil {
 			persisted.Secret = dec
 		}
-		if dec, err := s.decryptMFAField(persisted.PendingSecret); err == nil {
+		if dec, err := s.secretVault.DecryptVersioned(persisted.PendingSecret); err == nil {
 			persisted.PendingSecret = dec
 		}
 	}
@@ -2052,23 +2052,6 @@ func (s *Service) findAdminMFAStateLocked(userID string) (adminMFAState, bool, e
 	state = adminMFAStateFromPersistence(persisted)
 	s.adminMFA[nextUserID] = state
 	return state, true, nil
-}
-
-// decryptMFAField decrypts a field that may be encrypted (prefixed "enc:nonce:ciphertext")
-// or plaintext (backward compat). Returns the plaintext value.
-func (s *Service) decryptMFAField(value string) (string, error) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return "", nil
-	}
-	if !strings.HasPrefix(trimmed, "enc:") {
-		return trimmed, nil // plaintext backward compat
-	}
-	parts := strings.SplitN(trimmed, ":", 3)
-	if len(parts) != 3 {
-		return "", fmt.Errorf("invalid encrypted field format")
-	}
-	return s.secretVault.Decrypt(parts[1], parts[2])
 }
 
 func (s *Service) persistAdminMFAStateLocked(userID string, state adminMFAState) error {
@@ -2084,18 +2067,18 @@ func (s *Service) persistAdminMFAStateLocked(userID string, state adminMFAState)
 		// Encrypt secrets before storing to DB
 		if s.secretVault != nil && s.secretVault.IsConfigured() {
 			if persisted.Secret != "" {
-				nonce, ct, err := s.secretVault.Encrypt(persisted.Secret)
+				enc, err := s.secretVault.EncryptVersioned(persisted.Secret)
 				if err != nil {
 					return fmt.Errorf("encrypt mfa secret: %w", err)
 				}
-				persisted.Secret = "enc:" + nonce + ":" + ct
+				persisted.Secret = enc
 			}
 			if persisted.PendingSecret != "" {
-				nonce, ct, err := s.secretVault.Encrypt(persisted.PendingSecret)
+				enc, err := s.secretVault.EncryptVersioned(persisted.PendingSecret)
 				if err != nil {
 					return fmt.Errorf("encrypt mfa pending secret: %w", err)
 				}
-				persisted.PendingSecret = "enc:" + nonce + ":" + ct
+				persisted.PendingSecret = enc
 			}
 		}
 		if err := s.persistence.UpsertAuthAdminMFAState(nextUserID, persisted); err != nil {
