@@ -1477,14 +1477,18 @@ func (s *Service) findUserByEmail(email string) (userRecord, bool, error) {
 		if exists {
 			normalizedUser, ok := normalizeUser(user)
 			if ok {
-				record := userRecord{
-					User:         normalizedUser,
-					PasswordHash: cloneBytes(passwordHash),
+				nextHash := cloneBytes(passwordHash)
+				// Backward compat: users with password hash default to password auth enabled
+				if len(nextHash) > 0 && !normalizedUser.PasswordAuthEnabled {
+					normalizedUser.PasswordAuthEnabled = true
 				}
 				s.mu.Lock()
-				s.cacheUserLocked(normalizedUser, passwordHash)
+				s.cacheUserLocked(normalizedUser, nextHash)
 				s.mu.Unlock()
-				return record, true, nil
+				return userRecord{
+					User:         normalizedUser,
+					PasswordHash: nextHash,
+				}, true, nil
 			}
 		}
 	}
