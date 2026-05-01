@@ -395,6 +395,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			s.logger.Info("mfa secret vault enabled (AES-256-GCM + HKDF)")
 		}
 		s.authService.SetSecretVault(mfaVault)
+
+		// Auto re-encrypt any secrets still on older key versions
+		if reEncrypted, err := s.authService.ReEncryptMFASecrets(); err != nil {
+			s.logger.Error("mfa secret re-encryption failed", "err", err)
+		} else if reEncrypted > 0 {
+			s.logger.Info("mfa secrets re-encrypted to current key version", "count", reEncrypted)
+		}
 	}
 	if strings.TrimSpace(cfg.RedisAddr) != "" {
 		redisStore, err := redistore.New(redistore.Options{

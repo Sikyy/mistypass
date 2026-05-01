@@ -184,6 +184,8 @@ type passwordResetToken struct {
 type SecretVault interface {
 	EncryptVersioned(plaintext string) (string, error)
 	DecryptVersioned(value string) (string, error)
+	ReEncrypt(value string) (string, error)
+	NeedsReEncrypt(value string) bool
 	IsConfigured() bool
 }
 
@@ -317,6 +319,43 @@ func (s *Service) SetSecretVault(vault SecretVault) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.secretVault = vault
+}
+
+// ReEncryptMFASecrets re-encrypts all MFA secrets with the current vault key.
+// Returns the number of secrets that were re-encrypted.
+// This is used after key rotation to migrate old-version ciphertexts to the new key.
+func (s *Service) ReEncryptMFASecrets() (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.secretVault == nil || !s.secretVault.IsConfigured() {
+		return 0, nil
+	}
+	if s.persistence == nil {
+		return 0, nil
+	}
+
+	reEncrypted := 0
+
+	// Re-encrypt all in-memory MFA states and persist
+	for userID, state := range s.adminMFA {
+		changed := false
+		if state.Secret != "" {
+			persisted := adminMFAStateForPersistence(state)
+			// Check if the persisted form needs re-encryption
+			if s.secretVault.NeedsReEncrypt(persisted.Secret) || s.secretVault.NeedsReEncrypt(persisted.PendingSecret) {
+				if err := s.persistAdminMFAStateLocked(userID, state); err != nil {
+					return reEncrypted, fmt.Errorf("re-encrypt mfa for %s: %w", userID, err)
+				}
+				changed = true
+			}
+		}
+		if changed {
+			reEncrypted++
+		}
+	}
+
+	return reEncrypted, nil
 }
 
 func (s *Service) SetAdminMFARequired(required bool) {
