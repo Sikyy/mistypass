@@ -144,17 +144,17 @@
 
 | 序号 | 事项 | 理由 | 预估 | 状态 |
 |---:|---|---|---|---|
-| 13 | **Cameras / Video Surveillance** | 视频监控集成 | 5+ 天 | 待做 |
-| 14 | **Organization Transfers / Certificate Rotation** | 多租户运营 | 3 天 | 待做 |
+| 13 | ~~Cameras / Video Surveillance~~ | ~~视频监控桩端点~~ | ~~1 天~~ | done（桩，待硬件集成） |
+| 14 | ~~Organization Transfers / Certificate Rotation~~ | ~~多租户运营~~ | ~~3 天~~ | done |
 | 15 | ~~Signed Upload URLs~~ | ~~文件上传~~ | ~~1 天~~ | done |
 | 16 | ~~CSV Card Imports 独立资源~~ | ~~对齐 Kisi API~~ | ~~1 天~~ | done |
 | 17 | ~~Login Session 管理~~ | ~~活跃会话~~ | ~~2 天~~ | done |
 | 18 | ~~Password Reset~~ | ~~自助密码重置~~ | ~~2 天~~ | done |
-| 19 | **Apple Pass 真实签名** | 替换 mock PKCS#7 | 3 天 | 待做 |
-| 20 | **Google Wallet 真实 API** | 替换 mock JWT | 2 天 | 待做 |
-| 21 | **Alert Policy 渠道升级 + DB 持久化** | 通知链路完善 | 3-4 天 | 待做 |
-| 22 | **Company / Place Analytics 报告** | 图表分析报告 | 3 天 | 待做 |
-| 23 | **Alarm Schedule 周历视图** | 告警排程周历 | 2 天 | 待做 |
+| 19 | **Apple Pass 真实签名** | 替换 mock PKCS#7 | 3 天 | 待做（需 Apple Developer 账号） |
+| 20 | **Google Wallet 真实 API** | 替换 mock JWT | 2 天 | 待做（需 GCP Service Account） |
+| 21 | ~~Alert Policy 渠道升级 + DB 持久化~~ | ~~通知链路完善~~ | ~~3-4 天~~ | done |
+| 22 | ~~Company / Place Analytics 报告~~ | ~~图表分析报告~~ | ~~3 天~~ | done |
+| 23 | ~~Alarm Schedule 周历视图~~ | ~~告警排程周历~~ | ~~2 天~~ | done |
 
 ### MVP M5 — 硬件对接准备（剩余 2 项）
 
