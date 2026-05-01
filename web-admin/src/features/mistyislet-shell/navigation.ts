@@ -56,6 +56,18 @@ const mistyisletPreviewRoutePrefixes = [
   "/alarm-schedules",
   "/visitors",
   "/elevators",
+  "/tenants",
+  "/enterprise",
+  "/spaces",
+  "/access",
+  "/access-links",
+  "/access-link",
+  "/wallet",
+  "/gateways",
+  "/events",
+  "/alarms",
+  "/audit",
+  "/dashboard",
 ]
 
 export type PlaceRouteMatch = {
