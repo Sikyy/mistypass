@@ -15,7 +15,11 @@ func (s *server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := s.authService.Login(request)
+	response, err := s.authService.Login(request, auth.SessionMetadata{
+		IPAddress:   r.RemoteAddr,
+		UserAgent:   r.UserAgent(),
+		LoginMethod: "password",
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrPasswordAuthDisabled):

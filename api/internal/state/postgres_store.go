@@ -507,6 +507,81 @@ where user_id = $1`,
 	return state, true, nil
 }
 
+func (s *PostgresStore) UpsertWebAuthnCredential(cred auth.WebAuthnCredential) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	if strings.TrimSpace(cred.ID) == "" || strings.TrimSpace(cred.UserID) == "" {
+		return errors.New("webauthn credential id and user_id are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	_, err := s.db.ExecContext(
+		ctx,
+		`insert into mistypass_auth_webauthn_credentials (id, user_id, public_key, attestation_type, aaguid, sign_count, display_name, created_at, updated_at)
+values ($1, $2, $3, $4, $5, $6, $7, $8, now())
+on conflict (id) do update
+set sign_count = excluded.sign_count,
+    display_name = excluded.display_name,
+    updated_at = now()`,
+		cred.ID, cred.UserID, cred.PublicKey, cred.AttestationType, cred.AAGUID, cred.SignCount, cred.DisplayName, cred.CreatedAt.UTC(),
+	)
+	return err
+}
+
+func (s *PostgresStore) FindWebAuthnCredentialsByUserID(userID string) ([]auth.WebAuthnCredential, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(
+		ctx,
+		`select id, user_id, public_key, attestation_type, aaguid, sign_count, display_name, created_at
+from mistypass_auth_webauthn_credentials
+where user_id = $1
+order by created_at asc`,
+		nextUserID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var creds []auth.WebAuthnCredential
+	for rows.Next() {
+		var c auth.WebAuthnCredential
+		if err := rows.Scan(&c.ID, &c.UserID, &c.PublicKey, &c.AttestationType, &c.AAGUID, &c.SignCount, &c.DisplayName, &c.CreatedAt); err != nil {
+			return nil, err
+		}
+		c.CreatedAt = c.CreatedAt.UTC()
+		creds = append(creds, c)
+	}
+	return creds, rows.Err()
+}
+
+func (s *PostgresStore) DeleteWebAuthnCredential(credentialID string) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextID := strings.TrimSpace(credentialID)
+	if nextID == "" {
+		return errors.New("webauthn credential id is required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	_, err := s.db.ExecContext(ctx, `delete from mistypass_auth_webauthn_credentials where id = $1`, nextID)
+	return err
+}
+
 func (s *PostgresStore) UpsertGatewayDeviceToken(gatewayID, deviceToken string) error {
 	if s == nil || s.db == nil {
 		return errors.New("postgres store is not initialized")
@@ -880,6 +955,19 @@ create table if not exists mistypass_auth_admin_mfa_states (
   updated_at timestamptz not null default now()
 );
 create index if not exists mistypass_auth_admin_mfa_states_updated_idx on mistypass_auth_admin_mfa_states(updated_at desc);
+
+create table if not exists mistypass_auth_webauthn_credentials (
+  id text primary key,
+  user_id text not null,
+  public_key bytea not null,
+  attestation_type text not null default 'none',
+  aaguid text not null default '',
+  sign_count int not null default 0,
+  display_name text not null default 'Passkey',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_auth_webauthn_credentials_user_idx on mistypass_auth_webauthn_credentials(user_id);
 
 create table if not exists mistypass_enterprise_domain_mappings (
   id text primary key,
@@ -1524,6 +1612,9 @@ func jsonPayloadEqual(left, right []byte) (bool, error) {
 	return reflect.DeepEqual(leftValue, rightValue), nil
 }
 
+// deleteProjectionRowsNotInIDs deletes rows not in the given ID set.
+// SAFETY: table name is validated against allowedProjectionDeleteTables (fixed set of known table names)
+// before being interpolated into SQL. This is safe from SQL injection.
 func deleteProjectionRowsNotInIDs(ctx context.Context, tx *sql.Tx, table string, ids []string) error {
 	if _, allowed := allowedProjectionDeleteTables[table]; !allowed {
 		return fmt.Errorf("%w: %s", ErrInvalidProjectionTable, table)

@@ -417,6 +417,86 @@ type VisitorPass struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+type Elevator struct {
+	ID          string    `json:"id"`
+	TenantID    string    `json:"tenant_id"`
+	PlaceID     string    `json:"place_id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	StopsCount  int       `json:"elevator_stops_count"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type ElevatorStop struct {
+	ID         string    `json:"id"`
+	TenantID   string    `json:"tenant_id"`
+	ElevatorID string    `json:"elevator_id"`
+	FloorID    string    `json:"floor_id,omitempty"`
+	Name       string    `json:"name"`
+	Status     string    `json:"status"` // "active", "locked_down"
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type GroupElevatorStop struct {
+	ID             string    `json:"id"`
+	TenantID       string    `json:"tenant_id"`
+	GroupID        string    `json:"group_id"`
+	ElevatorStopID string    `json:"elevator_stop_id"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type GroupTerminal struct {
+	ID         string    `json:"id"`
+	TenantID   string    `json:"tenant_id"`
+	GroupID    string    `json:"group_id"`
+	TerminalID string    `json:"terminal_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type Presence struct {
+	ID         string    `json:"id"`
+	TenantID   string    `json:"tenant_id"`
+	PlaceID    string    `json:"place_id"`
+	UserID     string    `json:"user_id"`
+	UserName   string    `json:"user_name,omitempty"`
+	UserEmail  string    `json:"user_email,omitempty"`
+	EnteredAt  time.Time `json:"entered_at"`
+	ExitedAt   string    `json:"exited_at,omitempty"`
+}
+
+type CSVCardImport struct {
+	ID         string    `json:"id"`
+	TenantID   string    `json:"tenant_id"`
+	FileName   string    `json:"file_name"`
+	Status     string    `json:"status"` // "pending", "processing", "completed", "failed"
+	TotalRows  int       `json:"total_rows"`
+	Imported   int       `json:"imported"`
+	Failed     int       `json:"failed"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type Guest struct {
+	ID           string    `json:"id"`
+	TenantID     string    `json:"tenant_id"`
+	BuildingID   string    `json:"building_id,omitempty"`
+	Name         string    `json:"name"`
+	Email        string    `json:"email,omitempty"`
+	Phone        string    `json:"phone,omitempty"`
+	Company      string    `json:"company,omitempty"`
+	Purpose      string    `json:"purpose,omitempty"`
+	HostName     string    `json:"host_name"`
+	HostEmail    string    `json:"host_email,omitempty"`
+	Status       string    `json:"status"` // "expected", "checked_in", "checked_out", "cancelled"
+	CheckedInAt  string    `json:"checked_in_at,omitempty"`
+	CheckedOutAt string    `json:"checked_out_at,omitempty"`
+	ExpectedAt   string    `json:"expected_at,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type StateStore interface {
 	Load(key string, dst any) (bool, error)
 	Save(key string, value any) error
@@ -431,6 +511,7 @@ type stateSnapshot struct {
 	Policies                 []Policy                 `json:"policies"`
 	TemporaryAccess          []TemporaryAccess        `json:"temporary_access"`
 	VisitorPasses            []VisitorPass            `json:"visitor_passes"`
+	Guests                   []Guest                  `json:"guests,omitempty"`
 	RoleAssignments          []RoleAssignment         `json:"role_assignments"`
 	Teams                    []Team                   `json:"teams"`
 	TeamMemberships          []TeamMembership         `json:"team_memberships"`
@@ -466,6 +547,7 @@ type OrganizationSettings struct {
 	PushNotifications     bool      `json:"push_notifications"`
 	WeeklyReports         bool      `json:"weekly_reports"`
 	EnforceMFA            bool      `json:"enforce_mfa"`
+	WebAuthnEnabled       bool      `json:"webauthn_enabled"`
 	PasswordPolicy        string    `json:"password_policy"`
 	SessionTimeoutMinutes int       `json:"session_timeout_minutes"`
 	UpdatedAt             time.Time `json:"updated_at"`
@@ -479,6 +561,13 @@ type Service struct {
 	policies                 []Policy
 	temporaryAccess          []TemporaryAccess
 	visitorPasses            []VisitorPass
+	guests                   []Guest
+	elevators                []Elevator
+	elevatorStops            []ElevatorStop
+	groupElevatorStops       []GroupElevatorStop
+	groupTerminals           []GroupTerminal
+	presences                []Presence
+	csvCardImports           []CSVCardImport
 	roleAssignments          []RoleAssignment
 	teams                    []Team
 	teamMemberships          []TeamMembership
@@ -3409,6 +3498,399 @@ func (s *Service) CreateVisitorPass(tenantID, buildingID, host, visitor, deliver
 	return record, nil
 }
 
+// --- Guest CRUD ---
+
+var ErrGuestNotFound = errors.New("guest not found")
+var ErrGuestNameRequired = errors.New("guest name is required")
+var ErrGuestHostRequired = errors.New("guest host name is required")
+var ErrGuestStatusInvalid = errors.New("guest status must be expected, checked_in, checked_out, or cancelled")
+
+func (s *Service) ListGuests(tenantID string) []Guest {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	filterTenantID := strings.TrimSpace(tenantID)
+	items := make([]Guest, 0, len(s.guests))
+	for i := range s.guests {
+		if filterTenantID != "" && s.guests[i].TenantID != filterTenantID {
+			continue
+		}
+		items = append(items, s.guests[i])
+	}
+	return items
+}
+
+func (s *Service) GetGuest(tenantID, guestID string) (Guest, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	nextID := strings.TrimSpace(guestID)
+	for i := range s.guests {
+		if s.guests[i].ID == nextID && (tenantID == "" || s.guests[i].TenantID == tenantID) {
+			return s.guests[i], nil
+		}
+	}
+	return Guest{}, ErrGuestNotFound
+}
+
+func (s *Service) CreateGuest(
+	tenantID, buildingID, name, email, phone, company, purpose, hostName, hostEmail, expectedAt string,
+) (Guest, error) {
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		return Guest{}, ErrTenantIDRequired
+	}
+	nextName := strings.TrimSpace(name)
+	if nextName == "" {
+		return Guest{}, ErrGuestNameRequired
+	}
+	nextHostName := strings.TrimSpace(hostName)
+	if nextHostName == "" {
+		return Guest{}, ErrGuestHostRequired
+	}
+
+	id, err := accessID("gst_")
+	if err != nil {
+		return Guest{}, err
+	}
+	now := time.Now().UTC()
+	record := Guest{
+		ID:         id,
+		TenantID:   nextTenantID,
+		BuildingID: strings.TrimSpace(buildingID),
+		Name:       nextName,
+		Email:      strings.TrimSpace(email),
+		Phone:      strings.TrimSpace(phone),
+		Company:    strings.TrimSpace(company),
+		Purpose:    strings.TrimSpace(purpose),
+		HostName:   nextHostName,
+		HostEmail:  strings.TrimSpace(hostEmail),
+		Status:     "expected",
+		ExpectedAt: strings.TrimSpace(expectedAt),
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+
+	s.mu.Lock()
+	s.guests = append([]Guest{record}, s.guests...)
+	if err := s.persistLocked(); err != nil {
+		s.mu.Unlock()
+		return Guest{}, err
+	}
+	s.mu.Unlock()
+	return record, nil
+}
+
+func (s *Service) UpdateGuestStatus(tenantID, guestID, status string) (Guest, error) {
+	nextID := strings.TrimSpace(guestID)
+	nextStatus := strings.ToLower(strings.TrimSpace(status))
+	switch nextStatus {
+	case "expected", "checked_in", "checked_out", "cancelled":
+	default:
+		return Guest{}, ErrGuestStatusInvalid
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	for i := range s.guests {
+		if s.guests[i].ID == nextID && (tenantID == "" || s.guests[i].TenantID == tenantID) {
+			s.guests[i].Status = nextStatus
+			s.guests[i].UpdatedAt = now
+			if nextStatus == "checked_in" && s.guests[i].CheckedInAt == "" {
+				s.guests[i].CheckedInAt = now.Format(time.RFC3339)
+			}
+			if nextStatus == "checked_out" && s.guests[i].CheckedOutAt == "" {
+				s.guests[i].CheckedOutAt = now.Format(time.RFC3339)
+			}
+			if err := s.persistLocked(); err != nil {
+				return Guest{}, err
+			}
+			return s.guests[i], nil
+		}
+	}
+	return Guest{}, ErrGuestNotFound
+}
+
+func (s *Service) DeleteGuest(tenantID, guestID string) error {
+	nextID := strings.TrimSpace(guestID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.guests {
+		if s.guests[i].ID == nextID && (tenantID == "" || s.guests[i].TenantID == tenantID) {
+			s.guests = append(s.guests[:i], s.guests[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return ErrGuestNotFound
+}
+
+// --- Elevators CRUD ---
+
+var ErrElevatorNotFound = errors.New("elevator not found")
+
+func (s *Service) ListElevators(tenantID string) []Elevator {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]Elevator, 0)
+	for _, e := range s.elevators {
+		if tenantID != "" && e.TenantID != tenantID { continue }
+		items = append(items, e)
+	}
+	return items
+}
+
+func (s *Service) GetElevator(tenantID, id string) (Elevator, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, e := range s.elevators {
+		if e.ID == id && (tenantID == "" || e.TenantID == tenantID) { return e, nil }
+	}
+	return Elevator{}, ErrElevatorNotFound
+}
+
+func (s *Service) CreateElevator(tenantID, placeID, name, description string) (Elevator, error) {
+	if strings.TrimSpace(name) == "" { return Elevator{}, errors.New("elevator name is required") }
+	id, err := accessID("elv_")
+	if err != nil { return Elevator{}, err }
+	now := time.Now().UTC()
+	e := Elevator{ID: id, TenantID: tenantID, PlaceID: placeID, Name: strings.TrimSpace(name), Description: strings.TrimSpace(description), CreatedAt: now, UpdatedAt: now}
+	s.mu.Lock()
+	s.elevators = append([]Elevator{e}, s.elevators...)
+	_ = s.persistLocked()
+	s.mu.Unlock()
+	return e, nil
+}
+
+func (s *Service) UpdateElevator(tenantID, id string, name, description *string) (Elevator, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.elevators {
+		if s.elevators[i].ID == id && (tenantID == "" || s.elevators[i].TenantID == tenantID) {
+			if name != nil { s.elevators[i].Name = strings.TrimSpace(*name) }
+			if description != nil { s.elevators[i].Description = strings.TrimSpace(*description) }
+			s.elevators[i].UpdatedAt = time.Now().UTC()
+			_ = s.persistLocked()
+			return s.elevators[i], nil
+		}
+	}
+	return Elevator{}, ErrElevatorNotFound
+}
+
+func (s *Service) DeleteElevator(tenantID, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.elevators {
+		if s.elevators[i].ID == id && (tenantID == "" || s.elevators[i].TenantID == tenantID) {
+			s.elevators = append(s.elevators[:i], s.elevators[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return ErrElevatorNotFound
+}
+
+// --- Elevator Stops CRUD ---
+
+var ErrElevatorStopNotFound = errors.New("elevator stop not found")
+
+func (s *Service) ListElevatorStops(tenantID, elevatorID string) []ElevatorStop {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]ElevatorStop, 0)
+	for _, e := range s.elevatorStops {
+		if tenantID != "" && e.TenantID != tenantID { continue }
+		if elevatorID != "" && e.ElevatorID != elevatorID { continue }
+		items = append(items, e)
+	}
+	return items
+}
+
+func (s *Service) GetElevatorStop(tenantID, id string) (ElevatorStop, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, e := range s.elevatorStops {
+		if e.ID == id && (tenantID == "" || e.TenantID == tenantID) { return e, nil }
+	}
+	return ElevatorStop{}, ErrElevatorStopNotFound
+}
+
+func (s *Service) CreateElevatorStop(tenantID, elevatorID, floorID, name string) (ElevatorStop, error) {
+	if strings.TrimSpace(name) == "" { return ElevatorStop{}, errors.New("elevator stop name is required") }
+	id, err := accessID("els_")
+	if err != nil { return ElevatorStop{}, err }
+	now := time.Now().UTC()
+	e := ElevatorStop{ID: id, TenantID: tenantID, ElevatorID: elevatorID, FloorID: floorID, Name: strings.TrimSpace(name), Status: "active", CreatedAt: now, UpdatedAt: now}
+	s.mu.Lock()
+	s.elevatorStops = append([]ElevatorStop{e}, s.elevatorStops...)
+	_ = s.persistLocked()
+	s.mu.Unlock()
+	return e, nil
+}
+
+func (s *Service) UpdateElevatorStop(tenantID, id string, name *string) (ElevatorStop, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.elevatorStops {
+		if s.elevatorStops[i].ID == id && (tenantID == "" || s.elevatorStops[i].TenantID == tenantID) {
+			if name != nil { s.elevatorStops[i].Name = strings.TrimSpace(*name) }
+			s.elevatorStops[i].UpdatedAt = time.Now().UTC()
+			_ = s.persistLocked()
+			return s.elevatorStops[i], nil
+		}
+	}
+	return ElevatorStop{}, ErrElevatorStopNotFound
+}
+
+func (s *Service) DeleteElevatorStop(tenantID, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.elevatorStops {
+		if s.elevatorStops[i].ID == id && (tenantID == "" || s.elevatorStops[i].TenantID == tenantID) {
+			s.elevatorStops = append(s.elevatorStops[:i], s.elevatorStops[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return ErrElevatorStopNotFound
+}
+
+func (s *Service) SetElevatorStopStatus(tenantID, id, status string) (ElevatorStop, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.elevatorStops {
+		if s.elevatorStops[i].ID == id && (tenantID == "" || s.elevatorStops[i].TenantID == tenantID) {
+			s.elevatorStops[i].Status = status
+			s.elevatorStops[i].UpdatedAt = time.Now().UTC()
+			_ = s.persistLocked()
+			return s.elevatorStops[i], nil
+		}
+	}
+	return ElevatorStop{}, ErrElevatorStopNotFound
+}
+
+// --- Group Elevator Stops ---
+
+func (s *Service) ListGroupElevatorStops(tenantID, groupID string) []GroupElevatorStop {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]GroupElevatorStop, 0)
+	for _, e := range s.groupElevatorStops {
+		if tenantID != "" && e.TenantID != tenantID { continue }
+		if groupID != "" && e.GroupID != groupID { continue }
+		items = append(items, e)
+	}
+	return items
+}
+
+func (s *Service) CreateGroupElevatorStop(tenantID, groupID, elevatorStopID string) (GroupElevatorStop, error) {
+	id, err := accessID("ges_")
+	if err != nil { return GroupElevatorStop{}, err }
+	e := GroupElevatorStop{ID: id, TenantID: tenantID, GroupID: groupID, ElevatorStopID: elevatorStopID, CreatedAt: time.Now().UTC()}
+	s.mu.Lock()
+	s.groupElevatorStops = append([]GroupElevatorStop{e}, s.groupElevatorStops...)
+	_ = s.persistLocked()
+	s.mu.Unlock()
+	return e, nil
+}
+
+func (s *Service) DeleteGroupElevatorStop(tenantID, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.groupElevatorStops {
+		if s.groupElevatorStops[i].ID == id && (tenantID == "" || s.groupElevatorStops[i].TenantID == tenantID) {
+			s.groupElevatorStops = append(s.groupElevatorStops[:i], s.groupElevatorStops[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return errors.New("group elevator stop not found")
+}
+
+// --- Group Terminals ---
+
+func (s *Service) ListGroupTerminals(tenantID, groupID string) []GroupTerminal {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]GroupTerminal, 0)
+	for _, e := range s.groupTerminals {
+		if tenantID != "" && e.TenantID != tenantID { continue }
+		if groupID != "" && e.GroupID != groupID { continue }
+		items = append(items, e)
+	}
+	return items
+}
+
+func (s *Service) CreateGroupTerminal(tenantID, groupID, terminalID string) (GroupTerminal, error) {
+	id, err := accessID("gt_")
+	if err != nil { return GroupTerminal{}, err }
+	e := GroupTerminal{ID: id, TenantID: tenantID, GroupID: groupID, TerminalID: terminalID, CreatedAt: time.Now().UTC()}
+	s.mu.Lock()
+	s.groupTerminals = append([]GroupTerminal{e}, s.groupTerminals...)
+	_ = s.persistLocked()
+	s.mu.Unlock()
+	return e, nil
+}
+
+func (s *Service) DeleteGroupTerminal(tenantID, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.groupTerminals {
+		if s.groupTerminals[i].ID == id && (tenantID == "" || s.groupTerminals[i].TenantID == tenantID) {
+			s.groupTerminals = append(s.groupTerminals[:i], s.groupTerminals[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return errors.New("group terminal not found")
+}
+
+// --- Presences ---
+
+func (s *Service) ListPresences(tenantID, placeID string) []Presence {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]Presence, 0)
+	for _, p := range s.presences {
+		if tenantID != "" && p.TenantID != tenantID { continue }
+		if placeID != "" && p.PlaceID != placeID { continue }
+		if p.ExitedAt == "" { items = append(items, p) } // only current presences
+	}
+	return items
+}
+
+// --- CSV Card Imports ---
+
+func (s *Service) ListCSVCardImports(tenantID string) []CSVCardImport {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	items := make([]CSVCardImport, 0)
+	for _, c := range s.csvCardImports {
+		if tenantID != "" && c.TenantID != tenantID { continue }
+		items = append(items, c)
+	}
+	return items
+}
+
+func (s *Service) CreateCSVCardImport(tenantID, fileName string) (CSVCardImport, error) {
+	if strings.TrimSpace(fileName) == "" { return CSVCardImport{}, errors.New("file_name is required") }
+	id, err := accessID("cci_")
+	if err != nil { return CSVCardImport{}, err }
+	now := time.Now().UTC()
+	c := CSVCardImport{ID: id, TenantID: tenantID, FileName: strings.TrimSpace(fileName), Status: "pending", CreatedAt: now, UpdatedAt: now}
+	s.mu.Lock()
+	s.csvCardImports = append([]CSVCardImport{c}, s.csvCardImports...)
+	_ = s.persistLocked()
+	s.mu.Unlock()
+	return c, nil
+}
+
+func (s *Service) GetCSVCardImport(tenantID, id string) (CSVCardImport, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, c := range s.csvCardImports {
+		if c.ID == id && (tenantID == "" || c.TenantID == tenantID) { return c, nil }
+	}
+	return CSVCardImport{}, errors.New("csv card import not found")
+}
+
 func (s *Service) restoreFromStateStore() error {
 	if s.stateStore == nil {
 		return nil
@@ -3441,6 +3923,7 @@ func (s *Service) restoreFromStateStore() error {
 	s.policies = clonePolicies(snapshot.Policies)
 	s.temporaryAccess = cloneTemporaryAccess(snapshot.TemporaryAccess)
 	s.visitorPasses = cloneVisitorPasses(snapshot.VisitorPasses)
+	s.guests = cloneGuests(snapshot.Guests)
 	if len(snapshot.RoleAssignments) > 0 {
 		s.roleAssignments = cloneRoleAssignments(snapshot.RoleAssignments)
 	}
@@ -3468,6 +3951,7 @@ func (s *Service) persistLocked() error {
 		Policies:                 clonePolicies(s.policies),
 		TemporaryAccess:          cloneTemporaryAccess(s.temporaryAccess),
 		VisitorPasses:            cloneVisitorPasses(s.visitorPasses),
+		Guests:                   cloneGuests(s.guests),
 		RoleAssignments:          cloneRoleAssignments(s.roleAssignments),
 		Teams:                    cloneTeams(s.teams),
 		TeamMemberships:          cloneTeamMemberships(s.teamMemberships),
@@ -3554,6 +4038,14 @@ func cloneTemporaryAccess(items []TemporaryAccess) []TemporaryAccess {
 
 func cloneVisitorPasses(items []VisitorPass) []VisitorPass {
 	output := make([]VisitorPass, 0, len(items))
+	for i := range items {
+		output = append(output, items[i])
+	}
+	return output
+}
+
+func cloneGuests(items []Guest) []Guest {
+	output := make([]Guest, 0, len(items))
 	for i := range items {
 		output = append(output, items[i])
 	}
@@ -4326,7 +4818,7 @@ func (s *Service) GetOrganizationSettings(tenantID string) OrganizationSettings 
 func (s *Service) UpdateOrganizationSettings(
 	tenantID string,
 	name, primaryDomain, timezone, supportEmail *string,
-	emailNotifications, pushNotifications, weeklyReports, enforceMFA *bool,
+	emailNotifications, pushNotifications, weeklyReports, enforceMFA, webAuthnEnabled *bool,
 	passwordPolicy *string,
 	sessionTimeoutMinutes *int,
 ) (OrganizationSettings, error) {
@@ -4366,6 +4858,9 @@ func (s *Service) UpdateOrganizationSettings(
 	}
 	if enforceMFA != nil {
 		settings.EnforceMFA = *enforceMFA
+	}
+	if webAuthnEnabled != nil {
+		settings.WebAuthnEnabled = *webAuthnEnabled
 	}
 	if passwordPolicy != nil {
 		p := strings.TrimSpace(*passwordPolicy)

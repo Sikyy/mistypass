@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   EyeIcon,
   PlusIcon,
+  FileUpIcon,
   RotateCcwIcon,
   RotateCwIcon,
   SendIcon,
@@ -57,6 +58,7 @@ import {
   type WalletPhysicalCardInventoryItem,
   type WalletPhysicalCardTask,
   type WalletPhysicalCardVendor,
+  createCSVCardImport,
   updateWalletPhysicalCardInventoryStatus,
   updateWalletPhysicalCardTaskStatus,
 } from "@/lib/api"
@@ -921,6 +923,19 @@ export function CredentialsAdaptedPage({
         >
           <PlusIcon className="mr-1.5 size-4" />
           Issue Credential
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            createCSVCardImport(token, { tenant_id: tenantID, file_name: `card-import-${Date.now()}.csv` })
+              .then(() => setActionNotice("CSV card import created."))
+              .catch((err) => setActionError(err instanceof Error ? err.message : "Import failed"))
+          }}
+          className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+        >
+          <FileUpIcon className="mr-1.5 size-4" />
+          Import CSV
         </Button>
       }
     >

@@ -39,6 +39,9 @@ const HardwareAdaptedPage = lazy(() =>
 const PlaceDashboardAdaptedPage = lazy(() =>
   import("@/features/places/pages/place-dashboard-page").then((module) => ({ default: module.PlaceDashboardAdaptedPage }))
 )
+const ElevatorsAdaptedPage = lazy(() =>
+  import("@/features/elevators/pages/elevators-page").then((module) => ({ default: module.ElevatorsAdaptedPage }))
+)
 const PlacesAdaptedPage = lazy(() =>
   import("@/features/places/pages/places-list-page").then((module) => ({ default: module.PlacesAdaptedPage }))
 )
@@ -141,6 +144,9 @@ function PlaceRoute({ section, token, viewer }: PlaceResourcePageProps) {
   }
   if (placeSection === "analytics") {
     return <ReportsAdaptedPage token={token} viewer={viewer} placeID={placeId} placeScoped />
+  }
+  if (placeSection === "elevators") {
+    return <ElevatorsAdaptedPage token={token} viewer={viewer} placeID={placeId} />
   }
   if (placeSection === "hardware") {
     return <HardwareAdaptedPage token={token} viewer={viewer} placeID={placeId} />

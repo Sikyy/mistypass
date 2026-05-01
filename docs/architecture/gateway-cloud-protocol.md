@@ -1,380 +1,574 @@
-# Gateway ↔ Cloud 通信协议规范
+# MistyPass Gateway Communication Protocol
 
-> 版本：1.0
-> 更新日期：2026-04-30
-> 状态：MVP 初版，随硬件联调持续修订
-
----
-
-## 0. Kisi 方案 vs NATS：选型对比
-
-### Kisi 的方案
-
-Kisi Controller Pro 使用 **Electric Imp 平台的 TLS 持久连接**（非 HTTPS polling，非 MQTT）：
-
-- Controller 通过 **TLS 1.2 持久连接**到 Kisi Cloud（基于 Electric Imp 私有二进制协议）
-- **端口 fallback**：TCP 31314（主）→ TCP 993（IMAP 端口，通常开放）→ TCP 443（HTTPS）
-- 使用 **TLS mutual auth + ephemeral key exchange + PKI 链验证**
-- **仅出站**：Controller 主动连 Cloud，不需要入站端口
-- **本地通信**：Controller ↔ Reader 通过 **AES 加密 UDP**（端口 62435）
-- **离线能力**：Controller 本地缓存策略，per-device AES-GCM-AEAD 密钥
-- **远程开门**：通过持久 TLS 连接即时推送（毫秒级，不是 polling）
-- **OTA**：RSA 签名（HSM 密钥）+ AES 加密，端口 443/80
-
-### 对比表
-
-| 维度 | Kisi (TLS 持久连接) | NATS | MQTT |
-|---|---|---|---|
-| **延迟** | 低（TLS 持久连接，毫秒级） | 极低（毫秒级） | 低（毫秒级） |
-| **远程开门实时性** | 好（持久连接即时推送） | 好（即时推送） | 好（即时推送） |
-| **防火墙穿透** | **最好**（31314→993→443 fallback） | 中（需开 4222 或走 WebSocket） | 好（8883→993→443 fallback 可行） |
-| **离线容忍** | 好（本地判定不依赖云） | 好（断开重连自动恢复） | 好（QoS 1/2 + retained message） |
-| **运维复杂度** | 低（无额外组件） | 中（需部署 NATS server） | 中（需部署 MQTT broker） |
-| **设备端实现** | 高（私有协议，绑定 Electric Imp 平台） | 中（需 NATS client 库） | 简单（大量嵌入式 MQTT 库） |
-| **消息可靠性** | 高（平台内建） | 高（JetStream 持久化） | 高（QoS 2 + 持久会话） |
-| **适合场景** | Kisi 自有设备 | 内部系统、低延迟需求 | IoT 设备、嵌入式硬件 |
-| **开放性** | **封闭**（绑定 Electric Imp） | 开放 | **最开放** |
-
-### 结论和建议
-
-**学 Kisi 的安全模型（mTLS + per-device cert），不学它的私有传输协议（Electric Imp 绑定）。**
-
-生产架构：**443-only + mTLS**，用开放标准达到同等安全和实时性。
-
-```
-┌──────────────────────────────────────────────────┐
-│              Mistyislet Cloud :443                 │
-│                                                    │
-│  ┌──────────────────┐  ┌───────────────────────┐ │
-│  │ HTTPS + mTLS     │  │ WSS (MQTT) + mTLS     │ │
-│  │ 注册/配置/事件/OTA│  │ 实时命令/状态推送      │ │
-│  └────────┬─────────┘  └──────────┬────────────┘ │
-│           │           内部         │              │
-│           └──────── NATS ─────────┘              │
-│                    :4222                          │
-└──────────────────────────────────────────────────┘
-                        │
-                   全部 :443 出站
-                   per-device client cert
-                        │
-              ┌─────────┴─────────┐
-              │     Gateway       │
-              │  mTLS 设备证书    │
-              │  本地 access rule  │
-              └───────────────────┘
-```
-
-- **HTTPS :443 + mTLS**：设备注册、拉配置、事件上报、OTA、证书轮换
-- **WSS :443 + mTLS**：实时远程开门、lockdown、在线状态（MQTT over WebSocket 作为实现）
-- **NATS :4222**：Cloud 内部总线 + 开发调试用 Gateway Simulator
-- **443-only**：任何网络都开放 443，不需要客户 IT 配合开端口
-
-**当前 MVP 阶段用 NATS 开发调试是正确的。** 生产部署时 Gateway 走 HTTPS/WSS :443 + mTLS。
+> Protocol reference for communication between the MistyPass cloud API and gateway devices.
+>
+> Version: 1.0 | Last updated: 2026-04-30
 
 ---
 
-## 1. 设计原则
+## Table of Contents
 
-1. **本地判定优先**：门禁放行判定在 Gateway 本地完成，不依赖 Cloud 实时 round-trip
-2. **异步 + 幂等**：策略下发和事件回传允许短暂延迟，通过幂等键防重复
-3. **版本化策略**：配置和 access rule 通过版本号管理，Gateway 只接受更新的版本
-4. **HTTPS 是强制基础通道**：所有 Gateway 都必须支持 HTTPS :443 pull/push
-5. **WSS 是可选实时增强**：需要远程开门实时性时加上 WSS :443
-6. **NATS 仅限云内部**：不暴露给现场 Gateway
-7. **mTLS per-device cert**：学 Kisi 安全模型，每台设备独立证书
-
----
-
-## 2. NATS 主题设计
-
-### 2.1 命名规则
-
-```
-{prefix}.gateway.{gateway_id}.{message_type}
-```
-
-- `prefix`：默认 `mistypass`，可通过 `NATS_SUBJECT_PREFIX` 配置
-- `gateway_id`：Gateway 设备 ID（如 `gw_demo_001`）
-- `message_type`：消息类型
-
-### 2.2 主题清单
-
-| 主题 | 方向 | 说明 |
-|---|---|---|
-| `mistypass.gateway.{id}.command` | Cloud → Gateway | 远程命令（unlock/lockdown/cancel） |
-| `mistypass.gateway.{id}.event` | Gateway → Cloud | 事件回报（command_ack/access/heartbeat） |
-| `mistypass.gateway.{id}.config` | Cloud → Gateway | 配置推送（access rules/策略包） |
-| `mistypass.gateway.{id}.verify` | Gateway → Cloud | 凭证验证请求（在线验证模式） |
-| `mistypass.gateway.{id}.verify_result` | Cloud → Gateway | 凭证验证结果 |
+1. [Overview](#overview)
+2. [Authentication](#authentication)
+3. [Bootstrap Flow](#bootstrap-flow)
+4. [Configuration Sync](#configuration-sync)
+5. [Credential Verification](#credential-verification)
+6. [Event Reporting](#event-reporting)
+7. [NATS Real-Time Messaging](#nats-real-time-messaging)
+8. [OTA Firmware Updates](#ota-firmware-updates)
+9. [Offline Operation](#offline-operation)
+10. [Sequence Diagrams](#sequence-diagrams)
 
 ---
 
-## 3. 消息格式
+## Overview
 
-### 3.1 GatewayCommand（Cloud → Gateway）
+MistyPass gateways are edge devices deployed in buildings to control physical door access. Each gateway communicates with the cloud API over HTTPS (REST) for provisioning, configuration, and event reporting, and over NATS for real-time commands and credential verification.
 
-```json
-{
-  "request_id": "door_jkt_001:unlock:1777480207056373000",
-  "gateway_id": "gw_demo_001",
-  "command": "unlock",
-  "lock_id": "door_jkt_001",
-  "place_id": "building_demo_001",
-  "tenant_id": "tenant_demo_jakarta",
-  "issued_by": "admin@mistypass.local",
-  "issued_at": "2026-04-29T16:30:07Z"
-}
-```
+**Transport summary:**
 
-| 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| request_id | string | 是 | 唯一请求 ID，用于 ack 关联 |
-| gateway_id | string | 是 | 目标 Gateway |
-| command | string | 是 | `unlock` / `lock_down` / `cancel_lockdown` / `reboot` / `config_publish` |
-| lock_id | string | 否 | 目标门点（unlock/lockdown 必填） |
-| place_id | string | 否 | 所属 Place |
-| tenant_id | string | 是 | 租户 ID |
-| issued_by | string | 否 | 操作人邮箱 |
-| issued_at | string | 是 | ISO 8601 时间 |
+| Channel | Purpose | Direction |
+|---------|---------|-----------|
+| HTTPS REST | Bootstrap, config sync, events, OTA | Gateway -> Cloud |
+| NATS | Commands, live credential verify | Bidirectional |
 
-### 3.2 GatewayEvent（Gateway → Cloud）
-
-```json
-{
-  "request_id": "door_jkt_001:unlock:1777480207056373000",
-  "gateway_id": "gw_demo_001",
-  "event_type": "command_ack",
-  "command": "unlock",
-  "lock_id": "door_jkt_001",
-  "place_id": "building_demo_001",
-  "tenant_id": "tenant_demo_jakarta",
-  "status": "success",
-  "error": "",
-  "occurred_at": "2026-04-29T16:30:07Z"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| request_id | string | 否 | 关联的请求 ID（command_ack 必填） |
-| gateway_id | string | 是 | 来源 Gateway |
-| event_type | string | 是 | `command_ack` / `access_granted` / `access_denied` / `heartbeat` / `door_held` / `door_forced` / `tamper` |
-| command | string | 否 | 被执行的命令（command_ack 填） |
-| lock_id | string | 否 | 相关门点 |
-| place_id | string | 否 | 所属 Place |
-| tenant_id | string | 是 | 租户 ID |
-| status | string | 是 | `success` / `failed` / `timeout` / `online` / `offline` |
-| error | string | 否 | 失败原因 |
-| occurred_at | string | 是 | ISO 8601 时间 |
-
-### 3.3 CredentialVerifyRequest（Gateway → Cloud，在线验证模式）
-
-```json
-{
-  "request_id": "verify_001",
-  "gateway_id": "gw_demo_001",
-  "reader_id": "gdv_demo_001",
-  "lock_id": "door_jkt_001",
-  "tenant_id": "tenant_demo_jakarta",
-  "credential_type": "nfc_uid",
-  "credential_data": "UID-1001",
-  "occurred_at": "2026-04-29T16:30:07Z"
-}
-```
-
-| credential_type | credential_data | 说明 |
-|---|---|---|
-| `nfc_uid` | NFC 卡 UID hex | 物理卡 |
-| `card_number` | 卡号 | 物理卡 |
-| `wiegand_26` | 26-bit bitstream | Wiegand 读卡器 |
-| `wiegand_34` | 34-bit bitstream | Wiegand 读卡器 |
-| `osdp_card` | OSDP card data | OSDP 读卡器 |
-| `ble_token` | BLE 令牌 | 手机 BLE |
-| `qr_code` | QR payload | 二维码 |
-| `pin` | PIN 码 | 键盘 |
-
-### 3.4 CredentialVerifyResponse（Cloud → Gateway）
-
-```json
-{
-  "request_id": "verify_001",
-  "gateway_id": "gw_demo_001",
-  "lock_id": "door_jkt_001",
-  "decision": "allow",
-  "reason": "access_granted",
-  "user_id": "usr_1001",
-  "user_email": "andri@mistypass.local",
-  "occurred_at": "2026-04-29T16:30:07Z"
-}
-```
-
-### 3.5 Heartbeat
-
-```json
-{
-  "gateway_id": "gw_demo_001",
-  "event_type": "heartbeat",
-  "status": "online",
-  "tenant_id": "tenant_demo_jakarta",
-  "occurred_at": "2026-04-29T16:30:07Z"
-}
-```
-
-周期：每 30 秒一次。Cloud 超过 90 秒未收到 heartbeat 则标记 Gateway 为 offline。
+All REST endpoints are prefixed with `/api/v1/gateway/`.
 
 ---
 
-## 4. HTTPS Pull/Push 模式（生产 fallback）
+## Authentication
 
-适用于公网部署、无法直连 NATS 的场景。
+Three authentication mechanisms are used depending on the lifecycle stage of the gateway.
 
-### 4.1 Gateway → Cloud（已有 API）
+| Mechanism | Header | Format | Used For |
+|-----------|--------|--------|----------|
+| Bootstrap token | `X-Bootstrap-Token` | Opaque token | Initial registration (`/register`) only |
+| Device token | `Authorization` | `Bearer gw_xxx` | All subsequent REST requests |
+| Request nonce | Body field `nonce` | Unique per-request string | Anti-replay on `config/pull` and `events/batch` |
 
-| 端点 | 方法 | 说明 |
-|---|---|---|
-| `/gateway/register` | POST | 首次注册 |
-| `/gateway/activate` | POST | 激活设备 |
-| `/gateway/heartbeat` | POST | 心跳 |
-| `/gateway/status` | POST | 状态上报 |
-| `/gateway/config/pull` | POST | 拉取配置（含 access rules） |
-| `/gateway/config/applied` | POST | 确认配置已应用 |
-| `/gateway/events/access` | POST | 单条 access event |
-| `/gateway/events/device` | POST | 单条 device event |
-| `/gateway/events/batch` | POST | 批量 event |
-| `/gateway/events/checkpoint` | POST | 事件 checkpoint |
-| `/gateway/verify-credential` | POST | 在线凭证验证 |
+**Token lifecycle:**
 
-### 4.2 Cloud → Gateway（待实现）
-
-需要在 `config/pull` 响应中附带 pending commands：
-
-```json
-{
-  "config_version": "v42",
-  "access_rules": [...],
-  "pending_commands": [
-    {
-      "request_id": "...",
-      "command": "unlock",
-      "lock_id": "door_jkt_001",
-      "issued_at": "..."
-    }
-  ]
-}
-```
-
-Gateway 执行完毕后在下次 `events/batch` 中上报 command_ack。
+1. A bootstrap token is provisioned out-of-band (e.g., flashed during manufacturing or provided by an installer).
+2. On successful registration, the cloud issues a device token (`gw_xxx`).
+3. The device token is used for all further communication. The bootstrap token must not be reused after registration.
 
 ---
 
-## 5. Access Rule 缓存包格式
+## Bootstrap Flow
 
-Gateway 本地缓存的策略包，用于离线判定。
+The bootstrap flow provisions a new gateway and transitions it from factory state to active.
 
-```json
-{
-  "version": "v42",
-  "tenant_id": "tenant_demo_jakarta",
-  "generated_at": "2026-04-29T16:00:00Z",
-  "expires_at": "2026-04-30T16:00:00Z",
-  "rules": [
-    {
-      "credential_type": "nfc_uid",
-      "credential_data": "UID-1001",
-      "user_id": "usr_1001",
-      "lock_ids": ["door_jkt_001", "door_jkt_014"],
-      "time_windows": [
-        {"day_of_week_set": "weekday", "start_time": "07:00", "end_time": "19:00"}
-      ],
-      "exception_dates": ["2026-08-17"],
-      "valid_from": "2026-01-01T00:00:00Z",
-      "valid_until": "2027-01-01T00:00:00Z"
-    }
-  ],
-  "lockdown_locks": [],
-  "blocked_credentials": []
-}
+### 1. Register
+
+```
+POST /api/v1/gateway/register
 ```
 
-Gateway 收到新版本后：
-1. 校验 `version > local_version`
-2. 替换本地规则缓存
-3. 回报 `config/applied` 确认
+**Authentication:** `X-Bootstrap-Token`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `serial_number` | string | Yes | Hardware serial number |
+| `tenant_id` | string | Yes | Tenant this gateway belongs to |
+| `building_id` | string | Yes | Building where the gateway is installed |
+| `device_capacity` | object | Yes | Hardware capabilities (door count, reader types, etc.) |
+
+**Response (201 Created):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `gateway_id` | string | Assigned gateway identifier |
+| `device_token` | string | Bearer token for all subsequent requests (`gw_xxx`) |
+
+### 2. Activate
+
+```
+POST /api/v1/gateway/activate
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+**Request body:** Empty or `{}`.
+
+**Response (200 OK):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `"active"` |
+
+### 3. Heartbeat
+
+```
+POST /api/v1/gateway/heartbeat
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+Periodic health check sent by the gateway at a regular interval. The cloud uses heartbeats to detect offline gateways.
+
+**Request body:** Device-defined health payload (uptime, memory, firmware version, etc.).
+
+**Response (200 OK):** Acknowledged.
+
+### 4. Status
+
+```
+POST /api/v1/gateway/status
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+Query or report the current operational status of the gateway.
+
+**Response (200 OK):** Current status object.
 
 ---
 
-## 6. 典型流程
+## Configuration Sync
 
-### 6.1 NFC 刷卡开门（本地判定）
+Configuration sync is a pull-based model. The gateway periodically requests its desired configuration from the cloud and confirms when it has been applied.
 
-```
-Reader → [Wiegand/OSDP] → Gateway
-Gateway: 查本地 access_rules → 匹配 UID + lock_id + time_window
-  → 命中 → 继电器开门 → 上报 access_granted event
-  → 未命中 → 拒绝 → 上报 access_denied event
-```
-
-### 6.2 NFC 刷卡开门（在线验证 fallback）
+### Pull Configuration
 
 ```
-Reader → Gateway: 本地无缓存规则
-Gateway → Cloud (NATS verify / HTTPS verify-credential)
-Cloud: 查 card → user → group → lock → time_window
-Cloud → Gateway: allow / deny
-Gateway: allow → 继电器开门 → 上报 access_granted
+POST /api/v1/gateway/config/pull
 ```
 
-### 6.3 远程解锁（管理员）
+**Authentication:** `Bearer gw_xxx`
+
+**Anti-replay:** Request must include a unique `nonce`.
+
+**Response (200 OK):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `desired_version` | string | Version hash the cloud wants the gateway to run |
+| `applied_version` | string | Version the cloud last saw the gateway confirm |
+| `should_apply` | boolean | `true` if `desired_version != applied_version` |
+| `bound_door_ids` | string[] | Door IDs this gateway controls |
+| `devices` | object[] | Connected device descriptors (readers, locks, REX) |
+| `authz_cache` | object | Authorization cache (see below) |
+| `pending_ota_tasks` | object[] | OTA updates awaiting this gateway (see [OTA](#ota-firmware-updates)) |
+
+#### Authorization Cache (`authz_cache`)
+
+The `authz_cache` object contains everything the gateway needs to make offline access decisions.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `access_rules` | object[] | Credential-to-user-to-lock mappings |
+| `policies` | object[] | Access policies (schedules, overrides) |
+| `users` | object[] | User records referenced by access rules |
+| `user_groups` | object[] | Group memberships |
+| `time_windows` | object[] | Named time windows used by policies |
+
+#### Cache TTL and Staleness Policy
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Fresh TTL | 300 s | Cache is considered fresh |
+| Max stale TTL | 900 s | Cache is usable but stale |
+| Retry interval | 30 s | Retry interval when pull fails |
+| Fallback mode | `use_last_acknowledged` | Use the last successfully applied config |
+| No-cache behavior | `deny_all` | If no cache exists at all, deny every access attempt |
+
+#### Version Hash
+
+The `desired_version` field is a content-addressable hash of the full configuration. The gateway compares it against its local version to determine whether an update is needed, avoiding unnecessary processing of unchanged configs.
+
+### Confirm Applied
 
 ```
-Admin UI → POST /locks/{id}/unlock → Cloud
-Cloud → NATS mistypass.gateway.{id}.command (或 pending_commands in config/pull)
-Gateway: 收到 unlock → 继电器开门 → 上报 command_ack
+POST /api/v1/gateway/config/applied
 ```
 
-### 6.4 Place Lockdown
+**Authentication:** `Bearer gw_xxx`
 
-```
-Admin UI → POST /places/{id}/lock_down → Cloud
-Cloud → 对 Place 下每扇门发 lock_down 命令
-Gateway: 收到 lock_down → 标记门为 lockdown → 拒绝所有本地放行
-→ 直到收到 cancel_lockdown
-```
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `applied_version` | string | Yes | The version hash the gateway has successfully applied |
+
+**Response (200 OK):** Acknowledged.
+
+The cloud updates its record of the gateway's applied version. This closes the sync loop.
 
 ---
 
-## 7. 安全要求
+## Credential Verification
 
-### 7.1 设备认证模型（学习 Kisi mTLS）
+### Online Verification
 
-| 阶段 | 机制 |
-|---|---|
-| 首次注册 | Bootstrap token（一次性），Cloud 签发 per-device client cert |
-| 后续通信 | mTLS — 每次 HTTPS/WSS 请求携带 client cert，Cloud 验证 |
-| 证书轮换 | Cloud 主动推新 cert（通过 WSS），或设备定期拉取 |
-| 证书撤销 | Cloud 维护 CRL/OCSP，网关被删除时即时撤销 |
+```
+POST /api/v1/gateway/verify-credential
+```
 
-### 7.2 各通道安全
+**Authentication:** `Bearer gw_xxx`
 
-| 要求 | 生产（HTTPS/WSS :443） | 开发（NATS :4222） |
-|---|---|---|
-| 传输加密 | TLS 1.2+ (mTLS) | NATS TLS（可选） |
-| 设备认证 | per-device client certificate | NATS token/nkey |
-| 消息签名 | TLS 已含完整性 | 可选 |
-| 重放防护 | request_id + timestamp + idempotency_key | request_id |
-| 密钥存储 | 设备安全存储（Linux keyring 或文件加密） | 明文（开发环境） |
+Used when the gateway is online and wants the cloud to make the access decision (or to supplement local cache decisions).
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `credential_type` | string | Yes | One of: `nfc_uid`, `ble_token`, `qr_code`, `pin` |
+| `credential_data` | string | Yes | The raw credential value |
+
+**Response (200 OK):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `decision` | string | `"allow"` or `"deny"` |
+| `auto_unlock` | boolean | Whether the gateway should immediately actuate the lock |
 
 ---
 
-## 8. 下一步实现
+## Event Reporting
 
-| 序号 | 任务 | 依赖 |
-|---|---|---|
-| 1 | Gateway Bootstrap 增强（config/pull 返回 access rules + pending commands） | 无 |
-| 2 | Access Rule 生成器（从 groups/role_assignments/cards 生成缓存包） | 无 |
-| 3 | Gateway 端 NATS client（香橙派上的 Go/Python 程序） | 硬件到位 |
-| 4 | RS485 继电器驱动（串口 → 继电器板 → 电锁） | 继电器板 + 电锁 + 电源 |
-| 5 | Wiegand 输入解析（GPIO → 26/34 bit 解析） | Reader + 香橙派 GPIO |
-| 6 | OSDP 输入解析（RS485 → OSDP v2 协议） | OSDP Reader + RS485 |
-| 7 | 离线判定引擎（本地 access rule 评估） | #2 完成 |
-| 8 | 断网事件队列 + 重连补传 | #7 完成 |
+Gateways report access events, device events, and sync checkpoints back to the cloud.
+
+### Single Access Event
+
+```
+POST /api/v1/gateway/events/access
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+Reports a single access event (badge tap, PIN entry, etc.).
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event_type` | string | Yes | `"granted"` or `"denied"` |
+| `credential_type` | string | Yes | `nfc_uid`, `ble_token`, `qr_code`, `pin` |
+| `credential_data` | string | Yes | The credential value presented |
+| `lock_id` | string | Yes | Which lock was involved |
+| `occurred_at` | string | Yes | ISO 8601 timestamp |
+
+### Single Device Event
+
+```
+POST /api/v1/gateway/events/device
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+Reports a device-level event.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event_type` | string | Yes | e.g., `"tamper"`, `"rex"` (request-to-exit) |
+| `device_id` | string | Yes | Device that generated the event |
+| `occurred_at` | string | Yes | ISO 8601 timestamp |
+
+### Batch Events
+
+```
+POST /api/v1/gateway/events/batch
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+**Anti-replay:** Request must include a unique `nonce`.
+
+Sends multiple events in a single request. Used primarily when syncing queued events after an offline period.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `events` | object[] | Yes | Array of access and/or device events |
+| `nonce` | string | Yes | Anti-replay nonce |
+
+**Response (200 OK):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `results` | object[] | Per-event acceptance status |
+| `retry_subset` | string[] | Event IDs that should be retried (transient failures) |
+
+The gateway must retry only the events listed in `retry_subset`. Events not in `retry_subset` were accepted or permanently rejected.
+
+### Checkpoint
+
+```
+POST /api/v1/gateway/events/checkpoint
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+Tracks event sync progress so the gateway and cloud agree on what has been delivered.
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `acked_count` | integer | Yes | Total number of events acknowledged so far |
+| `last_occurred_at` | string | Yes | Timestamp of the most recent acknowledged event |
+
+---
+
+## NATS Real-Time Messaging
+
+NATS subjects are scoped per gateway using the pattern `mistypass.gateway.{gateway_id}.*`.
+
+### Subjects
+
+| Subject | Direction | Payload Type |
+|---------|-----------|--------------|
+| `mistypass.gateway.{gw_id}.command` | Cloud -> Gateway | `GatewayCommand` |
+| `mistypass.gateway.{gw_id}.event` | Gateway -> Cloud | `GatewayEvent` |
+| `mistypass.gateway.{gw_id}.verify` | Gateway -> Cloud | `CredentialVerifyRequest` |
+| `mistypass.gateway.{gw_id}.verify_result` | Cloud -> Gateway | `CredentialVerifyResponse` |
+
+### GatewayCommand
+
+Sent by the cloud to instruct the gateway to perform an action.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request_id` | string | Unique request identifier for correlation |
+| `command` | string | `"unlock"`, `"lock_down"`, or `"cancel_lockdown"` |
+| `lock_id` | string | Target lock |
+| `place_id` | string | Place context |
+| `tenant_id` | string | Tenant context |
+| `issued_by` | string | User or system that issued the command |
+| `issued_at` | string | ISO 8601 timestamp |
+
+### GatewayEvent
+
+Sent by the gateway to report command results and access activity in real time.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request_id` | string | Correlates with the originating command (if any) |
+| `event_type` | string | `"command_ack"`, `"access_granted"`, `"access_denied"`, `"heartbeat"` |
+| `command` | string | The command being acknowledged (for `command_ack`) |
+| `status` | string | `"success"`, `"failed"`, or `"timeout"` |
+| `error` | string | Error description (if `status` is not `success`) |
+
+### CredentialVerifyRequest
+
+Sent by the gateway to request a real-time access decision from the cloud.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request_id` | string | Unique identifier; used to match the response |
+| `reader_id` | string | Reader that captured the credential |
+| `lock_id` | string | Lock associated with the reader |
+| `credential_type` | string | `nfc_uid`, `ble_token`, `qr_code`, `pin` |
+| `credential_data` | string | Raw credential value |
+
+### CredentialVerifyResponse
+
+Cloud reply on the `verify_result` subject.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `request_id` | string | Matches the originating request |
+| `decision` | string | `"allow"` or `"deny"` |
+| `reason` | string | Human-readable explanation |
+| `user_id` | string | Resolved user (if `allow`) |
+
+---
+
+## OTA Firmware Updates
+
+### Lifecycle
+
+OTA updates follow a state machine:
+
+```
+queued --> dispatching --> succeeded
+                      \-> failed
+                      \-> canceled
+```
+
+### Flow
+
+1. An administrator creates an OTA task through the management API, specifying the target firmware.
+2. The gateway discovers the pending task via the `pending_ota_tasks` field in `config/pull`.
+3. The gateway downloads, verifies, and installs the firmware.
+4. The gateway reports the outcome.
+
+### OTA Task Fields (delivered via `config/pull`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `firmware_version` | string | Target firmware version |
+| `firmware_url` | string | URL to download the firmware binary |
+| `firmware_sha256` | string | SHA-256 hash of the firmware binary |
+| `firmware_signature` | string | Ed25519 signature (hex-encoded) |
+
+The gateway must:
+
+1. Download the binary from `firmware_url`.
+2. Verify the SHA-256 hash matches `firmware_sha256`.
+3. Verify the Ed25519 signature in `firmware_signature` against a trusted public key.
+4. Only then apply the update.
+
+### Report OTA Result
+
+```
+POST /api/v1/gateway/ota/report
+```
+
+**Authentication:** `Bearer gw_xxx`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `firmware_version` | string | Yes | The version that was attempted |
+| `status` | string | Yes | `"succeeded"` or `"failed"` |
+| `error` | string | No | Error details if `status` is `"failed"` |
+
+---
+
+## Offline Operation
+
+Gateways are designed to operate autonomously when the cloud is unreachable.
+
+### Authorization Cache Behavior
+
+```
+[Cloud reachable]
+    |
+    v
+Pull config/pull --> cache authz_cache locally
+    |
+    +--> Cache age < 300s  --> FRESH: use with full confidence
+    +--> Cache age < 900s  --> STALE: use, but keep retrying pull
+    +--> Cache age >= 900s --> EXPIRED: fall back to last acknowledged version
+    +--> No cache at all   --> DENY ALL access attempts
+```
+
+| Scenario | Behavior |
+|----------|----------|
+| Cache is fresh (< 300 s) | Normal operation using cached rules |
+| Cache is stale (300-900 s) | Continue using cache; retry pull every 30 s |
+| Cache expired (> 900 s) | Use last acknowledged config version (`fallback_mode: use_last_acknowledged`) |
+| No cache exists | Deny all access (`no_cache_behavior: deny_all`) |
+
+### Event Queuing
+
+When offline, the gateway queues events locally. On reconnection:
+
+1. Send queued events via `POST /api/v1/gateway/events/batch`.
+2. Retry any events returned in `retry_subset`.
+3. Confirm sync progress via `POST /api/v1/gateway/events/checkpoint`.
+
+---
+
+## Sequence Diagrams
+
+### Gateway Bootstrap
+
+```
+Gateway                           Cloud API
+   |                                  |
+   |-- POST /register -------------->|  (X-Bootstrap-Token)
+   |<-------- gateway_id + token ----|
+   |                                  |
+   |-- POST /activate -------------->|  (Bearer gw_xxx)
+   |<------------- status=active ----|
+   |                                  |
+   |-- POST /config/pull ----------->|
+   |<---------- config + authz ------| 
+   |                                  |
+   |-- POST /config/applied -------->|
+   |<-------------- ack -------------|
+   |                                  |
+   |== OPERATIONAL ===================|
+```
+
+### Access Decision (Online)
+
+```
+User        Reader       Gateway                Cloud API
+ |             |            |                       |
+ |--tap/scan-->|            |                       |
+ |             |--credential-->|                    |
+ |             |            |-- POST /verify ------>|
+ |             |            |<--- allow/deny -------|
+ |             |            |                       |
+ |             |<--unlock/deny-|                    |
+ |             |            |-- POST events/access->|
+ |<--door----->|            |                       |
+```
+
+### Access Decision (Offline, Cached)
+
+```
+User        Reader       Gateway
+ |             |            |
+ |--tap/scan-->|            |
+ |             |--credential-->|
+ |             |            |-- lookup authz_cache (local)
+ |             |<--unlock/deny-|
+ |             |            |-- queue event locally
+ |<--door----->|            |
+```
+
+### Real-Time Command via NATS
+
+```
+Admin         Cloud API            NATS             Gateway
+  |               |                  |                  |
+  |--unlock cmd-->|                  |                  |
+  |               |--GatewayCommand->|                  |
+  |               |                  |--GatewayCommand->|
+  |               |                  |                  |--actuate lock
+  |               |                  |<--GatewayEvent---|
+  |               |<--GatewayEvent---|                  |
+  |<---result-----|                  |                  |
+```
+
+### OTA Update
+
+```
+Admin         Cloud API            Gateway
+  |               |                   |
+  |--create OTA-->|                   |
+  |               |                   |
+  |               |   (next config/pull cycle)
+  |               |<-- config/pull ---|
+  |               |--- pending_ota -->|
+  |               |                   |-- download firmware
+  |               |                   |-- verify SHA-256
+  |               |                   |-- verify Ed25519 sig
+  |               |                   |-- apply update
+  |               |                   |-- reboot
+  |               |<-- ota/report ----|
+  |<--status------|                   |
+```
+
+### Offline Reconnection
+
+```
+Gateway                           Cloud API
+   |                                  |
+   |  (offline period: events queued) |
+   |                                  |
+   |-- POST /heartbeat ------------->|  (reconnected)
+   |<-------------- ack -------------|
+   |                                  |
+   |-- POST /events/batch ---------->|  (queued events + nonce)
+   |<--- results + retry_subset -----|
+   |                                  |
+   |-- POST /events/batch ---------->|  (retry_subset only)
+   |<--- results --------------------|
+   |                                  |
+   |-- POST /events/checkpoint ----->|  (acked_count, last_occurred_at)
+   |<-------------- ack -------------|
+   |                                  |
+   |-- POST /config/pull ----------->|  (refresh cache)
+   |<---------- config + authz ------|
+```

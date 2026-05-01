@@ -150,6 +150,70 @@ func TestCreateGatewayOTATaskInvalidSHA256(t *testing.T) {
 	}
 }
 
+func TestGatewayBootstrapOTAReport(t *testing.T) {
+	gatewaySvc := gateway.NewService()
+	s := &server{
+		gatewaySvc:          gatewaySvc,
+		auditSvc:            audit.NewService(),
+		gatewayDeviceTokens: map[string]string{"gw_demo_001": "gw_test_token_001"},
+	}
+
+	// Create an OTA task via admin API
+	createReqBody, _ := json.Marshal(map[string]any{
+		"tenant_id":        "tenant_demo_jakarta",
+		"firmware_version": "v3.0.0",
+		"firmware_url":     "https://cdn.example.com/firmware/v3.0.0.bin",
+		"firmware_sha256":  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	})
+	createReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(createReqBody))
+	createReq = withGatewayMQTTURLParam(createReq, "gatewayID", "gw_demo_001")
+	createReq = withGatewayMQTTUser(createReq, auth.User{ID: "u1", Role: "tenant_admin", TenantID: "tenant_demo_jakarta"})
+	createRec := httptest.NewRecorder()
+	s.createGatewayOTATask(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create OTA task failed: %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created gateway.GatewayOTATask
+	_ = json.Unmarshal(createRec.Body.Bytes(), &created)
+
+	// Gateway reports OTA success via device token
+	reportBody, _ := json.Marshal(map[string]any{
+		"gateway_id": "gw_demo_001",
+		"tenant_id":  "tenant_demo_jakarta",
+		"task_id":    created.ID,
+		"status":     "succeeded",
+	})
+	reportReq := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/ota/report", bytes.NewReader(reportBody))
+	reportReq.Header.Set("Content-Type", "application/json")
+	reportReq.Header.Set("Authorization", "Bearer gw_test_token_001")
+	reportRec := httptest.NewRecorder()
+	s.gatewayBootstrapOTAReport(reportRec, reportReq)
+	if reportRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", reportRec.Code, reportRec.Body.String())
+	}
+
+	var reportPayload struct {
+		TaskID    string `json:"task_id"`
+		GatewayID string `json:"gateway_id"`
+		Status    string `json:"status"`
+	}
+	_ = json.Unmarshal(reportRec.Body.Bytes(), &reportPayload)
+	if reportPayload.Status != "succeeded" {
+		t.Fatalf("expected succeeded, got %s", reportPayload.Status)
+	}
+
+	// Report with wrong token → rejected
+	badReq := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/ota/report",
+		bytes.NewReader(reportBody))
+	badReq.Header.Set("Content-Type", "application/json")
+	badReq.Header.Set("Authorization", "Bearer gw_wrong_token")
+	badRec := httptest.NewRecorder()
+	s.gatewayBootstrapOTAReport(badRec, badReq)
+	if badRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for bad token, got %d", badRec.Code)
+	}
+}
+
 func withGatewayOTAURLParams(request *http.Request, gatewayID, taskID string) *http.Request {
 	routeCtx := chi.NewRouteContext()
 	if gatewayID != "" {

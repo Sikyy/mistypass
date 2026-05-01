@@ -9,6 +9,7 @@ import {
   ChevronDownIcon,
   CloudIcon,
   CreditCardIcon,
+  FingerprintIcon,
   KeyRoundIcon,
   PlusIcon,
   ServerIcon,
@@ -1583,6 +1584,18 @@ function OrganizationSettingsSection({
               </div>
               <div className="pt-1">
                 <ToggleSwitch enabled={s?.enforce_mfa ?? false} onToggle={() => handleToggle("enforce_mfa", !(s?.enforce_mfa ?? false))} />
+              </div>
+            </div>
+            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+              <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+                <FingerprintIcon className="size-5 text-[#4f55ff]" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-[#17171c]">WebAuthn Sign-in</h3>
+                <p className="mt-1 text-sm text-[#6f717c]">Allow users to sign in with passkeys (Touch ID, Face ID, security keys). Requires SSO enabled.</p>
+              </div>
+              <div className="pt-1">
+                <ToggleSwitch enabled={s?.webauthn_enabled ?? false} onToggle={() => handleToggle("webauthn_enabled", !(s?.webauthn_enabled ?? false))} />
               </div>
             </div>
             <div className="grid gap-6 md:grid-cols-2">

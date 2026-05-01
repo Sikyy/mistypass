@@ -153,6 +153,8 @@ create table if not exists mistypass_auth_users (
   updated_at timestamptz not null default now()
 );
 
+create unique index if not exists mistypass_auth_users_email_idx on mistypass_auth_users(email);
+
 create table if not exists mistypass_auth_refresh_sessions (
   session_id text primary key,
   user_id text not null,
@@ -176,6 +178,19 @@ create table if not exists mistypass_auth_admin_mfa_states (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create table if not exists mistypass_auth_webauthn_credentials (
+  id text primary key,
+  user_id text not null,
+  public_key bytea not null,
+  attestation_type text not null default 'none',
+  aaguid text not null default '',
+  sign_count int not null default 0,
+  display_name text not null default 'Passkey',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists mistypass_auth_webauthn_credentials_user_idx on mistypass_auth_webauthn_credentials(user_id);
 
 create table if not exists mistypass_enterprise_domain_mappings (
   id text primary key,

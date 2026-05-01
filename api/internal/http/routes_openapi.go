@@ -45,7 +45,7 @@ func buildOpenAPISpec() map[string]any {
 		"openapi": "3.0.3",
 		"info": map[string]any{
 			"title":       "Mistyislet API",
-			"version":     "2026-04-29",
+			"version":     "2026-05-01",
 			"description": "Reference-style Mistyislet management API baseline with legacy compatibility routes separated from product extensions.",
 		},
 		"servers": []any{
@@ -499,6 +499,248 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodDelete, Path: "/api/v1/alert_policies/{policyID}", OperationID: "deleteAlertPolicy", Tag: "Alert Policies", Summary: "Disable an alert policy.", NoContent: true},
 		{Method: http.MethodPost, Path: "/api/v1/alert_policies/condition_preview", OperationID: "previewAlertPolicyCondition", Tag: "Alert Policies", Summary: "Preview an alert policy condition."},
 		{Method: http.MethodPost, Path: "/api/v1/alert_policies/evaluate", OperationID: "evaluateAlertPoliciesForEvent", Tag: "Alert Policies", Summary: "Evaluate alert policies for an event."},
+		{Method: http.MethodGet, Path: "/api/v1/alert_policies/notifications", OperationID: "fetchAlertPolicyNotifications", Tag: "Alert Policies", Summary: "Fetch alert policy notifications.", Collection: true},
+
+		// Tenants
+		{Method: http.MethodGet, Path: "/api/v1/tenants", OperationID: "fetchTenants", Tag: "Tenants", Summary: "Fetch tenants.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/tenants", OperationID: "createTenant", Tag: "Tenants", Summary: "Create a tenant.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/tenants/{tenantID}/status", OperationID: "updateTenantStatus", Tag: "Tenants", Summary: "Update tenant status."},
+		{Method: http.MethodGet, Path: "/api/v1/tenants/{tenantID}/topology", OperationID: "fetchTenantTopology", Tag: "Tenants", Summary: "Fetch tenant topology."},
+
+		// User Groups
+		{Method: http.MethodGet, Path: "/api/v1/user-groups", OperationID: "fetchUserGroups", Tag: "Access Control", Summary: "Fetch user groups.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/user-groups", OperationID: "createUserGroup", Tag: "Access Control", Summary: "Create a user group.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/user-groups/{groupID}", OperationID: "updateUserGroup", Tag: "Access Control", Summary: "Update a user group."},
+
+		// Temporary Access & Visitor Passes
+		{Method: http.MethodGet, Path: "/api/v1/temporary-access", OperationID: "fetchTemporaryAccess", Tag: "Access Control", Summary: "Fetch temporary access grants.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/temporary-access", OperationID: "createTemporaryAccess", Tag: "Access Control", Summary: "Create a temporary access grant.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/visitor-passes", OperationID: "fetchVisitorPasses", Tag: "Visitors", Summary: "Fetch visitor passes.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/visitor-passes", OperationID: "createVisitorPass", Tag: "Visitors", Summary: "Create a visitor pass.", Created: true},
+
+		// Credentials
+		{Method: http.MethodGet, Path: "/api/v1/credentials", OperationID: "fetchCredentials", Tag: "Credentials", Summary: "Fetch credentials.", Collection: true},
+
+		// Holiday Calendars
+		{Method: http.MethodGet, Path: "/api/v1/holiday_calendars", OperationID: "fetchHolidayCalendars", Tag: "Schedules", Summary: "Fetch holiday calendars.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/holiday_calendars", OperationID: "createHolidayCalendar", Tag: "Schedules", Summary: "Create a holiday calendar.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/holiday_calendars/{calendarID}", OperationID: "fetchHolidayCalendar", Tag: "Schedules", Summary: "Fetch a holiday calendar."},
+		{Method: http.MethodPatch, Path: "/api/v1/holiday_calendars/{calendarID}", OperationID: "updateHolidayCalendar", Tag: "Schedules", Summary: "Update a holiday calendar."},
+		{Method: http.MethodDelete, Path: "/api/v1/holiday_calendars/{calendarID}", OperationID: "deleteHolidayCalendar", Tag: "Schedules", Summary: "Delete a holiday calendar.", NoContent: true},
+		{Method: http.MethodGet, Path: "/api/v1/holiday_calendars/presets", OperationID: "fetchHolidayCalendarPresets", Tag: "Schedules", Summary: "Fetch holiday calendar presets.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/holiday_calendars/preset_countries", OperationID: "fetchHolidayCalendarPresetCountries", Tag: "Schedules", Summary: "Fetch preset countries.", Collection: true},
+
+		// Schedules
+		{Method: http.MethodGet, Path: "/api/v1/schedules", OperationID: "fetchSchedules", Tag: "Schedules", Summary: "Fetch schedules.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/schedules", OperationID: "createSchedule", Tag: "Schedules", Summary: "Create a schedule.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/schedules/{scheduleID}", OperationID: "fetchSchedule", Tag: "Schedules", Summary: "Fetch a schedule."},
+		{Method: http.MethodPatch, Path: "/api/v1/schedules/{scheduleID}", OperationID: "updateSchedule", Tag: "Schedules", Summary: "Update a schedule."},
+		{Method: http.MethodDelete, Path: "/api/v1/schedules/{scheduleID}", OperationID: "deleteSchedule", Tag: "Schedules", Summary: "Delete a schedule.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/access_rights/schedule/evaluate", OperationID: "evaluateAccessRightSchedule", Tag: "Schedules", Summary: "Evaluate an access right schedule."},
+
+		// Invitations
+		{Method: http.MethodGet, Path: "/api/v1/invitations", OperationID: "fetchInvitations", Tag: "Users", Summary: "Fetch invitations.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/invitations/{deliveryID}", OperationID: "fetchInvitation", Tag: "Users", Summary: "Fetch an invitation."},
+		{Method: http.MethodPost, Path: "/api/v1/invitations/{deliveryID}/cancel", OperationID: "cancelInvitation", Tag: "Users", Summary: "Cancel an invitation."},
+		{Method: http.MethodPost, Path: "/api/v1/invitations/{deliveryID}/resend", OperationID: "resendInvitation", Tag: "Users", Summary: "Resend an invitation."},
+		{Method: http.MethodPost, Path: "/api/v1/users/invitations/provider-receipts", OperationID: "receiveUserInvitationProviderReceipt", Tag: "Users", Summary: "Receive invitation provider receipt.", Public: true},
+
+		// Users Batch Operations
+		{Method: http.MethodPost, Path: "/api/v1/users/batch-status", OperationID: "batchUpdateUserStatus", Tag: "Users", Summary: "Batch update user status."},
+		{Method: http.MethodPost, Path: "/api/v1/users/batch-delete", OperationID: "batchDeleteUsers", Tag: "Users", Summary: "Batch delete users."},
+		{Method: http.MethodPost, Path: "/api/v1/users/batch-invite", OperationID: "batchInviteUsers", Tag: "Users", Summary: "Batch invite users."},
+		{Method: http.MethodPost, Path: "/api/v1/users/import-csv", OperationID: "importUsersCSV", Tag: "Users", Summary: "Import users from CSV."},
+		{Method: http.MethodGet, Path: "/api/v1/users/export-csv", OperationID: "exportUsersCSV", Tag: "Users", Summary: "Export users to CSV."},
+
+		// Auth: Building Scope & Password Auth
+		{Method: http.MethodGet, Path: "/api/v1/auth/users/{userID}/building-scope", OperationID: "fetchAuthUserBuildingScope", Tag: "Authentication", Summary: "Fetch user building scope."},
+		{Method: http.MethodPut, Path: "/api/v1/auth/users/{userID}/building-scope", OperationID: "updateAuthUserBuildingScope", Tag: "Authentication", Summary: "Update user building scope."},
+		{Method: http.MethodPatch, Path: "/api/v1/auth/users/{userID}/password-auth", OperationID: "updateAuthUserPasswordAuth", Tag: "Authentication", Summary: "Toggle user password authentication."},
+
+		// Alarms
+		{Method: http.MethodGet, Path: "/api/v1/alarms", OperationID: "fetchAlarms", Tag: "Alarms", Summary: "Fetch alarms.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/alarms/stream", OperationID: "streamAlarms", Tag: "Alarms", Summary: "Stream alarms via SSE."},
+		{Method: http.MethodPatch, Path: "/api/v1/alarms/{alarmID}/status", OperationID: "updateAlarmStatus", Tag: "Alarms", Summary: "Update alarm status."},
+
+		// Events (Access + Device + Stream)
+		{Method: http.MethodGet, Path: "/api/v1/events/access", OperationID: "fetchAccessEvents", Tag: "Events", Summary: "Fetch access events.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/events/device", OperationID: "fetchDeviceEvents", Tag: "Events", Summary: "Fetch device events.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/events/stream", OperationID: "streamEvents", Tag: "Events", Summary: "Stream events via SSE."},
+
+		// Audit
+		{Method: http.MethodGet, Path: "/api/v1/audit-logs", OperationID: "fetchAuditLogs", Tag: "Audit", Summary: "Fetch audit logs.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/audit/webhook/config", OperationID: "fetchAuditWebhookConfig", Tag: "Audit", Summary: "Fetch audit webhook config."},
+		{Method: http.MethodPut, Path: "/api/v1/audit/webhook/config", OperationID: "updateAuditWebhookConfig", Tag: "Audit", Summary: "Update audit webhook config."},
+		{Method: http.MethodGet, Path: "/api/v1/audit/webhook/deliveries", OperationID: "fetchAuditWebhookDeliveries", Tag: "Audit", Summary: "Fetch audit webhook deliveries.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/audit/webhook/dispatch", OperationID: "dispatchAuditWebhook", Tag: "Audit", Summary: "Dispatch audit webhook."},
+
+		// Organization Advanced
+		{Method: http.MethodPost, Path: "/api/v1/organization/export-audit", OperationID: "exportOrganizationAudit", Tag: "Organization", Summary: "Export organization audit log."},
+		{Method: http.MethodPost, Path: "/api/v1/organization/rotate-webhooks", OperationID: "rotateOrganizationWebhooks", Tag: "Organization", Summary: "Rotate organization webhook secrets."},
+		{Method: http.MethodPost, Path: "/api/v1/organization/disable", OperationID: "disableOrganization", Tag: "Organization", Summary: "Disable organization."},
+
+		// Enterprise SSO
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/tenant/resolve", OperationID: "resolveEnterpriseTenant", Tag: "Enterprise", Summary: "Resolve enterprise tenant by email.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/auth/start", OperationID: "startEnterpriseAuth", Tag: "Enterprise", Summary: "Start enterprise SSO auth.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/auth/exchange", OperationID: "exchangeEnterpriseAuth", Tag: "Enterprise", Summary: "Exchange enterprise SSO token.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/auth/logout", OperationID: "logoutEnterpriseAuth", Tag: "Enterprise", Summary: "Logout enterprise SSO.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/auth/oidc/callback", OperationID: "enterpriseOIDCCallback", Tag: "Enterprise", Summary: "Enterprise OIDC callback.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/auth/saml/callback", OperationID: "enterpriseSAMLCallback", Tag: "Enterprise", Summary: "Enterprise SAML callback.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/domain-mappings", OperationID: "fetchEnterpriseDomainMappings", Tag: "Enterprise", Summary: "Fetch enterprise domain mappings.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/domain-mappings", OperationID: "createEnterpriseDomainMapping", Tag: "Enterprise", Summary: "Create enterprise domain mapping.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/enterprise/domain-mappings/{mappingID}/status", OperationID: "updateEnterpriseDomainMappingStatus", Tag: "Enterprise", Summary: "Update enterprise domain mapping status."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/idp-config", OperationID: "fetchEnterpriseIDPConfig", Tag: "Enterprise", Summary: "Fetch enterprise IdP config."},
+		{Method: http.MethodPut, Path: "/api/v1/enterprise/idp-config", OperationID: "upsertEnterpriseIDPConfig", Tag: "Enterprise", Summary: "Create or update enterprise IdP config."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/idp-config/validate", OperationID: "validateEnterpriseIDPConfig", Tag: "Enterprise", Summary: "Validate enterprise IdP config."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/employees", OperationID: "fetchEnterpriseEmployees", Tag: "Enterprise", Summary: "Fetch enterprise employees.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/employees/sync", OperationID: "syncEnterpriseEmployees", Tag: "Enterprise", Summary: "Sync enterprise employees."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/employees/sync/reconcile", OperationID: "reconcileEnterpriseEmployees", Tag: "Enterprise", Summary: "Reconcile enterprise employee sync."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-jobs", OperationID: "fetchEnterpriseSyncJobs", Tag: "Enterprise", Summary: "Fetch enterprise sync jobs.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-requests", OperationID: "fetchEnterpriseSyncRequests", Tag: "Enterprise", Summary: "Fetch enterprise sync requests.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-requests/reconcile-pending", OperationID: "reconcilePendingEnterpriseSyncRequests", Tag: "Enterprise", Summary: "Reconcile pending sync requests."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/jit-provision-approvals", OperationID: "fetchEnterpriseJITApprovals", Tag: "Enterprise", Summary: "Fetch JIT provisioning approvals.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/jit-provision-approvals/external-sync-pending", OperationID: "fetchEnterpriseJITApprovalExternalSyncPending", Tag: "Enterprise", Summary: "Fetch pending external sync approvals.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/review", OperationID: "reviewEnterpriseJITApproval", Tag: "Enterprise", Summary: "Review a JIT provisioning approval."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/external-sync", OperationID: "syncEnterpriseJITApprovalExternal", Tag: "Enterprise", Summary: "Sync JIT approval to external system."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/external-sync/callback", OperationID: "enterpriseJITApprovalExternalSyncCallback", Tag: "Enterprise", Summary: "JIT approval external sync callback.", Public: true},
+
+		// Enterprise HRIS
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-connectors", OperationID: "fetchEnterpriseHRISConnectors", Tag: "Enterprise HRIS", Summary: "Fetch HRIS connectors.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-connectors", OperationID: "createEnterpriseHRISConnector", Tag: "Enterprise HRIS", Summary: "Create HRIS connector.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/enterprise/hris-connectors/{connectorID}", OperationID: "updateEnterpriseHRISConnector", Tag: "Enterprise HRIS", Summary: "Update HRIS connector."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-secrets", OperationID: "fetchEnterpriseHRISSecrets", Tag: "Enterprise HRIS", Summary: "Fetch HRIS secrets."},
+		{Method: http.MethodPut, Path: "/api/v1/enterprise/hris-secrets", OperationID: "upsertEnterpriseHRISSecrets", Tag: "Enterprise HRIS", Summary: "Upsert HRIS secrets."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-pull-states", OperationID: "fetchEnterpriseHRISPullStates", Tag: "Enterprise HRIS", Summary: "Fetch HRIS pull states.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook/{connectorID}", OperationID: "receiveEnterpriseHRISWebhook", Tag: "Enterprise HRIS", Summary: "Receive HRIS webhook.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-webhook-receipts", OperationID: "fetchEnterpriseHRISWebhookReceipts", Tag: "Enterprise HRIS", Summary: "Fetch HRIS webhook receipts.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook-receipts/{receiptID}/process", OperationID: "processEnterpriseHRISWebhookReceipt", Tag: "Enterprise HRIS", Summary: "Process HRIS webhook receipt."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook-receipts/process-batch", OperationID: "processEnterpriseHRISWebhookReceiptBatch", Tag: "Enterprise HRIS", Summary: "Process HRIS webhook receipts in batch."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-webhook-executions", OperationID: "fetchEnterpriseHRISWebhookExecutions", Tag: "Enterprise HRIS", Summary: "Fetch HRIS webhook executions.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-webhook-executions/{executionID}", OperationID: "fetchEnterpriseHRISWebhookExecution", Tag: "Enterprise HRIS", Summary: "Fetch a HRIS webhook execution."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook-executions/{executionID}/replay", OperationID: "replayEnterpriseHRISWebhookExecution", Tag: "Enterprise HRIS", Summary: "Replay HRIS webhook execution."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-webhook-dlq", OperationID: "fetchEnterpriseHRISWebhookDLQ", Tag: "Enterprise HRIS", Summary: "Fetch HRIS webhook DLQ.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook-dlq/{entryID}/replay", OperationID: "replayEnterpriseHRISWebhookDLQEntry", Tag: "Enterprise HRIS", Summary: "Replay HRIS webhook DLQ entry."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/hris-webhook-dlq/replay-batch", OperationID: "replayEnterpriseHRISWebhookDLQBatch", Tag: "Enterprise HRIS", Summary: "Replay HRIS webhook DLQ batch."},
+
+		// Enterprise Sync Worker Alerts
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-worker-alerts", OperationID: "fetchEnterpriseSyncWorkerAlerts", Tag: "Enterprise", Summary: "Fetch sync worker alerts.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-worker-alerts/summary", OperationID: "fetchEnterpriseSyncWorkerAlertSummary", Tag: "Enterprise", Summary: "Fetch sync worker alert summary."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-worker-alerts/notifications", OperationID: "fetchEnterpriseSyncWorkerAlertNotifications", Tag: "Enterprise", Summary: "Fetch sync worker alert notifications.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/export-csv", OperationID: "exportEnterpriseSyncWorkerAlertNotificationsCSV", Tag: "Enterprise", Summary: "Export sync worker alert notifications CSV."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/{notificationID}/retry", OperationID: "retryEnterpriseSyncWorkerAlertNotification", Tag: "Enterprise", Summary: "Retry sync worker alert notification."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/retry-batch", OperationID: "retryEnterpriseSyncWorkerAlertNotificationBatch", Tag: "Enterprise", Summary: "Retry sync worker alert notifications batch."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/suppress-batch", OperationID: "suppressEnterpriseSyncWorkerAlertNotificationBatch", Tag: "Enterprise", Summary: "Suppress sync worker alert notifications batch."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/restore-batch", OperationID: "restoreEnterpriseSyncWorkerAlertNotificationBatch", Tag: "Enterprise", Summary: "Restore sync worker alert notifications batch."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/notifications/auto-retry", OperationID: "autoRetryEnterpriseSyncWorkerAlertNotifications", Tag: "Enterprise", Summary: "Auto-retry sync worker alert notifications."},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/sync-worker-alerts/dispatch", OperationID: "dispatchEnterpriseSyncWorkerAlerts", Tag: "Enterprise", Summary: "Dispatch sync worker alerts."},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/sync-worker-alert-subscription", OperationID: "fetchEnterpriseSyncWorkerAlertSubscription", Tag: "Enterprise", Summary: "Fetch sync worker alert subscription."},
+		{Method: http.MethodPut, Path: "/api/v1/enterprise/sync-worker-alert-subscription", OperationID: "updateEnterpriseSyncWorkerAlertSubscription", Tag: "Enterprise", Summary: "Update sync worker alert subscription."},
+
+		// State Management
+		{Method: http.MethodGet, Path: "/api/v1/state/change-log", OperationID: "fetchStateChangeLog", Tag: "State Management", Summary: "Fetch state change log.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/state/change-log/checkpoints", OperationID: "fetchStateChangeLogCheckpoints", Tag: "State Management", Summary: "Fetch state change log checkpoints.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/state/change-log/replay", OperationID: "replayStateChangeLog", Tag: "State Management", Summary: "Replay state change log."},
+		{Method: http.MethodPost, Path: "/api/v1/state/change-log/replay/checkpoint", OperationID: "checkpointStateChangeLogReplay", Tag: "State Management", Summary: "Checkpoint state change log replay."},
+
+		// Mobile App (Access)
+		{Method: http.MethodGet, Path: "/api/v1/app/access/my-doors", OperationID: "fetchAppAccessMyDoors", Tag: "Mobile App", Summary: "Fetch resident accessible doors (filtered by user).", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/app/access/unlock", OperationID: "appUnlockDoor", Tag: "Mobile App", Summary: "Unlock a door from the mobile app."},
+		{Method: http.MethodPost, Path: "/api/v1/app/access/qr-unlock", OperationID: "appQRUnlockDoor", Tag: "Mobile App", Summary: "Unlock a door via QR code."},
+
+		// Gateway Access Rules (admin view)
+		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/access-rules", OperationID: "fetchGatewayAccessRules", Tag: "Hardware Extensions", Summary: "Fetch gateway access rules.", Collection: true, ExtensionGroup: "legacy_gateway"},
+
+		// Gateway events (single)
+		{Method: http.MethodPost, Path: "/api/v1/gateway/events/access", OperationID: "submitGatewayAccessEvent", Tag: "Gateway Bootstrap", Summary: "Submit a single gateway access event.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/events/device", OperationID: "submitGatewayDeviceEvent", Tag: "Gateway Bootstrap", Summary: "Submit a single gateway device event.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/status", OperationID: "submitGatewayStatus", Tag: "Gateway Bootstrap", Summary: "Submit gateway status.", Public: true},
+
+		// Locks/Places favorite/unfavorite
+		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/favorite", OperationID: "favoriteLock", Tag: "Locks", Summary: "Favorite a lock."},
+		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/unfavorite", OperationID: "unfavoriteLock", Tag: "Locks", Summary: "Unfavorite a lock."},
+		{Method: http.MethodPost, Path: "/api/v1/places/{placeID}/favorite", OperationID: "favoritePlace", Tag: "Places", Summary: "Favorite a place."},
+		{Method: http.MethodPost, Path: "/api/v1/places/{placeID}/unfavorite", OperationID: "unfavoritePlace", Tag: "Places", Summary: "Unfavorite a place."},
+
+		// Controllers individual
+		{Method: http.MethodGet, Path: "/api/v1/controllers/{controllerID}", OperationID: "fetchController", Tag: "Hardware", Summary: "Fetch a controller."},
+		{Method: http.MethodPatch, Path: "/api/v1/controllers/{controllerID}", OperationID: "updateController", Tag: "Hardware", Summary: "Update a controller."},
+
+		// Readers individual
+		{Method: http.MethodGet, Path: "/api/v1/readers/{readerID}", OperationID: "fetchReader", Tag: "Hardware", Summary: "Fetch a reader."},
+		{Method: http.MethodPatch, Path: "/api/v1/readers/{readerID}", OperationID: "updateReader", Tag: "Hardware", Summary: "Update a reader."},
+		{Method: http.MethodPost, Path: "/api/v1/readers/{readerID}/reset_tamper", OperationID: "resetTamperReader", Tag: "Hardware", Summary: "Reset reader tamper state."},
+
+		// Terminals CRUD
+		{Method: http.MethodPost, Path: "/api/v1/terminals", OperationID: "createTerminal", Tag: "Hardware", Summary: "Create a terminal.", Created: true},
+		{Method: http.MethodPut, Path: "/api/v1/terminals/{terminalID}", OperationID: "updateTerminal", Tag: "Hardware", Summary: "Update a terminal."},
+		{Method: http.MethodDelete, Path: "/api/v1/terminals/{terminalID}", OperationID: "deleteTerminal", Tag: "Hardware", Summary: "Delete a terminal.", NoContent: true},
+
+		// Members CRUD
+		{Method: http.MethodPost, Path: "/api/v1/members", OperationID: "createMember", Tag: "Users", Summary: "Create a member.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/members/{memberID}", OperationID: "fetchMember", Tag: "Users", Summary: "Fetch a member."},
+		{Method: http.MethodPatch, Path: "/api/v1/members/{memberID}", OperationID: "updateMember", Tag: "Users", Summary: "Update a member."},
+		{Method: http.MethodDelete, Path: "/api/v1/members/{memberID}", OperationID: "deleteMember", Tag: "Users", Summary: "Delete a member.", NoContent: true},
+
+		// Group Zones CRUD
+		{Method: http.MethodPost, Path: "/api/v1/group_zones", OperationID: "createGroupZone", Tag: "Groups", Summary: "Create a group zone.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/group_zones/{groupZoneID}", OperationID: "fetchGroupZone", Tag: "Groups", Summary: "Fetch a group zone."},
+		{Method: http.MethodDelete, Path: "/api/v1/group_zones/{groupZoneID}", OperationID: "deleteGroupZone", Tag: "Groups", Summary: "Delete a group zone.", NoContent: true},
+
+		// Cards update/delete
+		{Method: http.MethodPatch, Path: "/api/v1/cards/{cardID}", OperationID: "updateCard", Tag: "Credentials", Summary: "Update a card."},
+		{Method: http.MethodDelete, Path: "/api/v1/cards/{cardID}", OperationID: "deleteCard", Tag: "Credentials", Summary: "Delete a card.", NoContent: true},
+
+		// Card Assignments update/delete/activate/deactivate
+		{Method: http.MethodPatch, Path: "/api/v1/card_assignments/{assignmentID}", OperationID: "updateCardAssignment", Tag: "Credentials", Summary: "Update a card assignment."},
+		{Method: http.MethodDelete, Path: "/api/v1/card_assignments/{assignmentID}", OperationID: "deleteCardAssignment", Tag: "Credentials", Summary: "Delete a card assignment.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/card_assignments/{assignmentID}/activate", OperationID: "activateCardAssignment", Tag: "Credentials", Summary: "Activate a card assignment."},
+		{Method: http.MethodPost, Path: "/api/v1/card_assignments/{assignmentID}/deactivate", OperationID: "deactivateCardAssignment", Tag: "Credentials", Summary: "Deactivate a card assignment."},
+
+		// Reports create/delete
+		{Method: http.MethodPost, Path: "/api/v1/reports", OperationID: "createReport", Tag: "Reports", Summary: "Create a report.", Created: true},
+		{Method: http.MethodDelete, Path: "/api/v1/reports/{reportID}", OperationID: "deleteReport", Tag: "Reports", Summary: "Delete a report.", NoContent: true},
+
+		// Elevators
+		{Method: http.MethodGet, Path: "/api/v1/elevators", OperationID: "fetchElevators", Tag: "Elevators", Summary: "Fetch elevators.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/elevators", OperationID: "createElevator", Tag: "Elevators", Summary: "Create an elevator.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/elevators/{elevatorID}", OperationID: "fetchElevator", Tag: "Elevators", Summary: "Fetch an elevator."},
+		{Method: http.MethodPatch, Path: "/api/v1/elevators/{elevatorID}", OperationID: "updateElevator", Tag: "Elevators", Summary: "Update an elevator."},
+		{Method: http.MethodDelete, Path: "/api/v1/elevators/{elevatorID}", OperationID: "deleteElevator", Tag: "Elevators", Summary: "Delete an elevator.", NoContent: true},
+
+		// Elevator Stops
+		{Method: http.MethodGet, Path: "/api/v1/elevator_stops", OperationID: "fetchElevatorStops", Tag: "Elevators", Summary: "Fetch elevator stops.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/elevator_stops", OperationID: "createElevatorStop", Tag: "Elevators", Summary: "Create an elevator stop.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/elevator_stops/{elevatorStopID}", OperationID: "fetchElevatorStop", Tag: "Elevators", Summary: "Fetch an elevator stop."},
+		{Method: http.MethodPatch, Path: "/api/v1/elevator_stops/{elevatorStopID}", OperationID: "updateElevatorStop", Tag: "Elevators", Summary: "Update an elevator stop."},
+		{Method: http.MethodDelete, Path: "/api/v1/elevator_stops/{elevatorStopID}", OperationID: "deleteElevatorStop", Tag: "Elevators", Summary: "Delete an elevator stop.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/elevator_stops/{elevatorStopID}/lock_down", OperationID: "lockDownElevatorStop", Tag: "Elevators", Summary: "Lock down an elevator stop."},
+		{Method: http.MethodPost, Path: "/api/v1/elevator_stops/{elevatorStopID}/cancel_lockdown", OperationID: "cancelElevatorStopLockdown", Tag: "Elevators", Summary: "Cancel elevator stop lockdown."},
+
+		// Group Elevator Stops
+		{Method: http.MethodGet, Path: "/api/v1/group_elevator_stops", OperationID: "fetchGroupElevatorStops", Tag: "Elevators", Summary: "Fetch group elevator stops.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/group_elevator_stops", OperationID: "createGroupElevatorStop", Tag: "Elevators", Summary: "Create a group elevator stop.", Created: true},
+		{Method: http.MethodDelete, Path: "/api/v1/group_elevator_stops/{groupElevatorStopID}", OperationID: "deleteGroupElevatorStop", Tag: "Elevators", Summary: "Delete a group elevator stop.", NoContent: true},
+
+		// Group Terminals
+		{Method: http.MethodGet, Path: "/api/v1/group_terminals", OperationID: "fetchGroupTerminals", Tag: "Groups", Summary: "Fetch group terminals.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/group_terminals", OperationID: "createGroupTerminal", Tag: "Groups", Summary: "Create a group terminal.", Created: true},
+		{Method: http.MethodDelete, Path: "/api/v1/group_terminals/{groupTerminalID}", OperationID: "deleteGroupTerminal", Tag: "Groups", Summary: "Delete a group terminal.", NoContent: true},
+
+		// Presences
+		{Method: http.MethodGet, Path: "/api/v1/presences", OperationID: "fetchPresences", Tag: "Visitors", Summary: "Fetch current presences.", Collection: true},
+
+		// CSV Card Imports
+		{Method: http.MethodGet, Path: "/api/v1/csv_card_imports", OperationID: "fetchCSVCardImports", Tag: "Credentials", Summary: "Fetch CSV card imports.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/csv_card_imports", OperationID: "createCSVCardImport", Tag: "Credentials", Summary: "Create a CSV card import.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/csv_card_imports/{importID}", OperationID: "fetchCSVCardImport", Tag: "Credentials", Summary: "Fetch a CSV card import."},
+
+		// Locks occupancy modes
+		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/first_to_arrive", OperationID: "firstToArriveLock", Tag: "Locks", Summary: "Set lock to first-to-arrive mode."},
+		{Method: http.MethodPost, Path: "/api/v1/locks/{lockID}/last_to_leave", OperationID: "lastToLeaveLock", Tag: "Locks", Summary: "Set lock to last-to-leave mode."},
+
+		// Users self-signup + password change
+		{Method: http.MethodPost, Path: "/api/v1/users/sign_up", OperationID: "userSignUp", Tag: "Authentication", Summary: "Self-service user registration.", Public: true, Created: true},
+		{Method: http.MethodPost, Path: "/api/v1/users/password", OperationID: "changeUserPassword", Tag: "Authentication", Summary: "Change current user password."},
 	}
 
 	definitions = append(definitions, openAPIExtensionOperationDefinitions()...)
@@ -580,6 +822,64 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/wallet/jobs/dlq/requeue", OperationID: "requeueWalletDLQJobs", Tag: "Wallet Operations", Summary: "Requeue wallet DLQ jobs.", ExtensionGroup: "wallet_jobs"},
 		{Method: http.MethodPost, Path: "/api/v1/wallet/jobs/dlq/cleanup", OperationID: "cleanupWalletDLQJobs", Tag: "Wallet Operations", Summary: "Clean up wallet DLQ jobs.", ExtensionGroup: "wallet_jobs"},
 		{Method: http.MethodGet, Path: "/api/v1/wallet/audit-logs", OperationID: "fetchWalletAuditLogs", Tag: "Wallet Operations", Summary: "Fetch wallet audit logs.", Collection: true, ExtensionGroup: "wallet_jobs"},
+
+		// WebAuthn / Passkeys
+		{Method: http.MethodPost, Path: "/api/v1/auth/webauthn/register/begin", OperationID: "webAuthnRegisterBegin", Tag: "Authentication", Summary: "Begin WebAuthn passkey registration."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/webauthn/register/finish", OperationID: "webAuthnRegisterFinish", Tag: "Authentication", Summary: "Finish WebAuthn passkey registration.", Created: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/webauthn/login/begin", OperationID: "webAuthnLoginBegin", Tag: "Authentication", Summary: "Begin WebAuthn passkey login.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/webauthn/login/finish", OperationID: "webAuthnLoginFinish", Tag: "Authentication", Summary: "Finish WebAuthn passkey login and issue JWT.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/auth/webauthn/credentials", OperationID: "fetchWebAuthnCredentials", Tag: "Authentication", Summary: "List registered passkeys for the current user.", Collection: true},
+		{Method: http.MethodDelete, Path: "/api/v1/auth/webauthn/credentials/{credentialID}", OperationID: "deleteWebAuthnCredential", Tag: "Authentication", Summary: "Remove a registered passkey.", NoContent: true},
+
+		// Password Reset
+		{Method: http.MethodPost, Path: "/api/v1/auth/password-reset/request", OperationID: "requestPasswordReset", Tag: "Authentication", Summary: "Request a password reset token.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/password-reset/confirm", OperationID: "confirmPasswordReset", Tag: "Authentication", Summary: "Confirm password reset with token.", Public: true},
+
+		// Login Sessions
+		{Method: http.MethodGet, Path: "/api/v1/auth/sessions", OperationID: "fetchLoginSessions", Tag: "Authentication", Summary: "List active login sessions for the current user.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/sessions/revoke", OperationID: "revokeLoginSession", Tag: "Authentication", Summary: "Revoke a specific login session.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/sessions/revoke-all", OperationID: "revokeAllLoginSessions", Tag: "Authentication", Summary: "Revoke all login sessions for the current user."},
+
+		// MFA (User)
+		{Method: http.MethodGet, Path: "/api/v1/auth/mfa/user/status", OperationID: "fetchUserMFAStatus", Tag: "Authentication", Summary: "Fetch user MFA enrollment status."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/user/setup", OperationID: "setupUserMFA", Tag: "Authentication", Summary: "Start user MFA TOTP enrollment."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/user/enable", OperationID: "enableUserMFA", Tag: "Authentication", Summary: "Confirm and enable user MFA."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/user/disable", OperationID: "disableUserMFA", Tag: "Authentication", Summary: "Disable user MFA.", NoContent: true},
+
+		// MFA (Admin)
+		{Method: http.MethodGet, Path: "/api/v1/auth/mfa/admin/status", OperationID: "fetchAdminMFAStatus", Tag: "Authentication", Summary: "Fetch admin MFA status."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/admin/setup", OperationID: "setupAdminMFA", Tag: "Authentication", Summary: "Start admin MFA TOTP enrollment."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/admin/enable", OperationID: "enableAdminMFA", Tag: "Authentication", Summary: "Confirm and enable admin MFA."},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/admin/disable", OperationID: "disableAdminMFA", Tag: "Authentication", Summary: "Disable admin MFA.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/auth/mfa/admin/regenerate-recovery-codes", OperationID: "regenerateAdminMFARecoveryCodes", Tag: "Authentication", Summary: "Regenerate admin MFA recovery codes."},
+
+		// Signed Upload URLs
+		{Method: http.MethodPost, Path: "/api/v1/uploads/signed-url", OperationID: "createSignedUploadURL", Tag: "Uploads", Summary: "Generate a signed upload URL."},
+		{Method: http.MethodPut, Path: "/api/v1/uploads/{uploadID}", OperationID: "uploadFile", Tag: "Uploads", Summary: "Upload a file using a signed URL.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/uploads/{uploadID}", OperationID: "downloadFile", Tag: "Uploads", Summary: "Download an uploaded file.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/uploads", OperationID: "fetchUserUploads", Tag: "Uploads", Summary: "List uploads for the current user.", Collection: true},
+
+		// Guests
+		{Method: http.MethodGet, Path: "/api/v1/guests", OperationID: "fetchGuests", Tag: "Visitors", Summary: "List guests.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/guests/{guestID}", OperationID: "fetchGuest", Tag: "Visitors", Summary: "Fetch a guest."},
+		{Method: http.MethodPost, Path: "/api/v1/guests", OperationID: "createGuest", Tag: "Visitors", Summary: "Register a new guest.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/guests/{guestID}/status", OperationID: "updateGuestStatus", Tag: "Visitors", Summary: "Update guest status (check-in, check-out, cancel)."},
+		{Method: http.MethodDelete, Path: "/api/v1/guests/{guestID}", OperationID: "deleteGuest", Tag: "Visitors", Summary: "Delete a guest record.", NoContent: true},
+
+		// Organization Settings
+		{Method: http.MethodGet, Path: "/api/v1/organization/settings", OperationID: "fetchOrganizationSettings", Tag: "Organization", Summary: "Fetch organization settings."},
+		{Method: http.MethodPatch, Path: "/api/v1/organization/settings", OperationID: "updateOrganizationSettings", Tag: "Organization", Summary: "Update organization settings."},
+
+		// Gateway Bootstrap (device token auth)
+		{Method: http.MethodPost, Path: "/api/v1/gateway/register", OperationID: "registerGatewayBootstrap", Tag: "Gateway Bootstrap", Summary: "Register a new gateway.", Created: true, Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/activate", OperationID: "activateGatewayBootstrap", Tag: "Gateway Bootstrap", Summary: "Activate a registered gateway.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/heartbeat", OperationID: "gatewayHeartbeat", Tag: "Gateway Bootstrap", Summary: "Send gateway heartbeat.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/config/pull", OperationID: "pullGatewayConfig", Tag: "Gateway Bootstrap", Summary: "Pull gateway configuration and authorization cache.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/config/applied", OperationID: "confirmGatewayConfigApplied", Tag: "Gateway Bootstrap", Summary: "Confirm gateway config version applied.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/events/batch", OperationID: "submitGatewayEventsBatch", Tag: "Gateway Bootstrap", Summary: "Submit gateway events in batch.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/events/checkpoint", OperationID: "submitGatewayEventsCheckpoint", Tag: "Gateway Bootstrap", Summary: "Submit gateway events checkpoint.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/ota/report", OperationID: "reportGatewayOTAStatus", Tag: "Gateway Bootstrap", Summary: "Report OTA firmware update result.", Public: true},
 	}
 }
 

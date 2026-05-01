@@ -11,6 +11,7 @@ import {
   ChevronRightIcon,
   DoorOpenIcon,
   LayoutDashboardIcon,
+  UsersRoundIcon,
   LogOutIcon,
   NetworkIcon,
   ScrollTextIcon,
@@ -97,6 +98,9 @@ const EnterprisePage = lazy(() =>
 )
 const SpacesPage = lazy(() =>
   import("@/features/legacy/pages/spaces-page").then((module) => ({ default: module.SpacesPage }))
+)
+const VisitorsPage = lazy(() =>
+  import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
 )
 const AccessDirectoryPage = lazy(() =>
   import("@/features/legacy/pages/access-directory-page").then((module) => ({ default: module.AccessDirectoryPage }))
@@ -239,6 +243,16 @@ function buildNavItems(viewer: CurrentUser, t: TFunction): NavItem[] {
       label: t("app.nav.access.label"),
       description: t("app.nav.access.description"),
       icon: ShieldCheckIcon,
+    })
+  }
+
+  if (canAccessAccessPage(viewer)) {
+    items.push({
+      to: "/visitors",
+      group: "people",
+      label: "Visitors",
+      description: "Manage building visitors and guest check-ins",
+      icon: UsersRoundIcon,
     })
   }
 
@@ -534,6 +548,14 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                   element={
                     <ProtectedRoute allow={canAccessAccessPage(viewer)}>
                       <AccessGrantsPage token={token} viewer={viewer} />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/visitors"
+                  element={
+                    <ProtectedRoute allow={canAccessAccessPage(viewer)}>
+                      <VisitorsPage token={token} viewer={viewer} />
                     </ProtectedRoute>
                   }
                 />

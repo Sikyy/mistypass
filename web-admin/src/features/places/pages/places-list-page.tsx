@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Building2Icon, PlusIcon } from "lucide-react"
+import { Building2Icon, PlusIcon, StarIcon } from "lucide-react"
 
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import {
 import { placePath } from "@/features/mistyislet-shell/navigation"
 import { summarizePlaceCounts } from "@/features/mistyislet-shell/resource-data"
 import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
-import { createPlace, type CurrentUser } from "@/lib/api"
+import { createPlace, favoritePlace, unfavoritePlace, type CurrentUser } from "@/lib/api"
 import { getViewerTenantID } from "@/lib/viewer"
 
 export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: CurrentUser }) {
@@ -28,6 +28,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
   const [address, setAddress] = useState("")
   const [region, setRegion] = useState("ID-JK")
   const [actionNotice, setActionNotice] = useState("")
+  const [favoritePlaces, setFavoritePlaces] = useState<Set<string>>(new Set())
   const [actionError, setActionError] = useState("")
   const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const places = resourceQuery.summary.places
@@ -107,8 +108,29 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
                 to={placePath("dashboard", place.id)}
                 className="rounded-[6px] border border-[#d9dbe3] bg-white p-5 transition-colors hover:bg-[#fbfbfc]"
               >
-                <Building2Icon className="size-6 text-[#6f717c]" />
-                <h2 className="mt-5 text-lg font-semibold text-[#17171c]">{place.name}</h2>
+                <div className="flex items-start justify-between">
+                  <Building2Icon className="size-6 text-[#6f717c]" />
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-[6px] hover:bg-[#f1f2f5]"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      const isFav = favoritePlaces.has(place.id)
+                      if (isFav) {
+                        unfavoritePlace(token, place.id)
+                        setFavoritePlaces((prev) => { const next = new Set(prev); next.delete(place.id); return next })
+                      } else {
+                        favoritePlace(token, place.id)
+                        setFavoritePlaces((prev) => new Set(prev).add(place.id))
+                      }
+                    }}
+                    aria-label={favoritePlaces.has(place.id) ? "Unfavorite" : "Favorite"}
+                  >
+                    <StarIcon className={`size-4 ${favoritePlaces.has(place.id) ? "fill-amber-400 text-amber-400" : "text-[#9a9ca7]"}`} />
+                  </button>
+                </div>
+                <h2 className="mt-3 text-lg font-semibold text-[#17171c]">{place.name}</h2>
                 <p className="mt-2 text-sm text-[#6f717c]">{summarizePlaceCounts(place)}</p>
                 <p className="mt-1 truncate text-sm text-[#9a9ca7]">{place.region}</p>
                 <div className="mt-5">

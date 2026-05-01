@@ -83,6 +83,18 @@ func (s *stubAuthPersistence) FindAuthAdminMFAState(userID string) (AdminMFAPers
 	return state, true, nil
 }
 
+func (s *stubAuthPersistence) UpsertWebAuthnCredential(WebAuthnCredential) error {
+	return nil
+}
+
+func (s *stubAuthPersistence) FindWebAuthnCredentialsByUserID(string) ([]WebAuthnCredential, error) {
+	return nil, nil
+}
+
+func (s *stubAuthPersistence) DeleteWebAuthnCredential(string) error {
+	return nil
+}
+
 func TestAdminMFALoginFlow(t *testing.T) {
 	svc := NewService("", "", 0, 0, true)
 	svc.SetAdminMFARequired(true)

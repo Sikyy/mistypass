@@ -13,6 +13,7 @@ import {
   ShieldAlertIcon,
   ShieldCheckIcon,
   ShieldOffIcon,
+  StarIcon,
   Trash2Icon,
 } from "lucide-react"
 
@@ -41,7 +42,11 @@ import {
   createLock,
   deleteLock,
   getLock,
+  favoriteLock,
+  firstToArriveLock,
+  lastToLeaveLock,
   lockDownLock,
+  unfavoriteLock,
   unlockLock,
   updateLock,
   type CurrentUser,
@@ -50,7 +55,7 @@ import {
 import { cn } from "@/lib/utils"
 import { getViewerTenantID } from "@/lib/viewer"
 
-type LockAction = "unlock" | "lock_down" | "cancel_lockdown"
+type LockAction = "unlock" | "lock_down" | "cancel_lockdown" | "first_to_arrive" | "last_to_leave"
 
 function lockKindFromLabel(value: string | undefined): Lock["kind"] {
   const normalized = value?.toLowerCase().replace(/\s+/g, "-") ?? ""
@@ -79,6 +84,7 @@ export function DoorDetailAdaptedPage({
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("General")
   const [selectedDoorID, setSelectedDoorID] = useState("")
+  const [favoriteLocks, setFavoriteLocks] = useState<Set<string>>(new Set())
   const [doorName, setDoorName] = useState("")
   const [doorKind, setDoorKind] = useState<Lock["kind"]>("office")
   const [doorStatus, setDoorStatus] = useState<Lock["status"]>("offline")
@@ -288,6 +294,12 @@ export function DoorDetailAdaptedPage({
       if (action === "lock_down") {
         return lockDownLock(token, selectedDoor.id, tenantID)
       }
+      if (action === "first_to_arrive") {
+        return firstToArriveLock(token, selectedDoor.id, tenantID)
+      }
+      if (action === "last_to_leave") {
+        return lastToLeaveLock(token, selectedDoor.id, tenantID)
+      }
       return cancelLockLockdown(token, selectedDoor.id, tenantID)
     },
     onSuccess: async (result) => {
@@ -333,6 +345,24 @@ export function DoorDetailAdaptedPage({
               <DoorOpenIcon className="mr-1.5 size-4" />
               Unlock
             </Button>
+            {selectedDoor && (
+              <Button
+                variant="outline"
+                className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-3"
+                onClick={() => {
+                  const isFav = favoriteLocks.has(selectedDoor.id)
+                  if (isFav) {
+                    unfavoriteLock(token, selectedDoor.id)
+                    setFavoriteLocks((prev) => { const next = new Set(prev); next.delete(selectedDoor.id); return next })
+                  } else {
+                    favoriteLock(token, selectedDoor.id)
+                    setFavoriteLocks((prev) => new Set(prev).add(selectedDoor.id))
+                  }
+                }}
+              >
+                <StarIcon className={`size-4 ${favoriteLocks.has(selectedDoor.id) ? "fill-amber-400 text-amber-400" : "text-[#9a9ca7]"}`} />
+              </Button>
+            )}
             <Button
               variant="interaction"
               disabled={!canMutate || lockActionMutation.isPending}
@@ -350,6 +380,22 @@ export function DoorDetailAdaptedPage({
             >
               <ShieldOffIcon className="mr-1.5 size-4" />
               Cancel
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canMutate || lockActionMutation.isPending}
+              onClick={() => lockActionMutation.mutate("first_to_arrive")}
+              className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+            >
+              First to Arrive
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!canMutate || lockActionMutation.isPending}
+              onClick={() => lockActionMutation.mutate("last_to_leave")}
+              className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+            >
+              Last to Leave
             </Button>
             <Button
               variant="outline"

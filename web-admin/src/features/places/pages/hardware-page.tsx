@@ -2,7 +2,7 @@ import i18next from "i18next"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CloudIcon, FileTextIcon, LinkIcon, PlusIcon, RotateCwIcon, SendIcon, ServerIcon, UnlinkIcon, ZapIcon } from "lucide-react"
+import { CloudIcon, FileTextIcon, LinkIcon, PlusIcon, RotateCwIcon, SendIcon, ServerIcon, ShieldOffIcon, UnlinkIcon, ZapIcon } from "lucide-react"
 
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import {
@@ -36,6 +36,7 @@ import {
   publishControllerConfig,
   rebootController,
   rebootReader,
+  resetTamperReader,
   rebootTerminal,
   triggerTerminal,
   unbindControllerLock,
@@ -69,7 +70,11 @@ type HardwarePublishConfigTarget = {
   configVersion: string
   device: MistyisletHardwareResource
 }
-type HardwareCommandTarget = HardwareRebootTarget | HardwareTerminalTriggerTarget | HardwarePublishConfigTarget
+type HardwareResetTamperTarget = {
+  command: "reset_tamper"
+  device: MistyisletHardwareResource
+}
+type HardwareCommandTarget = HardwareRebootTarget | HardwareTerminalTriggerTarget | HardwarePublishConfigTarget | HardwareResetTamperTarget
 
 export function HardwareAdaptedPage({
   token,
@@ -363,6 +368,22 @@ export function HardwareAdaptedPage({
     },
   })
 
+  const resetTamperMutation = useMutation({
+    mutationFn: (target: HardwareResetTamperTarget) => {
+      return resetTamperReader(token, target.device.id, tenantID)
+    },
+    onSuccess: async () => {
+      setHardwareCommandTarget(null)
+      setActionNotice("Tamper state reset.")
+      setActionError("")
+      await refreshHardware()
+    },
+    onError: (error) => {
+      setActionNotice("")
+      setActionError(error instanceof Error ? error.message : "Reset tamper failed")
+    },
+  })
+
   const deassignMutation = useMutation<Controller | Reader, Error, MistyisletHardwareResource>({
     mutationFn: (device) => {
       if (!device) {
@@ -394,25 +415,32 @@ export function HardwareAdaptedPage({
       ? triggerTerminalMutation.isPending
       : hardwareCommandTarget?.command === "publish_config"
         ? publishConfigMutation.isPending
-        : rebootMutation.isPending
+        : hardwareCommandTarget?.command === "reset_tamper"
+          ? resetTamperMutation.isPending
+          : rebootMutation.isPending
   const hardwareCommandDisabled =
     !canManageHardware ||
     !hardwareCommandTarget ||
     (hardwareCommandTarget.command === "reboot" && !hardwareCommandTarget.controllerID) ||
     (hardwareCommandTarget.command === "publish_config" && (!hardwareCommandTarget.controllerID || !hardwareCommandTarget.configVersion)) ||
-    (hardwareCommandTarget.command === "trigger" && hardwareCommandTarget.device.type !== "Terminal")
+    (hardwareCommandTarget.command === "trigger" && hardwareCommandTarget.device.type !== "Terminal") ||
+    (hardwareCommandTarget.command === "reset_tamper" && hardwareCommandTarget.device.type !== "Reader")
   const hardwareCommandTitle =
     hardwareCommandTarget?.command === "trigger"
       ? "Trigger terminal"
       : hardwareCommandTarget?.command === "publish_config"
         ? "Publish controller config"
-        : "Reboot hardware"
+        : hardwareCommandTarget?.command === "reset_tamper"
+          ? "Reset tamper"
+          : "Reboot hardware"
   const hardwareCommandConfirmLabel =
     hardwareCommandTarget?.command === "trigger"
       ? "Trigger terminal"
       : hardwareCommandTarget?.command === "publish_config"
         ? "Publish config"
-        : "Reboot hardware"
+        : hardwareCommandTarget?.command === "reset_tamper"
+          ? "Reset tamper"
+          : "Reboot hardware"
 
   return (
     <>
@@ -615,6 +643,25 @@ export function HardwareAdaptedPage({
                     <RotateCwIcon className="mr-1.5 size-4" />
                     Reboot
                   </Button>
+                  {selectedDevice?.type === "Reader" ? (
+                    <Button
+                      variant="outline"
+                      disabled={!canManageHardware || resetTamperMutation.isPending}
+                      onClick={() => {
+                        if (selectedDevice) {
+                          setActionError("")
+                          setHardwareCommandTarget({
+                            command: "reset_tamper",
+                            device: selectedDevice,
+                          })
+                        }
+                      }}
+                      className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+                    >
+                      <ShieldOffIcon className="mr-1.5 size-4" />
+                      Reset Tamper
+                    </Button>
+                  ) : null}
                   {selectedDevice?.type === "Terminal" ? (
                     <Button
                       variant="outline"
@@ -733,6 +780,10 @@ export function HardwareAdaptedPage({
           }
           if (hardwareCommandTarget.command === "publish_config") {
             publishConfigMutation.mutate(hardwareCommandTarget)
+            return
+          }
+          if (hardwareCommandTarget.command === "reset_tamper") {
+            resetTamperMutation.mutate(hardwareCommandTarget)
             return
           }
           rebootMutation.mutate(hardwareCommandTarget)
