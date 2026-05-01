@@ -179,6 +179,14 @@ type passwordResetToken struct {
 	ExpiresAt time.Time
 }
 
+// SecretVault encrypts/decrypts secrets at rest (TOTP secrets, etc.).
+// If nil, secrets are stored in plaintext (backward compat for dev/test).
+type SecretVault interface {
+	Encrypt(plaintext string) (nonce string, ciphertext string, err error)
+	Decrypt(nonce, ciphertext string) (string, error)
+	IsConfigured() bool
+}
+
 type Service struct {
 	mu                  sync.RWMutex
 	signingKey          []byte
@@ -189,6 +197,7 @@ type Service struct {
 	adminMFA            map[string]adminMFAState
 	persistence         Persistence
 	volatileStore       VolatileStore
+	secretVault         SecretVault
 	usersByEmail        map[string]userRecord
 	usersByID           map[string]User
 	refreshSessions     map[string]refreshSession
@@ -301,6 +310,13 @@ func (s *Service) SetVolatileStore(store VolatileStore) error {
 	}
 	s.volatileStore = store
 	return nil
+}
+
+// SetSecretVault attaches an encryption vault for encrypting TOTP secrets at rest.
+func (s *Service) SetSecretVault(vault SecretVault) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.secretVault = vault
 }
 
 func (s *Service) SetAdminMFARequired(required bool) {
@@ -1665,6 +1681,19 @@ func (s *Service) findAdminMFAState(userID string) (adminMFAState, bool, error) 
 		return adminMFAState{}, false, nil
 	}
 
+	// Decrypt secrets if encrypted
+	s.mu.RLock()
+	vault := s.secretVault
+	s.mu.RUnlock()
+	if vault != nil && vault.IsConfigured() {
+		if dec, err := s.decryptMFAField(persisted.Secret); err == nil {
+			persisted.Secret = dec
+		}
+		if dec, err := s.decryptMFAField(persisted.PendingSecret); err == nil {
+			persisted.PendingSecret = dec
+		}
+	}
+
 	state = adminMFAStateFromPersistence(persisted)
 	s.mu.Lock()
 	if cached, cachedExists := s.adminMFA[nextUserID]; cachedExists {
@@ -2010,9 +2039,36 @@ func (s *Service) findAdminMFAStateLocked(userID string) (adminMFAState, bool, e
 		return adminMFAState{}, false, nil
 	}
 
+	// Decrypt secrets if encrypted (prefixed with "enc:")
+	if s.secretVault != nil && s.secretVault.IsConfigured() {
+		if dec, err := s.decryptMFAField(persisted.Secret); err == nil {
+			persisted.Secret = dec
+		}
+		if dec, err := s.decryptMFAField(persisted.PendingSecret); err == nil {
+			persisted.PendingSecret = dec
+		}
+	}
+
 	state = adminMFAStateFromPersistence(persisted)
 	s.adminMFA[nextUserID] = state
 	return state, true, nil
+}
+
+// decryptMFAField decrypts a field that may be encrypted (prefixed "enc:nonce:ciphertext")
+// or plaintext (backward compat). Returns the plaintext value.
+func (s *Service) decryptMFAField(value string) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(trimmed, "enc:") {
+		return trimmed, nil // plaintext backward compat
+	}
+	parts := strings.SplitN(trimmed, ":", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid encrypted field format")
+	}
+	return s.secretVault.Decrypt(parts[1], parts[2])
 }
 
 func (s *Service) persistAdminMFAStateLocked(userID string, state adminMFAState) error {
@@ -2024,10 +2080,29 @@ func (s *Service) persistAdminMFAStateLocked(userID string, state adminMFAState)
 	state.PendingSecret = strings.TrimSpace(state.PendingSecret)
 	state.UpdatedAt = state.UpdatedAt.UTC()
 	if s.persistence != nil {
-		if err := s.persistence.UpsertAuthAdminMFAState(nextUserID, adminMFAStateForPersistence(state)); err != nil {
+		persisted := adminMFAStateForPersistence(state)
+		// Encrypt secrets before storing to DB
+		if s.secretVault != nil && s.secretVault.IsConfigured() {
+			if persisted.Secret != "" {
+				nonce, ct, err := s.secretVault.Encrypt(persisted.Secret)
+				if err != nil {
+					return fmt.Errorf("encrypt mfa secret: %w", err)
+				}
+				persisted.Secret = "enc:" + nonce + ":" + ct
+			}
+			if persisted.PendingSecret != "" {
+				nonce, ct, err := s.secretVault.Encrypt(persisted.PendingSecret)
+				if err != nil {
+					return fmt.Errorf("encrypt mfa pending secret: %w", err)
+				}
+				persisted.PendingSecret = "enc:" + nonce + ":" + ct
+			}
+		}
+		if err := s.persistence.UpsertAuthAdminMFAState(nextUserID, persisted); err != nil {
 			return err
 		}
 	}
+	// In-memory cache always holds plaintext
 	s.adminMFA[nextUserID] = state
 	return nil
 }

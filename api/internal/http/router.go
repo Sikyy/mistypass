@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/mistypass/cloud/api/internal/bus"
 	"github.com/mistypass/cloud/api/internal/config"
+	secretcrypto "github.com/mistypass/cloud/api/internal/crypto"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
@@ -381,6 +382,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if s.webAuthnEngine != nil {
 			s.webAuthnEngine.SetPersistence(authPersistence)
 		}
+	}
+	// Attach secret vault for encrypting MFA TOTP secrets at rest.
+	// Derives a separate key from the HRIS vault master key using HKDF domain separation.
+	if masterKey := strings.TrimSpace(cfg.HRISVaultMasterKey); masterKey != "" {
+		mfaVault := secretcrypto.NewVault(masterKey, "mfa-totp-secrets")
+		s.authService.SetSecretVault(mfaVault)
+		s.logger.Info("mfa secret vault enabled (AES-256-GCM + HKDF)")
 	}
 	if strings.TrimSpace(cfg.RedisAddr) != "" {
 		redisStore, err := redistore.New(redistore.Options{
