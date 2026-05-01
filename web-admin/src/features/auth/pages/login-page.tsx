@@ -230,11 +230,11 @@ export function LoginPage() {
             <h1 className="max-w-xl text-5xl font-semibold tracking-[-0.05em]">{t("login.hero.title")}</h1>
             <p className="max-w-lg text-sm text-muted-foreground">{t("login.hero.description")}</p>
             <div className="grid max-w-md gap-2">
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm">
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/50 px-3 py-2 text-sm">
                 <Building2Icon className="size-4 text-white/75" />
                 {t("login.hero.pointTenant")}
               </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm">
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-muted/50 px-3 py-2 text-sm">
                 <LockKeyholeIcon className="size-4 text-white/75" />
                 {t("login.hero.pointSync")}
               </div>

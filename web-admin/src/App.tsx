@@ -384,20 +384,20 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
   return (
     <TooltipProvider>
       <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <Sidebar collapsible="icon" variant="inset" className="border-white/10">
+        <Sidebar collapsible="icon" variant="inset">
           <SidebarHeader>
-            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] group-data-[collapsible=icon]:p-1.5">
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:p-1.5">
               <div className="flex items-center gap-3">
                 <MistyIslandMark className="size-10 shrink-0" markClassName="h-9 w-12" />
                 <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                  <p className="text-[11px] font-semibold tracking-[0.22em] text-sidebar-foreground/55 uppercase">
+                  <p className="text-[11px] font-semibold tracking-[0.22em] text-muted-foreground uppercase">
                     Mistyislet
                   </p>
-                  <p className="truncate text-sm font-semibold">{t("app.shell.title")}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{t("app.shell.title")}</p>
                 </div>
               </div>
-              <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 group-data-[collapsible=icon]:hidden">
-                <div className="flex items-center gap-2 text-xs text-sidebar-foreground/70">
+              <div className="mt-3 rounded-lg border border-border bg-muted/50 px-3 py-2 group-data-[collapsible=icon]:hidden">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <SatelliteDishIcon className="size-3.5" />
                   {isPlatformViewer(viewer)
                     ? t("app.shell.subtitlePlatform")
@@ -426,13 +426,13 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                             isActive={isActive}
                             size="lg"
                             tooltip={item.label}
-                            className="h-12 rounded-xl data-active:bg-white/[0.14] data-active:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_24px_rgba(255,255,255,0.08)]"
+                            className="h-12 rounded-lg data-active:bg-primary/10 data-active:text-primary"
                           >
                             <NavLink to={item.to}>
                               <item.icon />
                               <span className="flex min-w-0 flex-col gap-0.5 group-data-[collapsible=icon]:hidden">
                                 <span className="truncate">{item.label}</span>
-                                <span className="truncate text-[11px] font-normal text-sidebar-foreground/48">
+                                <span className="truncate text-[11px] font-normal text-muted-foreground">
                                   {item.description}
                                 </span>
                               </span>
@@ -448,18 +448,18 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           </SidebarContent>
 
           <SidebarFooter>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 group-data-[collapsible=icon]:hidden">
+            <div className="rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-xs font-semibold">
+                <div className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground">
                   {viewer.email.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium">{viewer.email}</p>
-                  <p className="truncate text-[11px] text-sidebar-foreground/55">{getViewerRoleLabel(viewer)}</p>
+                  <p className="truncate text-xs font-medium text-foreground">{viewer.email}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{getViewerRoleLabel(viewer)}</p>
                 </div>
               </div>
             </div>
-            <Button variant="outline" className="w-full justify-start border-white/10 bg-white/[0.045]" onClick={onLogout}>
+            <Button variant="outline" className="w-full justify-start" onClick={onLogout}>
               <LogOutIcon className="mr-1.5 size-4" />
               <span className="group-data-[collapsible=icon]:hidden">{t("app.shell.logout")}</span>
             </Button>
@@ -467,10 +467,10 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset className="mp-fog-surface bg-background">
-          <header className="sticky top-0 z-20 border-b border-white/10 bg-background/72 px-4 py-3 backdrop-blur-2xl md:px-6">
+        <SidebarInset>
+          <header className="sticky top-0 z-20 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-sm md:px-6">
             <div className="flex flex-wrap items-center gap-3">
-              <SidebarTrigger className="border border-white/10 bg-white/5" />
+              <SidebarTrigger />
 
               <Breadcrumb>
                 <BreadcrumbList>
@@ -486,7 +486,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                 </BreadcrumbList>
               </Breadcrumb>
 
-              <div className="ml-auto hidden min-w-[220px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:flex">
+              <div className="ml-auto hidden min-w-[220px] items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground md:flex">
                 <SearchIcon className="size-3.5" />
                 <span>{activeNav.description}</span>
               </div>
@@ -494,15 +494,15 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
               <div className="flex flex-wrap items-center gap-2">
                 <RoleScopeBanner token={token} viewer={viewer} />
 
-                <Button variant="outline" size="sm" className="border-white/10 bg-white/[0.045]">
+                <Button variant="outline" size="sm">
                   <BellIcon className="mr-1.5 size-4" />
                   {t("app.shell.unreadAlarms", { count: unreadAlarmCount })}
                 </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="border-white/10 bg-white/[0.045]">
-                      <ActivityIcon className="mr-1.5 size-4 text-emerald-300" />
+                    <Button variant="outline" size="sm">
+                      <ActivityIcon className="mr-1.5 size-4 text-emerald-600" />
                       <span className="hidden max-w-[12rem] truncate sm:inline">{viewer.email}</span>
                       <ChevronRightIcon className="ml-1 size-3.5 opacity-60" />
                     </Button>
