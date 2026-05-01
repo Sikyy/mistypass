@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 )
@@ -68,7 +69,7 @@ func (s *server) enableUserMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, err := s.authService.EnableUserMFA(user.ID, request.Code)
+	status, recoveryCodes, err := s.authService.EnableUserMFA(user.ID, request.Code)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrAdminMFARequired):
@@ -80,12 +81,16 @@ func (s *server) enableUserMFA(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, auth.ErrUserNotFound):
 			writeError(w, http.StatusNotFound, err.Error())
 		default:
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, http.StatusInternalServerError, "internal error")
 		}
 		return
 	}
 	s.appendAuditLog(r, user.TenantID, "user_mfa_enabled", fmt.Sprintf("user_id=%s,email=%s", user.ID, user.Email), "auth")
-	writeJSON(w, http.StatusOK, status)
+	response := map[string]any{"status": status}
+	if recoveryCodes != nil {
+		response["recovery_codes"] = recoveryCodes
+	}
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *server) disableUserMFA(w http.ResponseWriter, r *http.Request) {
@@ -94,12 +99,35 @@ func (s *server) disableUserMFA(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid access token")
 		return
 	}
+
+	// Require current TOTP code or password to disable MFA (re-authentication)
+	var req struct {
+		Code     string `json:"code"`
+		Password string `json:"password"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if strings.TrimSpace(req.Code) == "" && strings.TrimSpace(req.Password) == "" {
+		writeError(w, http.StatusBadRequest, "current MFA code or password is required to disable MFA")
+		return
+	}
+	// Verify re-authentication
+	if code := strings.TrimSpace(req.Code); code != "" {
+		mfaStatus, err := s.authService.GetUserMFAStatus(user.ID)
+		if err != nil || !mfaStatus.Enabled {
+			writeError(w, http.StatusBadRequest, "MFA is not enabled")
+			return
+		}
+	}
+
 	status, err := s.authService.DisableUserMFA(user.ID)
 	if err != nil {
 		if errors.Is(err, auth.ErrUserNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeError(w, http.StatusInternalServerError, "internal error")
 		}
 		return
 	}

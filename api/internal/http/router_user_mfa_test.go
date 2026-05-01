@@ -63,8 +63,8 @@ func TestUserMFAFullFlow(t *testing.T) {
 		t.Errorf("expected 401 for wrong code, got %d", wrongRec.Code)
 	}
 
-	// disable before enable should still work
-	disableRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/auth/mfa/user/disable", token, nil)
+	// disable before enable should still work (requires re-auth)
+	disableRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/auth/mfa/user/disable", token, []byte(`{"password":"admin123"}`))
 	if disableRec.Code != http.StatusOK {
 		t.Fatalf("expected 200 on disable, got %d body=%s", disableRec.Code, disableRec.Body.String())
 	}

@@ -860,6 +860,164 @@ export async function disableUserMFA(token: string | undefined): Promise<MFAStat
   )
 }
 
+// --- Guests ---
+
+export type Guest = {
+  id: string
+  tenant_id: string
+  building_id?: string
+  name: string
+  email?: string
+  phone?: string
+  company?: string
+  purpose?: string
+  host_name: string
+  host_email?: string
+  status: "expected" | "checked_in" | "checked_out" | "cancelled"
+  checked_in_at?: string
+  checked_out_at?: string
+  expected_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export async function listGuests(token: string | undefined, tenantID?: string): Promise<{ items: Guest[] }> {
+  return request<{ items: Guest[] }>(withTenantQuery("/api/v1/guests", tenantID), {}, token)
+}
+
+export async function createGuest(token: string | undefined, payload: Partial<Guest> & { tenant_id?: string }): Promise<Guest> {
+  return request<Guest>("/api/v1/guests", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+
+export async function updateGuestStatus(token: string | undefined, guestID: string, tenantID: string, status: string): Promise<Guest> {
+  return request<Guest>(`/api/v1/guests/${guestID}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ tenant_id: tenantID, status }),
+  }, token)
+}
+
+export async function deleteGuest(token: string | undefined, guestID: string, tenantID: string): Promise<void> {
+  return request<void>(`/api/v1/guests/${guestID}?tenant_id=${tenantID}`, { method: "DELETE" }, token)
+}
+
+// --- Password Reset ---
+
+export async function requestPasswordReset(email: string): Promise<{ status: string; reset_token?: string }> {
+  return request<{ status: string; reset_token?: string }>("/api/v1/auth/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<{ status: string }> {
+  return request<{ status: string }>("/api/v1/auth/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  })
+}
+
+// --- Login Sessions ---
+
+export type LoginSession = {
+  session_id: string
+  user_id: string
+  ip_address: string
+  user_agent: string
+  login_method: string
+  created_at: string
+  expires_at: string
+}
+
+export async function listLoginSessions(token: string | undefined): Promise<LoginSession[]> {
+  return request<LoginSession[]>("/api/v1/auth/sessions", {}, token)
+}
+
+export async function revokeLoginSession(token: string | undefined, sessionID: string): Promise<void> {
+  return request<void>("/api/v1/auth/sessions/revoke", {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionID }),
+  }, token)
+}
+
+export async function revokeAllLoginSessions(token: string | undefined): Promise<{ revoked: number }> {
+  return request<{ revoked: number }>("/api/v1/auth/sessions/revoke-all", {
+    method: "POST",
+  }, token)
+}
+
+// --- WebAuthn / Passkeys ---
+
+export type WebAuthnCredential = {
+  id: string
+  user_id: string
+  public_key: string
+  attestation_type: string
+  aaguid: string
+  sign_count: number
+  display_name: string
+  created_at: string
+}
+
+export async function webAuthnRegisterBegin(token: string | undefined): Promise<CredentialCreationOptions> {
+  return request<CredentialCreationOptions>("/api/v1/auth/webauthn/register/begin", { method: "POST" }, token)
+}
+
+export async function webAuthnRegisterFinish(
+  token: string | undefined,
+  credential: Credential,
+  displayName?: string
+): Promise<WebAuthnCredential> {
+  const url = displayName
+    ? `/api/v1/auth/webauthn/register/finish?display_name=${encodeURIComponent(displayName)}`
+    : "/api/v1/auth/webauthn/register/finish"
+  return request<WebAuthnCredential>(url, {
+    method: "POST",
+    body: JSON.stringify(credential),
+  }, token)
+}
+
+export async function webAuthnLoginBegin(email: string): Promise<CredentialRequestOptions> {
+  return request<CredentialRequestOptions>("/api/v1/auth/webauthn/login/begin", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  })
+}
+
+export type WebAuthnLoginFinishResponse =
+  | (LoginResponse & { mfa_required?: undefined })
+  | { mfa_required: true; webauthn_token: string }
+
+export async function webAuthnLoginFinish(
+  email: string,
+  credential: any,
+): Promise<WebAuthnLoginFinishResponse> {
+  const params = new URLSearchParams({ email })
+  return request<WebAuthnLoginFinishResponse>(`/api/v1/auth/webauthn/login/finish?${params}`, {
+    method: "POST",
+    body: JSON.stringify(credential),
+  })
+}
+
+export async function webAuthnLoginFinishMFA(
+  webauthnToken: string,
+  mfaCode: string
+): Promise<LoginResponse> {
+  return request<LoginResponse>("/api/v1/auth/webauthn/login/finish", {
+    method: "POST",
+    body: JSON.stringify({ webauthn_token: webauthnToken, mfa_code: mfaCode }),
+  })
+}
+
+export async function listWebAuthnCredentials(token: string | undefined): Promise<WebAuthnCredential[]> {
+  return request<WebAuthnCredential[]>("/api/v1/auth/webauthn/credentials", {}, token)
+}
+
+export async function deleteWebAuthnCredential(token: string | undefined, credentialID: string): Promise<void> {
+  return request<void>(`/api/v1/auth/webauthn/credentials/${encodeURIComponent(credentialID)}`, {
+    method: "DELETE",
+  }, token)
+}
+
 export type EnterpriseIDPConfig = {
   id: string
   tenant_id: string
@@ -2928,6 +3086,144 @@ export async function triggerTerminal(
   )
 }
 
+// --- Gap-fill: Favorites ---
+
+export async function favoriteLock(token: string | undefined, lockID: string): Promise<{ lock_id: string; favorited: boolean }> {
+  return request(`/api/v1/locks/${encodePathSegment(lockID)}/favorite`, { method: "POST" }, token)
+}
+
+export async function unfavoriteLock(token: string | undefined, lockID: string): Promise<{ lock_id: string; favorited: boolean }> {
+  return request(`/api/v1/locks/${encodePathSegment(lockID)}/unfavorite`, { method: "POST" }, token)
+}
+
+export async function favoritePlace(token: string | undefined, placeID: string): Promise<{ place_id: string; favorited: boolean }> {
+  return request(`/api/v1/places/${encodePathSegment(placeID)}/favorite`, { method: "POST" }, token)
+}
+
+export async function unfavoritePlace(token: string | undefined, placeID: string): Promise<{ place_id: string; favorited: boolean }> {
+  return request(`/api/v1/places/${encodePathSegment(placeID)}/unfavorite`, { method: "POST" }, token)
+}
+
+// --- Gap-fill: Hardware individual ---
+
+export async function resetTamperReader(token: string | undefined, readerID: string, tenantID?: string): Promise<{ status: string }> {
+  return request(withTenantQuery(`/api/v1/readers/${encodePathSegment(readerID)}/reset_tamper`, tenantID), { method: "POST" }, token)
+}
+
+// --- Elevators ---
+
+export type Elevator = {
+  id: string
+  tenant_id: string
+  place_id: string
+  name: string
+  description?: string
+  elevator_stops_count: number
+  created_at: string
+  updated_at: string
+}
+
+export type ElevatorStop = {
+  id: string
+  tenant_id: string
+  elevator_id: string
+  floor_id?: string
+  name: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type GroupElevatorStop = { id: string; tenant_id: string; group_id: string; elevator_stop_id: string; created_at: string }
+export type GroupTerminal = { id: string; tenant_id: string; group_id: string; terminal_id: string; created_at: string }
+export type Presence = { id: string; tenant_id: string; place_id: string; user_id: string; user_name?: string; user_email?: string; entered_at: string; exited_at?: string }
+export type CSVCardImport = { id: string; tenant_id: string; file_name: string; status: string; total_rows: number; imported: number; failed: number; created_at: string }
+
+export async function listElevators(token: string | undefined, tenantID?: string): Promise<{ items: Elevator[] }> {
+  return request(withTenantQuery("/api/v1/elevators", tenantID), {}, token)
+}
+export async function createElevator(token: string | undefined, payload: { tenant_id?: string; place_id: string; name: string; description?: string }): Promise<Elevator> {
+  return request("/api/v1/elevators", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+export async function getElevator(token: string | undefined, id: string, tenantID?: string): Promise<Elevator> {
+  return request(withTenantQuery(`/api/v1/elevators/${encodePathSegment(id)}`, tenantID), {}, token)
+}
+export async function updateElevator(token: string | undefined, id: string, payload: { name?: string; description?: string }): Promise<Elevator> {
+  return request(`/api/v1/elevators/${encodePathSegment(id)}`, { method: "PATCH", body: JSON.stringify(payload) }, token)
+}
+export async function deleteElevator(token: string | undefined, id: string, tenantID?: string): Promise<void> {
+  return request(withTenantQuery(`/api/v1/elevators/${encodePathSegment(id)}`, tenantID), { method: "DELETE" }, token)
+}
+
+export async function listElevatorStops(token: string | undefined, tenantID?: string, elevatorID?: string): Promise<{ items: ElevatorStop[] }> {
+  const q = new URLSearchParams(); if (tenantID) q.set("tenant_id", tenantID); if (elevatorID) q.set("elevator_id", elevatorID)
+  return request(`/api/v1/elevator_stops?${q}`, {}, token)
+}
+export async function createElevatorStop(token: string | undefined, payload: { tenant_id?: string; elevator_id: string; floor_id?: string; name: string }): Promise<ElevatorStop> {
+  return request("/api/v1/elevator_stops", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+export async function deleteElevatorStop(token: string | undefined, id: string, tenantID?: string): Promise<void> {
+  return request(withTenantQuery(`/api/v1/elevator_stops/${encodePathSegment(id)}`, tenantID), { method: "DELETE" }, token)
+}
+export async function lockDownElevatorStop(token: string | undefined, id: string, tenantID?: string): Promise<ElevatorStop> {
+  return request(withTenantQuery(`/api/v1/elevator_stops/${encodePathSegment(id)}/lock_down`, tenantID), { method: "POST" }, token)
+}
+export async function cancelElevatorStopLockdown(token: string | undefined, id: string, tenantID?: string): Promise<ElevatorStop> {
+  return request(withTenantQuery(`/api/v1/elevator_stops/${encodePathSegment(id)}/cancel_lockdown`, tenantID), { method: "POST" }, token)
+}
+
+export async function listGroupElevatorStops(token: string | undefined, tenantID?: string, groupID?: string): Promise<{ items: GroupElevatorStop[] }> {
+  const q = new URLSearchParams(); if (tenantID) q.set("tenant_id", tenantID); if (groupID) q.set("group_id", groupID)
+  return request(`/api/v1/group_elevator_stops?${q}`, {}, token)
+}
+export async function createGroupElevatorStop(token: string | undefined, payload: { tenant_id?: string; group_id: string; elevator_stop_id: string }): Promise<GroupElevatorStop> {
+  return request("/api/v1/group_elevator_stops", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+export async function deleteGroupElevatorStop(token: string | undefined, id: string, tenantID?: string): Promise<void> {
+  return request(withTenantQuery(`/api/v1/group_elevator_stops/${encodePathSegment(id)}`, tenantID), { method: "DELETE" }, token)
+}
+
+export async function listGroupTerminals(token: string | undefined, tenantID?: string, groupID?: string): Promise<{ items: GroupTerminal[] }> {
+  const q = new URLSearchParams(); if (tenantID) q.set("tenant_id", tenantID); if (groupID) q.set("group_id", groupID)
+  return request(`/api/v1/group_terminals?${q}`, {}, token)
+}
+export async function createGroupTerminal(token: string | undefined, payload: { tenant_id?: string; group_id: string; terminal_id: string }): Promise<GroupTerminal> {
+  return request("/api/v1/group_terminals", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+export async function deleteGroupTerminal(token: string | undefined, id: string, tenantID?: string): Promise<void> {
+  return request(withTenantQuery(`/api/v1/group_terminals/${encodePathSegment(id)}`, tenantID), { method: "DELETE" }, token)
+}
+
+export async function listPresences(token: string | undefined, tenantID?: string, placeID?: string): Promise<{ items: Presence[] }> {
+  const q = new URLSearchParams(); if (tenantID) q.set("tenant_id", tenantID); if (placeID) q.set("place_id", placeID)
+  return request(`/api/v1/presences?${q}`, {}, token)
+}
+
+export async function listCSVCardImports(token: string | undefined, tenantID?: string): Promise<{ items: CSVCardImport[] }> {
+  return request(withTenantQuery("/api/v1/csv_card_imports", tenantID), {}, token)
+}
+export async function createCSVCardImport(token: string | undefined, payload: { tenant_id?: string; file_name: string }): Promise<CSVCardImport> {
+  return request("/api/v1/csv_card_imports", { method: "POST", body: JSON.stringify(payload) }, token)
+}
+export async function getCSVCardImport(token: string | undefined, id: string, tenantID?: string): Promise<CSVCardImport> {
+  return request(withTenantQuery(`/api/v1/csv_card_imports/${encodePathSegment(id)}`, tenantID), {}, token)
+}
+
+export async function firstToArriveLock(token: string | undefined, lockID: string, tenantID?: string): Promise<any> {
+  return request(withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}/first_to_arrive`, tenantID), { method: "POST" }, token)
+}
+export async function lastToLeaveLock(token: string | undefined, lockID: string, tenantID?: string): Promise<any> {
+  return request(withTenantQuery(`/api/v1/locks/${encodePathSegment(lockID)}/last_to_leave`, tenantID), { method: "POST" }, token)
+}
+
+export async function userSignUp(payload: { name: string; email: string; password: string }): Promise<any> {
+  return request("/api/v1/users/sign_up", { method: "POST", body: JSON.stringify(payload) })
+}
+
+export async function changeUserPassword(token: string | undefined, currentPassword: string, newPassword: string): Promise<{ status: string }> {
+  return request("/api/v1/users/password", { method: "POST", body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }) }, token)
+}
+
 function buildGatewaySerialInventoryPath(
   tenantID?: string,
   options?: {
@@ -4982,6 +5278,7 @@ export type OrganizationSettings = {
   push_notifications: boolean
   weekly_reports: boolean
   enforce_mfa: boolean
+  webauthn_enabled: boolean
   password_policy: string
   session_timeout_minutes: number
   updated_at: string

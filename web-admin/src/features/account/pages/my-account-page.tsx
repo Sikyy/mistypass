@@ -2,19 +2,29 @@ import { useEffect, useMemo, useState } from "react"
 import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDownIcon, CloudIcon, SearchIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from "lucide-react"
+import { ChevronDownIcon, CloudIcon, FingerprintIcon, SearchIcon, ShieldCheckIcon, Trash2Icon, UserIcon } from "lucide-react"
 
 import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import { PageFrame, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
 import { formatMistyisletRoleLabel } from "@/features/mistyislet-shell/navigation"
 import {
+  changeUserPassword,
+  deleteWebAuthnCredential,
   disableUserMFA,
+  listLoginSessions,
+  revokeAllLoginSessions,
+  revokeLoginSession,
   enableUserMFA,
   getUserMFAStatus,
+  listWebAuthnCredentials,
   setupUserMFA,
   updateCurrentUser,
+  webAuthnRegisterBegin,
+  webAuthnRegisterFinish,
   type CurrentUser,
+  type LoginSession,
+  type WebAuthnCredential,
 } from "@/lib/api"
 
 function formatPersonName(email: string) {
@@ -57,7 +67,16 @@ type MyAccountPageProps = {
 
 export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAccountPageProps) {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState(t("kisi.myAccount.profile"))
+  const tabKeys = ["profile", "logins", "credentials", "security", "api"] as const
+  type TabKey = (typeof tabKeys)[number]
+  const tabLabels: Record<TabKey, string> = {
+    profile: t("kisi.myAccount.profile"),
+    logins: t("kisi.myAccount.logins"),
+    credentials: "Credentials",
+    security: t("kisi.myAccount.security"),
+    api: "API",
+  }
+  const [activeTab, setActiveTab] = useState<TabKey>("profile")
   const [profileName, setProfileName] = useState(() => profileNameForViewer(viewer))
   const [profileLanguage, setProfileLanguage] = useState(() => normalizedProfileLanguage(viewer.language))
   const [profileFeedback, setProfileFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null)
@@ -114,14 +133,17 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
       description={t("kisi.myAccount.description")}
     >
       <SettingsPanel
-        tabs={[t("kisi.myAccount.profile"), t("kisi.myAccount.logins"), "Credentials", t("kisi.myAccount.security"), "API"]}
-        active={activeTab}
-        onTabChange={setActiveTab}
+        tabs={tabKeys.map((k) => tabLabels[k])}
+        active={tabLabels[activeTab]}
+        onTabChange={(label) => {
+          const key = tabKeys.find((k) => tabLabels[k] === label)
+          if (key) setActiveTab(key)
+        }}
         footer={
           <>
             <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-[#4f55ff]" onClick={onLogout}>{t("kisi.shell.signOut")}</Button>
             <Button
-              disabled={activeTab !== t("kisi.myAccount.profile") || !profileDirty || !profileName.trim() || profileMutation.isPending}
+              disabled={activeTab !== "profile" || !profileDirty || !profileName.trim() || profileMutation.isPending}
               className="h-10 rounded-[8px] px-8"
               onClick={handleProfileSave}
             >
@@ -130,7 +152,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           </>
         }
       >
-        {activeTab === t("kisi.myAccount.profile") ? (
+        {activeTab === "profile" ? (
           <>
             <div className="border-b border-[#eceef2] px-7 py-5">
               <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.profile")}</h2>
@@ -207,50 +229,22 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
           </>
         ) : null}
 
-        {activeTab === t("kisi.myAccount.logins") ? (
-          <div className="divide-y divide-[#eceef2]">
-            <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.logins")}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.description")}</p>
-            </div>
-            {[
-              [i18next.t("common.status"), i18next.t("common.enabled"), "Last changed 18 days ago"],
-              ["SSO", i18next.t("common.organization"), "SAML is configured by an administrator"],
-              [i18next.t("common.active"), i18next.t("common.status"), "Chrome on macOS"],
-            ].map((row, index) => (
-              <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_170px_1fr] md:items-center">
-                <span className="font-semibold text-[#17171c]">{row[0]}</span>
-                <StatusDot tone={index === 1 ? "info" : "success"} label={row[1]} />
-                <span className="text-sm text-[#6f717c]">{row[2]}</span>
-              </div>
-            ))}
+        {activeTab === "logins" ? (
+          <LoginSessionsTab token={token} onLogout={onLogout} />
+        ) : null}
+
+        {activeTab === "credentials" ? (
+          <PasskeyCredentialsTab token={token} />
+        ) : null}
+
+        {activeTab === "security" ? (
+          <div>
+            <MFASecurityTab token={token} />
+            <PasswordChangeSection token={token} />
           </div>
         ) : null}
 
-        {activeTab === "Credentials" ? (
-          <div className="divide-y divide-[#eceef2]">
-            <div className="px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.credentials")}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.credentials")}</p>
-            </div>
-            {[
-              [i18next.t("kisi.credentials.title"), i18next.t("common.active"), "Used for app unlocks"],
-              [i18next.t("kisi.accessRights.accessLink"), i18next.t("common.scheduled"), "Expires in 7 days"],
-            ].map((row, index) => (
-              <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_170px_1fr] md:items-center">
-                <span className="font-semibold text-[#17171c]">{row[0]}</span>
-                <StatusDot tone={index === 0 ? "success" : "warning"} label={row[1]} />
-                <span className="text-sm text-[#6f717c]">{row[2]}</span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {activeTab === t("kisi.myAccount.security") ? (
-          <MFASecurityTab token={token} />
-        ) : null}
-
-        {activeTab === "API" ? (
+        {activeTab === "api" ? (
           <>
             <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
               <div>
@@ -439,6 +433,354 @@ function MFASecurityTab({ token }: { token: string }) {
         pending={disableMutation.isPending}
         destructive
       />
+    </div>
+  )
+}
+
+// --- Login Sessions Tab ---
+
+function formatUserAgent(ua: string): string {
+  if (!ua) return "Unknown"
+  if (ua.length > 80) return ua.slice(0, 77) + "..."
+  return ua
+}
+
+function loginMethodLabel(method: string): string {
+  switch (method) {
+    case "password": return "Password"
+    case "sso": return "SSO"
+    case "webauthn": return "Passkey"
+    default: return method || "Unknown"
+  }
+}
+
+function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => void }) {
+  const queryClient = useQueryClient()
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null)
+  const [confirmRevokeAll, setConfirmRevokeAll] = useState(false)
+
+  const sessionsQuery = useQuery({
+    queryKey: ["login-sessions"],
+    queryFn: () => listLoginSessions(token),
+    enabled: Boolean(token),
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: (sessionID: string) => revokeLoginSession(token, sessionID),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["login-sessions"] })
+      setConfirmRevoke(null)
+    },
+  })
+
+  const revokeAllMutation = useMutation({
+    mutationFn: () => revokeAllLoginSessions(token),
+    onSuccess: () => {
+      setConfirmRevokeAll(false)
+      onLogout()
+    },
+  })
+
+  const sessions = sessionsQuery.data ?? []
+
+  return (
+    <div className="divide-y divide-[#eceef2]">
+      <div className="flex items-center justify-between gap-4 px-7 py-5">
+        <div>
+          <h2 className="text-lg font-semibold text-[#17171c]">Active Sessions</h2>
+          <p className="mt-1 text-sm text-[#6f717c]">
+            Manage your active login sessions. Revoking a session will sign out that device.
+          </p>
+        </div>
+        {sessions.length > 1 && (
+          <Button
+            variant="outline"
+            className="h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+            onClick={() => setConfirmRevokeAll(true)}
+          >
+            Revoke all
+          </Button>
+        )}
+      </div>
+
+      {sessions.length === 0 ? (
+        <div className="px-7 py-8 text-center text-sm text-[#9a9ca7]">
+          No active sessions.
+        </div>
+      ) : (
+        sessions.map((session) => (
+          <div key={session.session_id} className="flex items-center gap-4 px-7 py-5">
+            <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+              <CloudIcon className="size-5 text-[#2f3037]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-[#17171c]">
+                {loginMethodLabel(session.login_method)}
+                {session.ip_address ? ` · ${session.ip_address}` : ""}
+              </p>
+              <p className="mt-1 truncate text-sm text-[#6f717c]">
+                {formatUserAgent(session.user_agent)}
+              </p>
+              <p className="mt-0.5 text-xs text-[#9a9ca7]">
+                Created {new Date(session.created_at).toLocaleString()} · Expires {new Date(session.expires_at).toLocaleString()}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="flex size-9 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
+              aria-label="Revoke session"
+              onClick={() => setConfirmRevoke(session.session_id)}
+            >
+              <Trash2Icon className="size-4" />
+            </button>
+          </div>
+        ))
+      )}
+
+      <ConfirmActionDialog
+        open={confirmRevoke !== null}
+        title="Revoke session"
+        description="This will sign out the device associated with this session."
+        confirmLabel="Revoke"
+        onConfirm={() => confirmRevoke && revokeMutation.mutate(confirmRevoke)}
+        onOpenChange={(open) => { if (!open) setConfirmRevoke(null) }}
+        pending={revokeMutation.isPending}
+        destructive
+      />
+
+      <ConfirmActionDialog
+        open={confirmRevokeAll}
+        title="Revoke all sessions"
+        description="This will sign out all devices including the current one. You will need to log in again."
+        confirmLabel="Revoke all"
+        onConfirm={() => revokeAllMutation.mutate()}
+        onOpenChange={(open) => { if (!open) setConfirmRevokeAll(false) }}
+        pending={revokeAllMutation.isPending}
+        destructive
+      />
+    </div>
+  )
+}
+
+// --- WebAuthn helpers for browser credential API ---
+
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/")
+  const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, "=")
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer
+}
+
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+// Converts server PublicKeyCredentialCreationOptions (base64url strings) to browser-compatible ArrayBuffers
+function prepareCreationOptions(options: any): CredentialCreationOptions {
+  const pk = options.publicKey
+  return {
+    publicKey: {
+      ...pk,
+      challenge: base64urlToBuffer(pk.challenge),
+      user: { ...pk.user, id: base64urlToBuffer(pk.user.id) },
+      excludeCredentials: pk.excludeCredentials?.map((c: any) => ({
+        ...c,
+        id: base64urlToBuffer(c.id),
+      })),
+    },
+  }
+}
+
+function prepareRequestOptions(options: any): CredentialRequestOptions {
+  const pk = options.publicKey
+  return {
+    publicKey: {
+      ...pk,
+      challenge: base64urlToBuffer(pk.challenge),
+      allowCredentials: pk.allowCredentials?.map((c: any) => ({
+        ...c,
+        id: base64urlToBuffer(c.id),
+      })),
+    },
+  }
+}
+
+function serializeCredential(credential: PublicKeyCredential): any {
+  const response = credential.response as AuthenticatorAttestationResponse | AuthenticatorAssertionResponse
+  const result: any = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+    },
+  }
+  if ("attestationObject" in response) {
+    result.response.attestationObject = bufferToBase64url(response.attestationObject)
+  }
+  if ("authenticatorData" in response) {
+    result.response.authenticatorData = bufferToBase64url(response.authenticatorData)
+    result.response.signature = bufferToBase64url((response as AuthenticatorAssertionResponse).signature)
+    const userHandle = (response as AuthenticatorAssertionResponse).userHandle
+    if (userHandle) result.response.userHandle = bufferToBase64url(userHandle)
+  }
+  return result
+}
+
+// --- Passkey credentials management tab ---
+
+function PasskeyCredentialsTab({ token }: { token: string }) {
+  const queryClient = useQueryClient()
+  const [registering, setRegistering] = useState(false)
+  const [error, setError] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const credentialsQuery = useQuery({
+    queryKey: ["webauthn-credentials"],
+    queryFn: () => listWebAuthnCredentials(token),
+    enabled: Boolean(token),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (credentialID: string) => deleteWebAuthnCredential(token, credentialID),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["webauthn-credentials"] })
+      setConfirmDelete(null)
+    },
+  })
+
+  async function handleRegister() {
+    setError("")
+    setRegistering(true)
+    try {
+      const optionsRaw = await webAuthnRegisterBegin(token)
+      const options = prepareCreationOptions(optionsRaw)
+      const credential = await navigator.credentials.create(options)
+      if (!credential) throw new Error("Registration cancelled")
+      const serialized = serializeCredential(credential as PublicKeyCredential)
+      await webAuthnRegisterFinish(token, serialized, displayName || undefined)
+      queryClient.invalidateQueries({ queryKey: ["webauthn-credentials"] })
+      setDisplayName("")
+    } catch (err: any) {
+      setError(err?.message || "Registration failed")
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const creds = credentialsQuery.data ?? []
+
+  return (
+    <div className="divide-y divide-[#eceef2]">
+      <div className="flex items-center justify-between gap-4 px-7 py-5">
+        <div>
+          <h2 className="text-lg font-semibold text-[#17171c]">Passkeys</h2>
+          <p className="mt-1 text-sm text-[#6f717c]">
+            Sign in with Touch ID, Face ID, or security keys instead of a password.
+          </p>
+        </div>
+      </div>
+
+      <div className="px-7 py-5">
+        <div className="flex items-end gap-3">
+          <label className="block flex-1">
+            <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Passkey name</span>
+            <input
+              type="text"
+              placeholder="e.g. MacBook Touch ID"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+            />
+          </label>
+          <Button
+            className="h-12 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+            disabled={registering}
+            onClick={handleRegister}
+          >
+            {registering ? "Registering..." : "Register passkey"}
+          </Button>
+        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      </div>
+
+      {creds.length === 0 ? (
+        <div className="px-7 py-8 text-center text-sm text-[#9a9ca7]">
+          No passkeys registered yet.
+        </div>
+      ) : (
+        creds.map((cred) => (
+          <div key={cred.id} className="flex items-center gap-4 px-7 py-5">
+            <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+              <FingerprintIcon className="size-5 text-[#4f55ff]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-[#17171c]">{cred.display_name}</p>
+              <p className="mt-1 text-sm text-[#6f717c]">
+                Added {new Date(cred.created_at).toLocaleDateString()} · Sign count: {cred.sign_count}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="flex size-9 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
+              aria-label={`Delete ${cred.display_name}`}
+              onClick={() => setConfirmDelete(cred.id)}
+            >
+              <Trash2Icon className="size-4" />
+            </button>
+          </div>
+        ))
+      )}
+
+      <ConfirmActionDialog
+        open={confirmDelete !== null}
+        title="Remove passkey"
+        description="This passkey will be permanently removed. You won't be able to sign in with it anymore."
+        confirmLabel="Remove"
+        onConfirm={() => confirmDelete && deleteMutation.mutate(confirmDelete)}
+        onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}
+        pending={deleteMutation.isPending}
+        destructive
+      />
+    </div>
+  )
+}
+
+function PasswordChangeSection({ token }: { token: string }) {
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [message, setMessage] = useState("")
+  const [pwError, setPwError] = useState("")
+
+  const mutation = useMutation({
+    mutationFn: () => changeUserPassword(token, currentPassword, newPassword),
+    onSuccess: () => { setMessage("Password changed successfully."); setPwError(""); setCurrentPassword(""); setNewPassword("") },
+    onError: (err) => { setPwError(err instanceof Error ? err.message : "Failed to change password"); setMessage("") },
+  })
+
+  return (
+    <div className="border-t border-[#eceef2] px-7 py-6">
+      <h3 className="text-lg font-semibold text-[#17171c]">Change Password</h3>
+      <p className="mt-1 text-sm text-[#6f717c]">Update your password. Must be at least 8 characters with uppercase, lowercase, and a digit.</p>
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <input type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password"
+          className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]" />
+        <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password"
+          className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]" />
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <Button className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]" disabled={mutation.isPending || !currentPassword || newPassword.length < 8} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Changing..." : "Change Password"}
+        </Button>
+        {message && <span className="text-sm text-green-600">{message}</span>}
+        {pwError && <span className="text-sm text-red-600">{pwError}</span>}
+      </div>
     </div>
   )
 }

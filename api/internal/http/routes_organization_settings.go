@@ -25,6 +25,7 @@ func (s *server) updateOrganizationSettings(w http.ResponseWriter, r *http.Reque
 		PushNotifications     *bool   `json:"push_notifications"`
 		WeeklyReports         *bool   `json:"weekly_reports"`
 		EnforceMFA            *bool   `json:"enforce_mfa"`
+		WebAuthnEnabled       *bool   `json:"webauthn_enabled"`
 		PasswordPolicy        *string `json:"password_policy"`
 		SessionTimeoutMinutes *int    `json:"session_timeout_minutes"`
 	}
@@ -39,7 +40,7 @@ func (s *server) updateOrganizationSettings(w http.ResponseWriter, r *http.Reque
 	settings, err := s.accessSvc.UpdateOrganizationSettings(
 		tenantID,
 		request.Name, request.PrimaryDomain, request.Timezone, request.SupportEmail,
-		request.EmailNotifications, request.PushNotifications, request.WeeklyReports, request.EnforceMFA,
+		request.EmailNotifications, request.PushNotifications, request.WeeklyReports, request.EnforceMFA, request.WebAuthnEnabled,
 		request.PasswordPolicy, request.SessionTimeoutMinutes,
 	)
 	if err != nil {
@@ -54,37 +55,25 @@ func (s *server) updateOrganizationSettings(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *server) exportOrganizationAudit(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	_, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
 	}
-	s.appendAuditLog(r, tenantID, "organization_audit_export_requested", "", "access")
-	writeJSON(w, http.StatusAccepted, map[string]string{
-		"status":  "queued",
-		"message": "Audit export has been queued. You will be notified when ready.",
-	})
+	writeError(w, http.StatusNotImplemented, "audit export is not yet implemented")
 }
 
 func (s *server) rotateOrganizationWebhooks(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	_, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
 	}
-	s.appendAuditLog(r, tenantID, "organization_webhook_secrets_rotated", "", "access")
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status":  "rotated",
-		"message": "All webhook signing secrets have been rotated.",
-	})
+	writeError(w, http.StatusNotImplemented, "webhook secret rotation is not yet implemented")
 }
 
 func (s *server) disableOrganization(w http.ResponseWriter, r *http.Request) {
-	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	_, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
 	}
-	s.appendAuditLog(r, tenantID, "organization_disabled", "", "access")
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status":  "disabled",
-		"message": "Organization has been disabled. Contact support to reactivate.",
-	})
+	writeError(w, http.StatusNotImplemented, "organization disable is not yet implemented")
 }

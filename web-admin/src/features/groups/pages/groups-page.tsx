@@ -56,7 +56,20 @@ export function GroupsAdaptedPage({
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState("Permissions")
+  const groupTabKeys = ["general", "members", "doors", "zones", "elevator_stops", "terminals", "links", "time_restrictions", "permissions"] as const
+  type GroupTabKey = (typeof groupTabKeys)[number]
+  const groupTabLabels: Record<GroupTabKey, string> = {
+    general: t("kisi.groups.tabGeneral"),
+    members: t("kisi.groups.tabMembers"),
+    doors: t("kisi.groups.tabDoors"),
+    zones: t("kisi.groups.tabZones"),
+    elevator_stops: "Elevator Stops",
+    terminals: "Terminals",
+    links: t("kisi.groups.tabLinks"),
+    time_restrictions: t("kisi.groups.tabTimeRestrictions"),
+    permissions: t("kisi.groups.tabPermissions"),
+  }
+  const [activeTab, setActiveTab] = useState<GroupTabKey>("permissions")
   const [selectedGroupID, setSelectedGroupID] = useState("")
   const [deleteGroupConfirmOpen, setDeleteGroupConfirmOpen] = useState(false)
   const [createGroupOpen, setCreateGroupOpen] = useState(false)
@@ -500,9 +513,12 @@ export function GroupsAdaptedPage({
       </section>
 
       <SettingsPanel
-        tabs={[t("kisi.groups.tabGeneral"), t("kisi.groups.tabMembers"), t("kisi.groups.tabDoors"), t("kisi.groups.tabZones"), t("kisi.groups.tabLinks"), t("kisi.groups.tabTimeRestrictions"), t("kisi.groups.tabPermissions")]}
-        active={activeTab}
-        onTabChange={setActiveTab}
+        tabs={groupTabKeys.map((k) => groupTabLabels[k])}
+        active={groupTabLabels[activeTab]}
+        onTabChange={(label) => {
+          const key = groupTabKeys.find((k) => groupTabLabels[k] === label)
+          if (key) setActiveTab(key)
+        }}
         footer={
           <Button
             type="button"
@@ -514,7 +530,7 @@ export function GroupsAdaptedPage({
           </Button>
         }
       >
-        {activeTab === "General" ? (
+        {activeTab === "general" ? (
           <>
             <PanelHeader title={t("common.general")} description={t("kisi.groups.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
@@ -544,7 +560,7 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Members" ? (
+        {activeTab === "members" ? (
           <>
             <PanelHeader
               title={t("common.members")}
@@ -568,7 +584,7 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Doors" ? (
+        {activeTab === "doors" ? (
           <>
             <PanelHeader
               title={t("kisi.groups.doors")}
@@ -613,7 +629,7 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Zones" ? (
+        {activeTab === "zones" ? (
           <>
             <PanelHeader title={t("kisi.groups.zones")} description={t("kisi.groups.zonesDesc")} />
             <div className="grid gap-4 p-7 md:grid-cols-2">
@@ -630,7 +646,25 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Links" ? (
+        {activeTab === "elevator_stops" ? (
+          <>
+            <PanelHeader title="Elevator Stops" description="Elevator floor stops this group can access." />
+            <div className="px-7 py-6 text-sm text-[#6f717c]">
+              Elevator stop bindings are managed via the Elevators page. Use the API to assign elevator stops to this group.
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "terminals" ? (
+          <>
+            <PanelHeader title="Terminals" description="Terminals assigned to this group." />
+            <div className="px-7 py-6 text-sm text-[#6f717c]">
+              Terminal bindings are managed via the Hardware page. Use the API to assign terminals to this group.
+            </div>
+          </>
+        ) : null}
+
+        {activeTab === "links" ? (
           <>
             <PanelHeader
               title={t("kisi.groups.links")}
@@ -700,7 +734,7 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Time Restrictions" ? (
+        {activeTab === "time_restrictions" ? (
           <>
             <PanelHeader title={t("kisi.groups.tabTimeRestrictions")} description={t("kisi.groups.timeDesc")} />
             <div className="p-7">
@@ -726,7 +760,7 @@ export function GroupsAdaptedPage({
           </>
         ) : null}
 
-        {activeTab === "Permissions" ? (
+        {activeTab === "permissions" ? (
           <>
             <PanelHeader title={t("common.permissions")} description={t("kisi.groups.permDesc")} />
             <div className="divide-y divide-[#eceef2] px-7">

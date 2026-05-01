@@ -117,10 +117,9 @@ func TestOrganizationAdvancedOperations(t *testing.T) {
 	}
 	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
 
-	// export audit
+	// export audit — returns 501 Not Implemented
 	exportRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/organization/export-audit?tenant_id=tenant_demo_jakarta", token, nil)
-	if exportRec.Code != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d body=%s", exportRec.Code, exportRec.Body.String())
+	if exportRec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d body=%s", exportRec.Code, exportRec.Body.String())
 	}
-	assertReferenceAuditLog(t, router, token, "organization_audit_export_requested", "")
 }

@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next"
-import { ArrowRightIcon, Building2Icon, GlobeIcon, LockKeyholeIcon } from "lucide-react"
+import { ArrowRightIcon, Building2Icon, FingerprintIcon, GlobeIcon, LockKeyholeIcon } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { useAuth } from "@/context/auth-context"
-import { login } from "@/lib/api"
+import { confirmPasswordReset, login, requestPasswordReset, userSignUp, webAuthnLoginBegin, webAuthnLoginFinish, webAuthnLoginFinishMFA } from "@/lib/api"
 
 const languageOptions = [
   { code: "zh-CN", labelKey: "common.language.zh" },
@@ -25,20 +25,24 @@ const languageOptions = [
   { code: "id-ID", labelKey: "common.language.id" },
 ] as const
 
-const demoAccounts = [
-  {
-    label: "Organization Admin",
-    scope: "Mistyislet organization",
-    email: "organization.admin@mistypass.local",
-    password: "admin123",
-  },
-  {
-    label: "Place Admin",
-    scope: "Sudirman Hub place",
-    email: "place.admin.sudirman@mistypass.local",
-    password: "admin123",
-  },
-] as const
+// Demo accounts are only used in dev mode (DEV is a compile-time constant;
+// Vite tree-shakes this in production builds).
+const demoAccounts = import.meta.env.DEV
+  ? ([
+      {
+        label: "Organization Admin",
+        scope: "Mistyislet organization",
+        email: "organization.admin@mistypass.local",
+        password: "admin123",
+      },
+      {
+        label: "Place Admin",
+        scope: "Sudirman Hub place",
+        email: "place.admin.sudirman@mistypass.local",
+        password: "admin123",
+      },
+    ] as const)
+  : ([] as const)
 
 function buildLoginSubmitSchema(t: TFunction) {
   return z.object({
@@ -56,6 +60,37 @@ function buildLoginSubmitSchema(t: TFunction) {
 }
 
 type LoginSubmitFormValues = z.infer<ReturnType<typeof buildLoginSubmitSchema>>
+
+function base64urlToBuffer(base64url: string): ArrayBuffer {
+  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/")
+  const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, "=")
+  const binary = atob(padded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes.buffer
+}
+
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+function serializePublicKeyCredential(credential: PublicKeyCredential): any {
+  const response = credential.response as AuthenticatorAssertionResponse
+  return {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+      authenticatorData: bufferToBase64url(response.authenticatorData),
+      signature: bufferToBase64url(response.signature),
+      userHandle: response.userHandle ? bufferToBase64url(response.userHandle) : undefined,
+    },
+  }
+}
 
 function isLanguageActive(current: string, candidate: string) {
   if (current === candidate) {
@@ -76,6 +111,15 @@ export function LoginPage() {
     password: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPasskeySubmitting, setIsPasskeySubmitting] = useState(false)
+  const [passkeyMFA, setPasskeyMFA] = useState<{ webauthnToken: string } | null>(null)
+  const [mfaCode, setMfaCode] = useState("")
+  const [showSignUp, setShowSignUp] = useState(false)
+  const [signUpName, setSignUpName] = useState("")
+  const [resetStep, setResetStep] = useState<"none" | "requested" | "confirm">("none")
+  const [resetToken, setResetToken] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [resetMessage, setResetMessage] = useState("")
   const loginSubmitSchema = useMemo(() => buildLoginSubmitSchema(t), [t])
   const currentLanguage = i18n.resolvedLanguage ?? i18n.language
 
@@ -108,6 +152,65 @@ export function LoginPage() {
       setError(message)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  async function onPasskeyLogin() {
+    const email = credentials.email.trim()
+    if (!email) {
+      setFieldErrors({ email: t("login.validation.emailRequired") })
+      return
+    }
+    setError("")
+    setFieldErrors({})
+    setPasskeyMFA(null)
+    setIsPasskeySubmitting(true)
+    try {
+      const optionsRaw = await webAuthnLoginBegin(email)
+      const pk = (optionsRaw as any).publicKey
+      const options: CredentialRequestOptions = {
+        publicKey: {
+          ...pk,
+          challenge: base64urlToBuffer(pk.challenge),
+          allowCredentials: pk.allowCredentials?.map((c: any) => ({
+            ...c,
+            id: base64urlToBuffer(c.id),
+          })),
+        },
+      }
+      const credential = await navigator.credentials.get(options)
+      if (!credential) throw new Error("Authentication cancelled")
+      const serialized = serializePublicKeyCredential(credential as PublicKeyCredential)
+      const result = await webAuthnLoginFinish(email, serialized)
+      if (result.mfa_required) {
+        setPasskeyMFA({ webauthnToken: result.webauthn_token })
+        setMfaCode("")
+        return
+      }
+      setAuthenticatedSession(result.access_token, result.refresh_token, result.user)
+      navigate("/home", { replace: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Passkey sign-in failed"
+      setError(message)
+    } finally {
+      setIsPasskeySubmitting(false)
+    }
+  }
+
+  async function onPasskeyMFASubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!passkeyMFA || !mfaCode.trim()) return
+    setError("")
+    setIsPasskeySubmitting(true)
+    try {
+      const response = await webAuthnLoginFinishMFA(passkeyMFA.webauthnToken, mfaCode.trim())
+      setAuthenticatedSession(response.access_token, response.refresh_token, response.user)
+      navigate("/home", { replace: true })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "MFA verification failed"
+      setError(message)
+    } finally {
+      setIsPasskeySubmitting(false)
     }
   }
 
@@ -212,6 +315,34 @@ export function LoginPage() {
                   {fieldErrors.password ? (
                     <p className="text-sm text-destructive">{fieldErrors.password}</p>
                   ) : null}
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    onClick={async () => {
+                      const email = credentials.email.trim()
+                      if (!email) {
+                        setFieldErrors({ email: t("login.validation.emailRequired") })
+                        return
+                      }
+                      setError("")
+                      setResetMessage("")
+                      try {
+                        const res = await requestPasswordReset(email)
+                        if (res.reset_token) {
+                          setResetToken(res.reset_token)
+                          setResetStep("confirm")
+                        } else {
+                          setResetStep("requested")
+                          setResetMessage("If an account exists with that email, a reset link has been sent.")
+                        }
+                      } catch {
+                        setResetStep("requested")
+                        setResetMessage("If an account exists with that email, a reset link has been sent.")
+                      }
+                    }}
+                  >
+                    Forgot password?
+                  </button>
                 </div>
 
                 {error ? (
@@ -220,11 +351,145 @@ export function LoginPage() {
                   </div>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {resetMessage ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                    {resetMessage}
+                  </div>
+                ) : null}
+
+                {resetStep === "confirm" ? (
+                  <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                    <p className="text-sm font-medium">Set your new password</p>
+                    <Input
+                      type="password"
+                      placeholder="New password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      autoComplete="new-password"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        className="flex-1"
+                        disabled={isSubmitting || newPassword.length < 8}
+                        onClick={async () => {
+                          setError("")
+                          setIsSubmitting(true)
+                          try {
+                            await confirmPasswordReset(resetToken, newPassword)
+                            setResetStep("none")
+                            setResetMessage("Password reset successful. You can now log in.")
+                            setNewPassword("")
+                            setResetToken("")
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "Reset failed")
+                          } finally {
+                            setIsSubmitting(false)
+                          }
+                        }}
+                      >
+                        Reset password
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => { setResetStep("none"); setResetToken(""); setNewPassword(""); setResetMessage("") }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <Button type="submit" className="w-full" disabled={isSubmitting || isPasskeySubmitting}>
                   {isSubmitting ? t("login.form.submitting") : t("login.form.submit")}
                   <ArrowRightIcon className="ml-1.5 size-4" />
                 </Button>
               </form>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">or</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isSubmitting || isPasskeySubmitting}
+                onClick={onPasskeyLogin}
+              >
+                <FingerprintIcon className="mr-2 size-4" />
+                {isPasskeySubmitting ? "Authenticating..." : "Sign in with passkey"}
+              </Button>
+
+              {passkeyMFA ? (
+                <form onSubmit={onPasskeyMFASubmit} className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-medium">Passkey verified. Enter your MFA code to continue.</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6-digit code"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value)}
+                      className="flex-1"
+                      autoFocus
+                    />
+                    <Button type="submit" disabled={isPasskeySubmitting || mfaCode.trim().length < 6}>
+                      {isPasskeySubmitting ? "Verifying..." : "Verify"}
+                    </Button>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:underline"
+                    onClick={() => { setPasskeyMFA(null); setMfaCode(""); setError("") }}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : null}
+
+              <div className="text-center">
+                <button type="button" className="text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => setShowSignUp(!showSignUp)}>
+                  {showSignUp ? "Back to login" : "Create an account"}
+                </button>
+              </div>
+
+              {showSignUp ? (
+                <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-medium">Create a new account</p>
+                  <Input type="text" placeholder="Name" value={signUpName} onChange={(e) => setSignUpName(e.target.value)} autoComplete="name" />
+                  <Input type="email" placeholder="Email" value={credentials.email} onChange={(e) => setCredentials((c) => ({ ...c, email: e.target.value }))} autoComplete="email" />
+                  <Input type="password" placeholder="Password (min 8 chars, upper+lower+digit)" value={credentials.password} onChange={(e) => setCredentials((c) => ({ ...c, password: e.target.value }))} autoComplete="new-password" />
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={isSubmitting || !credentials.email.trim() || !credentials.password.trim()}
+                    onClick={async () => {
+                      setError("")
+                      setIsSubmitting(true)
+                      try {
+                        await userSignUp({ name: signUpName, email: credentials.email, password: credentials.password })
+                        setShowSignUp(false)
+                        setResetMessage("Account created. You can now log in.")
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Sign up failed")
+                      } finally {
+                        setIsSubmitting(false)
+                      }
+                    }}
+                  >
+                    {isSubmitting ? "Creating..." : "Sign Up"}
+                  </Button>
+                </div>
+              ) : null}
 
               {showDevTestAccounts ? (
                 <div className="space-y-2">

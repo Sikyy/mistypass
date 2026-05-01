@@ -679,22 +679,20 @@ func (s *Service) Register(serialNumber, tenantID, buildingID string, deviceCapa
 	}
 
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for i := range s.gateways {
 		if strings.EqualFold(s.gateways[i].SerialNumber, serial) {
-			s.mu.Unlock()
 			return Gateway{}, ErrGatewaySerialAlreadyRegistered
 		}
 	}
 	if err := s.consumeGatewaySerialLocked(serial, nextTenantID, id); err != nil {
-		s.mu.Unlock()
 		return Gateway{}, err
 	}
 	s.gateways = append(s.gateways, record)
 	if err := s.persistLocked(); err != nil {
-		s.mu.Unlock()
 		return Gateway{}, err
 	}
-	s.mu.Unlock()
 
 	return record, nil
 }
@@ -970,6 +968,75 @@ func (s *Service) DeassignDevice(tenantID, deviceID string) (Gateway, GatewayDev
 		}
 	}
 
+	return Gateway{}, GatewayDevice{}, ErrGatewayDeviceNotFound
+}
+
+func (s *Service) UpdateDevice(tenantID, deviceID, status, protocol string) (Gateway, GatewayDevice, error) {
+	devID := strings.TrimSpace(deviceID)
+	if devID == "" {
+		return Gateway{}, GatewayDevice{}, ErrGatewayDeviceIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if tenantID != "" && s.gateways[i].TenantID != tenantID {
+			continue
+		}
+		for d := range s.gateways[i].Devices {
+			if s.gateways[i].Devices[d].ID != devID {
+				continue
+			}
+			if nextStatus := strings.TrimSpace(status); nextStatus != "" {
+				validatedStatus, err := normalizeDeviceStatus(nextStatus)
+				if err != nil {
+					return Gateway{}, GatewayDevice{}, err
+				}
+				s.gateways[i].Devices[d].Status = validatedStatus
+			}
+			if nextProtocol := strings.TrimSpace(protocol); nextProtocol != "" {
+				validatedProtocol, err := normalizeDeviceProtocol(s.gateways[i].Devices[d].Kind, s.gateways[i].Devices[d].Source, nextProtocol)
+				if err != nil {
+					return Gateway{}, GatewayDevice{}, err
+				}
+				s.gateways[i].Devices[d].Protocol = validatedProtocol
+			}
+			s.gateways[i].Devices[d].LastSeenAt = time.Now().UTC()
+			if err := s.persistLocked(); err != nil {
+				return Gateway{}, GatewayDevice{}, err
+			}
+			return s.gateways[i], s.gateways[i].Devices[d], nil
+		}
+	}
+	return Gateway{}, GatewayDevice{}, ErrGatewayDeviceNotFound
+}
+
+func (s *Service) ResetDeviceTamper(tenantID, deviceID string) (Gateway, GatewayDevice, error) {
+	devID := strings.TrimSpace(deviceID)
+	if devID == "" {
+		return Gateway{}, GatewayDevice{}, ErrGatewayDeviceIDRequired
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if tenantID != "" && s.gateways[i].TenantID != tenantID {
+			continue
+		}
+		for d := range s.gateways[i].Devices {
+			if s.gateways[i].Devices[d].ID != devID {
+				continue
+			}
+			s.gateways[i].Devices[d].RS485Health = nil
+			s.gateways[i].Devices[d].LastSeenAt = time.Now().UTC()
+			if err := s.persistLocked(); err != nil {
+				return Gateway{}, GatewayDevice{}, err
+			}
+			return s.gateways[i], s.gateways[i].Devices[d], nil
+		}
+	}
 	return Gateway{}, GatewayDevice{}, ErrGatewayDeviceNotFound
 }
 

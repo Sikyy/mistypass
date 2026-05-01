@@ -44,6 +44,9 @@ type Config struct {
 	JWTAccessTTL                                                 time.Duration
 	JWTRefreshTTL                                                time.Duration
 	EnableDemoUsers                                              bool
+	WebAuthnRPDisplayName                                        string
+	WebAuthnRPID                                                 string
+	WebAuthnRPOrigins                                            []string
 	UserInvitationEmailProvider                                  string
 	UserInvitationEmailFrom                                      string
 	UserInvitationResendEndpoint                                 string
@@ -126,6 +129,11 @@ type Config struct {
 	WalletAlertWhatsAppAPIKey                                    string
 	WalletAlertWhatsAppPhoneNumberID                             string
 	WalletAlertWhatsAppTimeout                                   time.Duration
+	UploadStorageDir                                             string
+	UploadSigningKey                                             string
+	UploadMaxSizeBytes                                           int64
+	UploadURLTTL                                                 time.Duration
+	SelfRegistrationEnabled                                      bool
 }
 
 func FromEnv() Config {
@@ -139,6 +147,7 @@ func FromEnv() Config {
 	loadDatabaseConfig(&cfg)
 	loadEnterpriseConfig(&cfg)
 	loadGatewayConfig(&cfg)
+	loadUploadConfig(&cfg)
 	loadWalletConfig(&cfg)
 	return cfg
 }
@@ -215,6 +224,15 @@ func loadAuthConfig(cfg *Config) {
 	cfg.JWTRefreshTTL = parseDurationOrFallback(envString("JWT_REFRESH_TTL"), 7*24*time.Hour)
 	if raw := envString("ENABLE_DEMO_USERS"); raw != "" {
 		cfg.EnableDemoUsers = parseBoolOrFallback(raw, false)
+	}
+	cfg.WebAuthnRPDisplayName = envStringOrDefault("WEBAUTHN_RP_DISPLAY_NAME", "MistyPass")
+	cfg.WebAuthnRPID = envString("WEBAUTHN_RP_ID")
+	if raw := envString("WEBAUTHN_RP_ORIGINS"); raw != "" {
+		origins := strings.Split(raw, ",")
+		for i := range origins {
+			origins[i] = strings.TrimSpace(origins[i])
+		}
+		cfg.WebAuthnRPOrigins = origins
 	}
 }
 
@@ -587,6 +605,21 @@ func loadGatewayConfig(cfg *Config) {
 	)
 }
 
+func loadUploadConfig(cfg *Config) {
+	cfg.UploadStorageDir = envStringOrDefault("UPLOAD_STORAGE_DIR", "")
+	cfg.UploadSigningKey = envString("UPLOAD_SIGNING_KEY")
+	cfg.UploadMaxSizeBytes = int64(parseIntOrFallback(envString("UPLOAD_MAX_SIZE_BYTES"), 10*1024*1024)) // 10MB
+	if cfg.UploadMaxSizeBytes <= 0 {
+		cfg.UploadMaxSizeBytes = 10 * 1024 * 1024
+	}
+	cfg.UploadURLTTL = parseDurationOrFallback(envString("UPLOAD_URL_TTL"), 15*time.Minute)
+	if cfg.UploadURLTTL < time.Minute {
+		cfg.UploadURLTTL = 15 * time.Minute
+	}
+	// Self-registration is disabled by default; enable with SELF_REGISTRATION_ENABLED=true
+	cfg.SelfRegistrationEnabled = parseBoolOrFallback(envString("SELF_REGISTRATION_ENABLED"), false)
+}
+
 func loadWalletConfig(cfg *Config) {
 	cfg.WalletJobProcessDefaultMaxRetry = parseIntOrFallback(
 		envString("WALLET_JOB_PROCESS_DEFAULT_MAX_RETRY"),
@@ -697,6 +730,9 @@ func (cfg Config) Validate() error {
 		}
 		if strings.TrimSpace(cfg.GatewayBootstrapToken) == "" {
 			return errors.New("GATEWAY_BOOTSTRAP_TOKEN is required when APP_ENV is production")
+		}
+		if strings.TrimSpace(cfg.UploadStorageDir) != "" && strings.TrimSpace(cfg.UploadSigningKey) == "" {
+			return errors.New("UPLOAD_SIGNING_KEY is required when uploads are enabled in production")
 		}
 	}
 	if cfg.OTelEnabled {

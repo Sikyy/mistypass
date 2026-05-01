@@ -27,6 +27,8 @@ var ErrAdminMFARequired = errors.New("admin mfa code is required")
 var ErrInvalidMFACode = errors.New("invalid admin mfa code")
 var ErrAdminMFANotConfigured = errors.New("admin mfa is not configured")
 var ErrPasswordTooWeak = errors.New("password must be at least 8 characters with uppercase, lowercase, and digit")
+var ErrPasswordResetTokenInvalid = errors.New("password reset token is invalid or expired")
+var ErrPasswordResetTokenExpired = errors.New("password reset token has expired")
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -76,8 +78,30 @@ type userRecord struct {
 }
 
 type refreshSession struct {
-	UserID    string
-	ExpiresAt time.Time
+	UserID      string
+	ExpiresAt   time.Time
+	IPAddress   string
+	UserAgent   string
+	LoginMethod string // "password", "sso", "webauthn"
+	CreatedAt   time.Time
+}
+
+// LoginSession is the public view of an active session.
+type LoginSession struct {
+	SessionID   string    `json:"session_id"`
+	UserID      string    `json:"user_id"`
+	IPAddress   string    `json:"ip_address,omitempty"`
+	UserAgent   string    `json:"user_agent,omitempty"`
+	LoginMethod string    `json:"login_method,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `json:"expires_at"`
+}
+
+// SessionMetadata carries request context for session tracking.
+type SessionMetadata struct {
+	IPAddress   string
+	UserAgent   string
+	LoginMethod string
 }
 
 type adminMFAState struct {
@@ -136,6 +160,9 @@ type Persistence interface {
 	IsAuthAccessTokenRevoked(tokenID string, now time.Time) (bool, error)
 	UpsertAuthAdminMFAState(userID string, state AdminMFAPersistenceState) error
 	FindAuthAdminMFAState(userID string) (AdminMFAPersistenceState, bool, error)
+	UpsertWebAuthnCredential(cred WebAuthnCredential) error
+	FindWebAuthnCredentialsByUserID(userID string) ([]WebAuthnCredential, error)
+	DeleteWebAuthnCredential(credentialID string) error
 }
 
 type VolatileStore interface {
@@ -147,20 +174,26 @@ type VolatileStore interface {
 	IsAuthAccessTokenRevoked(tokenID string, now time.Time) (bool, error)
 }
 
+type passwordResetToken struct {
+	Email     string
+	ExpiresAt time.Time
+}
+
 type Service struct {
-	mu               sync.RWMutex
-	signingKey       []byte
-	issuer           string
-	accessTTL        time.Duration
-	refreshTTL       time.Duration
-	adminMFARequired bool
-	adminMFA         map[string]adminMFAState
-	persistence      Persistence
-	volatileStore    VolatileStore
-	usersByEmail     map[string]userRecord
-	usersByID        map[string]User
-	refreshSessions  map[string]refreshSession
-	revokedAccess    map[string]time.Time
+	mu                  sync.RWMutex
+	signingKey          []byte
+	issuer              string
+	accessTTL           time.Duration
+	refreshTTL          time.Duration
+	adminMFARequired    bool
+	adminMFA            map[string]adminMFAState
+	persistence         Persistence
+	volatileStore       VolatileStore
+	usersByEmail        map[string]userRecord
+	usersByID           map[string]User
+	refreshSessions     map[string]refreshSession
+	revokedAccess       map[string]time.Time
+	passwordResetTokens map[string]passwordResetToken
 }
 
 const defaultJWTIssuer = "mistypass-api"
@@ -199,15 +232,16 @@ func NewService(secret, issuer string, accessTTL, refreshTTL time.Duration, enab
 	}
 
 	return &Service{
-		signingKey:      []byte(nextSecret),
-		issuer:          nextIssuer,
-		accessTTL:       nextAccessTTL,
-		refreshTTL:      nextRefreshTTL,
-		adminMFA:        make(map[string]adminMFAState),
-		usersByEmail:    usersByEmail,
-		usersByID:       usersByID,
-		refreshSessions: make(map[string]refreshSession),
-		revokedAccess:   make(map[string]time.Time),
+		signingKey:          []byte(nextSecret),
+		issuer:              nextIssuer,
+		accessTTL:           nextAccessTTL,
+		refreshTTL:          nextRefreshTTL,
+		adminMFA:            make(map[string]adminMFAState),
+		usersByEmail:        usersByEmail,
+		usersByID:           usersByID,
+		refreshSessions:     make(map[string]refreshSession),
+		revokedAccess:       make(map[string]time.Time),
+		passwordResetTokens: make(map[string]passwordResetToken),
 	}
 }
 
@@ -275,7 +309,7 @@ func (s *Service) SetAdminMFARequired(required bool) {
 	s.adminMFARequired = required
 }
 
-func (s *Service) Login(request LoginRequest) (LoginResponse, error) {
+func (s *Service) Login(request LoginRequest, meta ...SessionMetadata) (LoginResponse, error) {
 	email := normalizeEmail(request.Email)
 	password := strings.TrimSpace(request.Password)
 	if email == "" || password == "" {
@@ -296,13 +330,21 @@ func (s *Service) Login(request LoginRequest) (LoginResponse, error) {
 		return LoginResponse{}, err
 	}
 
+	m := SessionMetadata{LoginMethod: "password"}
+	if len(meta) > 0 {
+		m = meta[0]
+		if m.LoginMethod == "" {
+			m.LoginMethod = "password"
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cleanupExpiredLocked(time.Now().UTC())
-	return s.issueTokenPairLocked(record.User)
+	return s.issueTokenPairWithMetadataLocked(record.User, m)
 }
 
-func (s *Service) LoginByTrustedIdentity(email string) (LoginResponse, error) {
+func (s *Service) LoginByTrustedIdentity(email string, meta ...SessionMetadata) (LoginResponse, error) {
 	nextEmail := normalizeEmail(email)
 	if nextEmail == "" {
 		return LoginResponse{}, ErrInvalidCredentials
@@ -316,10 +358,52 @@ func (s *Service) LoginByTrustedIdentity(email string) (LoginResponse, error) {
 		return LoginResponse{}, ErrInvalidCredentials
 	}
 
+	m := SessionMetadata{LoginMethod: "sso"}
+	if len(meta) > 0 {
+		m = meta[0]
+		if m.LoginMethod == "" {
+			m.LoginMethod = "sso"
+		}
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cleanupExpiredLocked(time.Now().UTC())
-	return s.issueTokenPairLocked(record.User)
+	return s.issueTokenPairWithMetadataLocked(record.User, m)
+}
+
+// LoginByWebAuthn issues a token pair after WebAuthn authentication succeeds.
+// WebAuthn replaces the password but not MFA — TOTP is still enforced if enabled.
+func (s *Service) LoginByWebAuthn(email, mfaCode string, meta ...SessionMetadata) (LoginResponse, error) {
+	nextEmail := normalizeEmail(email)
+	if nextEmail == "" {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
+
+	record, exists, err := s.findUserByEmail(nextEmail)
+	if err != nil {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
+	if !exists {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
+
+	if err := s.enforceAdminMFA(record.User, mfaCode); err != nil {
+		return LoginResponse{}, err
+	}
+
+	m := SessionMetadata{LoginMethod: "webauthn"}
+	if len(meta) > 0 {
+		m = meta[0]
+		if m.LoginMethod == "" {
+			m.LoginMethod = "webauthn"
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cleanupExpiredLocked(time.Now().UTC())
+	return s.issueTokenPairWithMetadataLocked(record.User, m)
 }
 
 func (s *Service) LoginByTrustedUser(user User) (LoginResponse, error) {
@@ -600,6 +684,220 @@ func (s *Service) GetUserByID(userID string) (User, error) {
 
 	user.BuildingIDs = append([]string(nil), user.BuildingIDs...)
 	return user, nil
+}
+
+// ListActiveSessions returns all non-expired refresh sessions for a user.
+func (s *Service) ListActiveSessions(userID string) []LoginSession {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return nil
+	}
+
+	now := time.Now().UTC()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var sessions []LoginSession
+	for sessionID, session := range s.refreshSessions {
+		if session.UserID != nextUserID || session.ExpiresAt.Before(now) {
+			continue
+		}
+		sessions = append(sessions, LoginSession{
+			SessionID:   sessionID,
+			UserID:      session.UserID,
+			IPAddress:   session.IPAddress,
+			UserAgent:   session.UserAgent,
+			LoginMethod: session.LoginMethod,
+			CreatedAt:   session.CreatedAt,
+			ExpiresAt:   session.ExpiresAt,
+		})
+	}
+	return sessions
+}
+
+// RevokeSession revokes a specific refresh session for a user.
+func (s *Service) RevokeSession(userID, sessionID string) error {
+	nextUserID := strings.TrimSpace(userID)
+	nextSessionID := strings.TrimSpace(sessionID)
+	if nextUserID == "" || nextSessionID == "" {
+		return ErrInvalidRefreshToken
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	session, exists := s.refreshSessions[nextSessionID]
+	if !exists || session.UserID != nextUserID {
+		return ErrInvalidRefreshToken
+	}
+
+	return s.deleteRefreshSessionLocked(nextSessionID)
+}
+
+const passwordResetTokenTTL = 15 * time.Minute
+
+// RequestPasswordReset generates a one-time reset token for the given email.
+// Returns the token string. The caller is responsible for delivering it (e.g. via email).
+// Returns empty string (no error) if the user doesn't exist to avoid email enumeration.
+func (s *Service) RequestPasswordReset(email string) (string, error) {
+	nextEmail := normalizeEmail(email)
+	if nextEmail == "" {
+		return "", nil
+	}
+
+	_, exists, err := s.findUserByEmail(nextEmail)
+	if err != nil || !exists {
+		return "", nil // silent — don't reveal whether the user exists
+	}
+
+	buf := make([]byte, 24)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	token := fmt.Sprintf("prt_%x", buf)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Cleanup expired tokens
+	now := time.Now().UTC()
+	for k, t := range s.passwordResetTokens {
+		if t.ExpiresAt.Before(now) {
+			delete(s.passwordResetTokens, k)
+		}
+	}
+
+	s.passwordResetTokens[token] = passwordResetToken{
+		Email:     nextEmail,
+		ExpiresAt: now.Add(passwordResetTokenTTL),
+	}
+	return token, nil
+}
+
+// ConfirmPasswordReset validates the token and sets a new password.
+func (s *Service) ConfirmPasswordReset(token, newPassword string) error {
+	nextToken := strings.TrimSpace(token)
+	if nextToken == "" {
+		return ErrPasswordResetTokenInvalid
+	}
+
+	if err := ValidatePasswordPolicy(newPassword); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	prt, exists := s.passwordResetTokens[nextToken]
+	if !exists {
+		return ErrPasswordResetTokenInvalid
+	}
+	delete(s.passwordResetTokens, nextToken)
+
+	if prt.ExpiresAt.Before(now) {
+		return ErrPasswordResetTokenExpired
+	}
+
+	record, exists, err := s.findUserByEmailLocked(prt.Email)
+	if err != nil || !exists {
+		return ErrUserNotFound
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return s.persistUserLocked(record.User, hash)
+}
+
+// CreateUser creates a new user with email and password (self-signup).
+func (s *Service) CreateUser(email, name, password string) (User, error) {
+	nextEmail := normalizeEmail(email)
+	if nextEmail == "" {
+		return User{}, errors.New("email is required")
+	}
+	if err := ValidatePasswordPolicy(password); err != nil {
+		return User{}, err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return User{}, err
+	}
+
+	userID, err := randomTokenID(8)
+	if err != nil {
+		return User{}, err
+	}
+	user := User{
+		ID:                  "usr_" + userID,
+		Name:                strings.TrimSpace(name),
+		Email:               nextEmail,
+		Role:                "resident",
+		PasswordAuthEnabled: true,
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Check existence under lock to prevent TOCTOU race
+	if _, exists, _ := s.findUserByEmailLocked(nextEmail); exists {
+		return User{}, errors.New("user already exists")
+	}
+	if err := s.persistUserLocked(user, hash); err != nil {
+		return User{}, err
+	}
+	return user, nil
+}
+
+// ChangePassword validates the current password and sets a new one.
+func (s *Service) ChangePassword(userID, currentPassword, newPassword string) error {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return ErrUserNotFound
+	}
+	if err := ValidatePasswordPolicy(newPassword); err != nil {
+		return err
+	}
+
+	// Find user outside lock for bcrypt verification (acceptable if slightly stale)
+	user, exists, err := s.findUserByID(nextUserID)
+	if err != nil || !exists {
+		return ErrUserNotFound
+	}
+	record, recordExists, _ := s.findUserByEmail(user.Email)
+	if !recordExists {
+		return ErrUserNotFound
+	}
+	if !verifyPassword(record.PasswordHash, currentPassword) {
+		return ErrInvalidCredentials
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Re-verify user exists under lock
+	lockedRecord, lockedExists, _ := s.findUserByEmailLocked(user.Email)
+	if !lockedExists {
+		return ErrUserNotFound
+	}
+	return s.persistUserLocked(lockedRecord.User, hash)
+}
+
+func (s *Service) FindUserByEmail(email string) (User, error) {
+	record, exists, err := s.findUserByEmail(email)
+	if err != nil {
+		return User{}, ErrUserNotFound
+	}
+	if !exists {
+		return User{}, ErrUserNotFound
+	}
+	return record.User, nil
 }
 
 func (s *Service) UpdateUserBuildingScope(userID string, buildingIDs []string) (User, error) {
@@ -972,14 +1270,14 @@ func (s *Service) StartUserMFAEnrollment(userID, issuer string) (AdminMFAEnrollm
 	}, nil
 }
 
-func (s *Service) EnableUserMFA(userID, code string) (AdminMFAStatus, error) {
+func (s *Service) EnableUserMFA(userID, code string) (AdminMFAStatus, *AdminMFARecoveryCodes, error) {
 	nextUserID := strings.TrimSpace(userID)
 	if nextUserID == "" {
-		return AdminMFAStatus{}, ErrUserNotFound
+		return AdminMFAStatus{}, nil, ErrUserNotFound
 	}
 	nextCode := strings.TrimSpace(code)
 	if nextCode == "" {
-		return AdminMFAStatus{}, ErrAdminMFARequired
+		return AdminMFAStatus{}, nil, ErrAdminMFARequired
 	}
 
 	s.mu.Lock()
@@ -987,26 +1285,34 @@ func (s *Service) EnableUserMFA(userID, code string) (AdminMFAStatus, error) {
 
 	_, exists, err := s.findUserByIDLocked(nextUserID)
 	if err != nil || !exists {
-		return AdminMFAStatus{}, ErrUserNotFound
+		return AdminMFAStatus{}, nil, ErrUserNotFound
 	}
 
 	state, exists, err := s.findAdminMFAStateLocked(nextUserID)
 	if err != nil {
-		return AdminMFAStatus{}, err
+		return AdminMFAStatus{}, nil, err
 	}
 	if !exists || strings.TrimSpace(state.PendingSecret) == "" {
-		return AdminMFAStatus{}, ErrAdminMFANotConfigured
+		return AdminMFAStatus{}, nil, ErrAdminMFANotConfigured
 	}
 	if !verifyTOTPCode(state.PendingSecret, nextCode, time.Now().UTC()) {
-		return AdminMFAStatus{}, ErrInvalidMFACode
+		return AdminMFAStatus{}, nil, ErrInvalidMFACode
 	}
 
 	state.Secret = state.PendingSecret
 	state.PendingSecret = ""
 	state.Enabled = true
 	state.UpdatedAt = time.Now().UTC()
+
+	// Generate one-time recovery codes
+	plaintextCodes, hashedCodes, err := generateRecoveryCodes(8)
+	if err != nil {
+		return AdminMFAStatus{}, nil, err
+	}
+	state.RecoveryCodes = hashedCodes
+
 	if err := s.persistAdminMFAStateLocked(nextUserID, state); err != nil {
-		return AdminMFAStatus{}, err
+		return AdminMFAStatus{}, nil, err
 	}
 
 	return AdminMFAStatus{
@@ -1014,6 +1320,9 @@ func (s *Service) EnableUserMFA(userID, code string) (AdminMFAStatus, error) {
 		Enabled:   true,
 		Pending:   false,
 		UpdatedAt: timePointer(state.UpdatedAt),
+	}, &AdminMFARecoveryCodes{
+		UserID: nextUserID,
+		Codes:  plaintextCodes,
 	}, nil
 }
 
@@ -1052,6 +1361,10 @@ func (s *Service) DisableUserMFA(userID string) (AdminMFAStatus, error) {
 }
 
 func (s *Service) issueTokenPairLocked(user User) (LoginResponse, error) {
+	return s.issueTokenPairWithMetadataLocked(user, SessionMetadata{})
+}
+
+func (s *Service) issueTokenPairWithMetadataLocked(user User, meta SessionMetadata) (LoginResponse, error) {
 	accessToken, _, err := s.signToken(user, "access", s.accessTTL)
 	if err != nil {
 		return LoginResponse{}, err
@@ -1062,9 +1375,14 @@ func (s *Service) issueTokenPairLocked(user User) (LoginResponse, error) {
 		return LoginResponse{}, err
 	}
 
+	now := time.Now().UTC()
 	if err := s.upsertRefreshSessionLocked(refreshClaims.ID, refreshSession{
-		UserID:    user.ID,
-		ExpiresAt: refreshClaims.ExpiresAt.Time,
+		UserID:      user.ID,
+		ExpiresAt:   refreshClaims.ExpiresAt.Time,
+		IPAddress:   meta.IPAddress,
+		UserAgent:   meta.UserAgent,
+		LoginMethod: meta.LoginMethod,
+		CreatedAt:   now,
 	}); err != nil {
 		return LoginResponse{}, err
 	}
@@ -1381,16 +1699,25 @@ func (s *Service) enforceAdminMFA(user User, mfaCode string) error {
 	if nextCode == "" {
 		return ErrAdminMFARequired
 	}
-	// Try TOTP first
+	// Try TOTP first (no state mutation needed)
 	if verifyTOTPCode(state.Secret, nextCode, time.Now().UTC()) {
 		return nil
 	}
-	// Try recovery code as fallback (single-use, consumed on match)
+	// Try recovery code as fallback — acquire lock for state mutation
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Re-read state under lock to avoid TOCTOU race
+	state, exists, err = s.findAdminMFAStateLocked(strings.TrimSpace(user.ID))
+	if err != nil || !exists || !state.Enabled {
+		return ErrInvalidMFACode
+	}
 	updatedCodes, matched := verifyAndConsumeRecoveryCode(state.RecoveryCodes, nextCode)
 	if matched {
 		state.RecoveryCodes = updatedCodes
 		state.UpdatedAt = time.Now().UTC()
-		_ = s.persistAdminMFAStateLocked(user.ID, state)
+		if err := s.persistAdminMFAStateLocked(user.ID, state); err != nil {
+			return err
+		}
 		return nil
 	}
 	return ErrInvalidMFACode
@@ -1502,8 +1829,12 @@ func (s *Service) upsertRefreshSessionLocked(sessionID string, session refreshSe
 		return errors.New("invalid refresh session")
 	}
 	nextSession := refreshSession{
-		UserID:    nextUserID,
-		ExpiresAt: session.ExpiresAt.UTC(),
+		UserID:      nextUserID,
+		ExpiresAt:   session.ExpiresAt.UTC(),
+		IPAddress:   session.IPAddress,
+		UserAgent:   session.UserAgent,
+		LoginMethod: session.LoginMethod,
+		CreatedAt:   session.CreatedAt,
 	}
 
 	if s.volatileStore != nil {
@@ -1722,7 +2053,9 @@ func (s *Service) enforceAdminMFALocked(user User, mfaCode string) error {
 	if matched {
 		state.RecoveryCodes = updatedCodes
 		state.UpdatedAt = time.Now().UTC()
-		_ = s.persistAdminMFAStateLocked(user.ID, state)
+		if err := s.persistAdminMFAStateLocked(user.ID, state); err != nil {
+			return err
+		}
 		return nil
 	}
 	return ErrInvalidMFACode
