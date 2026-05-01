@@ -479,3 +479,34 @@ create table if not exists mistypass_wallet_audit_logs (
   raw jsonb not null,
   synced_at timestamptz not null default now()
 );
+
+create table if not exists mistypass_alert_policies (
+  id text primary key,
+  tenant_id text not null,
+  name text not null,
+  category text not null default 'custom',
+  trigger_type text not null,
+  severity text not null default 'medium',
+  status text not null default 'active',
+  enabled boolean not null default true,
+  channels jsonb not null default '{}'::jsonb,
+  raw jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  synced_at timestamptz not null default now()
+);
+create index if not exists mistypass_alert_policies_tenant_idx on mistypass_alert_policies(tenant_id);
+
+create table if not exists mistypass_alert_notifications (
+  id text primary key,
+  tenant_id text not null,
+  policy_id text not null,
+  severity text not null,
+  status text not null default 'pending',
+  channels jsonb not null default '{}'::jsonb,
+  attempts int not null default 0,
+  last_error text,
+  dispatched_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists mistypass_alert_notifications_tenant_idx on mistypass_alert_notifications(tenant_id);

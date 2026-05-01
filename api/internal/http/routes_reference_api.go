@@ -631,6 +631,8 @@ func (request referenceIntegrationMutationRequest) payload() referenceIntegratio
 type referenceAlertPolicyChannels struct {
 	Email    bool `json:"email"`
 	WhatsApp bool `json:"whatsapp"`
+	Webhook  bool `json:"webhook"`
+	Slack    bool `json:"slack"`
 }
 
 type referenceAlertPolicy struct {
@@ -669,6 +671,8 @@ type referenceAlertPolicyPayload struct {
 	Channels        *struct {
 		Email    *bool `json:"email"`
 		WhatsApp *bool `json:"whatsapp"`
+		Webhook  *bool `json:"webhook"`
+		Slack    *bool `json:"slack"`
 	} `json:"channels"`
 	ReceiverGroups []string `json:"receiver_groups"`
 	Actor          string   `json:"actor"`
@@ -691,6 +695,8 @@ type referenceAlertPolicyMutationRequest struct {
 	Channels        *struct {
 		Email    *bool `json:"email"`
 		WhatsApp *bool `json:"whatsapp"`
+		Webhook  *bool `json:"webhook"`
+		Slack    *bool `json:"slack"`
 	} `json:"channels"`
 	ReceiverGroups []string `json:"receiver_groups"`
 	Actor          string   `json:"actor"`
@@ -4726,6 +4732,7 @@ func (s *server) createReferenceCustomAlertPolicy(
 	s.customAlertPolicySeq++
 	policy.ID = fmt.Sprintf("ap_custom_%06d", s.customAlertPolicySeq)
 	s.customAlertPolicies[policy.ID] = policy
+	s.persistAlertPoliciesLocked()
 	return policy, nil
 }
 
@@ -4772,10 +4779,14 @@ func (s *server) updateReferenceCustomAlertPolicy(
 	} else {
 		email := current.Channels.Email
 		whatsApp := current.Channels.WhatsApp
+		webhook := current.Channels.Webhook
+		slack := current.Channels.Slack
 		merged.Channels = &struct {
 			Email    *bool `json:"email"`
 			WhatsApp *bool `json:"whatsapp"`
-		}{Email: &email, WhatsApp: &whatsApp}
+			Webhook  *bool `json:"webhook"`
+			Slack    *bool `json:"slack"`
+		}{Email: &email, WhatsApp: &whatsApp, Webhook: &webhook, Slack: &slack}
 	}
 	if payload.ReceiverGroups != nil {
 		merged.ReceiverGroups = payload.ReceiverGroups
@@ -4791,6 +4802,7 @@ func (s *server) updateReferenceCustomAlertPolicy(
 	s.customAlertPolicyMu.Lock()
 	defer s.customAlertPolicyMu.Unlock()
 	s.customAlertPolicies[policy.ID] = policy
+	s.persistAlertPoliciesLocked()
 	return policy, nil
 }
 
@@ -4827,6 +4839,8 @@ func referenceCustomAlertPolicyFromPayload(
 	}
 	emailEnabled := true
 	whatsAppEnabled := false
+	webhookEnabled := false
+	slackEnabled := false
 	if payload.Channels != nil {
 		if payload.Channels.Email != nil {
 			emailEnabled = *payload.Channels.Email
@@ -4834,8 +4848,14 @@ func referenceCustomAlertPolicyFromPayload(
 		if payload.Channels.WhatsApp != nil {
 			whatsAppEnabled = *payload.Channels.WhatsApp
 		}
+		if payload.Channels.Webhook != nil {
+			webhookEnabled = *payload.Channels.Webhook
+		}
+		if payload.Channels.Slack != nil {
+			slackEnabled = *payload.Channels.Slack
+		}
 	}
-	if enabled && !emailEnabled && !whatsAppEnabled {
+	if enabled && !emailEnabled && !whatsAppEnabled && !webhookEnabled && !slackEnabled {
 		return referenceAlertPolicy{}, errInvalidReferenceAlertPolicyPayload
 	}
 	receiverGroups := uniqueStrings(payload.ReceiverGroups)
@@ -4869,6 +4889,8 @@ func referenceCustomAlertPolicyFromPayload(
 		Channels: referenceAlertPolicyChannels{
 			Email:    emailEnabled,
 			WhatsApp: whatsAppEnabled,
+			Webhook:  webhookEnabled,
+			Slack:    slackEnabled,
 		},
 		ReceiverGroups: receiverGroups,
 	}, nil
@@ -5770,5 +5792,50 @@ func handleSpaceMutationError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, err.Error())
+	}
+}
+
+// --- Alert Policy persistence ---
+
+const stateKeyAlertPolicy = "module_alert_policy"
+
+type alertPolicyStateSnapshot struct {
+	Policies []referenceAlertPolicy `json:"policies"`
+	Seq      int                    `json:"seq"`
+}
+
+// persistAlertPoliciesLocked saves alert policies to the state store.
+// Caller must hold customAlertPolicyMu.
+func (s *server) persistAlertPoliciesLocked() {
+	if s.stateStore == nil {
+		return
+	}
+	policies := make([]referenceAlertPolicy, 0, len(s.customAlertPolicies))
+	for _, p := range s.customAlertPolicies {
+		policies = append(policies, p)
+	}
+	_ = s.stateStore.Save(stateKeyAlertPolicy, alertPolicyStateSnapshot{
+		Policies: policies,
+		Seq:      s.customAlertPolicySeq,
+	})
+}
+
+// restoreAlertPoliciesFromState loads alert policies from the state store on startup.
+func (s *server) restoreAlertPoliciesFromState() {
+	if s.stateStore == nil {
+		return
+	}
+	var snapshot alertPolicyStateSnapshot
+	found, err := s.stateStore.Load(stateKeyAlertPolicy, &snapshot)
+	if err != nil || !found {
+		return
+	}
+	s.customAlertPolicyMu.Lock()
+	defer s.customAlertPolicyMu.Unlock()
+	for _, p := range snapshot.Policies {
+		s.customAlertPolicies[p.ID] = p
+	}
+	if snapshot.Seq > s.customAlertPolicySeq {
+		s.customAlertPolicySeq = snapshot.Seq
 	}
 }

@@ -48,9 +48,10 @@ const (
 	stateKeyGateway    = "module_gateway"
 	stateKeyEnterprise = "module_enterprise"
 	stateKeyEvent      = "module_event"
-	stateKeyAlarm      = "module_alarm"
-	stateKeyAudit      = "module_audit"
-	stateKeyWallet     = "module_wallet"
+	stateKeyAlarm       = "module_alarm"
+	stateKeyAudit       = "module_audit"
+	stateKeyWallet      = "module_wallet"
+	stateKeyAlertPolicy = "module_alert_policy"
 )
 
 var ErrStateKeyRequired = errors.New("state_key is required")
@@ -66,6 +67,7 @@ var projectionKeys = []string{
 	stateKeyAlarm,
 	stateKeyAudit,
 	stateKeyWallet,
+	stateKeyAlertPolicy,
 }
 
 var allowedProjectionDeleteTables = map[string]struct{}{
@@ -98,6 +100,8 @@ var allowedProjectionDeleteTables = map[string]struct{}{
 	"mistypass_wallet_passes":                    {},
 	"mistypass_wallet_jobs":                      {},
 	"mistypass_wallet_audit_logs":                {},
+	"mistypass_alert_policies":                   {},
+	"mistypass_alert_notifications":              {},
 }
 
 type tenantStateSnapshot struct {

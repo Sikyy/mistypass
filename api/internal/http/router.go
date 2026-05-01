@@ -432,6 +432,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, nil, err
 	}
+	s.restoreAlertPoliciesFromState()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
