@@ -802,6 +802,23 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms", s.listAlarms)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms/stream", s.streamAlarms)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Patch("/alarms/{alarmID}/status", s.updateAlarmStatus)
+
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Post("/alarm-schedules", s.createAlarmSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alarm-schedules", s.listAlarmSchedules)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alarm-schedules/calendar", s.getAlarmScheduleCalendar)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/alarm-schedules/{scheduleID}", s.getAlarmSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Patch("/alarm-schedules/{scheduleID}", s.updateAlarmSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Delete("/alarm-schedules/{scheduleID}", s.deleteAlarmSchedule)
+
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/cameras", s.listCameras)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Post("/cameras", s.createCamera)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/cameras/{cameraID}", s.getCamera)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Delete("/cameras/{cameraID}", s.deleteCamera)
+
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/access-summary", s.getAccessSummary)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/door-activity", s.getDoorActivity)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/alarm-metrics", s.getAlarmMetrics)
+
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/audit-logs", s.listAuditLogs)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/audit/webhook/config", s.getAuditWebhookConfig)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/audit/webhook/config", s.upsertAuditWebhookConfig)
