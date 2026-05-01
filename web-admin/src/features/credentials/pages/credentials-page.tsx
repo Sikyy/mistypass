@@ -909,34 +909,36 @@ export function CredentialsAdaptedPage({
       count={resourceQuery.isPending ? "--" : rows.length}
       description={t("kisi.credentials.title")}
       actions={
-        <Button
-          type="button"
-          onClick={() => {
-            setIssueMode("single")
-            setSelectedUserID(selectedUserID || users[0]?.id || "")
-            setSelectedBatchUserIDs(users.slice(0, 3).map((user) => user.id))
-            setActionNotice("")
-            setActionError("")
-            setIssueOpen(true)
-          }}
-          className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
-        >
-          <PlusIcon className="mr-1.5 size-4" />
-          Issue Credential
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            createCSVCardImport(token, { tenant_id: tenantID, file_name: `card-import-${Date.now()}.csv` })
-              .then(() => setActionNotice("CSV card import created."))
-              .catch((err) => setActionError(err instanceof Error ? err.message : "Import failed"))
-          }}
-          className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
-        >
-          <FileUpIcon className="mr-1.5 size-4" />
-          Import CSV
-        </Button>
+        <>
+          <Button
+            type="button"
+            onClick={() => {
+              setIssueMode("single")
+              setSelectedUserID(selectedUserID || users[0]?.id || "")
+              setSelectedBatchUserIDs(users.slice(0, 3).map((user) => user.id))
+              setActionNotice("")
+              setActionError("")
+              setIssueOpen(true)
+            }}
+            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+          >
+            <PlusIcon className="mr-1.5 size-4" />
+            Issue Credential
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              createCSVCardImport(token, { tenant_id: tenantID, file_name: `card-import-${Date.now()}.csv` })
+                .then(() => setActionNotice("CSV card import created."))
+                .catch((err) => setActionError(err instanceof Error ? err.message : "Import failed"))
+            }}
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+          >
+            <FileUpIcon className="mr-1.5 size-4" />
+            Import CSV
+          </Button>
+        </>
       }
     >
       {resourceQuery.summary.partial ? (
