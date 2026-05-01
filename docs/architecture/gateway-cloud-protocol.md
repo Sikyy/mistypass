@@ -572,3 +572,132 @@ Gateway                           Cloud API
    |-- POST /config/pull ----------->|  (refresh cache)
    |<---------- config + authz ------|
 ```
+
+---
+
+## Backup Communication Channel
+
+Gateways must maintain connectivity with the cloud to receive configuration updates, verify credentials online, and report events. In practice, network conditions vary widely across deployment sites. This section defines the communication channel hierarchy and resilience behavior.
+
+### Channel Priority
+
+The gateway uses multiple communication channels in order of preference:
+
+| Priority | Channel | Port | Protocol | Status |
+|----------|---------|------|----------|--------|
+| 1 (primary) | HTTPS REST | 443 | TLS 1.3 | Active |
+| 2 (secondary) | NATS | 4222 (or tunneled via 443) | TLS | Active |
+| 3 (fallback) | WebSocket | 443 | WSS | Planned |
+
+### Primary: HTTPS REST (Port 443)
+
+The default and most reliable channel. All gateway endpoints (`/api/v1/gateway/*`) operate over standard HTTPS.
+
+- Uses TLS 1.3 with certificate pinning (optional, configurable).
+- Compatible with virtually all corporate firewalls and proxies.
+- Supports HTTP/2 for connection multiplexing.
+- Used for: bootstrap, config sync, credential verification, event reporting, OTA updates.
+
+### Secondary: NATS (Port 4222)
+
+NATS provides low-latency bidirectional messaging for real-time commands and credential verification.
+
+- Default port is 4222, but can be tunneled through port 443 using TLS multiplexing or a reverse proxy.
+- If direct NATS connectivity fails, the gateway falls back to REST-based credential verification (`POST /verify-credential`).
+- NATS reconnection is handled by the NATS client library with built-in backoff.
+
+To tunnel NATS through port 443 (for restrictive firewalls):
+
+```
+# Caddy reverse proxy example
+mistypass.example.com {
+    # API traffic (default)
+    reverse_proxy /api/* api:8080
+
+    # NATS traffic via TLS-ALPN or path-based routing
+    reverse_proxy /nats/* nats:4222
+}
+```
+
+### Planned: WebSocket Fallback (Port 443)
+
+For deployment sites with aggressive firewall rules that block non-HTTP traffic (even on port 443), a WebSocket-based transport is planned.
+
+- Will operate on `wss://mistypass.example.com/ws/gateway`
+- Encapsulates the same command/event protocol used over NATS
+- Fully compatible with HTTP proxies, CDNs, and corporate firewalls
+- Lower throughput than native NATS, but suitable for command delivery and event reporting
+
+### Reconnection Strategy
+
+When any channel disconnects, the gateway uses exponential backoff to avoid overwhelming the server or network:
+
+```
+Attempt 1:  wait  1 second
+Attempt 2:  wait  2 seconds
+Attempt 3:  wait  4 seconds
+Attempt 4:  wait  8 seconds
+Attempt 5:  wait 16 seconds
+Attempt 6:  wait 32 seconds
+Attempt 7+: wait 60 seconds (max)
+```
+
+| Parameter | Value |
+|-----------|-------|
+| Initial delay | 1 second |
+| Multiplier | 2x |
+| Maximum delay | 60 seconds |
+| Jitter | +/- 20% (randomized to prevent thundering herd) |
+| Reset | Backoff resets to 1 s after a successful connection held for > 60 s |
+
+The gateway attempts channels in priority order. If the primary channel (HTTPS) reconnects, it remains the preferred channel even if the secondary (NATS) is also available.
+
+### Channel Failover Sequence
+
+```
+Gateway starts
+    |
+    +--> Connect HTTPS (primary)    --> OK: operational
+    |                                \-> FAIL: retry with backoff
+    |
+    +--> Connect NATS (secondary)   --> OK: real-time commands available
+    |                                \-> FAIL: retry with backoff, use REST for verify
+    |
+    +--> Connect WebSocket (planned) --> OK: fallback active
+    |                                 \-> FAIL: retry with backoff
+    |
+    +--> All channels down           --> Enter offline mode
+```
+
+### Offline Mode
+
+When all communication channels are unavailable, the gateway enters offline mode:
+
+1. **Access decisions** continue using the locally cached authorization rules (see [Offline Operation](#offline-operation) for cache TTL and staleness policies).
+2. **Events are queued** in persistent local storage (SQLite on the gateway). The queue holds up to 100,000 events or 50 MB, whichever is reached first.
+3. **Batch upload on reconnect** -- when any channel is restored, the gateway uploads queued events using `POST /api/v1/gateway/events/batch` with deduplication nonces. Events are sent in chronological order, in batches of up to 500 per request.
+4. **Config refresh** -- immediately after reconnection, the gateway performs a `config/pull` to ensure its cached rules are current.
+
+#### Offline Mode Timeline
+
+```
+t=0       Power on / network lost
+          |
+          +--> Use cached authz_cache for access decisions
+          +--> Queue all events to local storage
+          |
+t=0..300s   Cache is FRESH -- full confidence
+t=300..900s Cache is STALE -- continue using, keep retrying connection
+t>900s      Cache is EXPIRED -- use last acknowledged config
+          |
+t=???     Network restored
+          |
+          +--> Reconnect (exponential backoff)
+          +--> POST /heartbeat (signal online)
+          +--> POST /events/batch (drain event queue)
+          +--> POST /events/checkpoint (confirm sync)
+          +--> POST /config/pull (refresh cache)
+          +--> Resume normal operation
+```
+
+The gateway never discards events due to age. All queued events are uploaded on reconnect regardless of how long the offline period lasted, provided the local storage limit has not been exceeded. If the storage limit is reached, the oldest events are dropped to make room for new ones (FIFO eviction).

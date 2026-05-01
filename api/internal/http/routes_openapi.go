@@ -777,6 +777,8 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPatch, Path: "/api/v1/gateways/{gatewayID}/ota/tasks/{taskID}/status", OperationID: "updateGatewayOTATaskStatus", Tag: "Hardware Extensions", Summary: "Update gateway OTA task status.", ExtensionGroup: "legacy_gateway"},
 		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/events/checkpoint", OperationID: "fetchGatewayEventCheckpoints", Tag: "Hardware Extensions", Summary: "Fetch gateway event checkpoints.", Collection: true, ExtensionGroup: "gateway_events"},
 
+		{Method: http.MethodGet, Path: "/api/v1/network/topology", OperationID: "getNetworkTopology", Tag: "Network", Summary: "Device network topology graph for visualization."},
+
 		{Method: http.MethodGet, Path: "/api/v1/wallet/google/config", OperationID: "fetchWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Fetch Google Wallet config.", ExtensionGroup: "google_wallet"},
 		{Method: http.MethodPut, Path: "/api/v1/wallet/google/config", OperationID: "updateWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Update Google Wallet config.", ExtensionGroup: "google_wallet"},
 		{Method: http.MethodPost, Path: "/api/v1/wallet/google/config/validate", OperationID: "validateWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Validate Google Wallet config.", ExtensionGroup: "google_wallet"},

@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -333,4 +334,241 @@ func (s *server) getAlarmMetrics(w http.ResponseWriter, r *http.Request) {
 		ByStatus:              byStatus,
 		MeanResolutionMinutes: meanResolutionMinutes,
 	})
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/analytics/export?type=...&format=...&tenant_id=...&start=...&end=...
+// ---------------------------------------------------------------------------
+
+func (s *server) exportAnalytics(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+
+	reportType := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("type")))
+	if reportType == "" {
+		writeError(w, http.StatusBadRequest, "type query parameter is required (access_summary, door_activity, alarm_metrics)")
+		return
+	}
+
+	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
+	if format == "" {
+		format = "json"
+	}
+	if format != "json" && format != "pdf" && format != "csv" {
+		writeError(w, http.StatusBadRequest, "format must be one of: json, pdf, csv")
+		return
+	}
+
+	startStr := strings.TrimSpace(r.URL.Query().Get("start"))
+	endStr := strings.TrimSpace(r.URL.Query().Get("end"))
+	if startStr == "" || endStr == "" {
+		writeError(w, http.StatusBadRequest, "start and end query parameters are required (RFC3339)")
+		return
+	}
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid start parameter: must be RFC3339")
+		return
+	}
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid end parameter: must be RFC3339")
+		return
+	}
+
+	var title string
+	var rows [][]string
+
+	switch reportType {
+	case "access_summary":
+		title, rows = s.exportAccessSummaryRows(tenantID, start, end)
+	case "door_activity":
+		title, rows = s.exportDoorActivityRows(tenantID, start, end)
+	case "alarm_metrics":
+		title, rows = s.exportAlarmMetricsRows(tenantID, start, end)
+	default:
+		writeError(w, http.StatusBadRequest, "type must be one of: access_summary, door_activity, alarm_metrics")
+		return
+	}
+
+	switch format {
+	case "pdf":
+		pdfBytes := generateSimplePDF(title, rows)
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", reportType+".pdf"))
+		w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
+		_, _ = w.Write(pdfBytes)
+	case "csv":
+		var sb strings.Builder
+		for _, row := range rows {
+			sb.WriteString(strings.Join(row, ","))
+			sb.WriteString("\n")
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", reportType+".csv"))
+		_, _ = w.Write([]byte(sb.String()))
+	default:
+		writeJSON(w, http.StatusOK, map[string]any{
+			"title": title,
+			"rows":  rows,
+		})
+	}
+}
+
+func (s *server) exportAccessSummaryRows(tenantID string, start, end time.Time) (string, [][]string) {
+	items := s.eventSvc.ListAccessEvents(tenantID)
+	granted, denied := 0, 0
+	for i := range items {
+		if items[i].At.Before(start) || !items[i].At.Before(end) {
+			continue
+		}
+		switch {
+		case strings.EqualFold(items[i].Result, "success"), strings.EqualFold(items[i].Result, "accepted"):
+			granted++
+		default:
+			denied++
+		}
+	}
+	title := fmt.Sprintf("Access Summary (%s to %s)", start.UTC().Format("2006-01-02"), end.UTC().Format("2006-01-02"))
+	rows := [][]string{
+		{"Metric", "Value"},
+		{"Total Events", strconv.Itoa(granted + denied)},
+		{"Granted", strconv.Itoa(granted)},
+		{"Denied", strconv.Itoa(denied)},
+		{"Period Start", start.UTC().Format(time.RFC3339)},
+		{"Period End", end.UTC().Format(time.RFC3339)},
+	}
+	return title, rows
+}
+
+func (s *server) exportDoorActivityRows(tenantID string, start, end time.Time) (string, [][]string) {
+	items := s.eventSvc.ListAccessEvents(tenantID)
+	doorCounts := map[string]int{}
+	for i := range items {
+		if items[i].At.Before(start) || !items[i].At.Before(end) {
+			continue
+		}
+		doorCounts[items[i].DoorID]++
+	}
+	title := fmt.Sprintf("Door Activity (%s to %s)", start.UTC().Format("2006-01-02"), end.UTC().Format("2006-01-02"))
+	rows := [][]string{{"Door ID", "Access Count"}}
+	for doorID, count := range doorCounts {
+		rows = append(rows, []string{doorID, strconv.Itoa(count)})
+	}
+	return title, rows
+}
+
+func (s *server) exportAlarmMetricsRows(tenantID string, start, end time.Time) (string, [][]string) {
+	alarms := s.alarmSvc.List(tenantID)
+	bySeverity := map[string]int{}
+	byStatus := map[string]int{}
+	for i := range alarms {
+		if alarms[i].CreatedAt.Before(start) || !alarms[i].CreatedAt.Before(end) {
+			continue
+		}
+		severity := strings.ToLower(strings.TrimSpace(alarms[i].Severity))
+		if severity == "" {
+			severity = "unknown"
+		}
+		bySeverity[severity]++
+		status := strings.ToLower(strings.TrimSpace(alarms[i].Status))
+		if status == "" {
+			status = "unknown"
+		}
+		byStatus[status]++
+	}
+
+	title := fmt.Sprintf("Alarm Metrics (%s to %s)", start.UTC().Format("2006-01-02"), end.UTC().Format("2006-01-02"))
+	rows := [][]string{{"Metric", "Value"}}
+	total := 0
+	for _, c := range bySeverity {
+		total += c
+	}
+	rows = append(rows, []string{"Total Alarms", strconv.Itoa(total)})
+	for severity, count := range bySeverity {
+		rows = append(rows, []string{"Severity: " + severity, strconv.Itoa(count)})
+	}
+	for status, count := range byStatus {
+		rows = append(rows, []string{"Status: " + status, strconv.Itoa(count)})
+	}
+	return title, rows
+}
+
+// ---------------------------------------------------------------------------
+// Simple PDF generator — creates a minimal valid PDF 1.4 document with text
+// ---------------------------------------------------------------------------
+
+func generateSimplePDF(title string, rows [][]string) []byte {
+	// Build the text content for the PDF page stream.
+	var content strings.Builder
+	content.WriteString("BT\n")
+	content.WriteString("/F1 16 Tf\n")
+	content.WriteString("50 750 Td\n")
+	content.WriteString(fmt.Sprintf("(%s) Tj\n", pdfEscapeString(title)))
+	content.WriteString("/F1 10 Tf\n")
+	content.WriteString("0 -24 Td\n")
+
+	for _, row := range rows {
+		line := strings.Join(row, "    ")
+		content.WriteString(fmt.Sprintf("0 -14 Td\n(%s) Tj\n", pdfEscapeString(line)))
+	}
+
+	// Timestamp footer
+	content.WriteString("0 -28 Td\n")
+	content.WriteString(fmt.Sprintf("/F1 8 Tf\n(Generated: %s) Tj\n", pdfEscapeString(time.Now().UTC().Format(time.RFC3339))))
+	content.WriteString("ET\n")
+	stream := content.String()
+
+	// Build minimal PDF 1.4 structure.
+	var pdf strings.Builder
+	offsets := make([]int, 5)
+
+	pdf.WriteString("%PDF-1.4\n")
+
+	// Object 1: Catalog
+	offsets[0] = pdf.Len()
+	pdf.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+
+	// Object 2: Pages
+	offsets[1] = pdf.Len()
+	pdf.WriteString("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+
+	// Object 3: Page
+	offsets[2] = pdf.Len()
+	pdf.WriteString("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n")
+
+	// Object 4: Stream (page content)
+	offsets[3] = pdf.Len()
+	pdf.WriteString(fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj\n", len(stream), stream))
+
+	// Object 5: Font
+	offsets[4] = pdf.Len()
+	pdf.WriteString("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n")
+
+	// Cross-reference table
+	xrefOffset := pdf.Len()
+	pdf.WriteString("xref\n")
+	pdf.WriteString(fmt.Sprintf("0 %d\n", len(offsets)+1))
+	pdf.WriteString("0000000000 65535 f \n")
+	for _, off := range offsets {
+		pdf.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
+	}
+
+	// Trailer
+	pdf.WriteString("trailer\n")
+	pdf.WriteString(fmt.Sprintf("<< /Size %d /Root 1 0 R >>\n", len(offsets)+1))
+	pdf.WriteString("startxref\n")
+	pdf.WriteString(fmt.Sprintf("%d\n", xrefOffset))
+	pdf.WriteString("%%EOF\n")
+
+	return []byte(pdf.String())
+}
+
+func pdfEscapeString(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "(", "\\(")
+	s = strings.ReplaceAll(s, ")", "\\)")
+	return s
 }

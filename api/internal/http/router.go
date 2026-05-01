@@ -89,6 +89,9 @@ type server struct {
 	scheduledReportMu             sync.RWMutex
 	scheduledReports              map[string]referenceScheduledReport
 	scheduledReportSeq            int
+	reportScheduleMu              sync.RWMutex
+	reportSchedules               map[string]reportSchedule
+	reportScheduleSeq             int
 	customAlertPolicyMu           sync.RWMutex
 	customAlertPolicies           map[string]referenceAlertPolicy
 	customAlertPolicySeq          int
@@ -345,6 +348,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		enterpriseWebhookRateBuckets:  map[string]loginRateLimitBucket{},
 		scheduledReports:              scheduledReports,
 		scheduledReportSeq:            scheduledReportSeq,
+		reportSchedules:               map[string]reportSchedule{},
 		customAlertPolicies:           map[string]referenceAlertPolicy{},
 		alertCooldowns:                map[string]time.Time{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
@@ -433,6 +437,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		return nil, nil, err
 	}
 	s.restoreAlertPoliciesFromState()
+	s.restoreReportSchedulesFromState()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -602,6 +607,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/ota/tasks", s.listGatewayOTATasks)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/ota/tasks/{taskID}/status", s.updateGatewayOTATaskStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/events/checkpoint", s.listGatewayEventCheckpoints)
+
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/network/topology", s.getNetworkTopology)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Get("/access-policies", s.listAccessPolicies)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin"), withDeprecatedEndpoint("/api/v1/role_assignments", "/api/v1/groups", "/api/v1/group_locks")).Post("/access-policies", s.createAccessPolicy)
@@ -818,6 +825,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/access-summary", s.getAccessSummary)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/door-activity", s.getDoorActivity)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/alarm-metrics", s.getAlarmMetrics)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/export", s.exportAnalytics)
+
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules", s.listReportSchedules)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules", s.createReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules/{scheduleID}", s.getReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/report-schedules/{scheduleID}", s.updateReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/report-schedules/{scheduleID}", s.deleteReportSchedule)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/audit-logs", s.listAuditLogs)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/audit/webhook/config", s.getAuditWebhookConfig)
