@@ -63,9 +63,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { ProtectedRoute } from "@/components/protected-route"
 import { RoleScopeBanner } from "@/components/role-scope-banner"
-// Legacy shell removed — all routes now use AppShell
+import { isMistyisletPreviewRoute } from "@/features/mistyislet-shell/navigation"
 
-// HomePage lazy import removed — legacy shell no longer used
+const HomePage = lazy(() =>
+  import("@/features/home/pages/home-page").then((module) => ({ default: module.HomePage }))
+)
 import { listAlarms, type CurrentUser } from "@/lib/api"
 import { useUIStore } from "@/stores/ui-store"
 import { useAuth } from "@/context/auth-context"
@@ -86,7 +88,9 @@ import {
   isPlatformViewer,
 } from "@/lib/viewer"
 
-// DashboardPage lazy import removed — legacy shell no longer used
+const DashboardPage = lazy(() =>
+  import("@/features/legacy/pages/dashboard-page").then((module) => ({ default: module.DashboardPage }))
+)
 const TenantsPage = lazy(() =>
   import("@/features/legacy/pages/tenants-page").then((module) => ({ default: module.TenantsPage }))
 )
@@ -384,20 +388,20 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
   return (
     <TooltipProvider>
       <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" className="border-white/10">
           <SidebarHeader>
-            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:p-1.5">
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] group-data-[collapsible=icon]:p-1.5">
               <div className="flex items-center gap-3">
                 <MistyIslandMark className="size-10 shrink-0" markClassName="h-9 w-12" />
                 <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-                  <p className="text-[11px] font-semibold tracking-[0.22em] text-muted-foreground uppercase">
+                  <p className="text-[11px] font-semibold tracking-[0.22em] text-sidebar-foreground/55 uppercase">
                     Mistyislet
                   </p>
-                  <p className="truncate text-sm font-semibold text-foreground">{t("app.shell.title")}</p>
+                  <p className="truncate text-sm font-semibold">{t("app.shell.title")}</p>
                 </div>
               </div>
-              <div className="mt-3 rounded-lg border border-border bg-muted/50 px-3 py-2 group-data-[collapsible=icon]:hidden">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 group-data-[collapsible=icon]:hidden">
+                <div className="flex items-center gap-2 text-xs text-sidebar-foreground/70">
                   <SatelliteDishIcon className="size-3.5" />
                   {isPlatformViewer(viewer)
                     ? t("app.shell.subtitlePlatform")
@@ -426,13 +430,13 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                             isActive={isActive}
                             size="lg"
                             tooltip={item.label}
-                            className="h-12 rounded-lg data-active:bg-primary/10 data-active:text-primary"
+                            className="h-12 rounded-xl data-active:bg-white/[0.14] data-active:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_0_24px_rgba(255,255,255,0.08)]"
                           >
                             <NavLink to={item.to}>
                               <item.icon />
                               <span className="flex min-w-0 flex-col gap-0.5 group-data-[collapsible=icon]:hidden">
                                 <span className="truncate">{item.label}</span>
-                                <span className="truncate text-[11px] font-normal text-muted-foreground">
+                                <span className="truncate text-[11px] font-normal text-sidebar-foreground/48">
                                   {item.description}
                                 </span>
                               </span>
@@ -448,18 +452,18 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           </SidebarContent>
 
           <SidebarFooter>
-            <div className="rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:hidden">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground">
+                <div className="flex size-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-xs font-semibold">
                   {viewer.email.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium text-foreground">{viewer.email}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{getViewerRoleLabel(viewer)}</p>
+                  <p className="truncate text-xs font-medium">{viewer.email}</p>
+                  <p className="truncate text-[11px] text-sidebar-foreground/55">{getViewerRoleLabel(viewer)}</p>
                 </div>
               </div>
             </div>
-            <Button variant="outline" className="w-full justify-start" onClick={onLogout}>
+            <Button variant="outline" className="w-full justify-start border-white/10 bg-white/[0.045]" onClick={onLogout}>
               <LogOutIcon className="mr-1.5 size-4" />
               <span className="group-data-[collapsible=icon]:hidden">{t("app.shell.logout")}</span>
             </Button>
@@ -467,10 +471,10 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset>
-          <header className="sticky top-0 z-20 border-b border-border bg-background/80 px-4 py-3 backdrop-blur-sm md:px-6">
+        <SidebarInset className="mp-fog-surface bg-background">
+          <header className="sticky top-0 z-20 border-b border-white/10 bg-background/72 px-4 py-3 backdrop-blur-2xl md:px-6">
             <div className="flex flex-wrap items-center gap-3">
-              <SidebarTrigger />
+              <SidebarTrigger className="border border-white/10 bg-white/5" />
 
               <Breadcrumb>
                 <BreadcrumbList>
@@ -486,7 +490,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                 </BreadcrumbList>
               </Breadcrumb>
 
-              <div className="ml-auto hidden min-w-[220px] items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground md:flex">
+              <div className="ml-auto hidden min-w-[220px] items-center gap-2 rounded-full border border-white/10 bg-white/[0.045] px-3 py-1.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] md:flex">
                 <SearchIcon className="size-3.5" />
                 <span>{activeNav.description}</span>
               </div>
@@ -494,15 +498,15 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
               <div className="flex flex-wrap items-center gap-2">
                 <RoleScopeBanner token={token} viewer={viewer} />
 
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="border-white/10 bg-white/[0.045]">
                   <BellIcon className="mr-1.5 size-4" />
                   {t("app.shell.unreadAlarms", { count: unreadAlarmCount })}
                 </Button>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <ActivityIcon className="mr-1.5 size-4 text-emerald-600" />
+                    <Button variant="outline" size="sm" className="border-white/10 bg-white/[0.045]">
+                      <ActivityIcon className="mr-1.5 size-4 text-emerald-300" />
                       <span className="hidden max-w-[12rem] truncate sm:inline">{viewer.email}</span>
                       <ChevronRightIcon className="ml-1 size-3.5 opacity-60" />
                     </Button>
@@ -522,8 +526,7 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
           <main className="relative flex-1 px-4 py-5 md:px-6">
             <Suspense fallback={<RouteFallback />}>
               <Routes>
-                <Route path="/home" element={<Navigate to="/places" replace />} />
-                <Route path="/dashboard" element={<Navigate to="/places" replace />} />
+                <Route path="/dashboard" element={<Navigate to="/home" replace />} />
                 <Route
                   path="/tenants"
                   element={
@@ -727,6 +730,16 @@ export default function App() {
 
   if (location.pathname === "/login" || location.pathname === "/") {
     return <Navigate to="/home" replace />
+  }
+
+  const usesMistyisletShell = isMistyisletPreviewRoute(location.pathname)
+
+  if (usesMistyisletShell) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <HomePage token={token} viewer={viewer} onViewerChange={updateViewer} onLogout={logout} />
+      </Suspense>
+    )
   }
 
   return <AppShell token={token} viewer={viewer} onLogout={logout} />
