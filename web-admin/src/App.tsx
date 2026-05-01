@@ -5,11 +5,15 @@ import { useTranslation } from "react-i18next"
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from "react-router-dom"
 import {
   ActivityIcon,
+  BarChart3Icon,
   BellIcon,
   BriefcaseBusinessIcon,
   Building2Icon,
+  CalendarClockIcon,
   ChevronRightIcon,
   DoorOpenIcon,
+  FileTextIcon,
+  GlobeIcon,
   LayoutDashboardIcon,
   UsersRoundIcon,
   LogOutIcon,
@@ -137,6 +141,18 @@ const LoginPage = lazy(() =>
 const AccessLinkClaimPage = lazy(() =>
   import("@/features/legacy/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
 )
+const AlarmSchedulePage = lazy(() =>
+  import("@/features/alarms/pages/alarm-schedule-page").then((module) => ({ default: module.AlarmSchedulePage }))
+)
+const ReportSchedulePage = lazy(() =>
+  import("@/features/reports/pages/report-schedule-page").then((module) => ({ default: module.ReportSchedulePage }))
+)
+const AnalyticsPage = lazy(() =>
+  import("@/features/analytics/pages/analytics-page").then((module) => ({ default: module.AnalyticsPage }))
+)
+const NetworkTopologyPage = lazy(() =>
+  import("@/features/network/pages/network-topology-page").then((module) => ({ default: module.NetworkTopologyPage }))
+)
 const NotFoundPage = lazy(() =>
   import("@/features/legacy/pages/not-found-page").then((module) => ({ default: module.NotFoundPage }))
 )
@@ -195,6 +211,14 @@ function buildNavItems(viewer: CurrentUser, t: TFunction): NavItem[] {
       label: t("app.nav.alarms.label"),
       description: t("app.nav.alarms.description"),
       icon: ShieldAlertIcon,
+    })
+
+    items.push({
+      to: "/alarm-schedules",
+      group: "command",
+      label: "Alarm Schedules",
+      description: "Weekly alarm monitoring windows",
+      icon: CalendarClockIcon,
     })
   }
 
@@ -277,6 +301,30 @@ function buildNavItems(viewer: CurrentUser, t: TFunction): NavItem[] {
       icon: NetworkIcon,
     })
   }
+
+  items.push({
+    to: "/analytics",
+    group: "command",
+    label: "Analytics",
+    description: "Access events, door activity, and alarm metrics",
+    icon: BarChart3Icon,
+  })
+
+  items.push({
+    to: "/reports",
+    group: "command",
+    label: "Reports",
+    description: "Scheduled report delivery and exports",
+    icon: FileTextIcon,
+  })
+
+  items.push({
+    to: "/network",
+    group: "sites",
+    label: "Network",
+    description: "Live gateway and device topology",
+    icon: GlobeIcon,
+  })
 
   if (canAccessAuditPage(viewer)) {
     items.push({
@@ -590,6 +638,26 @@ function AppShell({ token, viewer, onLogout }: { token: string; viewer: CurrentU
                       <AlarmsPage token={token} viewer={viewer} />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/alarm-schedules"
+                  element={
+                    <ProtectedRoute allow={canAccessAlarmsPage(viewer)}>
+                      <AlarmSchedulePage token={token} viewer={viewer} />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={<ReportSchedulePage token={token} viewer={viewer} />}
+                />
+                <Route
+                  path="/analytics"
+                  element={<AnalyticsPage token={token} viewer={viewer} />}
+                />
+                <Route
+                  path="/network"
+                  element={<NetworkTopologyPage token={token} viewer={viewer} />}
                 />
                 <Route
                   path="/audit"
