@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -181,6 +182,17 @@ func (s *server) downloadReferenceReport(w http.ResponseWriter, r *http.Request)
 	csvBody, ok := s.referenceReportCSV(reportID, tenantID, placeID, buildingScope)
 	if !ok {
 		writeError(w, http.StatusNotFound, "report not found")
+		return
+	}
+
+	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
+	if format == "pdf" {
+		rows := parseCSVToRows(csvBody)
+		pdfBytes := generateSimplePDF("Report: "+reportID, rows)
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", reportID+".pdf"))
+		w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
+		_, _ = w.Write(pdfBytes)
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -735,4 +747,13 @@ func referenceReportSeverity(hasWarning, hasDanger bool) string {
 	default:
 		return "info"
 	}
+}
+
+func parseCSVToRows(csvBody string) [][]string {
+	reader := csv.NewReader(strings.NewReader(csvBody))
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return [][]string{{"Error parsing CSV"}}
+	}
+	return rows
 }

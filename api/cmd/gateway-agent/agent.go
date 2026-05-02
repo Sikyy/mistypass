@@ -444,12 +444,13 @@ func (a *Agent) HandleCredentialPresented(credentialType, credentialData, lockID
 
 func (a *Agent) httpClient() *http.Client {
 	if a.tlsPinSHA256 == "" {
-		return http.DefaultClient
+		// Use standard TLS verification (system CA bundle) when no pin is configured.
+		return &http.Client{Timeout: 30 * time.Second}
 	}
 	pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
 	if err != nil || len(pinBytes) != sha256.Size {
-		a.logger.Warn("invalid tls-pin-sha256, falling back to default TLS", "error", err)
-		return http.DefaultClient
+		a.logger.Warn("invalid tls-pin-sha256, falling back to standard TLS verification", "error", err)
+		return &http.Client{Timeout: 30 * time.Second}
 	}
 	return &http.Client{
 		Timeout: 30 * time.Second,

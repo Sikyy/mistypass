@@ -15,15 +15,17 @@ services:
       nats:
         condition: service_started
     environment:
+      TZ: "${TZ:-Asia/Jakarta}"
+      DEFAULT_TIMEZONE: "${DEFAULT_TIMEZONE:-Asia/Jakarta}"
       APP_ENV: development
       ENABLE_DEMO_USERS: "${ENABLE_DEMO_USERS:-false}"
       PORT: "8080"
       CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:5173}"
-      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}@pgbouncer:5432/mistypass?sslmode=disable"
+      DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD:-mistypass-dev}@pgbouncer:5432/mistypass?sslmode=disable"
       DATABASE_AUTO_MIGRATE: "true"
-      GATEWAY_BOOTSTRAP_TOKEN: "${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev-bootstrap-local-only-20260424}"
+      GATEWAY_BOOTSTRAP_TOKEN: "${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev}"
       REDIS_ADDR: redis:6379
-      REDIS_PASSWORD: "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-mistypass-dev}"
       REDIS_DB: "0"
       REDIS_KEY_PREFIX: mistypass
       NATS_ENABLED: "${NATS_ENABLED:-true}"
@@ -39,7 +41,7 @@ services:
     environment:
       POSTGRES_DB: mistypass
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev}"
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
@@ -59,7 +61,7 @@ services:
         condition: service_healthy
     environment:
       DB_USER: postgres
-      DB_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev-postgres-local-only-20260424}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD:-mistypass-dev}"
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: mistypass
@@ -79,7 +81,7 @@ services:
         "--appendonly",
         "yes",
         "--requirepass",
-        "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}",
+        "${REDIS_PASSWORD:-mistypass-dev}",
       ]
     ports:
       - "127.0.0.1:6379:6379"
@@ -92,7 +94,7 @@ services:
           "redis-cli",
           "--no-auth-warning",
           "-a",
-          "${REDIS_PASSWORD:-mistypass-dev-redis-local-only-20260424}",
+          "${REDIS_PASSWORD:-mistypass-dev}",
           "ping",
         ]
       interval: 5s
@@ -105,7 +107,7 @@ services:
     container_name: mistypass-emqx
     environment:
       EMQX_DASHBOARD__DEFAULT_USERNAME: "${EMQX_DASHBOARD_USERNAME:-admin}"
-      EMQX_DASHBOARD__DEFAULT_PASSWORD: "${EMQX_DASHBOARD_PASSWORD:-mistypass-dev-emqx-local-only-20260424}"
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "${EMQX_DASHBOARD_PASSWORD:-mistypass-dev}"
     ports:
       - "127.0.0.1:1883:1883"
       - "127.0.0.1:8083:8083"

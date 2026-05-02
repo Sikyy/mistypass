@@ -93,7 +93,7 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 func TestFromEnvCORSOriginDefaultAllowsLocalDevelopmentHosts(t *testing.T) {
 	t.Setenv("CORS_ORIGIN", "")
 	cfg := FromEnv()
-	if cfg.CORSOrigin != "http://localhost:5173,http://127.0.0.1:5173" {
+	if cfg.CORSOrigin != "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5175" {
 		t.Fatalf("unexpected CORS origin default: %q", cfg.CORSOrigin)
 	}
 }

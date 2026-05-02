@@ -24,6 +24,7 @@ docker-compose.*.override.yml
 .vscode/
 
 .aider*
+.claude/
 
 # Compiled binaries
 api/gateway-agent

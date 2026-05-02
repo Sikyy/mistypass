@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import i18n from "@/lib/i18n"
 import { useQuery } from "@tanstack/react-query"
 import { DownloadIcon } from "lucide-react"
 
@@ -42,7 +43,7 @@ function formatDateTime(value?: string) {
   if (!value) return "Not set"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(i18n.language, {
     month: "short",
     day: "numeric",
     hour: "2-digit",

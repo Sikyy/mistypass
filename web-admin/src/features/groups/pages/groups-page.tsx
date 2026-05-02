@@ -29,16 +29,28 @@ import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resour
 import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   createGroup,
+  createGroupElevatorStop,
   createGroupLink,
   createGroupLock,
+  createGroupTerminal,
   deleteGroup,
+  deleteGroupElevatorStop,
   deleteGroupLink,
   deleteGroupLock,
+  deleteGroupTerminal,
+  listElevatorStops,
+  listGroupElevatorStops,
   listGroupLinks,
+  listGroupTerminals,
+  listTerminals,
   updateGroup,
   updateGroupLink,
   type CurrentUser,
+  type ElevatorStop,
+  type GroupElevatorStop,
   type GroupLink,
+  type GroupTerminal,
+  type Terminal,
 } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { getViewerTenantID } from "@/lib/viewer"
@@ -93,6 +105,10 @@ export function GroupsAdaptedPage({
   const [editLinkQRCodeType, setEditLinkQRCodeType] = useState<"online" | "offline" | "">("online")
   const [editLinkEnabled, setEditLinkEnabled] = useState(true)
   const [deleteLinkTarget, setDeleteLinkTarget] = useState<GroupLink | null>(null)
+  const [addElevatorStopOpen, setAddElevatorStopOpen] = useState(false)
+  const [selectedElevatorStopID, setSelectedElevatorStopID] = useState("")
+  const [addTerminalOpen, setAddTerminalOpen] = useState(false)
+  const [selectedTerminalID, setSelectedTerminalID] = useState("")
   const [actionError, setActionError] = useState("")
   const resourceQuery = useMistyisletResourceSummary(token, viewer)
   const placeContext = selectMistyisletPlaceContext(resourceQuery.summary, placeID)
@@ -125,6 +141,38 @@ export function GroupsAdaptedPage({
     staleTime: 30 * 1000,
   })
   const groupLinks = groupLinksQuery.data ?? []
+  const groupElevatorStopsQuery = useQuery({
+    queryKey: ["reference-group-elevator-stops", tenantID ?? "none", currentGroup?.id ?? "none"],
+    queryFn: () => listGroupElevatorStops(token, tenantID ?? undefined, currentGroup?.id),
+    enabled: Boolean(tenantID && currentGroup?.id && !resourceQuery.usingFallback),
+    staleTime: 30 * 1000,
+  })
+  const groupElevatorStops: GroupElevatorStop[] = groupElevatorStopsQuery.data?.items ?? []
+  const allElevatorStopsQuery = useQuery({
+    queryKey: ["reference-all-elevator-stops", tenantID ?? "none"],
+    queryFn: () => listElevatorStops(token, tenantID ?? undefined),
+    enabled: Boolean(tenantID && !resourceQuery.usingFallback),
+    staleTime: 30 * 1000,
+  })
+  const allElevatorStops: ElevatorStop[] = allElevatorStopsQuery.data?.items ?? []
+  const assignedElevatorStopIDs = new Set(groupElevatorStops.map((item) => item.elevator_stop_id))
+  const availableElevatorStops = allElevatorStops.filter((item) => !assignedElevatorStopIDs.has(item.id))
+  const groupTerminalsQuery = useQuery({
+    queryKey: ["reference-group-terminals", tenantID ?? "none", currentGroup?.id ?? "none"],
+    queryFn: () => listGroupTerminals(token, tenantID ?? undefined, currentGroup?.id),
+    enabled: Boolean(tenantID && currentGroup?.id && !resourceQuery.usingFallback),
+    staleTime: 30 * 1000,
+  })
+  const groupTerminals: GroupTerminal[] = groupTerminalsQuery.data?.items ?? []
+  const allTerminalsQuery = useQuery({
+    queryKey: ["reference-all-terminals", tenantID ?? "none"],
+    queryFn: () => listTerminals(token, { tenant_id: tenantID ?? undefined }),
+    enabled: Boolean(tenantID && !resourceQuery.usingFallback),
+    staleTime: 30 * 1000,
+  })
+  const allTerminals: Terminal[] = allTerminalsQuery.data ?? []
+  const assignedTerminalIDs = new Set(groupTerminals.map((item) => item.terminal_id))
+  const availableTerminals = allTerminals.filter((item) => !assignedTerminalIDs.has(item.id))
   const restrictions = [
     {
       key: "primary_device_restriction_enabled",
@@ -399,6 +447,64 @@ export function GroupsAdaptedPage({
     onError: (error) => setActionError(error instanceof Error ? error.message : "Group link delete failed"),
   })
 
+  const addElevatorStopMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) throw new Error("tenant_id is required")
+      if (!currentGroup) throw new Error("group is required")
+      const stopID = selectedElevatorStopID.trim()
+      if (!stopID) throw new Error("elevator stop is required")
+      return createGroupElevatorStop(token, { tenant_id: tenantID, group_id: currentGroup.id, elevator_stop_id: stopID })
+    },
+    onSuccess: async () => {
+      setAddElevatorStopOpen(false)
+      setSelectedElevatorStopID("")
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-elevator-stops"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Elevator stop assignment failed"),
+  })
+
+  const removeElevatorStopMutation = useMutation({
+    mutationFn: (groupElevatorStopID: string) => {
+      if (!tenantID) throw new Error("tenant_id is required")
+      return deleteGroupElevatorStop(token, groupElevatorStopID, tenantID)
+    },
+    onSuccess: async () => {
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-elevator-stops"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Elevator stop removal failed"),
+  })
+
+  const addTerminalMutation = useMutation({
+    mutationFn: () => {
+      if (!tenantID) throw new Error("tenant_id is required")
+      if (!currentGroup) throw new Error("group is required")
+      const termID = selectedTerminalID.trim()
+      if (!termID) throw new Error("terminal is required")
+      return createGroupTerminal(token, { tenant_id: tenantID, group_id: currentGroup.id, terminal_id: termID })
+    },
+    onSuccess: async () => {
+      setAddTerminalOpen(false)
+      setSelectedTerminalID("")
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-terminals"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Terminal assignment failed"),
+  })
+
+  const removeTerminalMutation = useMutation({
+    mutationFn: (groupTerminalID: string) => {
+      if (!tenantID) throw new Error("tenant_id is required")
+      return deleteGroupTerminal(token, groupTerminalID, tenantID)
+    },
+    onSuccess: async () => {
+      setActionError("")
+      await queryClient.invalidateQueries({ queryKey: ["reference-group-terminals"] })
+    },
+    onError: (error) => setActionError(error instanceof Error ? error.message : "Terminal removal failed"),
+  })
+
   function openEditLink(link: GroupLink) {
     setEditingLinkID(link.id)
     setEditLinkName(link.name)
@@ -648,18 +754,104 @@ export function GroupsAdaptedPage({
 
         {activeTab === "elevator_stops" ? (
           <>
-            <PanelHeader title="Elevator Stops" description="Elevator floor stops this group can access." />
-            <div className="px-7 py-6 text-sm text-[#6f717c]">
-              Elevator stop bindings are managed via the Elevators page. Use the API to assign elevator stops to this group.
+            <PanelHeader
+              title="Elevator Stops"
+              description="Elevator floor stops this group can access."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canMutateGroups || availableElevatorStops.length === 0}
+                  onClick={() => {
+                    setSelectedElevatorStopID(availableElevatorStops[0]?.id ?? "")
+                    setActionError("")
+                    setAddElevatorStopOpen(true)
+                  }}
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                >
+                  <PlusIcon className="mr-1.5 size-4" />
+                  Add Elevator Stop
+                </Button>
+              }
+            />
+            <div className="divide-y divide-[#eceef2]">
+              {groupElevatorStops.map((row) => {
+                const stop = allElevatorStops.find((s) => s.id === row.elevator_stop_id)
+                return (
+                  <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
+                    <span className="font-semibold text-[#4f55ff]">{stop?.name ?? row.elevator_stop_id}</span>
+                    <span className="text-sm text-[#2f3037]">{stop?.status ?? "unknown"}</span>
+                    <StatusDot tone={stop?.status === "online" ? "success" : "warning"} label={stop?.status ?? "unknown"} />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={!canMutateGroups || removeElevatorStopMutation.isPending}
+                      onClick={() => removeElevatorStopMutation.mutate(row.id)}
+                      className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )
+              })}
+              {groupElevatorStops.length === 0 ? (
+                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                  {groupElevatorStopsQuery.isPending ? "Loading elevator stops..." : "No elevator stops are assigned to this group."}
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
 
         {activeTab === "terminals" ? (
           <>
-            <PanelHeader title="Terminals" description="Terminals assigned to this group." />
-            <div className="px-7 py-6 text-sm text-[#6f717c]">
-              Terminal bindings are managed via the Hardware page. Use the API to assign terminals to this group.
+            <PanelHeader
+              title="Terminals"
+              description="Terminals assigned to this group."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canMutateGroups || availableTerminals.length === 0}
+                  onClick={() => {
+                    setSelectedTerminalID(availableTerminals[0]?.id ?? "")
+                    setActionError("")
+                    setAddTerminalOpen(true)
+                  }}
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                >
+                  <PlusIcon className="mr-1.5 size-4" />
+                  Add Terminal
+                </Button>
+              }
+            />
+            <div className="divide-y divide-[#eceef2]">
+              {groupTerminals.map((row) => {
+                const terminal = allTerminals.find((t) => t.id === row.terminal_id)
+                return (
+                  <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
+                    <span className="font-semibold text-[#4f55ff]">{terminal?.name ?? row.terminal_id}</span>
+                    <span className="text-sm text-[#2f3037]">{terminal?.description ?? ""}</span>
+                    <StatusDot tone={terminal?.status === "online" ? "success" : "warning"} label={terminal?.status ?? "unknown"} />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={!canMutateGroups || removeTerminalMutation.isPending}
+                      onClick={() => removeTerminalMutation.mutate(row.id)}
+                      className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                )
+              })}
+              {groupTerminals.length === 0 ? (
+                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                  {groupTerminalsQuery.isPending ? "Loading terminals..." : "No terminals are assigned to this group."}
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -1121,6 +1313,104 @@ export function GroupsAdaptedPage({
                 className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
               >
                 {updateLinkMutation.isPending ? "Saving..." : "Save Link"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={addElevatorStopOpen} onOpenChange={setAddElevatorStopOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Elevator Stop</SheetTitle>
+            <SheetDescription>Assign an elevator stop to this group.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addElevatorStopMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <input
+                value={currentGroup?.name ?? "No group selected"}
+                readOnly
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Elevator Stop</span>
+              <select
+                value={selectedElevatorStopID}
+                onChange={(event) => setSelectedElevatorStopID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                {availableElevatorStops.map((stop) => (
+                  <option key={stop.id} value={stop.id}>
+                    {stop.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {availableElevatorStops.length === 0 ? <p className="text-sm text-[#8a5a00]">No available elevator stops to assign.</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canMutateGroups || addElevatorStopMutation.isPending || availableElevatorStops.length === 0}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {addElevatorStopMutation.isPending ? "Adding..." : "Add Elevator Stop"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={addTerminalOpen} onOpenChange={setAddTerminalOpen}>
+        <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetTitle>Add Terminal</SheetTitle>
+            <SheetDescription>Assign a terminal to this group.</SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 px-6 py-5"
+            onSubmit={(event) => {
+              event.preventDefault()
+              addTerminalMutation.mutate()
+            }}
+          >
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <input
+                value={currentGroup?.name ?? "No group selected"}
+                readOnly
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Terminal</span>
+              <select
+                value={selectedTerminalID}
+                onChange={(event) => setSelectedTerminalID(event.target.value)}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                {availableTerminals.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {term.name} {term.description ? `· ${term.description}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {availableTerminals.length === 0 ? <p className="text-sm text-[#8a5a00]">No available terminals to assign.</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <Button
+                type="submit"
+                disabled={!canMutateGroups || addTerminalMutation.isPending || availableTerminals.length === 0}
+                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              >
+                {addTerminalMutation.isPending ? "Adding..." : "Add Terminal"}
               </Button>
             </SheetFooter>
           </form>

@@ -1,7 +1,9 @@
 # MistyPass vs Kisi 架构对照分析
 
 > 对照日期：2026-05-01
-> Kisi 文档来源：docs.kisi.io (System Architecture / API Quick Start / Analytics & Reporting)
+> Kisi 文档来源：`Kisi-API-Bundled References.yaml` (OpenAPI 3.1.0, 227 operations) + `https://docs.kisi.io/`
+> 代码审查报告见 `docs/CODE-REVIEW-2026-05-01.md`
+> 差距分析见 `docs/kisi-gap-analysis.md`
 
 ---
 

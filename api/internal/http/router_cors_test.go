@@ -12,17 +12,26 @@ import (
 func TestAllowedCORSOriginMatchesConfiguredOriginList(t *testing.T) {
 	configured := "http://localhost:5173, http://127.0.0.1:5173"
 
-	if got := allowedCORSOrigin(configured, "http://127.0.0.1:5173"); got != "http://127.0.0.1:5173" {
+	if got := allowedCORSOrigin(configured, "http://127.0.0.1:5173", "development"); got != "http://127.0.0.1:5173" {
 		t.Fatalf("expected 127.0.0.1 origin, got %q", got)
 	}
-	if got := allowedCORSOrigin(configured, "http://localhost:5173"); got != "http://localhost:5173" {
+	if got := allowedCORSOrigin(configured, "http://localhost:5173", "development"); got != "http://localhost:5173" {
 		t.Fatalf("expected localhost origin, got %q", got)
 	}
-	if got := allowedCORSOrigin(configured, "http://localhost:5174"); got != "" {
+	if got := allowedCORSOrigin(configured, "http://localhost:5174", "development"); got != "" {
 		t.Fatalf("expected unconfigured origin to be rejected, got %q", got)
 	}
-	if got := allowedCORSOrigin(configured, ""); got != "http://localhost:5173" {
+	if got := allowedCORSOrigin(configured, "", "development"); got != "http://localhost:5173" {
 		t.Fatalf("expected first configured origin as fallback, got %q", got)
+	}
+
+	// wildcard accepted in development
+	if got := allowedCORSOrigin("*", "http://evil.com", "development"); got != "*" {
+		t.Fatalf("expected wildcard in development, got %q", got)
+	}
+	// wildcard rejected in production
+	if got := allowedCORSOrigin("*", "http://evil.com", "production"); got != "" {
+		t.Fatalf("expected wildcard rejected in production, got %q", got)
 	}
 }
 

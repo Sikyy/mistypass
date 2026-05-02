@@ -135,6 +135,14 @@ type Config struct {
 	UploadMaxSizeBytes                                           int64
 	UploadURLTTL                                                 time.Duration
 	SelfRegistrationEnabled                                      bool
+	DefaultTimezone                                               string
+	ReportEmailEnabled                                           bool
+	CameraEnabled                                                bool
+	CameraVaultMasterKey                                         string
+	CameraSnapshotTimeoutSeconds                                 int
+	CameraSnapshotRetentionDays                                  int
+	CameraMaxSnapshotsPerEvent                                   int
+	OAuth2Enabled                                                bool
 }
 
 func FromEnv() Config {
@@ -150,6 +158,9 @@ func FromEnv() Config {
 	loadGatewayConfig(&cfg)
 	loadUploadConfig(&cfg)
 	loadWalletConfig(&cfg)
+	loadReportEmailConfig(&cfg)
+	loadCameraConfig(&cfg)
+	loadOAuth2Config(&cfg)
 	return cfg
 }
 
@@ -157,6 +168,7 @@ func loadServerConfig(cfg *Config) {
 	cfg.AppEnv = envLowerOrDefault("APP_ENV", "development")
 	cfg.HTTPAddr = normalizeHTTPAddr(envStringOrDefault("PORT", "8080"))
 	cfg.CORSOrigin = envStringOrDefault("CORS_ORIGIN", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5175")
+	cfg.DefaultTimezone = envStringOrDefault("DEFAULT_TIMEZONE", "UTC")
 }
 
 func loadRedisConfig(cfg *Config) {
@@ -910,4 +922,20 @@ func parseGroupEmailMap(raw string) map[string][]string {
 		return nil
 	}
 	return groups
+}
+
+func loadReportEmailConfig(cfg *Config) {
+	cfg.ReportEmailEnabled = parseBoolOrFallback(envString("REPORT_EMAIL_ENABLED"), false)
+}
+
+func loadOAuth2Config(cfg *Config) {
+	cfg.OAuth2Enabled = parseBoolOrFallback(envString("OAUTH2_ENABLED"), false)
+}
+
+func loadCameraConfig(cfg *Config) {
+	cfg.CameraEnabled = parseBoolOrFallback(envString("CAMERA_ENABLED"), false)
+	cfg.CameraVaultMasterKey = envString("CAMERA_VAULT_MASTER_KEY")
+	cfg.CameraSnapshotTimeoutSeconds = parseIntOrFallback(envString("CAMERA_SNAPSHOT_TIMEOUT"), 10)
+	cfg.CameraSnapshotRetentionDays = parseIntOrFallback(envString("CAMERA_SNAPSHOT_RETENTION_DAYS"), 30)
+	cfg.CameraMaxSnapshotsPerEvent = parseIntOrFallback(envString("CAMERA_MAX_SNAPSHOTS_PER_EVENT"), 3)
 }

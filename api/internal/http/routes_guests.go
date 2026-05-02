@@ -38,16 +38,20 @@ func (s *server) getGuest(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) createGuest(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		TenantID   string `json:"tenant_id"`
-		BuildingID string `json:"building_id"`
-		Name       string `json:"name"`
-		Email      string `json:"email"`
-		Phone      string `json:"phone"`
-		Company    string `json:"company"`
-		Purpose    string `json:"purpose"`
-		HostName   string `json:"host_name"`
-		HostEmail  string `json:"host_email"`
-		ExpectedAt string `json:"expected_at"`
+		TenantID         string `json:"tenant_id"`
+		BuildingID       string `json:"building_id"`
+		Name             string `json:"name"`
+		Email            string `json:"email"`
+		Phone            string `json:"phone"`
+		Company          string `json:"company"`
+		Purpose          string `json:"purpose"`
+		HostName         string `json:"host_name"`
+		HostEmail        string `json:"host_email"`
+		HostPhone        string `json:"host_phone"`
+		IDDocumentType   string `json:"id_document_type"`
+		IDDocumentNumber string `json:"id_document_number"`
+		ExpectedAt       string `json:"expected_at"`
+		NotifyHost       bool   `json:"notify_host"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -58,15 +62,28 @@ func (s *server) createGuest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	guest, err := s.accessSvc.CreateGuest(
-		tenantID, request.BuildingID, request.Name, request.Email,
-		request.Phone, request.Company, request.Purpose,
-		request.HostName, request.HostEmail, request.ExpectedAt,
-	)
+	guest, err := s.accessSvc.CreateGuest(access.CreateGuestInput{
+		TenantID:         tenantID,
+		BuildingID:       request.BuildingID,
+		Name:             request.Name,
+		Email:            request.Email,
+		Phone:            request.Phone,
+		Company:          request.Company,
+		Purpose:          request.Purpose,
+		HostName:         request.HostName,
+		HostEmail:        request.HostEmail,
+		HostPhone:        request.HostPhone,
+		IDDocumentType:   request.IDDocumentType,
+		IDDocumentNumber: request.IDDocumentNumber,
+		ExpectedAt:       request.ExpectedAt,
+		NotifyHost:       request.NotifyHost,
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, access.ErrGuestNameRequired),
+			errors.Is(err, access.ErrGuestPhoneRequired),
 			errors.Is(err, access.ErrGuestHostRequired),
+			errors.Is(err, access.ErrGuestIDDocumentTypeInvalid),
 			errors.Is(err, access.ErrTenantIDRequired):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
@@ -76,7 +93,7 @@ func (s *server) createGuest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.appendAuditLog(r, tenantID, "guest_created",
-		fmt.Sprintf("guest_id=%s,name=%s,host=%s", guest.ID, guest.Name, guest.HostName), "access")
+		fmt.Sprintf("guest_id=%s,name=%s,phone=%s,host=%s", guest.ID, guest.Name, guest.Phone, guest.HostName), "access")
 	writeJSON(w, http.StatusCreated, guest)
 }
 

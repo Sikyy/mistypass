@@ -522,7 +522,7 @@ function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => 
                 {formatUserAgent(session.user_agent)}
               </p>
               <p className="mt-0.5 text-xs text-[#9a9ca7]">
-                Created {new Date(session.created_at).toLocaleString()} · Expires {new Date(session.expires_at).toLocaleString()}
+                Created {new Date(session.created_at).toLocaleString(i18next.language)} · Expires {new Date(session.expires_at).toLocaleString(i18next.language)}
               </p>
             </div>
             <button
@@ -723,7 +723,7 @@ function PasskeyCredentialsTab({ token }: { token: string }) {
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-[#17171c]">{cred.display_name}</p>
               <p className="mt-1 text-sm text-[#6f717c]">
-                Added {new Date(cred.created_at).toLocaleDateString()} · Sign count: {cred.sign_count}
+                Added {new Date(cred.created_at).toLocaleDateString(i18next.language)} · Sign count: {cred.sign_count}
               </p>
             </div>
             <button

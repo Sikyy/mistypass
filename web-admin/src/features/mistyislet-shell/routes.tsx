@@ -12,6 +12,9 @@ const AccessRightsAdaptedPage = lazy(() =>
 const SchedulesAdaptedPage = lazy(() =>
   import("@/features/access-rights/pages/schedules-page").then((module) => ({ default: module.SchedulesAdaptedPage }))
 )
+const HolidayCalendarsAdaptedPage = lazy(() =>
+  import("@/features/access-rights/pages/holiday-calendars-page").then((module) => ({ default: module.HolidayCalendarsAdaptedPage }))
+)
 const MyAccountPage = lazy(() =>
   import("@/features/account/pages/my-account-page").then((module) => ({ default: module.MyAccountPage }))
 )
@@ -80,6 +83,9 @@ const ReportSchedulePage = lazy(() =>
 )
 const VisitorsPage = lazy(() =>
   import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
+)
+const BookingsPage = lazy(() =>
+  import("@/features/bookings/pages/bookings-page").then((module) => ({ default: module.BookingsPage }))
 )
 const TenantsPage = lazy(() =>
   import("@/features/legacy/pages/tenants-page").then((module) => ({ default: module.TenantsPage }))
@@ -243,6 +249,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/groups" element={<GroupsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/access-rights" element={<AccessRightsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/schedules" element={<SchedulesAdaptedPage token={token} viewer={viewer} />} />
+        <Route path="/holiday-calendars" element={<HolidayCalendarsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/invitations" element={<InvitationsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/credentials" element={<CredentialsAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/event-history" element={<EventHistoryAdaptedPage token={token} viewer={viewer} />} />
@@ -251,6 +258,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/network" element={<NetworkTopologyPage token={token} viewer={viewer} />} />
         <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
+        <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />
         <Route path="/places/assigned/:section" element={<AssignedPlaceRedirect />} />

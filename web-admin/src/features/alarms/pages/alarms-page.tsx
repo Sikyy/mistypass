@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type ColumnDef, type SortingState, type VisibilityState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowUpDownIcon, BellRingIcon, CheckCircle2Icon, FilterIcon, MailIcon, MessageCircleIcon, SirenIcon, SlidersHorizontalIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { ArrowUpDownIcon, BellRingIcon, CheckCircle2Icon, ClockIcon, FilterIcon, MailIcon, MessageCircleIcon, ShieldAlertIcon, SirenIcon, SlidersHorizontalIcon, TriangleAlertIcon, XIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,11 +29,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ListPagination } from "@/components/ui/list-pagination"
+import { StatusDot } from "@/components/mistyislet/primitives"
 import {
   consumeServerSentEvents,
+  getAlertPolicy,
   listAlarms,
+  listAlertPolicies,
   listTenants,
   listUserGroups,
   updateAlarmStatus,
@@ -178,6 +188,12 @@ function sortAlarmsForQueue(a: Alarm, b: Alarm) {
   return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 }
 
+function formatPolicySeconds(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+  return `${Math.round(seconds / 3600)}h`
+}
+
 type NotificationLog = {
   id: string
   alarm_id: string
@@ -286,6 +302,23 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
   const loading = alarmsQuery.isPending
   const queryError = alarmsQuery.isError && alarmsQuery.error instanceof Error ? alarmsQuery.error.message : ""
   const tenantByID = useMemo(() => new Map(tenants.map((item) => [item.id, item])), [tenants])
+
+  // --- Alert Policies ---
+  const [selectedPolicyID, setSelectedPolicyID] = useState<string | null>(null)
+  const alertPoliciesQuery = useQuery({
+    queryKey: ["reference-alert-policies", viewer.id, viewer.role],
+    queryFn: () => listAlertPolicies(token, { sort: "name" }),
+    staleTime: 60 * 1000,
+  })
+  const alertPolicies = alertPoliciesQuery.data ?? []
+  const alertPolicyDetailQuery = useQuery({
+    queryKey: ["alert-policy-detail", selectedPolicyID],
+    queryFn: () => getAlertPolicy(token, selectedPolicyID!),
+    enabled: Boolean(selectedPolicyID),
+    staleTime: 30 * 1000,
+  })
+  const policyDetail = alertPolicyDetailQuery.data ?? null
+
   const updateAlarmStatusMutation = useMutation({
     mutationFn: (payload: { alarmID: string; status: AlarmWorkflowStatus }) =>
       updateAlarmStatus(token, payload.alarmID, payload.status),
@@ -689,9 +722,12 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
       </div>
 
       <Tabs defaultValue="queue" className="space-y-4">
-        <TabsList className="grid h-auto w-full grid-cols-2 bg-transparent sm:w-fit">
+        <TabsList className="grid h-auto w-full grid-cols-3 bg-transparent sm:w-fit">
           <TabsTrigger value="queue" className="py-2.5">
             {t("alarms.tabs.queue")}
+          </TabsTrigger>
+          <TabsTrigger value="policies" className="py-2.5">
+            {t("alarms.tabs.policies", "Alert Policies")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className="py-2.5">
             {t("alarms.tabs.notifications")}
@@ -850,6 +886,161 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
               : null}
           </div>
         </TabsContent>
+
+        <TabsContent value="policies" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t("alarms.alertPolicies.title", "Alert Policies")}</CardTitle>
+              <CardDescription>
+                {t("alarms.alertPolicies.description", "Automated rules that generate alarms when specific conditions are met.")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {alertPoliciesQuery.isPending ? (
+                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                  {t("alarms.alertPolicies.loading", "Loading alert policies...")}
+                </div>
+              ) : alertPoliciesQuery.isError ? (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {alertPoliciesQuery.error instanceof Error ? alertPoliciesQuery.error.message : t("alarms.alertPolicies.error", "Failed to load alert policies")}
+                </div>
+              ) : alertPolicies.length === 0 ? (
+                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+                  {t("alarms.alertPolicies.empty", "No alert policies configured.")}
+                </div>
+              ) : (
+                <div className="divide-y rounded-lg border">
+                  {alertPolicies.map((policy) => (
+                    <button
+                      key={policy.id}
+                      type="button"
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                      onClick={() => setSelectedPolicyID(policy.id)}
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlertIcon className="size-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-sm font-medium">{policy.name}</span>
+                          <Badge variant={policy.severity === "critical" || policy.severity === "high" ? "destructive" : "outline"} className="shrink-0">
+                            {policy.severity}
+                          </Badge>
+                        </div>
+                        {policy.description ? (
+                          <p className="truncate text-sm text-muted-foreground">{policy.description}</p>
+                        ) : null}
+                      </div>
+                      <StatusDot
+                        tone={policy.enabled && policy.status === "active" ? "success" : "warning"}
+                        label={policy.enabled && policy.status === "active" ? t("alarms.alertPolicies.enabled", "Enabled") : t("alarms.alertPolicies.disabled", "Disabled")}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <Sheet open={Boolean(selectedPolicyID)} onOpenChange={(open) => { if (!open) setSelectedPolicyID(null) }}>
+          <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
+            <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+              <SheetTitle>{policyDetail?.name ?? t("alarms.alertPolicies.detail.title", "Policy Details")}</SheetTitle>
+              <SheetDescription>
+                {policyDetail?.description || t("alarms.alertPolicies.detail.noDescription", "No description")}
+              </SheetDescription>
+            </SheetHeader>
+            <div className="space-y-5 px-6 py-5">
+              {alertPolicyDetailQuery.isPending ? (
+                <p className="text-sm text-muted-foreground">{t("alarms.alertPolicies.detail.loading", "Loading...")}</p>
+              ) : alertPolicyDetailQuery.isError ? (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {alertPolicyDetailQuery.error instanceof Error ? alertPolicyDetailQuery.error.message : t("alarms.alertPolicies.detail.error", "Failed to load policy")}
+                </div>
+              ) : policyDetail ? (
+                <>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.status", "Status")}</p>
+                    <StatusDot
+                      tone={policyDetail.enabled && policyDetail.status === "active" ? "success" : "warning"}
+                      label={policyDetail.enabled && policyDetail.status === "active" ? t("alarms.alertPolicies.enabled", "Enabled") : t("alarms.alertPolicies.disabled", "Disabled")}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.category", "Category")}</p>
+                    <p className="text-sm">{policyDetail.category}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.trigger", "Trigger")}</p>
+                    <p className="text-sm">{policyDetail.trigger}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.severity", "Severity")}</p>
+                    <Badge variant={policyDetail.severity === "critical" || policyDetail.severity === "high" ? "destructive" : "outline"}>
+                      {policyDetail.severity}
+                    </Badge>
+                  </div>
+                  {policyDetail.condition_expression ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.condition", "Condition")}</p>
+                      <code className="block rounded bg-muted/50 px-2 py-1.5 text-xs">{policyDetail.condition_expression}</code>
+                    </div>
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.threshold", "Threshold")}</p>
+                      <p className="text-sm">{policyDetail.threshold}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.window", "Window")}</p>
+                      <p className="text-sm">{formatPolicySeconds(policyDetail.window_seconds)}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">
+                      <ClockIcon className="mr-1 inline-block size-3.5" />
+                      {t("alarms.alertPolicies.detail.cooldown", "Cooldown")}
+                    </p>
+                    <p className="text-sm">{formatPolicySeconds(policyDetail.cooldown_seconds)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.channels", "Notification Channels")}</p>
+                    <div className="flex gap-2">
+                      {policyDetail.channels.email ? (
+                        <Badge variant="secondary">
+                          <MailIcon className="mr-1 size-3" />
+                          {t("alarms.notificationPolicy.channel.email")}
+                        </Badge>
+                      ) : null}
+                      {policyDetail.channels.whatsapp ? (
+                        <Badge variant="secondary">
+                          <MessageCircleIcon className="mr-1 size-3" />
+                          {t("alarms.notificationPolicy.channel.whatsApp")}
+                        </Badge>
+                      ) : null}
+                      {!policyDetail.channels.email && !policyDetail.channels.whatsapp ? (
+                        <span className="text-sm text-muted-foreground">{t("alarms.alertPolicies.detail.noChannels", "No channels configured")}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {policyDetail.receiver_groups && policyDetail.receiver_groups.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.receiverGroups", "Receiver Groups")}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {policyDetail.receiver_groups.map((group) => (
+                          <Badge key={group} variant="outline">{group}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">{t("alarms.alertPolicies.detail.lastUpdated", "Last Updated")}</p>
+                    <p className="text-sm">{new Date(policyDetail.updated_at).toLocaleString(i18n.language)}</p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
 
         <TabsContent value="notifications" className="space-y-4">
           <Card>

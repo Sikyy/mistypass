@@ -41,6 +41,48 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestServiceListReturnsDefaultTenants(t *testing.T) {
+	svc := NewService()
+	tenants := svc.List()
+	if len(tenants) < 2 {
+		t.Fatalf("expected at least 2 default tenants, got %d", len(tenants))
+	}
+	found := false
+	for _, t2 := range tenants {
+		if t2.ID == "tenant_demo_jakarta" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected tenant_demo_jakarta in default list")
+	}
+}
+
+func TestServiceCreateAppearsInList(t *testing.T) {
+	svc := NewService()
+	before := len(svc.List())
+
+	created, err := svc.Create("Test Corp", "studio", "SG")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	after := svc.List()
+	if len(after) != before+1 {
+		t.Fatalf("expected %d tenants after create, got %d", before+1, len(after))
+	}
+	found := false
+	for _, t2 := range after {
+		if t2.ID == created.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("created tenant not found in list")
+	}
+}
+
 func TestServiceUpdateStatusLifecycle(t *testing.T) {
 	svc := NewService()
 
@@ -58,5 +100,53 @@ func TestServiceUpdateStatusLifecycle(t *testing.T) {
 
 	if _, err := svc.UpdateStatus("tenant_missing", "active"); !errors.Is(err, ErrTenantNotFound) {
 		t.Fatalf("expected tenant not found error, got %v", err)
+	}
+}
+
+func TestServiceStatusFullCycle(t *testing.T) {
+	svc := NewService()
+	created, err := svc.Create("Lifecycle Corp", "factory", "ID-JK")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.Status != "active" {
+		t.Fatalf("expected active, got %s", created.Status)
+	}
+
+	suspended, err := svc.UpdateStatus(created.ID, "suspended")
+	if err != nil {
+		t.Fatalf("suspend: %v", err)
+	}
+	if suspended.Status != "suspended" {
+		t.Fatalf("expected suspended, got %s", suspended.Status)
+	}
+
+	inactive, err := svc.UpdateStatus(created.ID, "inactive")
+	if err != nil {
+		t.Fatalf("inactive: %v", err)
+	}
+	if inactive.Status != "inactive" {
+		t.Fatalf("expected inactive, got %s", inactive.Status)
+	}
+
+	reactivated, err := svc.UpdateStatus(created.ID, "active")
+	if err != nil {
+		t.Fatalf("reactivate: %v", err)
+	}
+	if reactivated.Status != "active" {
+		t.Fatalf("expected active, got %s", reactivated.Status)
+	}
+}
+
+func TestServiceNilSafetyGuards(t *testing.T) {
+	var svc *Service
+	if svc.List() != nil {
+		t.Fatal("nil service List should return nil")
+	}
+	if _, err := svc.Create("x", "company", ""); !errors.Is(err, ErrTenantNotFound) {
+		t.Fatalf("nil service Create should return error, got %v", err)
+	}
+	if _, err := svc.UpdateStatus("x", "active"); !errors.Is(err, ErrTenantNotFound) {
+		t.Fatalf("nil service UpdateStatus should return error, got %v", err)
 	}
 }

@@ -499,6 +499,10 @@ func (s *server) deactivateReferenceCardAssignment(w http.ResponseWriter, r *htt
 	s.deactivateReferenceCard(w, r)
 }
 
+func (s *server) activateReferenceCardAssignmentWithToken(w http.ResponseWriter, r *http.Request) {
+	s.activateReferenceCard(w, r)
+}
+
 // =====================================================================
 // Reports create/delete — reference report management
 // =====================================================================

@@ -79,7 +79,7 @@ func (s *server) gatewayBootstrapActivate(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayBootstrapToken(w, r) {
 		return
 	}
 

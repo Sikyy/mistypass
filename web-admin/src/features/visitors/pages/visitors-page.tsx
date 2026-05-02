@@ -1,4 +1,5 @@
 import { useState } from "react"
+import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { CheckCircleIcon, LogInIcon, LogOutIcon, PlusIcon, Trash2Icon, XCircleIcon } from "lucide-react"
 
@@ -45,7 +46,9 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
   const [showCreate, setShowCreate] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [form, setForm] = useState({
-    name: "", email: "", phone: "", company: "", purpose: "", host_name: "", host_email: "", expected_at: "",
+    name: "", email: "", phone: "", company: "", purpose: "",
+    host_name: "", host_email: "", host_phone: "", expected_at: "",
+    id_document_type: "", id_document_number: "", notify_host: true,
   })
 
   const guestsQuery = useQuery({
@@ -61,7 +64,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["guests"] })
       setShowCreate(false)
-      setForm({ name: "", email: "", phone: "", company: "", purpose: "", host_name: "", host_email: "", expected_at: "" })
+      setForm({ name: "", email: "", phone: "", company: "", purpose: "", host_name: "", host_email: "", host_phone: "", expected_at: "", id_document_type: "", id_document_number: "", notify_host: true })
       setMutationError("")
     },
     onError: (error) => setMutationError(error instanceof Error ? error.message : "Failed to create guest"),
@@ -110,29 +113,55 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
           <div className="grid gap-4 md:grid-cols-2">
             {[
               ["name", "Guest Name *", "text"],
+              ["phone", "Phone *", "tel"],
               ["email", "Email", "email"],
-              ["phone", "Phone", "tel"],
               ["company", "Company", "text"],
               ["purpose", "Purpose of Visit", "text"],
               ["host_name", "Host Name *", "text"],
               ["host_email", "Host Email", "email"],
+              ["host_phone", "Host Phone (WhatsApp)", "tel"],
               ["expected_at", "Expected At", "datetime-local"],
+              ["id_document_number", "ID Document Number", "text"],
             ].map(([key, label, type]) => (
               <label key={key} className="block">
                 <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{label}</span>
                 <input
                   type={type}
-                  value={form[key as keyof typeof form]}
+                  value={form[key as keyof typeof form] as string}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
                 />
               </label>
             ))}
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">ID Document Type</span>
+              <select
+                value={form.id_document_type}
+                onChange={(e) => setForm((f) => ({ ...f, id_document_type: e.target.value }))}
+                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+              >
+                <option value="">None</option>
+                <option value="KTP">KTP (ID Card)</option>
+                <option value="KITAS">KITAS (Temporary Stay Permit)</option>
+                <option value="ITAS">ITAS (Temporary Residence Permit)</option>
+              </select>
+            </label>
+          </div>
+          <div className="mt-4 flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm text-[#2f3037]">
+              <input
+                type="checkbox"
+                checked={form.notify_host}
+                onChange={(e) => setForm((f) => ({ ...f, notify_host: e.target.checked }))}
+                className="size-4 rounded border-[#d9dbe3] accent-[#4f55ff]"
+              />
+              Notify host via WhatsApp
+            </label>
           </div>
           <div className="mt-4 flex gap-2">
             <Button
               className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
-              disabled={createMutation.isPending || !form.name.trim() || !form.host_name.trim()}
+              disabled={createMutation.isPending || !form.name.trim() || !form.phone.trim() || !form.host_name.trim()}
               onClick={() => createMutation.mutate()}
             >
               {createMutation.isPending ? "Creating..." : "Create"}
@@ -219,19 +248,30 @@ function GuestRow({
         <div className="flex items-center gap-2">
           <span className="font-semibold text-[#17171c]">{guest.name}</span>
           {guest.company && <span className="text-sm text-[#6f717c]">({guest.company})</span>}
+          {guest.id_document_type && (
+            <span className="rounded bg-[#f3f4f8] px-1.5 py-0.5 text-xs font-medium text-[#6f717c]">
+              {guest.id_document_type}
+            </span>
+          )}
         </div>
         <p className="mt-0.5 text-sm text-[#6f717c]">
           Host: {guest.host_name}
+          {guest.phone ? ` · ${guest.phone}` : ""}
           {guest.purpose ? ` · ${guest.purpose}` : ""}
         </p>
         {guest.expected_at && (
           <p className="mt-0.5 text-xs text-[#9a9ca7]">
-            Expected: {new Date(guest.expected_at).toLocaleString()}
+            Expected: {new Date(guest.expected_at).toLocaleString(i18n.language)}
           </p>
         )}
         {guest.checked_in_at && (
           <p className="mt-0.5 text-xs text-[#9a9ca7]">
-            Checked in: {new Date(guest.checked_in_at).toLocaleString()}
+            Checked in: {new Date(guest.checked_in_at).toLocaleString(i18n.language)}
+          </p>
+        )}
+        {guest.host_notified_at && (
+          <p className="mt-0.5 text-xs text-green-600">
+            Host notified via WhatsApp
           </p>
         )}
       </div>

@@ -1,9 +1,9 @@
 # MistyPass Hardware Integration Guide
 
-Current-generation hardware chain and next-generation hardware selection plan.
+Current-generation hardware chain, video surveillance integration, and next-generation hardware selection plan.
 
-**Version:** 1.1
-**Date:** 2026-04-30
+**Version:** 1.2
+**Date:** 2026-05-01
 
 ---
 
@@ -17,6 +17,7 @@ Current-generation hardware chain and next-generation hardware selection plan.
 4. [Reader Integration (Missing Piece)](#4-reader-integration-missing-piece)
 5. [Development Testing Without Hardware](#5-development-testing-without-hardware)
 6. [Next-Gen Hardware Selection Plan](#6-next-gen-hardware-selection-plan)
+7. [Video Surveillance Integration](#7-video-surveillance-integration)
 
 ---
 
@@ -364,6 +365,45 @@ Orange Pi Zero3        USB转RS485          RS485 继电器模块       电锁
 - Fail-secure (断电锁门): 使用 NO (常开) 端
 - 当前代码默认使用 NO (常开) 端，适合 fail-secure 电锁
 
+#### 已采购电锁（2026-05-02）
+
+**EM Lock 600 LBS (Type B, 五线制)**
+
+| 参数 | 值 |
+|------|-----|
+| 型号 | EM Lock 600 LBS |
+| 锁力 | 280KG / 600LBS |
+| 工作电压 | 12V DC |
+| 工作电流 | 400mA |
+| 锁体尺寸 | 250 x 48 x 26 mm |
+| 安装板尺寸 | 250 x 25 x 6 mm |
+| 吸板尺寸 | 180 x 38 x 11 mm |
+| 线制 | Type B: 5线 (V+, V-, NO, NC, COM) |
+| 指示灯 | 红色 + 绿色 LED |
+| 适用门型 | 木门、铝合金门 |
+| 工作方式 | 通电上锁，断电开门 (fail-safe) |
+
+**接线方式（电磁锁 fail-safe）：**
+- 电磁锁为 fail-safe 类型（通电吸合上锁，断电释放开门）
+- 正常状态：继电器 NC 端供电 → 电磁锁通电 → 门锁闭
+- 开门状态：继电器切换到 NO 端 → 电磁锁断电 → 门释放
+- 使用继电器 NC (常闭) 端连接电源，确保断电时门自动解锁（消防安全）
+
+```
+继电器模块                    EM Lock 600 LBS
++----------+                +------+
+|    COM   |--- 12V DC+ --->| V+   |
+|    NC    |<-- 电源 12V+ --|      |
+|    NO    |    (空)        | V-   |--- 12V DC GND
+|          |                |      |
+| 状态反馈: |                | NO   |--- 门状态 (开)
+|          |                | NC   |--- 门状态 (关)
+|          |                | COM  |--- 门状态公共端
++----------+                +------+
+                            红LED = 上锁
+                            绿LED = 解锁
+```
+
 ---
 
 ## 4. Reader Integration (Missing Piece)
@@ -422,8 +462,8 @@ WalletMate II (USB)                Gateway (Orange Pi / Mac)
 | 能力 | 协议 | 当前状态 | 用途 |
 |------|------|---------|------|
 | 读取 NFC UID | ISO 14443 GET UID APDU | **已实现** | 物理 NFC 卡门禁 |
-| Apple Wallet 门禁 | Apple VAS (ECP 2.0 Access Control) | 待实现 | iPhone/Apple Watch 开门 |
-| Google Wallet 门禁 | Google Smart Tap | 待实现 | Android 手机开门 |
+| Apple Wallet 门禁 | Apple VAS (ECP 2.0 Access Control) | ⏸️ 暂停（印尼政策限制） | iPhone/Apple Watch 开门 |
+| Google Wallet 门禁 | Google Smart Tap | ⏸️ 暂停（印尼政策限制） | Android 手机开门 |
 | MIFARE 扇区读取 | MIFARE Classic/DESFire APDU | 待实现 | 加密卡数据验证 |
 
 **代码：** `api/cmd/gateway-agent/reader.go`，依赖 `github.com/ebfe/scard` (PC/SC Go 绑定)
@@ -599,8 +639,10 @@ Gen 1 (现在 - Q3 2026)
 
 Gen 1.5 (Q3 - Q4 2026)
   ├── 集成 Wiegand 读卡器 (GPIO 驱动)
-  ├── Google Wallet Corporate Badge API 对接
-  ├── Apple Wallet 生产签名
+  ├── EM Lock 600 LBS 电磁锁集成测试
+  ├── DS-2CD1023G2-LIU 摄像头集成测试
+  ├── Google Wallet Corporate Badge API 对接 (⏸️ 暂停 — 印尼政策限制)
+  ├── Apple Wallet 生产签名 (⏸️ 暂停 — 印尼政策限制)
   └── 首批客户部署
 
 Gen 2 (2027 H1)
@@ -616,4 +658,148 @@ Gen 3 (2027 H2+)
   ├── BLE challenge-response
   ├── NFC 动态凭证 (非静态 UID)
   └── PoE 供电 + 电池备份
+```
+
+---
+
+## 7. Video Surveillance Integration
+
+> 更新日期：2026-05-01
+> 模块代码：`api/internal/modules/camera/`
+> OpenAPI：`GET /api/v1/openapi.json` → Cameras tag
+
+### 7.1 架构概览
+
+MistyPass 采用 **Provider 接口模式**，统一支持 5 家摄像头品牌：
+
+| Provider | 协议 | 快照路径 | RTSP 路径 | 印尼可用性 |
+|----------|------|---------|-----------|-----------|
+| **ONVIF** | WS-Discovery + SOAP | `GetSnapshotUri()` | `GetStreamUri()` | 通用 |
+| **Hikvision** | ISAPI (HTTP Digest) | `/ISAPI/Streaming/channels/{ch}01/picture` | `rtsp://.../Streaming/Channels/{ch}01` | 市占率第一 |
+| **Dahua** | CGI (HTTP Digest) | `/cgi-bin/snapshot.cgi?channel={ch}` | `rtsp://.../cam/realmonitor?channel={ch}&subtype=0` | 高 |
+| **ZKTeco** | CGI + ISAPI 双协议 | 先 CGI 后 ISAPI fallback | `rtsp://.../live/ch{n}` | 中高 |
+| **VIVOTEK** | CGI (HTTP Digest) | `/cgi-bin/viewer/video.jpg` | `rtsp://.../live.sdp` | 中 |
+
+### 7.2 事件触发快照
+
+门禁事件发生时自动抓取摄像头画面：
+
+```
+Door unlock → writeReferenceLockAction()
+  → cameraSvc.TriggerEventSnapshot(tenantID, doorID, eventID, "unlock")
+    → 查找该门关联的所有 active 摄像头
+    → 调用 provider.Snapshot() 抓取 JPEG
+    → 存储快照 + 关联 access event
+```
+
+触发事件类型：unlock、unlock_failed、door_opened、door_held_open、door_forced_open
+
+### 7.3 印尼市场推荐：海康威视 (Hikvision)
+
+#### 7.3.1 你不需要的东西
+
+| 选项 | 是什么 | 需要吗 | 原因 |
+|------|--------|--------|------|
+| HEOP | 在摄像头上运行第三方 AI 应用 | **不需要** | 不在摄像头上跑代码 |
+| 设备网络 SDK | Windows/Linux C++ DLL | **不需要** | 太重，ISAPI 足够 |
+| iVMS-4200 SDK | 海康 VMS 平台二开 | **不需要** | 不使用海康 VMS |
+| **ISAPI** | 摄像头内置 HTTP REST API | **就是这个** | 免费、内置、无需申请 |
+
+#### 7.3.2 ISAPI 能力（已实现）
+
+```
+GET  /ISAPI/System/deviceInfo              → 测试连接
+GET  /ISAPI/Streaming/channels/101/picture → 抓取快照 (JPEG)
+RTSP rtsp://{host}:554/Streaming/Channels/101 → 实时视频
+GET  /ISAPI/Event/notification/alertStream → 事件订阅（移动检测等）
+```
+
+认证：HTTP Digest Auth（用户名/密码），代码已在 `hikvision_provider.go` 实现。
+
+#### 7.3.3 推荐型号
+
+| 推荐 | 型号 | 印尼参考价 | 规格 | 选择原因 |
+|------|------|-----------|------|---------|
+| **首选 ✅ 已采购** | DS-2CD1023G2-LIU | Rp 350,000-500,000 (~$22-32) | 2MP, PoE, IR 30m, 内置麦克风, ONVIF+ISAPI | 最便宜的 ISAPI 网络摄像头 |
+| 备选 | DS-2CD1043G2-LIU | Rp 500,000-700,000 (~$32-45) | 4MP, PoE, IR 30m, 内置麦克风 | 更高清 |
+| 最省 | DS-2CD1021G0-I | Rp 250,000-350,000 (~$16-22) | 2MP, PoE, IR 30m | 无麦克风但最便宜 |
+
+购买渠道：Tokopedia、Shopee Indonesia、Bhinneka.com、当地 CCTV 安装商
+
+#### 7.3.4 配件清单
+
+| 配件 | 用途 | 参考价 |
+|------|------|--------|
+| PoE 注入器（如路由器无 PoE） | 供电+联网 | Rp 50,000-100,000 (~$3-7) |
+| Cat5e/Cat6 网线 | 连接摄像头 | Rp 10,000/米 |
+| MicroSD 卡（可选） | 摄像头本地录像 | Rp 50,000-100,000 |
+
+**最小采购总预算：~Rp 505,000 ($32)**
+
+#### 7.3.5 摄像头开箱配置
+
+1. PoE 接入，等待启动（~1 分钟）
+2. 用海康 SADP 工具或路由器找到摄像头 IP
+3. 浏览器访问 `http://{IP}`，设置管理员密码
+4. 启用 ONVIF：设置 → 网络 → 高级 → 集成协议 → 启用 ONVIF
+5. 通过 MistyPass API 注册（见下方）
+
+### 7.4 API 使用示例
+
+```bash
+# 注册摄像头
+curl -X POST http://localhost:8080/api/v1/cameras \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "camera": {
+      "tenant_id": "tenant_demo_jakarta",
+      "place_id": "place_001",
+      "door_id": "lock_001",
+      "name": "大门摄像头",
+      "provider": "hikvision",
+      "host": "192.168.1.100",
+      "username": "admin",
+      "password": "your_password"
+    }
+  }'
+
+# 测试连接
+curl -X POST http://localhost:8080/api/v1/cameras/{camera_id}/test \
+  -H "Authorization: Bearer {token}"
+
+# 手动抓取快照
+curl -X POST http://localhost:8080/api/v1/cameras/{camera_id}/snapshot \
+  -H "Authorization: Bearer {token}"
+
+# 获取实时流地址
+curl http://localhost:8080/api/v1/cameras/{camera_id}/video_link \
+  -H "Authorization: Bearer {token}"
+
+# ONVIF 局域网发现
+curl -X POST http://localhost:8080/api/v1/cameras/discover \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "onvif", "subnet": "192.168.1.0/24"}'
+```
+
+### 7.5 安全设计
+
+| 措施 | 实现 |
+|------|------|
+| 凭据加密存储 | AES-256-GCM (crypto.Vault)，`CAMERA_VAULT_MASTER_KEY` |
+| HTTP Digest Auth | 不在 URL 中传密码 |
+| TLS 验证 | 连接 HTTPS 摄像头时验证证书 |
+| 快照签名 URL | 通过 Upload 签名系统访问，防止匿名下载 |
+| 审计日志 | 所有 CRUD 和 snapshot 操作记录审计 |
+| 速率限制 | API 层面 600/min 限制 |
+
+### 7.6 环境变量
+
+```bash
+CAMERA_ENABLED=true                        # 启用摄像头模块
+CAMERA_VAULT_MASTER_KEY=your-32-byte-key   # 生产环境凭据加密密钥
+CAMERA_SNAPSHOT_TIMEOUT=10                 # 快照抓取超时秒数
+CAMERA_SNAPSHOT_RETENTION_DAYS=30          # 快照保留天数
+CAMERA_MAX_SNAPSHOTS_PER_EVENT=3           # 每次事件最大快照数
 ```

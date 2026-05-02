@@ -47,57 +47,47 @@ import {
   type EnterpriseSyncWorkerAlertItem,
   type EnterpriseSyncWorkerAlertSummaryItem,
 } from "@/lib/api"
-
-type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
-type AlertLandingView = "overview" | "approval_backlog" | "directory_exceptions"
-type AlertSegmentHint = "receipt_recovery"
-type AlertSegmentStatus = "pending" | "attention" | "ready"
-type NotificationHistoryFilter = "all" | "failed" | "retryable" | "suppressed" | "due_now"
-type HRISWebhookExecutionKindFilter = "all" | "receipt_process" | "dlq_replay"
-type HRISWebhookExecutionStatusFilter = "all" | "queued" | "running" | "succeeded" | "failed"
-type HRISWebhookExecutionQueueStateFilter = "all" | "ready" | "cooldown" | "in_flight" | "attempt_limit" | "terminal"
-type HRISWebhookExecutionReplayScopeFilter = "all" | "replayed" | "worker_required"
-type HRISWebhookExecutionModeFilter = "all" | "inline" | "queued"
-type HRISWebhookExecutionDispatchFilter = "all" | "worker_tick" | "worker_task_channel" | "goroutine_fallback"
-
-type EnterpriseAttentionItem = {
-  actionLabel: string
-  description: string
-  onClick: () => void
-  title: string
-}
-
-type EnterpriseLandingAction = {
-  alertsView?: AlertLandingView
-  kind: "section" | "route"
-  label: string
-  section?: EnterpriseSection
-  to?: string
-}
-
-type EnterpriseLandingCard = {
-  action: EnterpriseLandingAction
-  description: string
-  returnAction?: EnterpriseLandingAction
-  returnHint?: string
-  statusLabel: string
-  statusVariant: "outline" | "secondary" | "destructive"
-  title: string
-}
-
-type EnterpriseRecoveryAction = {
-  blockerCount: number
-  description: string
-  nextAction: {
-    description: string
-    kind: "section" | "route"
-    label: string
-    section?: EnterpriseSection
-    title: string
-    to?: string
-  }
-  title: string
-}
+import type {
+  AlertLandingView,
+  AlertSegmentHint,
+  AlertSegmentStatus,
+  EnterpriseAttentionItem,
+  EnterpriseLandingAction,
+  EnterpriseLandingCard,
+  EnterpriseRecoveryAction,
+  EnterpriseSection,
+  HRISWebhookExecutionDispatchFilter,
+  HRISWebhookExecutionKindFilter,
+  HRISWebhookExecutionModeFilter,
+  HRISWebhookExecutionQueueStateFilter,
+  HRISWebhookExecutionReplayScopeFilter,
+  HRISWebhookExecutionStatusFilter,
+  NotificationHistoryFilter,
+} from "@/components/enterprise/enterprise-alerts-workspace-types"
+import {
+  normalizeStatus,
+  formatLifecycleToken,
+  classifyExternalSyncStatus,
+  classifySyncJob,
+  isWorkerAlertNotificationDueNow,
+  matchesWorkerAlertNotificationQuery,
+  isWorkerAlertNotificationConfirmationPending,
+  hasWorkerAlertNotificationPendingAge,
+  buildNotificationHistoryCSVValue,
+  withRouteHints,
+  pullStateBadgeVariant,
+  queueRuntimeBadgeVariant,
+  queueBudgetBadgeVariant,
+} from "@/components/enterprise/enterprise-alerts-workspace-utils"
+import {
+  buildSyncJobScopedLinks,
+  buildWorkerAlertScopedLinks,
+  buildWorkerEventSyncLink,
+  buildWebhookReceiptSyncLink,
+  buildPullStateSyncLink,
+  buildDLQSyncLink,
+  buildWebhookExecutionSyncLink,
+} from "@/components/enterprise/enterprise-alerts-workspace-links"
 
 type EnterpriseAlertsWorkspaceProps = {
   alertRecoveryAction: EnterpriseRecoveryAction
@@ -393,16 +383,6 @@ export function EnterpriseAlertsWorkspace({
   const [directoryQuery, setDirectoryQuery] = useState("")
   const [appliedInitialFilterContextKey, setAppliedInitialFilterContextKey] = useState("")
 
-  const normalizeStatus = (value?: string) => (value || "").trim().toLowerCase()
-
-  const formatLifecycleToken = (value?: string) => {
-    const normalized = normalizeStatus(value)
-    if (!normalized) {
-      return t("enterpriseAlertsWorkspace.common.emptyDash")
-    }
-    return normalized.replace(/_/g, " ")
-  }
-
   const formatExecutionKindLabel = (value?: string) => {
     const normalized = normalizeStatus(value)
     switch (normalized) {
@@ -424,7 +404,7 @@ export function EnterpriseAlertsWorkspace({
       : t("enterpriseAlertsWorkspace.syncAndWorker.executionHistory.replayWorkerOptional")
   }
 
-  const formatWorkerAlertNotificationRestoreStatus = (value?: string) => {
+  const formatWorkerAlertNotificationRestoreStatus = (value?: string): string => {
     const normalized = normalizeStatus(value)
     switch (normalized) {
       case "":
@@ -439,109 +419,6 @@ export function EnterpriseAlertsWorkspace({
         return normalized.replace(/_/g, " ")
     }
   }
-
-  const classifyExternalSyncStatus = (value?: string): "none" | "failed" | "pending" | "success" | "other" => {
-    const normalized = normalizeStatus(value)
-    if (!normalized) {
-      return "none"
-    }
-    if (/fail|error|reject/.test(normalized)) {
-      return "failed"
-    }
-    if (/pending|queue|processing|running/.test(normalized)) {
-      return "pending"
-    }
-    if (/success|synced|complete|ok/.test(normalized)) {
-      return "success"
-    }
-    return "other"
-  }
-
-  const classifySyncJob = (item: EnterpriseSyncJob): "attention" | "rejected" | "deactivated" | "healthy" => {
-    const normalizedStatus = normalizeStatus(item.status)
-    if (normalizedStatus !== "completed") {
-      return "attention"
-    }
-    if (item.rejected > 0) {
-      return "rejected"
-    }
-    if (item.deactivated > 0) {
-      return "deactivated"
-    }
-    return "healthy"
-  }
-
-  const isWorkerAlertNotificationDueNow = (item: EnterpriseSyncWorkerAlertNotification) => {
-    if (item.status !== "failed" || !item.retryable || !item.next_retry_at) {
-      return false
-    }
-    const retryAt = new Date(item.next_retry_at).getTime()
-    if (Number.isNaN(retryAt)) {
-      return false
-    }
-    return retryAt <= Date.now()
-  }
-
-  const matchesWorkerAlertNotificationQuery = (
-    item: EnterpriseSyncWorkerAlertNotification,
-    query: string
-  ) => {
-    const normalizedQuery = query.trim().toLowerCase()
-    if (normalizedQuery.length === 0) {
-      return true
-    }
-    const searchableValues = [
-      item.id,
-      item.worker_action,
-      item.worker_kind,
-      item.worker_label,
-      item.fingerprint,
-      item.connector_id || "",
-      item.vendor || "",
-      item.event_type || "",
-      item.request_id || "",
-      item.failure_stage || "",
-      item.mode || "",
-      item.status,
-      item.reason || "",
-      item.idempotency_key || "",
-      item.provider || "",
-      item.provider_error || "",
-      item.source_notification_id || "",
-      String(item.pending_age_seconds ?? ""),
-      String(item.confirm_attempts ?? ""),
-      item.last_confirm_attempt_at || "",
-      item.last_confirm_result || "",
-      item.next_retry_at || "",
-      item.triggered_at,
-      item.channels?.join(" ") || "",
-      item.receiver_groups?.join(" ") || "",
-    ]
-      .map((value) => value.toLowerCase())
-      .join(" ")
-    if (searchableValues.includes(normalizedQuery)) {
-      return true
-    }
-    return (item.channel_results || []).some((result) =>
-      [
-        result.channel,
-        result.status,
-        result.reason || "",
-        result.provider || "",
-        result.provider_error || "",
-        result.receivers?.join(" ") || "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery)
-    )
-  }
-
-  const isWorkerAlertNotificationConfirmationPending = (item: EnterpriseSyncWorkerAlertNotification) =>
-    normalizeStatus(item.status).replace(/[\s_-]+/g, "") === "confirmationpending"
-
-  const hasWorkerAlertNotificationPendingAge = (value?: number): value is number =>
-    typeof value === "number" && Number.isFinite(value) && value >= 0
 
   const formatWorkerAlertNotificationPendingAge = (value?: number) => {
     if (!hasWorkerAlertNotificationPendingAge(value)) {
@@ -566,9 +443,6 @@ export function EnterpriseAlertsWorkspace({
       count: Math.floor(value / 86400),
     })
   }
-
-  const buildNotificationHistoryCSVValue = (value: string | number | boolean | undefined | null) =>
-    `"${String(value ?? "").replace(/"/g, '""')}"`
 
   const exportVisibleWorkerAlertNotifications = () => {
     if (filteredWorkerAlertNotifications.length === 0) {
@@ -1653,49 +1527,6 @@ export function EnterpriseAlertsWorkspace({
     return nextFlowAction
   }
 
-  const pullStateBadgeVariant = (status?: string): "outline" | "secondary" | "destructive" => {
-    const normalized = normalizeStatus(status)
-    if (normalized === "succeeded" || normalized === "success" || normalized === "completed") {
-      return "outline"
-    }
-    if (normalized === "failed" || normalized === "error") {
-      return "destructive"
-    }
-    return "secondary"
-  }
-
-  const queueRuntimeBadgeVariant = (status?: string): "outline" | "secondary" | "destructive" => {
-    const normalized = normalizeStatus(status)
-    if (
-      normalized === "ready" ||
-      normalized === "processed" ||
-      normalized === "skipped" ||
-      normalized === "dlq" ||
-      normalized === "terminal" ||
-      normalized === "succeeded" ||
-      normalized === "resolved"
-    ) {
-      return "outline"
-    }
-    if (normalized === "failed" || normalized === "error" || normalized === "attempt_limit") {
-      return "destructive"
-    }
-    return "secondary"
-  }
-
-  const queueBudgetBadgeVariant = (
-    state?: string,
-    remainingAttempts?: number
-  ): "outline" | "secondary" | "destructive" => {
-    if ((remainingAttempts || 0) > 0) {
-      return "secondary"
-    }
-    if (normalizeStatus(state) === "attempt_limit") {
-      return "destructive"
-    }
-    return "outline"
-  }
-
   const approvalClosureItems = useMemo(() => {
     const pendingCount = approvals.filter((item) => normalizeStatus(item.status) === "pending").length
     const syncFailedCount = approvals.filter((item) => classifyExternalSyncStatus(item.external_sync_status) === "failed").length
@@ -1889,302 +1720,7 @@ export function EnterpriseAlertsWorkspace({
     goToSection("alerts")
   }
 
-  function withRouteHints(baseLink: string, hints: Record<string, string>) {
-    const [pathPart, hashPart] = baseLink.split("#")
-    const [pathname, rawQuery = ""] = pathPart.split("?")
-    const query = new URLSearchParams(rawQuery)
-    Object.entries(hints).forEach(([key, value]) => {
-      const normalizedKey = key.trim()
-      if (!normalizedKey) {
-        return
-      }
-      const normalizedValue = (value || "").trim()
-      if (!normalizedValue) {
-        query.delete(normalizedKey)
-        return
-      }
-      query.set(normalizedKey, normalizedValue)
-    })
-    const nextQuery = query.toString()
-    const nextPath = nextQuery ? `${pathname}?${nextQuery}` : pathname
-    return hashPart ? `${nextPath}#${hashPart}` : nextPath
-  }
-
-  function buildSyncJobScopedLinks(item: EnterpriseSyncJob) {
-    const category = classifySyncJob(item)
-    const sourceLabel = item.source.trim()
-      ? item.source.trim().toUpperCase()
-      : t("enterpriseAlertsWorkspace.hints.sync")
-    const syncJobID = item.id.trim()
-    const syncSource = item.source.trim()
-    const syncStatus = item.status.trim()
-    const remediationHint =
-      category === "rejected" ? "sync_rejected_cleanup" : category === "deactivated" ? "deactivated_cleanup" : "sync_attention"
-    const syncSummaryLabel = syncJobID
-      ? t("enterpriseAlertsWorkspace.hints.syncTaskWithID", { source: sourceLabel, id: syncJobID })
-      : t("enterpriseAlertsWorkspace.hints.syncTask", { source: sourceLabel })
-
-    return {
-      directory: withRouteHints(directoryLink, {
-        group_desc: t("enterpriseAlertsWorkspace.hints.sourcePrefix", { summary: syncSummaryLabel }),
-        group_member_email: "",
-        group_member_id: "",
-        group_member_name: "",
-        group_member_status: category === "deactivated" ? "deactivated" : "",
-        group_name: t("enterpriseAlertsWorkspace.hints.syncReviewGroup", { source: sourceLabel }),
-        remediation_hint: remediationHint,
-        sync_category: category,
-        sync_job_id: syncJobID,
-        sync_source: syncSource,
-        sync_status: syncStatus,
-      }),
-      policies: withRouteHints(policiesLink, {
-        group_member_email: "",
-        group_member_id: "",
-        group_member_name: "",
-        group_member_status: category === "deactivated" ? "deactivated" : "",
-        policy_group: t("enterpriseAlertsWorkspace.hints.syncReviewGroup", { source: sourceLabel }),
-        policy_name: t("enterpriseAlertsWorkspace.hints.syncReviewPolicy", { source: sourceLabel }),
-        remediation_hint: remediationHint,
-        sync_category: category,
-        sync_job_id: syncJobID,
-        sync_source: syncSource,
-        sync_status: syncStatus,
-      }),
-      wallet: withRouteHints(walletLink, {
-        sync_category: category,
-        sync_job_id: syncJobID,
-        sync_source: syncSource,
-        sync_status: syncStatus,
-        sync_query_hint: syncJobID,
-        target_email: "",
-        target_id: "",
-        target_ids: "",
-        target_name: "",
-        template_hint: "employee",
-      }),
-    }
-  }
-
-  function buildWorkerAlertScopedLinks(item: EnterpriseSyncWorkerAlertSummaryItem) {
-    const category = classifyEnterpriseSyncWorkerAlertLevel(item)
-    const remediationHint = category === "hot" ? "worker_hot_alert" : category === "alerting" ? "worker_alerting" : ""
-    const workerScopeLabel = selectedTenantName || item.tenant_id
-    const workerLabel = item.worker_label?.trim() || item.worker_action?.trim() || workerScopeLabel
-    const workerSummaryLabel =
-      remediationHint && item.last_seen_at
-        ? t("enterpriseAlertsWorkspace.hints.workerAlertWithTime", {
-            scope: `${workerScopeLabel} · ${workerLabel}`,
-            at: formatDateTime(item.last_seen_at),
-          })
-        : t("enterpriseAlertsWorkspace.hints.workerAlert", { scope: `${workerScopeLabel} · ${workerLabel}` })
-    const workerFilterHint = category === "hot" ? "hot" : category === "alerting" ? "alerting" : "stable"
-
-    return {
-      directory: withRouteHints(directoryLink, {
-        group_desc: t("enterpriseAlertsWorkspace.hints.sourcePrefix", { summary: workerSummaryLabel }),
-        group_member_email: "",
-        group_member_id: "",
-        group_member_name: "",
-        group_member_status: "",
-        group_name: t("enterpriseAlertsWorkspace.hints.workerReviewGroup", { scope: `${workerScopeLabel} · ${workerLabel}` }),
-        remediation_hint: remediationHint,
-        worker_action: item.worker_action || "",
-        worker_alert_failed: String(item.last_failed),
-        worker_alert_label: item.worker_label || "",
-        worker_alert_level: category,
-        worker_alert_last_seen: item.last_seen_at || "",
-        worker_alert_tenant_id: item.tenant_id,
-        worker_alert_threshold: String(item.last_threshold),
-        worker_kind: item.worker_kind || "",
-      }),
-      policies: withRouteHints(policiesLink, {
-        group_member_email: "",
-        group_member_id: "",
-        group_member_name: "",
-        group_member_status: "",
-        policy_group: t("enterpriseAlertsWorkspace.hints.workerReviewGroup", { scope: `${workerScopeLabel} · ${workerLabel}` }),
-        policy_name: t("enterpriseAlertsWorkspace.hints.workerReviewPolicy", { scope: `${workerScopeLabel} · ${workerLabel}` }),
-        remediation_hint: remediationHint,
-        worker_action: item.worker_action || "",
-        worker_alert_failed: String(item.last_failed),
-        worker_alert_label: item.worker_label || "",
-        worker_alert_level: category,
-        worker_alert_last_seen: item.last_seen_at || "",
-        worker_alert_tenant_id: item.tenant_id,
-        worker_alert_threshold: String(item.last_threshold),
-        worker_kind: item.worker_kind || "",
-      }),
-      wallet: withRouteHints(walletLink, {
-        template_hint: "employee",
-        worker_action: item.worker_action || "",
-        worker_alert_failed: String(item.last_failed),
-        worker_alert_label: item.worker_label || "",
-        worker_alert_level: category,
-        worker_alert_last_seen: item.last_seen_at || "",
-        worker_alert_tenant_id: item.tenant_id,
-        worker_alert_threshold: String(item.last_threshold),
-        worker_kind: item.worker_kind || "",
-        worker_filter_hint: workerFilterHint,
-        worker_query_hint: item.tenant_id,
-      }),
-      sync: withRouteHints(syncLink, {
-        sync_focus_hint: "worker_alert",
-        worker_filter_hint: workerFilterHint,
-        worker_query_hint: item.tenant_id,
-        worker_action: item.worker_action || "",
-        worker_alert_failed: String(item.last_failed),
-        worker_alert_label: item.worker_label || "",
-        worker_alert_level: category,
-        worker_alert_last_seen: item.last_seen_at || "",
-        worker_alert_tenant_id: item.tenant_id,
-        worker_alert_threshold: String(item.last_threshold),
-        worker_kind: item.worker_kind || "",
-      }),
-    }
-  }
-
-  function workerFilterHint(item?: EnterpriseSyncWorkerAlertSummaryItem | null) {
-    if (!item) {
-      return ""
-    }
-    const category = classifyEnterpriseSyncWorkerAlertLevel(item)
-    return category === "hot" ? "hot" : category === "alerting" ? "alerting" : "stable"
-  }
-
-  function matchWorkerSummary(
-    primaryKeyword: string,
-    extraKeywords: string[] = []
-  ): EnterpriseSyncWorkerAlertSummaryItem | null {
-    const normalizedPrimary = primaryKeyword.trim().toLowerCase()
-    const normalizedExtraKeywords = extraKeywords.map((value) => value.trim().toLowerCase()).filter(Boolean)
-    if (!normalizedPrimary) {
-      return null
-    }
-    const strictMatch = workerAlerts.find((item) => {
-      const haystack = [item.worker_action || "", item.worker_kind || "", item.worker_label || ""].join(" ").toLowerCase()
-      return haystack.includes(normalizedPrimary) && normalizedExtraKeywords.every((keyword) => haystack.includes(keyword))
-    })
-    if (strictMatch) {
-      return strictMatch
-    }
-    return (
-      workerAlerts.find((item) => {
-        const haystack = [item.worker_action || "", item.worker_kind || "", item.worker_label || ""].join(" ").toLowerCase()
-        return haystack.includes(normalizedPrimary)
-      }) || null
-    )
-  }
-
-  function buildWorkerEventSyncLink(item: EnterpriseSyncWorkerAlertItem) {
-    const summaryItem =
-      workerAlerts.find(
-        (candidate) =>
-          (candidate.worker_action || "").trim().toLowerCase() === (item.worker_action || "").trim().toLowerCase() &&
-          (candidate.worker_kind || "").trim().toLowerCase() === (item.worker_kind || "").trim().toLowerCase()
-      ) || null
-    return withRouteHints(syncLink, {
-      sync_focus_hint: "worker_alert",
-      worker_action: item.worker_action || summaryItem?.worker_action || "",
-      worker_alert_label: item.worker_label || summaryItem?.worker_label || "",
-      worker_filter_hint: workerFilterHint(summaryItem),
-      worker_kind: item.worker_kind || summaryItem?.worker_kind || "",
-      worker_connector_id: item.connector_id || "",
-      worker_failure_stage: item.failure_stage || "",
-      worker_request_id: item.request_id || "",
-      worker_vendor: item.vendor || "",
-    })
-  }
-
-  function buildWebhookReceiptSyncLink(item: EnterpriseHRISWebhookReceipt) {
-    const summaryItem =
-      matchWorkerSummary("receipt", [item.vendor || ""]) ||
-      matchWorkerSummary("processing", [item.vendor || ""]) ||
-      matchWorkerSummary("webhook", [item.vendor || ""])
-    return withRouteHints(syncLink, {
-      sync_focus_hint: "worker_alert",
-      worker_action: summaryItem?.worker_action || "",
-      worker_alert_label: summaryItem?.worker_label || "",
-      worker_filter_hint: workerFilterHint(summaryItem),
-      worker_kind: summaryItem?.worker_kind || "",
-      worker_connector_id: item.connector_id,
-      worker_event_type: item.event_type || "",
-      worker_queue_state: item.queue_state,
-      worker_request_id: item.request_id || "",
-      worker_status: item.status,
-      worker_vendor: item.vendor || "",
-    })
-  }
-
-  function buildPullStateSyncLink(item: EnterpriseHRISPullState) {
-    const summaryItem = matchWorkerSummary("pull", [item.vendor || ""])
-    return withRouteHints(syncLink, {
-      sync_focus_hint: "worker_alert",
-      worker_action: summaryItem?.worker_action || "",
-      worker_alert_label: summaryItem?.worker_label || "",
-      worker_filter_hint: workerFilterHint(summaryItem),
-      worker_kind: summaryItem?.worker_kind || "",
-      worker_connector_id: item.connector_id,
-      worker_mode: item.last_mode || "",
-      worker_request_id: item.last_request_id || "",
-      worker_vendor: item.vendor || "",
-    })
-  }
-
-  function buildDLQSyncLink(item: EnterpriseHRISWebhookDLQEntry) {
-    const summaryItem =
-      matchWorkerSummary("dlq", [item.vendor || ""]) ||
-      matchWorkerSummary("replay", [item.vendor || ""]) ||
-      matchWorkerSummary("processing", [item.vendor || ""])
-    return withRouteHints(syncLink, {
-      sync_focus_hint: "worker_alert",
-      worker_action: summaryItem?.worker_action || "",
-      worker_alert_label: summaryItem?.worker_label || "",
-      worker_filter_hint: workerFilterHint(summaryItem),
-      worker_kind: summaryItem?.worker_kind || "",
-      worker_connector_id: item.connector_id || "",
-      worker_failure_stage: item.failure_stage || "",
-      worker_replay_state: item.replay_state || "",
-      worker_request_id: item.request_id || "",
-      worker_status: item.status || "",
-      worker_vendor: item.vendor || "",
-    })
-  }
-
-  function buildWebhookExecutionSyncLink(item: EnterpriseHRISWebhookExecution) {
-    const summaryItem =
-      item.kind === "dlq_replay"
-        ? matchWorkerSummary("dlq", [item.vendor || ""]) ||
-          matchWorkerSummary("replay", [item.vendor || ""]) ||
-          matchWorkerSummary("processing", [item.vendor || ""])
-        : matchWorkerSummary("receipt", [item.vendor || ""]) ||
-          matchWorkerSummary("processing", [item.vendor || ""]) ||
-          matchWorkerSummary("webhook", [item.vendor || ""])
-    const executionReplayScope = item.replay_require_worker
-      ? "worker_required"
-      : item.replay_source_execution_id
-        ? "replayed"
-        : ""
-    return withRouteHints(syncLink, {
-      sync_focus_hint: "worker_alert",
-      execution_id: item.id,
-      execution_kind: item.kind || "",
-      execution_mode: item.execution_mode || "",
-      execution_queue_state: item.queue_state || "",
-      execution_replay_scope: executionReplayScope,
-      execution_status: item.status || "",
-      worker_action: summaryItem?.worker_action || "",
-      worker_alert_label: summaryItem?.worker_label || "",
-      worker_filter_hint: workerFilterHint(summaryItem),
-      worker_kind: summaryItem?.worker_kind || "",
-      worker_connector_id: item.connector_id || "",
-      worker_failure_stage: item.failure_stage || "",
-      worker_mode: item.execution_mode || "",
-      worker_request_id: item.request_id || "",
-      worker_status: item.status || "",
-      worker_vendor: item.vendor || "",
-    })
-  }
+  const linkOpts = { directoryLink, policiesLink, walletLink, syncLink, formatDateTime, selectedTenantName, t }
 
   const workerBatchScopeLabel = useMemo(() => {
     if (workerLabelScope.trim()) {
@@ -2946,7 +2482,7 @@ export function EnterpriseAlertsWorkspace({
                 {filteredSyncJobs.slice(0, 6).map((item) => {
                   const category = classifySyncJob(item)
                   const action = resolveSyncJobAction(item)
-                  const scopedLinks = buildSyncJobScopedLinks(item)
+                  const scopedLinks = buildSyncJobScopedLinks(item, { directoryLink, policiesLink, walletLink, t })
                   return (
                     <div key={item.id} className="rounded-md border bg-background px-3 py-2 text-sm">
                       <div className="flex items-center justify-between gap-3">
@@ -3066,7 +2602,7 @@ export function EnterpriseAlertsWorkspace({
                   const action = resolveWorkerAction(item)
                   const category = classifyEnterpriseSyncWorkerAlertLevel(item)
                   const guidance = describeEnterpriseSyncWorkerAlertGuidance(item, t)
-                  const scopedLinks = buildWorkerAlertScopedLinks(item)
+                  const scopedLinks = buildWorkerAlertScopedLinks(item, linkOpts)
                   const workerTitle = item.worker_label?.trim() || item.worker_action?.trim() || "Worker Alert"
                   return (
                     <div
@@ -3773,7 +3309,7 @@ export function EnterpriseAlertsWorkspace({
                         ) : null}
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <Button asChild size="sm" variant="outline">
-                            <Link to={buildWorkerEventSyncLink(item)} data-testid="enterprise-alerts-worker-event-to-sync">
+                            <Link to={buildWorkerEventSyncLink(item, workerAlerts, syncLink)} data-testid="enterprise-alerts-worker-event-to-sync">
                               {t("enterprisePage.actions.goToSync")}
                             </Link>
                           </Button>
@@ -4026,7 +3562,7 @@ export function EnterpriseAlertsWorkspace({
                           {selectedHRISWebhookExecution ? (
                             <Button asChild size="sm" variant="outline">
                               <Link
-                                to={buildWebhookExecutionSyncLink(selectedHRISWebhookExecution)}
+                                to={buildWebhookExecutionSyncLink(selectedHRISWebhookExecution, workerAlerts, syncLink)}
                                 data-testid="enterprise-alerts-webhook-execution-detail-to-sync"
                               >
                                 {t("enterprisePage.actions.goToSync")}
@@ -4459,7 +3995,7 @@ export function EnterpriseAlertsWorkspace({
                                     ) : null}
                                     <Button asChild size="sm" variant="outline">
                                       <Link
-                                        to={buildWebhookExecutionSyncLink(item)}
+                                        to={buildWebhookExecutionSyncLink(item, workerAlerts, syncLink)}
                                         data-testid="enterprise-alerts-webhook-execution-to-sync"
                                       >
                                         {t("enterprisePage.actions.goToSync")}
@@ -4723,7 +4259,7 @@ export function EnterpriseAlertsWorkspace({
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <Button asChild size="sm" variant="outline">
                             <Link
-                              to={buildWebhookReceiptSyncLink(item)}
+                              to={buildWebhookReceiptSyncLink(item, workerAlerts, syncLink)}
                               data-testid="enterprise-alerts-webhook-receipt-to-sync"
                             >
                               {t("enterprisePage.actions.goToSync")}
@@ -4819,7 +4355,7 @@ export function EnterpriseAlertsWorkspace({
                         ) : null}
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <Button asChild size="sm" variant="outline">
-                            <Link to={buildPullStateSyncLink(item)} data-testid="enterprise-alerts-pull-state-to-sync">
+                            <Link to={buildPullStateSyncLink(item, workerAlerts, syncLink)} data-testid="enterprise-alerts-pull-state-to-sync">
                               {t("enterprisePage.actions.goToSync")}
                             </Link>
                           </Button>
@@ -5059,7 +4595,7 @@ export function EnterpriseAlertsWorkspace({
                         <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{item.error}</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <Button asChild size="sm" variant="outline">
-                            <Link to={buildDLQSyncLink(item)} data-testid="enterprise-alerts-hris-dlq-to-sync">
+                            <Link to={buildDLQSyncLink(item, workerAlerts, syncLink)} data-testid="enterprise-alerts-hris-dlq-to-sync">
                               {t("enterprisePage.actions.goToSync")}
                             </Link>
                           </Button>

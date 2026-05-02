@@ -1,14 +1,24 @@
 import { useState } from "react"
+import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileTextIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { FileTextIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
-import { ConfirmActionDialog } from "@/components/mistyislet/actions"
+import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import { PageFrame, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import {
   createReportSchedule,
   deleteReportSchedule,
   listReportSchedules,
+  updateReportSchedule,
   type CurrentUser,
   type ReportSchedule,
 } from "@/lib/api"
@@ -39,13 +49,38 @@ type ReportSchedulePageProps = { token: string; viewer: CurrentUser }
 export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   const queryClient = useQueryClient()
   const tenantID = viewer.tenant_id
-  const [showCreate, setShowCreate] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<ReportSchedule | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState("")
   const [form, setForm] = useState({
     name: "", report_type: "access_summary", frequency: "weekly", recipients: "",
-    format: "pdf", day_of_week: 1,
+    format: "pdf", day_of_week: 1, enabled: true,
   })
+
+  const defaultForm = { name: "", report_type: "access_summary", frequency: "weekly", recipients: "", format: "pdf", day_of_week: 1, enabled: true }
+
+  function openCreate() {
+    setEditTarget(null)
+    setForm(defaultForm)
+    setMutationError("")
+    setSheetOpen(true)
+  }
+
+  function openEdit(s: ReportSchedule) {
+    setEditTarget(s)
+    setForm({
+      name: s.name,
+      report_type: s.report_type,
+      frequency: s.frequency,
+      recipients: s.recipients.join(", "),
+      format: s.format,
+      day_of_week: s.day_of_week,
+      enabled: s.enabled,
+    })
+    setMutationError("")
+    setSheetOpen(true)
+  }
 
   const schedulesQuery = useQuery({
     queryKey: ["report-schedules", tenantID],
@@ -63,15 +98,46 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
         recipients: form.recipients.split(",").map((r) => r.trim()).filter(Boolean),
         format: form.format,
         day_of_week: form.day_of_week,
-        enabled: true,
+        enabled: form.enabled,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
-      setShowCreate(false)
-      setForm({ name: "", report_type: "access_summary", frequency: "weekly", recipients: "", format: "pdf", day_of_week: 1 })
+      setSheetOpen(false)
+      setForm(defaultForm)
       setMutationError("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to create report schedule"),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateReportSchedule(token, editTarget!.id, {
+        tenant_id: tenantID,
+        name: form.name,
+        report_type: form.report_type,
+        frequency: form.frequency,
+        recipients: form.recipients.split(",").map((r) => r.trim()).filter(Boolean),
+        format: form.format,
+        day_of_week: form.day_of_week,
+        enabled: form.enabled,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+      setSheetOpen(false)
+      setEditTarget(null)
+      setForm(defaultForm)
+      setMutationError("")
+    },
+    onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to update report schedule"),
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: (s: ReportSchedule) =>
+      updateReportSchedule(token, s.id, { tenant_id: tenantID, enabled: !s.enabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+    },
+    onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to toggle schedule"),
   })
 
   const deleteMutation = useMutation({
@@ -85,6 +151,8 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   })
 
   const schedules = schedulesQuery.data?.items ?? []
+  const isEditing = editTarget !== null
+  const saving = createMutation.isPending || updateMutation.isPending
   return (
     <PageFrame
       breadcrumbs={["Dashboard", "Reports"]}
@@ -93,7 +161,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       actions={
         <Button
           className="h-11 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
-          onClick={() => setShowCreate(true)}
+          onClick={openCreate}
         >
           <PlusIcon className="mr-2 size-4" />
           New Report Schedule
@@ -103,82 +171,6 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       {mutationError && (
         <div className="rounded-[6px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {mutationError}
-        </div>
-      )}
-
-      {/* Create Form */}
-      {showCreate && (
-        <div className="rounded-[6px] border border-[#eceef2] bg-white p-6">
-          <h3 className="mb-4 text-lg font-semibold text-[#17171c]">New Report Schedule</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Name *</span>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Report Type *</span>
-              <select
-                value={form.report_type}
-                onChange={(e) => setForm((f) => ({ ...f, report_type: e.target.value }))}
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
-              >
-                {REPORT_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Frequency *</span>
-              <select
-                value={form.frequency}
-                onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
-              >
-                {FREQUENCIES.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Format</span>
-              <select
-                value={form.format}
-                onChange={(e) => setForm((f) => ({ ...f, format: e.target.value }))}
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
-              >
-                {FORMATS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block md:col-span-2">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Recipients (comma-separated emails) *</span>
-              <input
-                type="text"
-                value={form.recipients}
-                onChange={(e) => setForm((f) => ({ ...f, recipients: e.target.value }))}
-                placeholder="admin@example.com, ops@example.com"
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
-              />
-            </label>
-          </div>
-          <div className="mt-4 flex gap-2">
-            <Button
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
-              disabled={createMutation.isPending || !form.name.trim() || !form.recipients.trim()}
-              onClick={() => createMutation.mutate()}
-            >
-              {createMutation.isPending ? "Creating..." : "Create Schedule"}
-            </Button>
-            <Button variant="outline" className="h-10 rounded-[6px]" onClick={() => setShowCreate(false)}>
-              Cancel
-            </Button>
-          </div>
         </div>
       )}
 
@@ -197,11 +189,113 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
               ))}
             </div>
             {schedules.map((s) => (
-              <ReportRow key={s.id} schedule={s} onDelete={setConfirmDelete} />
+              <ReportRow
+                key={s.id}
+                schedule={s}
+                onEdit={openEdit}
+                onDelete={setConfirmDelete}
+                onToggle={(sched) => toggleMutation.mutate(sched)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Create / Edit Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={(open) => { if (!open) { setSheetOpen(false); setEditTarget(null) } }}>
+        <SheetContent className="w-full max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{isEditing ? "Edit Report Schedule" : "New Report Schedule"}</SheetTitle>
+            <SheetDescription>
+              {isEditing ? "Update the schedule settings below." : "Configure automated report delivery."}
+            </SheetDescription>
+          </SheetHeader>
+          <form
+            className="space-y-5 p-6"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (isEditing) updateMutation.mutate()
+              else createMutation.mutate()
+            }}
+          >
+            {mutationError && (
+              <div className="rounded-[6px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {mutationError}
+              </div>
+            )}
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Name *</span>
+              <input
+                type="text"
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Report Type *</span>
+              <select
+                value={form.report_type}
+                onChange={(e) => setForm((f) => ({ ...f, report_type: e.target.value }))}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              >
+                {REPORT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Frequency *</span>
+              <select
+                value={form.frequency}
+                onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              >
+                {FREQUENCIES.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Format</span>
+              <select
+                value={form.format}
+                onChange={(e) => setForm((f) => ({ ...f, format: e.target.value }))}
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              >
+                {FORMATS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Recipients (comma-separated emails) *</span>
+              <input
+                type="text"
+                required
+                value={form.recipients}
+                onChange={(e) => setForm((f) => ({ ...f, recipients: e.target.value }))}
+                placeholder="admin@example.com, ops@example.com"
+                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              />
+            </label>
+            <div className="flex items-center justify-between rounded-[6px] border border-[#eceef2] px-4 py-3">
+              <span className="text-sm font-medium text-[#17171c]">Enabled</span>
+              <ToggleSwitch enabled={form.enabled} onToggle={() => setForm((f) => ({ ...f, enabled: !f.enabled }))} />
+            </div>
+            <SheetFooter>
+              <Button
+                type="submit"
+                className="h-11 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+                disabled={saving || !form.name.trim() || !form.recipients.trim()}
+              >
+                {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Schedule"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmActionDialog
         open={confirmDelete !== null}
@@ -217,7 +311,17 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   )
 }
 
-function ReportRow({ schedule, onDelete }: { schedule: ReportSchedule; onDelete: (id: string) => void }) {
+function ReportRow({
+  schedule,
+  onEdit,
+  onDelete,
+  onToggle,
+}: {
+  schedule: ReportSchedule
+  onEdit: (s: ReportSchedule) => void
+  onDelete: (id: string) => void
+  onToggle: (s: ReportSchedule) => void
+}) {
   const typeLabel = REPORT_TYPES.find((t) => t.value === schedule.report_type)?.label ?? schedule.report_type
   const freqLabel = FREQUENCIES.find((f) => f.value === schedule.frequency)?.label ?? schedule.frequency
   return (
@@ -232,18 +336,16 @@ function ReportRow({ schedule, onDelete }: { schedule: ReportSchedule; onDelete:
       <span className="text-sm text-[#6f717c]">{typeLabel}</span>
       <span className="text-sm text-[#6f717c]">{freqLabel}</span>
       <span className="truncate text-sm text-[#6f717c]">{schedule.recipients.join(", ")}</span>
-      <span className="text-sm text-[#9a9ca7]">{schedule.last_sent_at ? new Date(schedule.last_sent_at).toLocaleDateString() : "Never"}</span>
+      <span className="text-sm text-[#9a9ca7]">{schedule.last_sent_at ? new Date(schedule.last_sent_at).toLocaleDateString(i18n.language) : "Never"}</span>
       <div className="flex items-center gap-2">
-        <ToggleSwitch enabled={schedule.enabled} />
+        <ToggleSwitch enabled={schedule.enabled} onToggle={() => onToggle(schedule)} />
         <StatusDot tone={schedule.enabled ? "success" : "warning"} label={schedule.enabled ? "Active" : "Paused"} />
-        <button
-          type="button"
-          title="Delete"
-          className="flex size-8 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
-          onClick={() => onDelete(schedule.id)}
-        >
-          <Trash2Icon className="size-4" />
-        </button>
+        <RowActionsMenu
+          items={[
+            { id: "edit", label: "Edit", icon: PencilIcon, onSelect: () => onEdit(schedule) },
+            { id: "delete", label: "Delete", icon: Trash2Icon, onSelect: () => onDelete(schedule.id), destructive: true },
+          ]}
+        />
       </div>
     </div>
   )

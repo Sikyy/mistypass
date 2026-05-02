@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -187,6 +188,22 @@ func (s *server) updateCurrentUserProfile(w http.ResponseWriter, r *http.Request
 	)
 
 	writeJSON(w, http.StatusOK, updated)
+}
+
+func (s *server) deleteCurrentUser(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	removed, err := s.accessSvc.DeleteUser(user.TenantID, user.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.appendAuditLog(r, user.TenantID, "user_self_deleted",
+		fmt.Sprintf("user_id=%s,email=%s", removed.ID, removed.Email), "auth")
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func normalizeCurrentUserProfileLanguage(language string) (string, bool) {

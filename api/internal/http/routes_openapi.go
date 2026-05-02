@@ -328,6 +328,9 @@ func openAPIComponents() map[string]any {
 			"AlertPolicy":     openAPIAlertPolicySchema(),
 			"HolidayCalendar": openAPIHolidayCalendarSchema(),
 			"TimeWindow":      openAPITimeWindowSchema(),
+			"Camera":          openAPICameraSchema(),
+			"CameraCreate":    openAPICameraCreateSchema(),
+			"CameraUpdate":    openAPICameraUpdateSchema(),
 		},
 		"responses": map[string]any{
 			"UnauthorizedError": errorResponseComponent("Unauthorized"),
@@ -741,6 +744,18 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		// Users self-signup + password change
 		{Method: http.MethodPost, Path: "/api/v1/users/sign_up", OperationID: "userSignUp", Tag: "Authentication", Summary: "Self-service user registration.", Public: true, Created: true},
 		{Method: http.MethodPost, Path: "/api/v1/users/password", OperationID: "changeUserPassword", Tag: "Authentication", Summary: "Change current user password."},
+
+		// OAuth2 client management
+		{Method: http.MethodPost, Path: "/api/v1/oauth2/clients", OperationID: "registerOAuth2Client", Tag: "OAuth2", Summary: "Register an OAuth2 client application.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/oauth2/clients", OperationID: "listOAuth2Clients", Tag: "OAuth2", Summary: "List OAuth2 client applications.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/oauth2/clients/{clientID}", OperationID: "getOAuth2Client", Tag: "OAuth2", Summary: "Fetch an OAuth2 client application."},
+		{Method: http.MethodPatch, Path: "/api/v1/oauth2/clients/{clientID}", OperationID: "updateOAuth2Client", Tag: "OAuth2", Summary: "Update an OAuth2 client application."},
+		{Method: http.MethodDelete, Path: "/api/v1/oauth2/clients/{clientID}", OperationID: "deleteOAuth2Client", Tag: "OAuth2", Summary: "Delete an OAuth2 client application.", NoContent: true},
+
+		// OAuth2 protocol endpoints
+		{Method: http.MethodGet, Path: "/oauth2/authorize", OperationID: "oauth2Authorize", Tag: "OAuth2", Summary: "OAuth2 authorization endpoint (authorization code grant).", Public: true},
+		{Method: http.MethodPost, Path: "/oauth2/token", OperationID: "oauth2Token", Tag: "OAuth2", Summary: "OAuth2 token exchange (authorization code to access token).", Public: true},
+		{Method: http.MethodPost, Path: "/oauth2/revoke", OperationID: "oauth2Revoke", Tag: "OAuth2", Summary: "OAuth2 token revocation (RFC 7009).", Public: true},
 	}
 
 	definitions = append(definitions, openAPIExtensionOperationDefinitions()...)
@@ -868,10 +883,33 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPatch, Path: "/api/v1/guests/{guestID}/status", OperationID: "updateGuestStatus", Tag: "Visitors", Summary: "Update guest status (check-in, check-out, cancel)."},
 		{Method: http.MethodDelete, Path: "/api/v1/guests/{guestID}", OperationID: "deleteGuest", Tag: "Visitors", Summary: "Delete a guest record.", NoContent: true},
 
+		// Bookings
+		{Method: http.MethodGet, Path: "/api/v1/bookable-spaces", OperationID: "fetchBookableSpaces", Tag: "Bookings", Summary: "List bookable spaces.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/bookable-spaces", OperationID: "createBookableSpace", Tag: "Bookings", Summary: "Create a bookable space.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/bookable-spaces/{spaceID}", OperationID: "updateBookableSpace", Tag: "Bookings", Summary: "Update a bookable space."},
+		{Method: http.MethodDelete, Path: "/api/v1/bookable-spaces/{spaceID}", OperationID: "deleteBookableSpace", Tag: "Bookings", Summary: "Delete a bookable space.", NoContent: true},
+		{Method: http.MethodGet, Path: "/api/v1/bookable-spaces/{spaceID}/status", OperationID: "getBookableSpaceStatus", Tag: "Bookings", Summary: "Get current status and active bookings for a space."},
+		{Method: http.MethodGet, Path: "/api/v1/bookable-spaces/{spaceID}/usage", OperationID: "getBookableSpaceUsage", Tag: "Bookings", Summary: "Get usage statistics for a bookable space."},
+		{Method: http.MethodGet, Path: "/api/v1/bookings", OperationID: "fetchBookings", Tag: "Bookings", Summary: "List bookings.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/bookings/{bookingID}", OperationID: "fetchBooking", Tag: "Bookings", Summary: "Fetch a booking."},
+		{Method: http.MethodPost, Path: "/api/v1/bookings", OperationID: "createBooking", Tag: "Bookings", Summary: "Create a new booking.", Created: true},
+		{Method: http.MethodPatch, Path: "/api/v1/bookings/{bookingID}", OperationID: "updateBooking", Tag: "Bookings", Summary: "Update a booking."},
+		{Method: http.MethodDelete, Path: "/api/v1/bookings/{bookingID}", OperationID: "deleteBooking", Tag: "Bookings", Summary: "Delete a booking.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/bookings/{bookingID}/check-in", OperationID: "checkInBooking", Tag: "Bookings", Summary: "Check in to a booking."},
+		{Method: http.MethodPost, Path: "/api/v1/bookings/{bookingID}/check-out", OperationID: "checkOutBooking", Tag: "Bookings", Summary: "Check out from a booking."},
+
 		// Analytics
 		{Method: http.MethodGet, Path: "/api/v1/analytics/access-summary", OperationID: "getAccessSummary", Tag: "Analytics", Summary: "Access event counts by result, door, day, and peak hour."},
 		{Method: http.MethodGet, Path: "/api/v1/analytics/door-activity", OperationID: "getDoorActivity", Tag: "Analytics", Summary: "Per-door access count, unique users, and hourly distribution."},
 		{Method: http.MethodGet, Path: "/api/v1/analytics/alarm-metrics", OperationID: "getAlarmMetrics", Tag: "Analytics", Summary: "Alarm counts by severity and status with mean resolution time."},
+
+		// Report Schedules
+		{Method: http.MethodGet, Path: "/api/v1/report-schedules", OperationID: "fetchReportSchedules", Tag: "Report Schedules", Summary: "List report delivery schedules.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/report-schedules", OperationID: "createReportSchedule", Tag: "Report Schedules", Summary: "Create a report delivery schedule.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "fetchReportSchedule", Tag: "Report Schedules", Summary: "Fetch a report delivery schedule."},
+		{Method: http.MethodPatch, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "updateReportSchedule", Tag: "Report Schedules", Summary: "Update a report delivery schedule."},
+		{Method: http.MethodDelete, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "deleteReportSchedule", Tag: "Report Schedules", Summary: "Delete a report delivery schedule.", NoContent: true},
+		{Method: http.MethodPost, Path: "/api/v1/report-schedules/{scheduleID}/send", OperationID: "sendReportSchedule", Tag: "Report Schedules", Summary: "Send a report delivery schedule now via email."},
 
 		// Alarm Schedules
 		{Method: http.MethodGet, Path: "/api/v1/alarm-schedules", OperationID: "fetchAlarmSchedules", Tag: "Alarm Schedules", Summary: "List alarm schedules.", Collection: true},
@@ -881,11 +919,17 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPatch, Path: "/api/v1/alarm-schedules/{scheduleID}", OperationID: "updateAlarmSchedule", Tag: "Alarm Schedules", Summary: "Update an alarm schedule."},
 		{Method: http.MethodDelete, Path: "/api/v1/alarm-schedules/{scheduleID}", OperationID: "deleteAlarmSchedule", Tag: "Alarm Schedules", Summary: "Delete an alarm schedule.", NoContent: true},
 
-		// Cameras (stubs — awaiting hardware integration)
-		{Method: http.MethodGet, Path: "/api/v1/cameras", OperationID: "fetchCameras", Tag: "Cameras", Summary: "List cameras (stub — integration planned).", Collection: true},
-		{Method: http.MethodPost, Path: "/api/v1/cameras", OperationID: "createCamera", Tag: "Cameras", Summary: "Register a camera (not yet implemented)."},
-		{Method: http.MethodGet, Path: "/api/v1/cameras/{cameraID}", OperationID: "fetchCamera", Tag: "Cameras", Summary: "Fetch a camera (not yet implemented)."},
-		{Method: http.MethodDelete, Path: "/api/v1/cameras/{cameraID}", OperationID: "deleteCamera", Tag: "Cameras", Summary: "Delete a camera (not yet implemented).", NoContent: true},
+		// Cameras — Multi-vendor integration (ONVIF, Hikvision, Dahua, ZKTeco, VIVOTEK)
+		{Method: http.MethodGet, Path: "/api/v1/cameras", OperationID: "fetchCameras", Tag: "Cameras", Summary: "List registered cameras.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/cameras", OperationID: "createCamera", Tag: "Cameras", Summary: "Register a camera (provider: onvif, hikvision, dahua, zkteco, vivotek).", RequestSchema: "CameraCreate"},
+		{Method: http.MethodGet, Path: "/api/v1/cameras/{cameraID}", OperationID: "fetchCamera", Tag: "Cameras", Summary: "Fetch camera details."},
+		{Method: http.MethodPatch, Path: "/api/v1/cameras/{cameraID}", OperationID: "updateCamera", Tag: "Cameras", Summary: "Update camera configuration.", RequestSchema: "CameraUpdate"},
+		{Method: http.MethodDelete, Path: "/api/v1/cameras/{cameraID}", OperationID: "deleteCamera", Tag: "Cameras", Summary: "Delete a camera.", NoContent: true},
+		{Method: http.MethodGet, Path: "/api/v1/cameras/{cameraID}/video_link", OperationID: "fetchVideoLink", Tag: "Cameras", Summary: "Get RTSP/HLS video stream URL for a camera."},
+		{Method: http.MethodPost, Path: "/api/v1/cameras/{cameraID}/test", OperationID: "testCameraConnection", Tag: "Cameras", Summary: "Test camera connection and credentials."},
+		{Method: http.MethodPost, Path: "/api/v1/cameras/{cameraID}/snapshot", OperationID: "captureSnapshot", Tag: "Cameras", Summary: "Capture a JPEG snapshot from the camera."},
+		{Method: http.MethodGet, Path: "/api/v1/cameras/{cameraID}/snapshots", OperationID: "fetchCameraSnapshots", Tag: "Cameras", Summary: "List captured snapshots for a camera.", Collection: true},
+		{Method: http.MethodPost, Path: "/api/v1/cameras/discover", OperationID: "discoverCameras", Tag: "Cameras", Summary: "Discover cameras on the local network via ONVIF WS-Discovery.", ExtensionGroup: "camera-operations"},
 
 		// Organization Settings
 		{Method: http.MethodGet, Path: "/api/v1/organization/settings", OperationID: "fetchOrganizationSettings", Tag: "Organization", Summary: "Fetch organization settings."},
@@ -1296,6 +1340,78 @@ func openAPITimeWindowSchema() map[string]any {
 			"end_time":       map[string]any{"type": "string", "pattern": "^\\d{2}:\\d{2}$", "description": "HH:MM format"},
 			"day_of_week_set": map[string]any{"type": "string", "description": "weekday, weekend, all, or comma-separated ISO days (1=Mon, 7=Sun)"},
 			"timezone":       map[string]any{"type": "string", "description": "IANA timezone, e.g. Asia/Jakarta"},
+		},
+	}
+}
+
+func openAPICameraSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"id", "tenant_id", "name", "provider", "host", "status"},
+		"properties": map[string]any{
+			"id":               map[string]any{"type": "string"},
+			"tenant_id":        map[string]any{"type": "string"},
+			"place_id":         map[string]any{"type": "string"},
+			"door_id":          map[string]any{"type": "string", "description": "Lock/door this camera monitors"},
+			"name":             map[string]any{"type": "string"},
+			"provider":         map[string]any{"type": "string", "enum": []string{"onvif", "hikvision", "dahua", "zkteco", "vivotek"}},
+			"host":             map[string]any{"type": "string", "description": "Camera IP address or hostname"},
+			"port":             map[string]any{"type": "integer", "default": 80},
+			"channel":          map[string]any{"type": "integer", "default": 1},
+			"use_tls":          map[string]any{"type": "boolean", "default": false},
+			"status":           map[string]any{"type": "string", "enum": []string{"active", "offline", "disconnected"}},
+			"last_snapshot_at": map[string]any{"type": "string", "format": "date-time"},
+			"created_at":       map[string]any{"type": "string", "format": "date-time"},
+			"updated_at":       map[string]any{"type": "string", "format": "date-time"},
+		},
+	}
+}
+
+func openAPICameraCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"camera"},
+		"properties": map[string]any{
+			"camera": map[string]any{
+				"type":     "object",
+				"required": []string{"name", "provider", "host"},
+				"properties": map[string]any{
+					"tenant_id": map[string]any{"type": "string"},
+					"place_id":  map[string]any{"type": "string"},
+					"door_id":   map[string]any{"type": "string"},
+					"name":      map[string]any{"type": "string"},
+					"provider":  map[string]any{"type": "string", "enum": []string{"onvif", "hikvision", "dahua", "zkteco", "vivotek"}},
+					"host":      map[string]any{"type": "string"},
+					"port":      map[string]any{"type": "integer", "default": 80},
+					"channel":   map[string]any{"type": "integer", "default": 1},
+					"use_tls":   map[string]any{"type": "boolean"},
+					"username":  map[string]any{"type": "string"},
+					"password":  map[string]any{"type": "string", "format": "password"},
+				},
+			},
+		},
+	}
+}
+
+func openAPICameraUpdateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"camera"},
+		"properties": map[string]any{
+			"camera": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"name":     map[string]any{"type": "string"},
+					"door_id":  map[string]any{"type": "string"},
+					"host":     map[string]any{"type": "string"},
+					"port":     map[string]any{"type": "integer"},
+					"channel":  map[string]any{"type": "integer"},
+					"use_tls":  map[string]any{"type": "boolean"},
+					"username": map[string]any{"type": "string"},
+					"password": map[string]any{"type": "string", "format": "password"},
+					"status":   map[string]any{"type": "string", "enum": []string{"active", "offline", "disconnected"}},
+				},
+			},
 		},
 	}
 }

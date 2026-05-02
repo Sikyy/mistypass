@@ -1,10 +1,11 @@
 # Mistyislet API 汇总
 
-> 更新日期：2026-04-29
+> 更新日期：2026-05-01
 > 目标：作为 Mistyislet 管理后台资源 API 的总索引
-> 本地基准：`Kisi-API-Bundled References.yaml`
-> 线上基准：`https://api.getkisi.com/docs#`
-> 产品概念参考：`https://docs.kisi.io/`
+> 本地基准：`Kisi-API-Bundled References.yaml` (OpenAPI 3.1.0, **227 operations**)
+> 线上基准：`https://docs.kisi.io/`
+> 差距分析：`docs/kisi-gap-analysis.md` (206/227 覆盖 91%, 有效 189/210 = 90%)
+> 代码审查：`docs/CODE-REVIEW-2026-05-01.md` (综合评分 8.1/10)
 > UI 计划：`MISTYPASS-KISI-UI-REFORM-PLAN.md`
 
 本文档按 Bundled Reference 的资源模型组织 API，而不是按旧后端模块组织。Mistyislet UI 可以继续使用更容易理解的产品文案，例如 Doors、Access Rights、Credentials；但新增后端 API 必须优先对齐参考 API 的资源名，例如 `locks`、`role_assignments`、`shares`、`cards`、`card_assignments`。
@@ -58,11 +59,14 @@ Bundled Reference 提供这些认证方式：
 
 ### 1.4 当前状态快照
 
+> Kisi Bundled References: **227 operations** (17 deprecated) | MistyPass 已覆盖: **206 operations (91%)** | 有效覆盖: **189/210 (90%)**
+> 详细覆盖表见 `docs/kisi-gap-analysis.md`
+
 | 状态 | 范围 |
 |---|---|
-| 已完成 | Places / Floors / Areas / Locks、Controllers / Readers / Terminals 主要 reference wrapper，Terminal detail 与 command-only lifecycle 决策，Users detail/update/delete API、User Detail UI 保存/启停/删除/邀请历史、Users Add/Invite record creation、邀请投递 queue/receipt/audit/provider webhook baseline、Resend/mock provider dispatch 与批量启停，Groups / Group Locks / Group Zones / Group Links，Teams / Team Memberships，Roles / Role Assignments / Shares，Access Rights review/schedule template/bulk schedule baseline 与影响预览/批量 review，Cards / Card Assignments，实体卡库存状态治理 baseline，Events，Reports / Scheduled Reports baseline，Integrations detail/write，Alert Policies 内置订阅、custom policy、condition preview 与 event evaluate baseline，Place 归档语义，legacy gateway 高危写/命令审计 baseline，OpenAPI 3.0 baseline |
-| 进行中 | 前端 adapter 收口；reference destructive/write audit baseline 已覆盖 Place/Lock/Group/Group Lock/Group Link/Controller/Reader/Team/Team Membership/Role Assignment/Share/Card/Alert Policy 等高风险操作，已扩展 Team create/update、Team Membership create、Role Assignment create/update、Share create/update、Card create/assign/status/deassign/revoke 回归；legacy gateway register/bind/unbind/device register/config publish/reboot 已补审计与回归；legacy building/door/door-group/temporary-access create 与 access policy create/update 已补审计与回归；非硬件 legacy 写操作全域审计已补齐：legacy user/user-group create/update、visitor pass create、alarm status update、tenant create/status、floor create/update/delete、area create/update、admin MFA setup/enable/disable、state change replay、wallet config/template/pass issue/status/delivery/physical card inventory/task/job/DLQ 全链路已补审计与回归 |
-| 未完成 | Users 批量治理深化、Teams 高级治理、Access Rights schedule 复杂时间窗/节假日/例外规则、Reports 排程投递持久化/更多导出格式、Alert Policy 事件调度器/渠道升级策略/持久化投递、Apple Pass `.pkpass`/设备回调、制卡供应商真实 API、OpenAPI 资源 schema 细化 |
+| 已完成 | Places / Floors / Areas / Locks、Controllers / Readers / Terminals 主要 reference wrapper，Terminal detail 与 command-only lifecycle 决策，Users detail/update/delete API、User Detail UI 保存/启停/删除/邀请历史、Users Add/Invite record creation、邀请投递 queue/receipt/audit/provider webhook baseline、Resend/mock provider dispatch 与批量启停，Groups / Group Locks / Group Zones / Group Links，Teams / Team Memberships，Roles / Role Assignments / Shares，Access Rights review/schedule template/bulk schedule baseline 与影响预览/批量 review，Cards / Card Assignments，实体卡库存状态治理 baseline，Events，Reports / Scheduled Reports baseline，Integrations detail/write，Alert Policies 内置订阅、custom policy、condition preview 与 event evaluate baseline，Place 归档语义，legacy gateway 高危写/命令审计 baseline，OpenAPI 3.0 baseline，Elevators / Elevator Stops / Group Elevator Stops / Group Terminals / Presences / CSV Card Imports / Guests / Organization Transfers / Certificates / Invites / Signed Upload URLs / 2FA / Password Reset / WebAuthn / Login Sessions |
+| 进行中 | 前端 adapter 收口；reference destructive/write audit baseline 已覆盖高风险操作；非硬件 legacy 写操作全域审计已补齐 |
+| 未完成 | Controller I/O (19 operations, 依赖硬件)、Wireless Locks (1 operation, 依赖硬件)、Cameras/Video (6 operations, 依赖第三方)、Logins promote/resolve (2 operations)、Reports PDF 导出/邮件推送、Apple Pass 真实签名、Google Wallet 真实 API、OpenAPI 资源 schema 细化 |
 
 | 优先级 | API 事项 | 原因 |
 |---|---|---|

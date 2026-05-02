@@ -1585,6 +1585,31 @@ func (s *server) listReferenceGroupLocks(w http.ResponseWriter, r *http.Request)
 	writeCollection(w, r, http.StatusOK, items)
 }
 
+func (s *server) getReferenceGroupLock(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	targetID := chi.URLParam(r, "groupLockID")
+	doorGroups := s.spaceSvc.ListDoorGroups(tenantID)
+	for i := range doorGroups {
+		for _, doorID := range doorGroups[i].DoorIDs {
+			compositeID := doorGroups[i].ID + ":" + doorID
+			if compositeID == targetID {
+				writeJSON(w, http.StatusOK, referenceGroupLock{
+					ID:        compositeID,
+					TenantID:  doorGroups[i].TenantID,
+					GroupID:   doorGroups[i].ID,
+					LockID:    doorID,
+					CreatedAt: doorGroups[i].CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
+				})
+				return
+			}
+		}
+	}
+	writeError(w, http.StatusNotFound, "group lock not found")
+}
+
 func (s *server) createReferenceGroupLock(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		GroupLock referenceGroupLockPayload `json:"group_lock"`
@@ -2642,6 +2667,11 @@ func (s *server) listReferenceAlertPolicies(w http.ResponseWriter, r *http.Reque
 		if referenceAlertPolicyMatchesQuery(walletPolicy, r) {
 			policies = append(policies, walletPolicy)
 		}
+		for _, incidentPolicy := range s.referenceIncidentAlertPolicies(nextTenantID) {
+			if referenceAlertPolicyMatchesQuery(incidentPolicy, r) {
+				policies = append(policies, incidentPolicy)
+			}
+		}
 		for _, customPolicy := range s.referenceCustomAlertPolicies(nextTenantID) {
 			if referenceAlertPolicyMatchesQuery(customPolicy, r) {
 				policies = append(policies, customPolicy)
@@ -2915,6 +2945,22 @@ func (s *server) listReferenceTeamMemberships(w http.ResponseWriter, r *http.Req
 	items := s.accessSvc.ListTeamMemberships(tenantID)
 	items = filterTeamMembershipsByQuery(items, teamIDs, r)
 	writeCollection(w, r, http.StatusOK, items)
+}
+
+func (s *server) getReferenceTeamMembership(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	targetID := chi.URLParam(r, "membershipID")
+	items := s.accessSvc.ListTeamMemberships(tenantID)
+	for i := range items {
+		if items[i].ID == targetID {
+			writeJSON(w, http.StatusOK, items[i])
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "team membership not found")
 }
 
 func (s *server) createReferenceTeamMembership(w http.ResponseWriter, r *http.Request) {
@@ -4894,6 +4940,41 @@ func referenceCustomAlertPolicyFromPayload(
 		},
 		ReceiverGroups: receiverGroups,
 	}, nil
+}
+
+func (s *server) referenceIncidentAlertPolicies(tenantID string) []referenceAlertPolicy {
+	return []referenceAlertPolicy{
+		{
+			ID:              "ap_incident_door_held_open_" + tenantID,
+			TenantID:        tenantID,
+			Name:            "Door Held Open",
+			Description:     "Alerts when a door remains open beyond the configured threshold.",
+			Category:        "incident",
+			Trigger:         "door_held_open",
+			Severity:        "high",
+			Condition:       "event.type == 'lock.held_open' && event.duration_seconds > threshold",
+			Status:          "inactive",
+			Enabled:         false,
+			Threshold:       300,
+			WindowSeconds:   600,
+			CooldownSeconds: 1800,
+		},
+		{
+			ID:              "ap_incident_hardware_outage_" + tenantID,
+			TenantID:        tenantID,
+			Name:            "Hardware Outage",
+			Description:     "Alerts when controller or reader uptime falls below threshold.",
+			Category:        "incident",
+			Trigger:         "hardware_outage",
+			Severity:        "critical",
+			Condition:       "event.type == 'controller.offline' && event.downtime_minutes > threshold",
+			Status:          "inactive",
+			Enabled:         false,
+			Threshold:       5,
+			WindowSeconds:   300,
+			CooldownSeconds: 3600,
+		},
+	}
 }
 
 func (s *server) referenceCustomAlertPolicies(tenantID string) []referenceAlertPolicy {

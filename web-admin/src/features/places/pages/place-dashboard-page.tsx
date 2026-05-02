@@ -1,6 +1,7 @@
 import { useMemo } from "react"
 import { AlertCircleIcon, DoorOpenIcon, HistoryIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import i18n from "@/lib/i18n"
 
 import { KpiCard, PageFrame, StatusDot, type ActivityTone } from "@/components/mistyislet/primitives"
 import { useMistyisletPlaceContext } from "@/features/mistyislet-shell/use-resource-summary"
@@ -103,7 +104,7 @@ type EventRow = { id: string; at: string; user: string; object: string; action: 
 type TFn = ReturnType<typeof useTranslation>["t"]
 
 function getDayLabel(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })
+  return date.toLocaleDateString(i18n.language, { weekday: "long", month: "short", day: "numeric", year: "numeric" })
 }
 
 function DailyUsageTable({ events, t }: { events: EventRow[]; t: TFn }) {
@@ -185,7 +186,7 @@ function UnlockHeatmap({ events, t }: { events: EventRow[]; t: TFn }) {
     for (let d = 6; d >= 0; d--) {
       const date = new Date(today)
       date.setDate(date.getDate() - d)
-      dayLabels.push(date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }))
+      dayLabels.push(date.toLocaleDateString(i18n.language, { weekday: "short", month: "short", day: "numeric" }))
       const row: number[] = new Array(24).fill(0)
       for (const ev of events) {
         if (!ev.at) continue

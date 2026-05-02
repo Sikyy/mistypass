@@ -241,6 +241,22 @@ func (s *server) createGroupElevatorStop(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusCreated, item)
 }
 
+func (s *server) getGroupElevatorStop(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	targetID := chi.URLParam(r, "groupElevatorStopID")
+	items := s.accessSvc.ListGroupElevatorStops(tenantID, "")
+	for i := range items {
+		if items[i].ID == targetID {
+			writeJSON(w, http.StatusOK, items[i])
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "group elevator stop not found")
+}
+
 func (s *server) deleteGroupElevatorStop(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
@@ -286,6 +302,22 @@ func (s *server) createGroupTerminal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, item)
+}
+
+func (s *server) getGroupTerminal(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	targetID := chi.URLParam(r, "groupTerminalID")
+	items := s.accessSvc.ListGroupTerminals(tenantID, "")
+	for i := range items {
+		if items[i].ID == targetID {
+			writeJSON(w, http.StatusOK, items[i])
+			return
+		}
+	}
+	writeError(w, http.StatusNotFound, "group terminal not found")
 }
 
 func (s *server) deleteGroupTerminal(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,11 @@
 package httpx
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -393,4 +397,150 @@ func normalizeReportScheduleFormat(value string) (string, bool) {
 	default:
 		return "", false
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Send report schedule — deliver report via email (Resend)
+// ---------------------------------------------------------------------------
+
+func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	scheduleID := strings.TrimSpace(chi.URLParam(r, "scheduleID"))
+
+	s.reportScheduleMu.RLock()
+	schedule, exists := s.reportSchedules[scheduleID]
+	s.reportScheduleMu.RUnlock()
+
+	if !exists || schedule.TenantID != tenantID {
+		writeError(w, http.StatusNotFound, "report schedule not found")
+		return
+	}
+
+	// Check that report email delivery is enabled.
+	if !s.cfg.ReportEmailEnabled {
+		s.logger.Warn("report email delivery is disabled (set REPORT_EMAIL_ENABLED=true)")
+		writeError(w, http.StatusNotImplemented, "report email delivery is not enabled")
+		return
+	}
+
+	// Validate Resend configuration — reuse user-invitation Resend config.
+	resendEndpoint := strings.TrimSpace(s.cfg.UserInvitationResendEndpoint)
+	if resendEndpoint == "" {
+		resendEndpoint = "https://api.resend.com/emails"
+	}
+	resendAPIKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
+	if resendAPIKey == "" {
+		s.logger.Warn("Resend API key not configured (set USER_INVITATION_RESEND_API_KEY)")
+		writeError(w, http.StatusNotImplemented, "email provider is not configured")
+		return
+	}
+	emailFrom := strings.TrimSpace(s.cfg.UserInvitationEmailFrom)
+	if emailFrom == "" {
+		emailFrom = "no-reply@mistypass.local"
+	}
+
+	// Build the report HTML body.
+	now := time.Now().UTC()
+	periodEnd := now.Truncate(time.Second)
+	periodStart := periodEnd.Add(-24 * time.Hour)
+	subject := fmt.Sprintf("MistyPass Report: %s (%s)", schedule.Name, schedule.ReportType)
+	htmlBody := buildReportEmailHTML(schedule, tenantID, periodStart, periodEnd)
+
+	// Send via Resend API.
+	resendTimeout := s.cfg.UserInvitationResendTimeout
+	if resendTimeout < time.Second {
+		resendTimeout = 5 * time.Second
+	}
+	err := sendReportViaResend(r.Context(), resendEndpoint, resendAPIKey, emailFrom, schedule.Recipients, subject, htmlBody, resendTimeout)
+	if err != nil {
+		s.logger.Error("failed to send report email", "error", err, "schedule_id", scheduleID)
+		writeError(w, http.StatusBadGateway, "failed to send report email: "+err.Error())
+		return
+	}
+
+	// Update last_sent_at.
+	s.reportScheduleMu.Lock()
+	if current, ok := s.reportSchedules[scheduleID]; ok {
+		current.LastSentAt = now.Truncate(time.Second).Format(time.RFC3339)
+		current.UpdatedAt = now.Truncate(time.Second).Format(time.RFC3339)
+		s.reportSchedules[scheduleID] = current
+		schedule = current
+		s.persistReportSchedulesLocked()
+	}
+	s.reportScheduleMu.Unlock()
+
+	s.appendAuditLog(r, tenantID, "report_schedule_sent", fmt.Sprintf("schedule_id=%s,report_type=%s,recipients=%d", schedule.ID, schedule.ReportType, len(schedule.Recipients)), "report_schedule")
+	writeJSON(w, http.StatusOK, schedule)
+}
+
+// sendReportViaResend sends an HTML email through the Resend API.
+func sendReportViaResend(ctx context.Context, endpoint, apiKey, from string, to []string, subject, html string, timeout time.Duration) error {
+	payload := map[string]any{
+		"from":    from,
+		"to":      append([]string(nil), to...),
+		"subject": subject,
+		"html":    html,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal email payload: %w", err)
+	}
+
+	client := &http.Client{Timeout: timeout}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("resend api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
+// buildReportEmailHTML generates a simple HTML email body for a report schedule.
+func buildReportEmailHTML(schedule reportSchedule, tenantID string, periodStart, periodEnd time.Time) string {
+	var sb strings.Builder
+	sb.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">`)
+	sb.WriteString(`<h2 style="color:#1a1a1a;border-bottom:2px solid #e0e0e0;padding-bottom:8px">`)
+	sb.WriteString(htmlEscape(schedule.Name))
+	sb.WriteString(`</h2>`)
+	sb.WriteString(`<table style="width:100%;border-collapse:collapse;margin:16px 0">`)
+	writeReportEmailRow(&sb, "Report type", schedule.ReportType)
+	writeReportEmailRow(&sb, "Frequency", schedule.Frequency)
+	writeReportEmailRow(&sb, "Format", schedule.Format)
+	writeReportEmailRow(&sb, "Tenant", tenantID)
+	writeReportEmailRow(&sb, "Period", periodStart.Format("2006-01-02 15:04")+" to "+periodEnd.Format("2006-01-02 15:04")+" UTC")
+	writeReportEmailRow(&sb, "Recipients", strings.Join(schedule.Recipients, ", "))
+	writeReportEmailRow(&sb, "Generated at", periodEnd.Format(time.RFC3339))
+	sb.WriteString(`</table>`)
+	sb.WriteString(`<p style="color:#666;font-size:13px;margin-top:24px">This report was generated automatically by MistyPass. `)
+	sb.WriteString(`Log in to the admin panel to view the full report or adjust this schedule.</p>`)
+	sb.WriteString(`</body></html>`)
+	return sb.String()
+}
+
+func writeReportEmailRow(sb *strings.Builder, label, value string) {
+	sb.WriteString(`<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#555;white-space:nowrap;vertical-align:top">`)
+	sb.WriteString(htmlEscape(label))
+	sb.WriteString(`</td><td style="padding:6px 0;color:#1a1a1a">`)
+	sb.WriteString(htmlEscape(value))
+	sb.WriteString(`</td></tr>`)
+}
+
+func htmlEscape(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
+	return r.Replace(s)
 }
