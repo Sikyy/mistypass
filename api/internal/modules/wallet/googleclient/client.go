@@ -131,7 +131,7 @@ func readCredentialJSON(keyRef string) ([]byte, error) {
 		if strings.TrimSpace(path) == "" {
 			return nil, errors.New("file:// key_ref missing path")
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 -- path comes from admin-set tenant config (key_ref), not request input
 		if err != nil {
 			return nil, fmt.Errorf("read service account json file: %w", err)
 		}

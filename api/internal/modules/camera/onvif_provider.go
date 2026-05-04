@@ -2,7 +2,7 @@ package camera
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" // #nosec G501 -- ONVIF WS-Security digest auth requires MD5 (RFC 2069)
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/xml"
@@ -105,8 +105,10 @@ func parseDigestChallenge(header string) map[string]string {
 }
 
 // md5Hex returns the hex-encoded MD5 hash of s.
+// MD5 is required by the ONVIF WS-Security digest auth scheme (RFC 2069 / 2617).
+// Not used for any security purpose beyond protocol compliance.
 func md5Hex(s string) string {
-	h := md5.Sum([]byte(s))
+	h := md5.Sum([]byte(s)) // #nosec G401 -- ONVIF protocol requires MD5
 	return hex.EncodeToString(h[:])
 }
 

@@ -3,7 +3,7 @@ package auth
 import (
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- HMAC-SHA1 required by TOTP/HOTP (RFC 6238/4226)
 	"encoding/base32"
 	"encoding/binary"
 	"errors"

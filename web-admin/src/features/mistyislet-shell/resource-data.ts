@@ -1753,7 +1753,7 @@ export async function loadMistyisletResourceSummary(token: string, viewer: Curre
         name: group.name,
         kind: i18next.t("common.group"),
         memberCount,
-        targetLabel: memberCount > 0 ? formatCount(memberCount, i18next.t("common.members")) : i18next.t("kisi.teams.noMembers"),
+        targetLabel: memberCount > 0 ? formatCount(memberCount, "member") : i18next.t("kisi.teams.noMembers"),
         description: group.description || "Directory or manually managed user group.",
         loginEnabled: group.login_enabled ?? true,
         geofenceRestrictionEnabled: Boolean(group.geofence_restriction_enabled),

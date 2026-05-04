@@ -456,6 +456,7 @@ func (a *Agent) httpClient() *http.Client {
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
+				MinVersion: tls.VersionTLS12,
 				VerifyConnection: func(cs tls.ConnectionState) error {
 					for _, cert := range cs.PeerCertificates {
 						spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)

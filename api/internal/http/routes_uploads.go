@@ -155,7 +155,7 @@ func (s *server) uploadFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filePath := filepath.Join(uploadDir, cleanID)
-	f, err := os.Create(filePath)
+	f, err := os.Create(filePath) // #nosec G304 -- cleanID is the validated upload UUID, not user-controlled path
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "storage error")
 		return

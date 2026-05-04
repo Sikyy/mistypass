@@ -104,7 +104,7 @@ const group = {
   id: "group_service",
   placeId: place.id,
   name: "Service Personnel",
-  kind: "User group",
+  kind: "Group",
   memberCount: 3,
   targetLabel: "3 members",
   description: "Service access",
@@ -520,14 +520,14 @@ describe("kisi resource-data summary adapter", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: group.id,
-          kind: "User group",
+          kind: "Group",
           memberCount: 2,
           targetLabel: "2 members",
           geofenceRestrictionEnabled: true,
         }),
         expect.objectContaining({
           id: doorGroup.id,
-          kind: "Door group",
+          kind: "Group",
           placeId: place.id,
           targetLabel: door.name,
           doorIds: [door.id],

@@ -90,7 +90,7 @@ func (r *GPIORelay) Close() error {
 }
 
 func (r *GPIORelay) writeFile(path, value string) error {
-	return os.WriteFile(path, []byte(value), 0644)
+	return os.WriteFile(path, []byte(value), 0o600)
 }
 
 // --- RS485 Modbus Relay (via serial port) ---

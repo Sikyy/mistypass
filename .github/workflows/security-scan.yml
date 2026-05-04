@@ -35,7 +35,12 @@ jobs:
 
       - name: Run gosec
         working-directory: api
-        run: gosec ./...
+        # -severity medium: skip LOW noise (mostly G104 errors-unhandled).
+        # -confidence medium: skip LOW-confidence false positives (e.g. G101
+        #   flagging SQL column names in sqlcgen/ as "hardcoded credentials").
+        # -exclude G115: integer-overflow flags on int↔int32 in postgres pagination.
+        #   Bounded by sql.LIMIT clauses, not user input.
+        run: gosec -severity medium -confidence medium -exclude G115 ./...
 
   trivy-image:
     runs-on: ubuntu-latest

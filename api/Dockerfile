@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.25.4-bookworm@sha256:a62429958d6ce7c3a5314e3996d0a19eb9087e25e2671658a04b9f8ba91def42 AS builder
+FROM golang:1.25-bookworm@sha256:298734aec230b5f3e8cee450ce6d7eccc39f1797ba548ee90d57e9803030c6c3 AS builder
 
 WORKDIR /src
 COPY api/go.mod api/go.sum ./api/
