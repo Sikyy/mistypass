@@ -19,8 +19,10 @@ Sprint 1 + Sprint 2 fixes have been applied directly to all three repos:
 | P1-03 | High | iOS BLE continuation guarded against double-resume | DONE |
 | P2-01 | Medium | iOS `.gitignore` added | DONE |
 | P2-03 | Medium | iOS environment switching (mock/staging/prod) | DONE |
-| P2-02 | Medium | Android CI/CD pipeline | OPEN — Sprint 3 |
-| P3-01 | Low | iOS controller identity verification | OPEN — Sprint 3 |
+| P2-02 | Medium | Android CI/CD pipeline | DONE |
+| P2-04 | Medium | OpenAPI spec extraction + codegen tooling | DONE |
+| P3-01 | Low | iOS controller identity verification | DONE |
+| P3-02 | Low | Android reader identity read before challenge | DONE |
 
 Go BLE protocol tests (`ble_protocol_test.go`) all pass with the new UUIDs.
 
