@@ -113,3 +113,86 @@ export async function deleteIntegration(
     token
   )
 }
+
+// --- Lark Integration ---
+
+export type LarkUser = {
+  user_id: string
+  open_id: string
+  name: string
+  email: string
+  mobile: string
+  department_id: string
+  status: { is_activated: boolean; is_frozen: boolean; is_resigned: boolean }
+}
+
+export type LarkSyncResult = {
+  status: string
+  user_count: number
+  users: LarkUser[]
+}
+
+export async function larkSyncUsers(
+  token: string | undefined,
+  appId: string,
+  appSecret: string
+): Promise<LarkSyncResult> {
+  return request<LarkSyncResult>(
+    "/api/v1/integrations/lark/sync",
+    { method: "POST", body: JSON.stringify({ app_id: appId, app_secret: appSecret }) },
+    token
+  )
+}
+
+export async function larkBotTest(
+  token: string | undefined,
+  webhookUrl: string,
+  message?: string
+): Promise<{ status: string; message?: string; error?: string }> {
+  return request<{ status: string; message?: string; error?: string }>(
+    "/api/v1/integrations/lark/bot/test",
+    { method: "POST", body: JSON.stringify({ webhook_url: webhookUrl, message: message || "" }) },
+    token
+  )
+}
+
+export async function larkBotSendAlert(
+  token: string | undefined,
+  webhookUrl: string,
+  eventType: string,
+  doorName: string,
+  userName: string,
+  reason?: string
+): Promise<{ status: string }> {
+  return request<{ status: string }>(
+    "/api/v1/integrations/lark/bot/alert",
+    { method: "POST", body: JSON.stringify({ webhook_url: webhookUrl, event_type: eventType, door_name: doorName, user_name: userName, reason }) },
+    token
+  )
+}
+
+// --- Google Workspace Integration ---
+
+export type GoogleWorkspaceSyncResult = {
+  status: string
+  gws_users: number
+  actions: number
+  created: number
+  deactivated: number
+  skipped: number
+  errors: number
+}
+
+export async function googleWorkspaceSyncUsers(
+  token: string | undefined,
+  serviceAccountJson: string,
+  delegatedAdmin: string,
+  domain: string,
+  tenantId?: string
+): Promise<GoogleWorkspaceSyncResult> {
+  return request<GoogleWorkspaceSyncResult>(
+    "/api/v1/integrations/google-workspace/sync",
+    { method: "POST", body: JSON.stringify({ service_account_json: serviceAccountJson, delegated_admin: delegatedAdmin, domain, tenant_id: tenantId }) },
+    token
+  )
+}

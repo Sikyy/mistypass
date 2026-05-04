@@ -1,10 +1,23 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { CheckCircleIcon, PlusIcon, XCircleIcon } from "lucide-react"
 
+import { useAuth } from "@/context/auth-context"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { TabsContent } from "@/components/ui/tabs"
-import { type EnterpriseIDPConfig } from "@/lib/api"
+import {
+  listEnterpriseDomainMappings,
+  createEnterpriseDomainMapping,
+  updateEnterpriseDomainMappingStatus,
+  type EnterpriseIDPConfig,
+  type EnterpriseDomainMapping,
+} from "@/lib/api"
 
 type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
 
@@ -211,7 +224,152 @@ export function EnterpriseIDPWorkspace({
             </div>
           </CardContent>
         </Card>
+
+        <DomainMappingsSection />
       </div>
     </TabsContent>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Domain Mappings Section
+// ---------------------------------------------------------------------------
+
+function DomainMappingsSection() {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  const [newDomain, setNewDomain] = useState("")
+  const [showAddForm, setShowAddForm] = useState(false)
+
+  const mappingsQuery = useQuery({
+    queryKey: ["enterprise-domain-mappings"],
+    queryFn: () => listEnterpriseDomainMappings(token ?? undefined),
+    enabled: Boolean(token),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: (domain: string) =>
+      createEnterpriseDomainMapping(token ?? undefined, { domain }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["enterprise-domain-mappings"] })
+      setNewDomain("")
+      setShowAddForm(false)
+    },
+  })
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ mappingId, nextStatus }: { mappingId: string; nextStatus: string }) =>
+      updateEnterpriseDomainMappingStatus(token ?? undefined, mappingId, nextStatus),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["enterprise-domain-mappings"] })
+    },
+  })
+
+  const mappings: EnterpriseDomainMapping[] = mappingsQuery.data ?? []
+
+  return (
+    <Card className="xl:col-span-2" data-testid="enterprise-idp-domain-mappings">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Domain Mappings</CardTitle>
+            <CardDescription>
+              Map email domains to this tenant for automatic identity routing.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            <PlusIcon className="mr-1.5 size-4" />
+            Add Domain
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {showAddForm ? (
+          <div className="rounded-lg border bg-muted/10 px-4 py-3">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="mb-1 block text-sm font-medium">Domain</label>
+                <Input
+                  value={newDomain}
+                  onChange={(e) => setNewDomain(e.target.value)}
+                  placeholder="company.com"
+                />
+              </div>
+              <Button
+                onClick={() => createMutation.mutate(newDomain)}
+                disabled={createMutation.isPending || !newDomain.trim()}
+              >
+                {createMutation.isPending ? "Adding..." : "Add"}
+              </Button>
+              <Button variant="outline" onClick={() => setShowAddForm(false)}>
+                Cancel
+              </Button>
+            </div>
+            {createMutation.isError ? (
+              <div className="mt-2 flex items-center gap-2 text-sm text-red-800">
+                <XCircleIcon className="size-4" />
+                {(createMutation.error as Error).message || "Failed to add domain"}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mappingsQuery.isLoading ? (
+          <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            Loading domain mappings...
+          </div>
+        ) : mappings.length === 0 ? (
+          <div className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            No domain mappings configured. Add a domain to enable identity routing.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {mappings.map((mapping) => {
+              const isActive = mapping.status === "active"
+              return (
+                <div
+                  key={mapping.id}
+                  className="flex items-center justify-between rounded-lg border bg-muted/10 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="font-medium">{mapping.domain}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Created {new Date(mapping.created_at).toLocaleDateString()}
+                        {mapping.verified_at
+                          ? ` / Verified ${new Date(mapping.verified_at).toLocaleDateString()}`
+                          : ""}
+                      </p>
+                    </div>
+                    <Badge variant={isActive ? "outline" : "secondary"}>
+                      {mapping.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {isActive ? "Active" : "Disabled"}
+                    </span>
+                    <Switch
+                      checked={isActive}
+                      disabled={toggleStatusMutation.isPending}
+                      onCheckedChange={(checked) =>
+                        toggleStatusMutation.mutate({
+                          mappingId: mapping.id,
+                          nextStatus: checked ? "active" : "disabled",
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
