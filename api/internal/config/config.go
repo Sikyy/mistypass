@@ -44,6 +44,7 @@ type Config struct {
 	JWTAccessTTL                                                 time.Duration
 	JWTRefreshTTL                                                time.Duration
 	EnableDemoUsers                                              bool
+	DisableLoginRateLimit                                        bool
 	WebAuthnRPDisplayName                                        string
 	WebAuthnRPID                                                 string
 	WebAuthnRPOrigins                                            []string
@@ -241,6 +242,9 @@ func loadAuthConfig(cfg *Config) {
 	cfg.JWTRefreshTTL = parseDurationOrFallback(envString("JWT_REFRESH_TTL"), 7*24*time.Hour)
 	if raw := envString("ENABLE_DEMO_USERS"); raw != "" {
 		cfg.EnableDemoUsers = parseBoolOrFallback(raw, false)
+	}
+	if raw := envString("DISABLE_LOGIN_RATE_LIMIT"); raw != "" {
+		cfg.DisableLoginRateLimit = parseBoolOrFallback(raw, false)
 	}
 	cfg.WebAuthnRPDisplayName = envStringOrDefault("WEBAUTHN_RP_DISPLAY_NAME", "MistyPass")
 	cfg.WebAuthnRPID = envString("WEBAUTHN_RP_ID")

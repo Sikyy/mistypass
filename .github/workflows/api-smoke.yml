@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+env:
+  ENABLE_DEMO_USERS: "true"
+  DISABLE_LOGIN_RATE_LIMIT: "true"
+  GATEWAY_BOOTSTRAP_TOKEN: "mistypass-dev-bootstrap-local-only-20260424"
+  GOCACHE: /tmp/go-build
+
 jobs:
   api-smoke:
     runs-on: ubuntu-latest
@@ -49,6 +55,10 @@ jobs:
       - name: Unit Test
         working-directory: api
         run: go test ./...
+
+      - name: Pre-build API binary
+        working-directory: api
+        run: go build -o /tmp/mistypass-api ./cmd/api
 
       - name: Start API with PostgreSQL
         run: |

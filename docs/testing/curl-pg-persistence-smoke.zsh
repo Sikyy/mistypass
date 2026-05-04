@@ -224,6 +224,16 @@ echo "== restart API =="
 stop_api
 start_api
 
+echo "== re-login after restart =="
+LOGIN_RAW2="$(curl -sS -X POST "${API_BASE_URL}/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"${LOGIN_EMAIL}\",\"password\":\"${LOGIN_PASSWORD}\"}" \
+  -w $'\n%{http_code}')"
+split_response "${LOGIN_RAW2}"
+require_http_code "200" "re-login after restart"
+AT="$(echo "${HTTP_BODY}" | jq -r '.access_token')"
+require_non_empty "${AT}" "re-login.access_token"
+
 echo "== verify persisted data after restart =="
 TENANTS_RAW="$(api_with_auth GET "/api/v1/tenants")"
 split_response "${TENANTS_RAW}"
