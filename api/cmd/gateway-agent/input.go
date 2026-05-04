@@ -11,6 +11,7 @@ import (
 // startStdinInput reads credential input from stdin for testing.
 // Format: <credential_type> <credential_data> <lock_id>
 // Example: nfc_uid UID-1001 door_jkt_001
+// BLE:    ble <user_id> <nonce_hex> <sig_hex> [lock_id]
 func startStdinInput(agent *Agent, logger *slog.Logger) {
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
@@ -18,6 +19,7 @@ func startStdinInput(agent *Agent, logger *slog.Logger) {
 		fmt.Println("=== Credential Input (stdin) ===")
 		fmt.Println("Format: <type> <data> <lock_id>")
 		fmt.Println("Example: nfc_uid UID-1001 door_jkt_001")
+		fmt.Println("BLE:    ble <user_id> <nonce_hex> <sig_hex> [lock_id]")
 		fmt.Println("Type 'rules' to show cached access rules")
 		fmt.Println("Type 'quit' to exit")
 		fmt.Println()
@@ -43,8 +45,9 @@ func startStdinInput(agent *Agent, logger *slog.Logger) {
 						i, rule.CredentialType, rule.CredentialData,
 						rule.UserID, rule.UserEmail, rule.LockIDs)
 				}
+				rulesEmpty := len(agent.accessRules) == 0
 				agent.mu.RUnlock()
-				if len(agent.accessRules) == 0 {
+				if rulesEmpty {
 					fmt.Println("  (no rules cached, waiting for config pull)")
 				}
 				fmt.Println()
@@ -52,9 +55,18 @@ func startStdinInput(agent *Agent, logger *slog.Logger) {
 			}
 
 			parts := strings.Fields(line)
+
+			// Handle BLE simulation command
+			if len(parts) >= 1 && parts[0] == "ble" {
+				handleBLESimCommand(agent, logger, parts)
+				fmt.Println()
+				continue
+			}
+
 			if len(parts) < 3 {
 				fmt.Println("Usage: <credential_type> <credential_data> <lock_id>")
 				fmt.Println("Example: nfc_uid UID-1001 door_jkt_001")
+				fmt.Println("BLE:    ble <user_id> <nonce_hex> <sig_hex> [lock_id]")
 				continue
 			}
 

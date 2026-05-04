@@ -27,6 +27,13 @@ type AlertDeliveryInput struct {
 	EmailSubject   string
 	EmailText      string
 	WhatsAppText   string
+	// Template-based WhatsApp (optional)
+	WhatsAppTemplateName   string
+	WhatsAppTemplateParams []string
+	WhatsAppTemplateLang   string
+	// Lark Bot notification (optional)
+	LarkWebhookURL string
+	LarkAlertText  string
 }
 
 type AlertDeliveryResult struct {
@@ -67,6 +74,11 @@ func (s *Service) DispatchAlert(input AlertDeliveryInput) AlertDeliveryResult {
 				input.ReceiverGroups,
 				input.IdempotencyKey,
 				input.WhatsAppText,
+			))
+		case "lark":
+			results = append(results, s.dispatchAlertLarkMessageLocked(
+				input.LarkWebhookURL,
+				input.LarkAlertText,
 			))
 		default:
 			results = append(results, JobAlertChannelResult{
@@ -307,14 +319,20 @@ func (s *Service) dispatchAlertWhatsAppMessageLocked(
 				Receivers:     receivers,
 			}
 		}
+		sendInput := AlertWhatsAppSendInput{
+			TenantID:       tenantID,
+			To:             receivers,
+			IdempotencyKey: strings.TrimSpace(idempotencyKey),
+			Text:           strings.TrimSpace(text),
+		}
+		// Use configured template if available (preferred for production)
+		if s.jobAlertWhatsAppTemplateName != "" {
+			sendInput.TemplateName = s.jobAlertWhatsAppTemplateName
+			sendInput.TemplateLang = s.jobAlertWhatsAppTemplateLang
+		}
 		sendResult, err := s.jobAlertWhatsAppSender.Send(
 			context.Background(),
-			AlertWhatsAppSendInput{
-				TenantID:       tenantID,
-				To:             receivers,
-				IdempotencyKey: strings.TrimSpace(idempotencyKey),
-				Text:           strings.TrimSpace(text),
-			},
+			sendInput,
 		)
 		if err != nil {
 			retryable := isJobAlertProviderRetryable(err)
@@ -350,5 +368,43 @@ func (s *Service) dispatchAlertWhatsAppMessageLocked(
 		Provider:  nextProvider,
 		Retryable: false,
 		Receivers: receivers,
+	}
+}
+
+func (s *Service) dispatchAlertLarkMessageLocked(webhookURL, text string) JobAlertChannelResult {
+	url := webhookURL
+	if url == "" {
+		url = s.jobAlertLarkWebhookURL
+	}
+	if url == "" {
+		return JobAlertChannelResult{
+			Channel: "lark",
+			Status:  "skipped",
+			Reason:  "lark_webhook_not_configured",
+		}
+	}
+	if strings.TrimSpace(text) == "" {
+		return JobAlertChannelResult{
+			Channel: "lark",
+			Status:  "skipped",
+			Reason:  "empty_text",
+		}
+	}
+
+	sender := larkBotSenderInstance()
+	if err := sender.SendText(context.Background(), url, text); err != nil {
+		return JobAlertChannelResult{
+			Channel:       "lark",
+			Status:        "failed",
+			Reason:        "provider_error",
+			Provider:      "lark_bot",
+			ProviderError: err.Error(),
+			Retryable:     true,
+		}
+	}
+	return JobAlertChannelResult{
+		Channel:  "lark",
+		Status:   "sent",
+		Provider: "lark_bot",
 	}
 }

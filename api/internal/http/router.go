@@ -20,6 +20,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/audit"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
+	"github.com/mistypass/cloud/api/internal/modules/credential"
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
@@ -49,6 +50,7 @@ type server struct {
 	auditSvc                      *audit.Service
 	walletSvc                     *wallet.Service
 	cameraSvc                     *camera.Service
+	credentialSvc                 *credential.Service
 	enterpriseSvc                 *enterprise.Service
 	hrisVaultSvc                  *hris.VaultService
 	hrisDLQSvc                    *hris.DLQService
@@ -203,6 +205,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	alarmSvc := alarm.NewService()
 	auditSvc := audit.NewService()
 	walletSvc := wallet.NewService()
+	credentialSvc := credential.NewService()
 	cameraSvc := camera.NewService(nil)
 	if cfg.CameraSnapshotRetentionDays > 0 {
 		cameraSvc.SetSnapshotRetentionDays(cfg.CameraSnapshotRetentionDays)
@@ -277,6 +280,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if err != nil {
 			return nil, nil, err
 		}
+		credentialSvc, err = credential.NewServiceWithStateStore(stateStore)
+		if err != nil {
+			return nil, nil, err
+		}
 		enterpriseSvc, err = enterprise.NewServiceWithStateStore(stateStore)
 		if err != nil {
 			return nil, nil, err
@@ -308,6 +315,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		WhatsAppAPIKey:        cfg.WalletAlertWhatsAppAPIKey,
 		WhatsAppPhoneNumberID: cfg.WalletAlertWhatsAppPhoneNumberID,
 		WhatsAppTimeout:       cfg.WalletAlertWhatsAppTimeout,
+		WhatsAppTemplateName:  cfg.WalletAlertWhatsAppTemplateName,
+		WhatsAppTemplateLang:  cfg.WalletAlertWhatsAppTemplateLang,
+		LarkAlertWebhookURL:   cfg.LarkAlertWebhookURL,
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -327,6 +337,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		auditSvc:                      auditSvc,
 		walletSvc:                     walletSvc,
 		cameraSvc:                     cameraSvc,
+		credentialSvc:                 credentialSvc,
 		enterpriseSvc:                 enterpriseSvc,
 		hrisVaultSvc:                  hrisVaultSvc,
 		hrisDLQSvc:                    hrisDLQSvc,
@@ -369,6 +380,14 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		return nil, nil, err
 	}
 	s.messageBus = messageBus
+
+	// Pre-seed device tokens for demo gateways so they can authenticate
+	// without going through the full registration flow during development.
+	if cfg.EnableDemoUsers && cfg.GatewayBootstrapToken != "" {
+		s.setGatewayDeviceToken("gw_demo_001", cfg.GatewayBootstrapToken)
+		s.setGatewayDeviceToken("gw_demo_002", cfg.GatewayBootstrapToken)
+	}
+
 	if s.messageBus.Enabled() {
 		s.loggerOrDefault().Info(
 			"nats internal bus enabled",
@@ -500,6 +519,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
 				protected.Get("/access/logs", s.appAccessLogs)
 				protected.Post("/visitor-passes", s.appCreateVisitorPass)
+
+				// Mobile BLE credential management
+				protected.Post("/credentials/register", s.appRegisterMobileCredential)
+				protected.Get("/credentials/mobile", s.appListMobileCredentials)
+				protected.Delete("/credentials/mobile/{credentialID}", s.appRevokeMobileCredential)
+				protected.Post("/credentials/mobile/{credentialID}/refresh", s.appRefreshMobileCredential)
 			})
 		})
 
@@ -516,6 +541,48 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/events/checkpoint", s.gatewayBootstrapEventsCheckpoint)
 			gatewayRouter.Post("/verify-credential", s.verifyCredential)
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
+		})
+
+		// Mobile credential admin endpoints
+		r.Route("/credentials/mobile", func(credRouter chi.Router) {
+			credRouter.Use(s.withBearerToken)
+			credRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			credRouter.Get("/", s.adminListMobileCredentials)
+			credRouter.Get("/{credentialID}", s.adminGetMobileCredential)
+			credRouter.Post("/{credentialID}/revoke", s.adminRevokeMobileCredential)
+			credRouter.Post("/revoke-user", s.adminRevokeAllUserCredentials)
+		})
+
+		// Lark integration endpoints
+		r.Route("/integrations/lark", func(larkRouter chi.Router) {
+			// Event callback (no auth — Lark pushes events here, verified by token)
+			larkRouter.Post("/events", s.larkEventCallback)
+			// Authenticated endpoints
+			larkRouter.Group(func(authed chi.Router) {
+				authed.Use(s.withBearerToken)
+				authed.Use(s.requireRoles("super_admin", "tenant_admin"))
+				authed.Post("/bot/test", s.larkBotTest)
+				authed.Post("/bot/alert", s.larkBotSendAlert)
+				authed.Post("/sync", s.larkSyncUsers)
+			})
+		})
+
+		// Google Workspace integration endpoints
+		r.Route("/integrations/google-workspace", func(gwsRouter chi.Router) {
+			gwsRouter.Use(s.withBearerToken)
+			gwsRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			gwsRouter.Post("/sync", s.googleWorkspaceSyncUsers)
+		})
+
+		// Southbound device gateway (Hikvision, ZKTeco direct control)
+		r.Route("/gateway/southbound", func(sbRouter chi.Router) {
+			sbRouter.Use(s.withBearerToken)
+			sbRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			sbRouter.Post("/{provider}/{deviceID}/unlock", s.southboundUnlock)
+			sbRouter.Post("/{provider}/{deviceID}/sync-users", s.southboundSyncUsers)
+			sbRouter.Post("/{provider}/test", s.southboundTestConnection)
+			// ZKTeco push receiver (no auth — device pushes events here)
+			sbRouter.With(s.withGlobalAPIRateLimit).Post("/zkteco/push", s.southboundZKTecoPush)
 		})
 
 		r.Group(func(protected chi.Router) {
@@ -948,6 +1015,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/enterprise/idp-config", s.upsertEnterpriseIDPConfig)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/idp-config/validate", s.validateEnterpriseIDPConfig)
 
+			// SCIM provisioning management (admin UI)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/scim/config", s.scimAdminGetConfig)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/scim/token", s.scimAdminGenerateToken)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/enterprise/scim/token", s.scimAdminRevokeToken)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/scim/test", s.scimAdminTestEndpoint)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/scim/logs", s.scimAdminListProvisioningLogs)
+
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/employees", s.listEnterpriseEmployees)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/jit-provision-approvals", s.listEnterpriseJITProvisionApprovals)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/jit-provision-approvals/external-sync-pending", s.listEnterpriseJITProvisionApprovalExternalSyncPending)
@@ -986,6 +1060,18 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		oauthRouter.Get("/authorize", s.oauth2Authorize)
 		oauthRouter.Post("/token", s.oauth2Token)
 		oauthRouter.Post("/revoke", s.oauth2Revoke)
+	})
+
+	// SCIM 2.0 Server endpoints (outside protected group — uses Bearer token auth)
+	router.Route("/scim/v2", func(scimRouter chi.Router) {
+		scimRouter.Get("/ServiceProviderConfig", s.scimServiceProviderConfig)
+		scimRouter.Get("/Schemas", s.scimSchemas)
+		scimRouter.Get("/Users", s.scimListUsers)
+		scimRouter.Get("/Users/{id}", s.scimGetUser)
+		scimRouter.Post("/Users", s.scimCreateUser)
+		scimRouter.Put("/Users/{id}", s.scimReplaceUser)
+		scimRouter.Patch("/Users/{id}", s.scimPatchUser)
+		scimRouter.Delete("/Users/{id}", s.scimDeleteUser)
 	})
 
 	s.startEnterpriseSyncReconcileWorker()

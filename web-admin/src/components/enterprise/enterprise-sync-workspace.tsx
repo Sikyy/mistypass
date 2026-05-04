@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import type { TFunction } from "i18next"
-import { RefreshCwIcon } from "lucide-react"
+import { useMutation } from "@tanstack/react-query"
+import { CheckCircleIcon, RefreshCwIcon, XCircleIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
@@ -15,6 +16,7 @@ import {
   classifyEnterpriseSyncWorkerAlertLevel,
   describeEnterpriseSyncWorkerAlertGuidance,
 } from "@/components/enterprise/enterprise-sync-worker-alert-guidance"
+import { useAuth } from "@/context/auth-context"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,6 +31,11 @@ import {
 import { TabsContent } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  larkSyncUsers,
+  larkBotTest,
+  googleWorkspaceSyncUsers,
+  type LarkSyncResult,
+  type GoogleWorkspaceSyncResult,
   type EnterpriseHRISConnector,
   type EnterpriseHRISSecret,
   type EnterpriseSyncJob,
@@ -1158,6 +1165,10 @@ export function EnterpriseSyncWorkspace({
         writable={writable}
       />
 
+      <LarkSyncSection writable={writable} />
+
+      <GoogleWorkspaceSyncSection writable={writable} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("enterpriseSyncWorkspace.sourceOverview.title")}</CardTitle>
@@ -1775,5 +1786,243 @@ export function EnterpriseSyncWorkspace({
         </div>
       ) : null}
     </TabsContent>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Lark Directory Sync Section
+// ---------------------------------------------------------------------------
+
+function LarkSyncSection({ writable }: { writable: boolean }) {
+  const { token } = useAuth()
+  const [appId, setAppId] = useState("")
+  const [appSecret, setAppSecret] = useState("")
+  const [webhookUrl, setWebhookUrl] = useState("")
+
+  const syncMutation = useMutation({
+    mutationFn: () => larkSyncUsers(token ?? undefined, appId, appSecret),
+  })
+
+  const botTestMutation = useMutation({
+    mutationFn: () => larkBotTest(token ?? undefined, webhookUrl),
+  })
+
+  const syncResult: LarkSyncResult | undefined = syncMutation.data
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lark Directory Sync</CardTitle>
+          <CardDescription>
+            Sync employee directory from Lark (Feishu). Provide your Lark app credentials to pull users.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">App ID</label>
+            <Input
+              value={appId}
+              onChange={(e) => setAppId(e.target.value)}
+              placeholder="cli_xxxxx"
+              disabled={!writable}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">App Secret</label>
+            <Input
+              type="password"
+              value={appSecret}
+              onChange={(e) => setAppSecret(e.target.value)}
+              placeholder="Lark app secret"
+              disabled={!writable}
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => syncMutation.mutate()}
+              disabled={!writable || syncMutation.isPending || !appId.trim() || !appSecret.trim()}
+            >
+              <RefreshCwIcon className={`mr-1.5 size-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+              {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+            </Button>
+          </div>
+          {syncMutation.isError ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+              <XCircleIcon className="size-4" />
+              {(syncMutation.error as Error).message || "Sync failed"}
+            </div>
+          ) : null}
+          {syncResult ? (
+            <div className="rounded-md border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+              <span className="flex items-center gap-2">
+                <CheckCircleIcon className="size-4" />
+                Status: {syncResult.status} &mdash; {syncResult.user_count} users synced
+              </span>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lark Bot Test</CardTitle>
+          <CardDescription>
+            Test your Lark webhook bot to verify alert delivery.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Webhook URL</label>
+            <Input
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://open.larksuite.com/open-apis/bot/v2/hook/..."
+              disabled={!writable}
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              onClick={() => botTestMutation.mutate()}
+              disabled={!writable || botTestMutation.isPending || !webhookUrl.trim()}
+            >
+              {botTestMutation.isPending ? "Testing..." : "Test Bot"}
+            </Button>
+          </div>
+          {botTestMutation.isError ? (
+            <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+              <XCircleIcon className="size-4" />
+              {(botTestMutation.error as Error).message || "Test failed"}
+            </div>
+          ) : null}
+          {botTestMutation.data ? (
+            <div
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm ${
+                botTestMutation.data.status === "ok"
+                  ? "border border-green-200 bg-green-50 text-green-800"
+                  : "border border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              {botTestMutation.data.status === "ok" ? (
+                <>
+                  <CheckCircleIcon className="size-4" />
+                  Bot connected successfully
+                </>
+              ) : (
+                <>
+                  <XCircleIcon className="size-4" />
+                  {botTestMutation.data.error || botTestMutation.data.message || "Unexpected response"}
+                </>
+              )}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Google Workspace Sync Section
+// ---------------------------------------------------------------------------
+
+function GoogleWorkspaceSyncSection({ writable }: { writable: boolean }) {
+  const { token } = useAuth()
+  const [serviceAccountJson, setServiceAccountJson] = useState("")
+  const [delegatedAdmin, setDelegatedAdmin] = useState("")
+  const [domain, setDomain] = useState("")
+
+  const syncMutation = useMutation({
+    mutationFn: () =>
+      googleWorkspaceSyncUsers(token ?? undefined, serviceAccountJson, delegatedAdmin, domain),
+  })
+
+  const syncResult: GoogleWorkspaceSyncResult | undefined = syncMutation.data
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Google Workspace Sync</CardTitle>
+        <CardDescription>
+          Sync users from Google Workspace using a service account. Users are matched by email domain.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service Account JSON</label>
+          <Textarea
+            value={serviceAccountJson}
+            onChange={(e) => setServiceAccountJson(e.target.value)}
+            placeholder='{"type":"service_account","project_id":"...","private_key":"..."}'
+            rows={5}
+            disabled={!writable}
+          />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Delegated Admin</label>
+            <Input
+              value={delegatedAdmin}
+              onChange={(e) => setDelegatedAdmin(e.target.value)}
+              placeholder="admin@company.com"
+              disabled={!writable}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Domain</label>
+            <Input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="company.com"
+              disabled={!writable}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button
+            onClick={() => syncMutation.mutate()}
+            disabled={
+              !writable ||
+              syncMutation.isPending ||
+              !serviceAccountJson.trim() ||
+              !delegatedAdmin.trim() ||
+              !domain.trim()
+            }
+          >
+            <RefreshCwIcon className={`mr-1.5 size-4 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+            {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+          </Button>
+        </div>
+        {syncMutation.isError ? (
+          <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+            <XCircleIcon className="size-4" />
+            {(syncMutation.error as Error).message || "Sync failed"}
+          </div>
+        ) : null}
+        {syncResult ? (
+          <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+            <span className="flex items-center gap-2">
+              <CheckCircleIcon className="size-4" />
+              Status: {syncResult.status}
+            </span>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded bg-white/60 px-2 py-1">
+                <span className="font-medium">Created:</span> {syncResult.created}
+              </div>
+              <div className="rounded bg-white/60 px-2 py-1">
+                <span className="font-medium">Deactivated:</span> {syncResult.deactivated}
+              </div>
+              <div className="rounded bg-white/60 px-2 py-1">
+                <span className="font-medium">Skipped:</span> {syncResult.skipped}
+              </div>
+              <div className="rounded bg-white/60 px-2 py-1">
+                <span className="font-medium">Errors:</span> {syncResult.errors}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   )
 }

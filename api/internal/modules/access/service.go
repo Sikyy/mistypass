@@ -498,27 +498,30 @@ type CSVCardImport struct {
 }
 
 type Guest struct {
-	ID                 string    `json:"id"`
-	TenantID           string    `json:"tenant_id"`
-	BuildingID         string    `json:"building_id,omitempty"`
-	Name               string    `json:"name"`
-	Email              string    `json:"email,omitempty"`
-	Phone              string    `json:"phone"`
-	Company            string    `json:"company,omitempty"`
-	Purpose            string    `json:"purpose,omitempty"`
-	HostName           string    `json:"host_name"`
-	HostEmail          string    `json:"host_email,omitempty"`
-	HostPhone          string    `json:"host_phone,omitempty"`
-	IDDocumentType     string    `json:"id_document_type,omitempty"`   // "KTP", "KITAS", "ITAS" or empty
-	IDDocumentNumber   string    `json:"id_document_number,omitempty"` // optional
-	Status             string    `json:"status"`                       // "expected", "checked_in", "checked_out", "cancelled"
-	CheckedInAt        string    `json:"checked_in_at,omitempty"`
-	CheckedOutAt       string    `json:"checked_out_at,omitempty"`
-	ExpectedAt         string    `json:"expected_at,omitempty"`
-	NotifyHost         bool      `json:"notify_host,omitempty"`
-	HostNotifiedAt     string    `json:"host_notified_at,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                    string    `json:"id"`
+	TenantID              string    `json:"tenant_id"`
+	BuildingID            string    `json:"building_id,omitempty"`
+	Name                  string    `json:"name"`
+	Email                 string    `json:"email,omitempty"`
+	Phone                 string    `json:"phone"`
+	Company               string    `json:"company,omitempty"`
+	Purpose               string    `json:"purpose,omitempty"`
+	HostName              string    `json:"host_name"`
+	HostEmail             string    `json:"host_email,omitempty"`
+	HostPhone             string    `json:"host_phone,omitempty"`
+	IDDocumentType        string    `json:"id_document_type,omitempty"`   // "KTP", "KITAS", "ITAS" or empty
+	IDDocumentNumber      string    `json:"id_document_number,omitempty"` // optional
+	Status                string    `json:"status"`                       // "expected", "checked_in", "checked_out", "cancelled"
+	CheckedInAt           string    `json:"checked_in_at,omitempty"`
+	CheckedOutAt          string    `json:"checked_out_at,omitempty"`
+	ExpectedAt            string    `json:"expected_at,omitempty"`
+	NotifyHost            bool      `json:"notify_host,omitempty"`
+	HostNotifiedAt        string    `json:"host_notified_at,omitempty"`
+	AccessToken           string    `json:"access_token,omitempty"`            // short-lived QR code token for Tier 3 visitor access
+	AccessTokenExpiresAt  string    `json:"access_token_expires_at,omitempty"` // RFC3339, default 24h from creation
+	DoorIDs               []string  `json:"door_ids,omitempty"`               // doors this guest can access via QR
+	CreatedAt             time.Time `json:"created_at"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 type BookableSpace struct {
@@ -1325,6 +1328,29 @@ func (s *Service) GetUser(tenantID, userID string) (AccessUser, error) {
 		return cloneAccessUser(s.users[i]), nil
 	}
 	return AccessUser{}, ErrUserNotFound
+}
+
+// FindUserByEmail returns the first active user matching the given email.
+// If tenantID is empty, searches across all tenants.
+func (s *Service) FindUserByEmail(tenantID, email string) (AccessUser, bool) {
+	nextEmail := normalizeEmail(email)
+	if nextEmail == "" {
+		return AccessUser{}, false
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.users {
+		if filterTenantID != "" && s.users[i].TenantID != filterTenantID {
+			continue
+		}
+		if normalizeEmail(s.users[i].Email) == nextEmail {
+			return cloneAccessUser(s.users[i]), true
+		}
+	}
+	return AccessUser{}, false
 }
 
 func (s *Service) CreateUser(tenantID, buildingID, name, email, role, status string, groupIDs []string) (AccessUser, error) {
@@ -3660,6 +3686,38 @@ func (s *Service) GetGuest(tenantID, guestID string) (Guest, error) {
 	return Guest{}, ErrGuestNotFound
 }
 
+// GetGuestByAccessToken looks up an active guest by their QR access token.
+// Returns the guest only if the token is valid and not expired.
+func (s *Service) GetGuestByAccessToken(tenantID, token string) (Guest, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	nextToken := strings.TrimSpace(token)
+	if nextToken == "" {
+		return Guest{}, false
+	}
+	now := time.Now().UTC()
+	for i := range s.guests {
+		g := &s.guests[i]
+		if g.AccessToken != nextToken {
+			continue
+		}
+		if tenantID != "" && g.TenantID != tenantID {
+			continue
+		}
+		if g.Status == "cancelled" || g.Status == "checked_out" {
+			return Guest{}, false
+		}
+		if g.AccessTokenExpiresAt != "" {
+			exp, err := time.Parse(time.RFC3339, g.AccessTokenExpiresAt)
+			if err == nil && now.After(exp) {
+				return Guest{}, false
+			}
+		}
+		return *g, true
+	}
+	return Guest{}, false
+}
+
 type CreateGuestInput struct {
 	TenantID         string
 	BuildingID       string
@@ -3675,6 +3733,8 @@ type CreateGuestInput struct {
 	IDDocumentNumber string
 	ExpectedAt       string
 	NotifyHost       bool
+	DoorIDs          []string // doors this guest can access via QR code
+	AccessTTLHours   int      // token validity in hours (default 24, max 72)
 }
 
 func (s *Service) CreateGuest(in CreateGuestInput) (Guest, error) {
@@ -3707,26 +3767,51 @@ func (s *Service) CreateGuest(in CreateGuestInput) (Guest, error) {
 	if err != nil {
 		return Guest{}, err
 	}
+	token, err := accessID("gqr_")
+	if err != nil {
+		return Guest{}, err
+	}
+
+	ttlHours := in.AccessTTLHours
+	if ttlHours <= 0 {
+		ttlHours = 24
+	}
+	if ttlHours > 72 {
+		ttlHours = 72
+	}
+
 	now := time.Now().UTC()
+	tokenExpiry := now.Add(time.Duration(ttlHours) * time.Hour)
+
+	var doorIDs []string
+	for _, d := range in.DoorIDs {
+		if trimmed := strings.TrimSpace(d); trimmed != "" {
+			doorIDs = append(doorIDs, trimmed)
+		}
+	}
+
 	record := Guest{
-		ID:               id,
-		TenantID:         nextTenantID,
-		BuildingID:       strings.TrimSpace(in.BuildingID),
-		Name:             nextName,
-		Email:            strings.TrimSpace(in.Email),
-		Phone:            nextPhone,
-		Company:          strings.TrimSpace(in.Company),
-		Purpose:          strings.TrimSpace(in.Purpose),
-		HostName:         nextHostName,
-		HostEmail:        strings.TrimSpace(in.HostEmail),
-		HostPhone:        strings.TrimSpace(in.HostPhone),
-		IDDocumentType:   docType,
-		IDDocumentNumber: strings.TrimSpace(in.IDDocumentNumber),
-		Status:           "expected",
-		ExpectedAt:       strings.TrimSpace(in.ExpectedAt),
-		NotifyHost:       in.NotifyHost,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:                   id,
+		TenantID:             nextTenantID,
+		BuildingID:           strings.TrimSpace(in.BuildingID),
+		Name:                 nextName,
+		Email:                strings.TrimSpace(in.Email),
+		Phone:                nextPhone,
+		Company:              strings.TrimSpace(in.Company),
+		Purpose:              strings.TrimSpace(in.Purpose),
+		HostName:             nextHostName,
+		HostEmail:            strings.TrimSpace(in.HostEmail),
+		HostPhone:            strings.TrimSpace(in.HostPhone),
+		IDDocumentType:       docType,
+		IDDocumentNumber:     strings.TrimSpace(in.IDDocumentNumber),
+		Status:               "expected",
+		ExpectedAt:           strings.TrimSpace(in.ExpectedAt),
+		NotifyHost:           in.NotifyHost,
+		AccessToken:          token,
+		AccessTokenExpiresAt: tokenExpiry.Format(time.RFC3339),
+		DoorIDs:              doorIDs,
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}
 
 	s.mu.Lock()

@@ -34,12 +34,16 @@ func main() {
 	heartbeatInterval := flag.Duration("heartbeat", 30*time.Second, "Heartbeat interval")
 	relayGPIO := flag.Int("relay-gpio", -1, "GPIO pin number for relay (e.g. 73 for PC9 on OPi Zero3). -1 disables GPIO.")
 	relayRS485 := flag.String("relay-rs485", "", "RS485 serial device for Modbus relay (e.g. /dev/ttyUSB0). Empty disables RS485.")
+	relayOSDP := flag.String("relay-osdp", "", "RS485 serial device for OSDP v2 reader (e.g. /dev/ttyUSB0). Empty disables OSDP.")
+	osdpAddress := flag.Int("osdp-address", 0, "OSDP peripheral device address (0-126)")
 	unlockDuration := flag.Duration("unlock-duration", 5*time.Second, "How long to hold relay open for unlock")
 	deviceTokenFile := flag.String("token-file", "/var/lib/mistypass/device-token", "File to persist device token across restarts")
 	tlsPin := flag.String("tls-pin-sha256", "", "SHA256 hash of Cloud API TLS certificate SPKI for certificate pinning (hex-encoded)")
 	rulesCacheTTL := flag.Duration("rules-cache-ttl", 24*time.Hour, "Max age of cached access rules before denying all access (0 = no TTL)")
 	readerLockID := flag.String("reader-lock-id", "", "Lock ID that this reader controls (enables PC/SC NFC reader, e.g. door_jkt_001)")
 	readerPoll := flag.Duration("reader-poll", 300*time.Millisecond, "NFC reader polling interval")
+	bleLockID := flag.String("ble-lock-id", "", "Lock ID for BLE reader (enables BLE auth, e.g. door_factory_001)")
+	bleListenAddr := flag.String("ble-listen", ":9900", "TCP address for BLE simulator (used until real BLE hardware is ready)")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -56,6 +60,8 @@ func main() {
 		unlockDuration:     *unlockDuration,
 		relayGPIOPin:       *relayGPIO,
 		relayRS485Device:   *relayRS485,
+		relayOSDPDevice:    *relayOSDP,
+		osdpAddress:        byte(*osdpAddress),
 		tlsPinSHA256:       *tlsPin,
 		rulesCacheTTL:      *rulesCacheTTL,
 	}
@@ -66,6 +72,7 @@ func main() {
 		"tenant_id", *tenantID,
 		"relay_gpio", *relayGPIO,
 		"relay_rs485", *relayRS485,
+		"relay_osdp", *relayOSDP,
 	)
 
 	if err := agent.Start(); err != nil {
@@ -80,9 +87,11 @@ func main() {
 	fmt.Printf("Tenant:   %s\n", *tenantID)
 	fmt.Printf("Poll:     %s\n", *configPollInterval)
 	if *relayGPIO >= 0 {
-		fmt.Printf("Relay:    GPIO %d\n", *relayGPIO)
+		fmt.Printf("Relay:    GPIO %d (Wiegand)\n", *relayGPIO)
+	} else if *relayOSDP != "" {
+		fmt.Printf("Relay:    OSDP v2 %s addr=%d\n", *relayOSDP, *osdpAddress)
 	} else if *relayRS485 != "" {
-		fmt.Printf("Relay:    RS485 %s\n", *relayRS485)
+		fmt.Printf("Relay:    RS485 Modbus %s\n", *relayRS485)
 	} else {
 		fmt.Println("Relay:    disabled (dry-run mode)")
 	}
@@ -99,6 +108,18 @@ func main() {
 		}
 	}
 
+	// Start BLE reader (TCP simulator mode) if lock ID is configured
+	var bleReader *BLEReader
+	if *bleLockID != "" {
+		fmt.Println(formatBLEReaderInfo(*bleLockID, *bleListenAddr))
+		bleReader = NewBLEReader(logger, *bleLockID, agent)
+		if err := bleReader.Start(*bleListenAddr); err != nil {
+			logger.Warn("BLE reader failed to start", "error", err)
+		} else {
+			fmt.Printf("BLE:      TCP %s → %s\n", *bleListenAddr, *bleLockID)
+		}
+	}
+
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
@@ -112,6 +133,9 @@ func main() {
 	logger.Info("shutting down gateway agent")
 	if nfcReader != nil {
 		nfcReader.Stop()
+	}
+	if bleReader != nil {
+		bleReader.Stop()
 	}
 	agent.Stop()
 }

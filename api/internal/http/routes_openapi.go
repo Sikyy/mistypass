@@ -331,6 +331,7 @@ func openAPIComponents() map[string]any {
 			"Camera":          openAPICameraSchema(),
 			"CameraCreate":    openAPICameraCreateSchema(),
 			"CameraUpdate":    openAPICameraUpdateSchema(),
+			"GuestCreate":     openAPIGuestCreateSchema(),
 		},
 		"responses": map[string]any{
 			"UnauthorizedError": errorResponseComponent("Unauthorized"),
@@ -369,9 +370,38 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/app/credentials", OperationID: "fetchAppCredentials", Tag: "Mobile App", Summary: "Fetch resident app credentials.", Collection: true},
 		{Method: http.MethodPost, Path: "/api/v1/app/credentials/apple-pass", OperationID: "enrollAppApplePass", Tag: "Mobile App", Summary: "Enroll a resident Apple Wallet pass.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/app/access/doors", OperationID: "fetchAppAccessDoors", Tag: "Mobile App", Summary: "Fetch resident accessible doors.", Collection: true},
-		{Method: http.MethodGet, Path: "/api/v1/app/access/ble-token", OperationID: "fetchAppAccessBLEToken", Tag: "Mobile App", Summary: "Fetch resident BLE unlock token."},
+		{Method: http.MethodGet, Path: "/api/v1/app/access/ble-token", OperationID: "fetchAppAccessBLEToken", Tag: "Mobile App", Summary: "Fetch resident BLE unlock token (legacy static token)."},
 		{Method: http.MethodGet, Path: "/api/v1/app/access/logs", OperationID: "fetchAppAccessLogs", Tag: "Mobile App", Summary: "Fetch resident access logs.", Collection: true},
 		{Method: http.MethodPost, Path: "/api/v1/app/visitor-passes", OperationID: "createAppVisitorPass", Tag: "Mobile App", Summary: "Create a resident visitor pass.", Created: true},
+		{Method: http.MethodPost, Path: "/api/v1/app/credentials/register", OperationID: "registerMobileCredential", Tag: "Mobile Credentials", Summary: "Register mobile device keypair (EC P-256 public key + attestation).", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/app/credentials/mobile", OperationID: "listMobileCredentials", Tag: "Mobile Credentials", Summary: "List current user mobile credentials.", Collection: true},
+		{Method: http.MethodDelete, Path: "/api/v1/app/credentials/mobile/{credentialID}", OperationID: "revokeMobileCredentialSelf", Tag: "Mobile Credentials", Summary: "Self-revoke a mobile credential (lost phone)."},
+		{Method: http.MethodPost, Path: "/api/v1/app/credentials/mobile/{credentialID}/refresh", OperationID: "refreshMobileCredential", Tag: "Mobile Credentials", Summary: "Refresh credential TTL."},
+		{Method: http.MethodGet, Path: "/api/v1/credentials/mobile", OperationID: "adminListMobileCredentials", Tag: "Mobile Credentials", Summary: "Admin: list all mobile credentials.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/credentials/mobile/{credentialID}", OperationID: "adminGetMobileCredential", Tag: "Mobile Credentials", Summary: "Admin: get credential details."},
+		{Method: http.MethodPost, Path: "/api/v1/credentials/mobile/{credentialID}/revoke", OperationID: "adminRevokeMobileCredential", Tag: "Mobile Credentials", Summary: "Admin: force-revoke a credential."},
+		{Method: http.MethodPost, Path: "/api/v1/credentials/mobile/revoke-user", OperationID: "adminRevokeAllUserCredentials", Tag: "Mobile Credentials", Summary: "Admin: revoke all credentials for a user."},
+
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/events", OperationID: "larkEventCallback", Tag: "Integrations", Summary: "Lark event subscription callback. Auto-creates users on onboard, revokes BLE credentials and suspends users on offboard, syncs name/status on update.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/test", OperationID: "larkBotTest", Tag: "Integrations", Summary: "Send a test message to a Lark group webhook."},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/alert", OperationID: "larkBotSendAlert", Tag: "Integrations", Summary: "Send an access alert card to a Lark group."},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/sync", OperationID: "larkSyncUsers", Tag: "Integrations", Summary: "Trigger full employee directory sync from Lark."},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/google-workspace/sync", OperationID: "googleWorkspaceSyncUsers", Tag: "Integrations", Summary: "Trigger full directory sync from Google Workspace. Lists all GWS users, computes sync actions, applies creates/deactivates."},
+
+		// SCIM 2.0 Server (Okta / Entra ID / OneLogin push provisioning)
+		{Method: http.MethodGet, Path: "/scim/v2/ServiceProviderConfig", OperationID: "scimServiceProviderConfig", Tag: "SCIM 2.0", Summary: "SCIM capabilities discovery.", Public: true},
+		{Method: http.MethodGet, Path: "/scim/v2/Schemas", OperationID: "scimSchemas", Tag: "SCIM 2.0", Summary: "List supported SCIM schemas.", Public: true},
+		{Method: http.MethodGet, Path: "/scim/v2/Users", OperationID: "scimListUsers", Tag: "SCIM 2.0", Summary: "List users with filter (userName eq). Pagination via startIndex+count.", Public: true, Collection: true},
+		{Method: http.MethodGet, Path: "/scim/v2/Users/{id}", OperationID: "scimGetUser", Tag: "SCIM 2.0", Summary: "Get user by ID.", Public: true},
+		{Method: http.MethodPost, Path: "/scim/v2/Users", OperationID: "scimCreateUser", Tag: "SCIM 2.0", Summary: "Provision user. Creates access user + triggers credential flow.", Public: true, Created: true},
+		{Method: http.MethodPut, Path: "/scim/v2/Users/{id}", OperationID: "scimReplaceUser", Tag: "SCIM 2.0", Summary: "Replace user. Revokes BLE credentials on deactivation.", Public: true},
+		{Method: http.MethodPatch, Path: "/scim/v2/Users/{id}", OperationID: "scimPatchUser", Tag: "SCIM 2.0", Summary: "Patch user (Okta sends active=false on deprovision). Revokes credentials.", Public: true},
+		{Method: http.MethodDelete, Path: "/scim/v2/Users/{id}", OperationID: "scimDeleteUser", Tag: "SCIM 2.0", Summary: "Deactivate + revoke all credentials (soft delete for audit trail).", Public: true, NoContent: true},
+
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/unlock", OperationID: "southboundUnlock", Tag: "Southbound Gateway", Summary: "Remote unlock a door on a third-party device (Hikvision/ZKTeco)."},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/sync-users", OperationID: "southboundSyncUsers", Tag: "Southbound Gateway", Summary: "Push user/credential data to a third-party device."},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/test", OperationID: "southboundTestConnection", Tag: "Southbound Gateway", Summary: "Test connectivity to a third-party device."},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/zkteco/push", OperationID: "southboundZKTecoPush", Tag: "Southbound Gateway", Summary: "Receive push events from ZKTeco devices. Auto-maps device serial to tenant/gateway and ingests as access event.", Public: true},
 
 		{Method: http.MethodGet, Path: "/api/v1/places", OperationID: "fetchPlaces", Tag: "Places", Summary: "Fetch places.", Collection: true, ResponseSchema: "Place"},
 		{Method: http.MethodPost, Path: "/api/v1/places", OperationID: "createPlace", Tag: "Places", Summary: "Create a place.", Created: true, ResponseSchema: "Place", RequestSchema: "PlaceCreate"},
@@ -879,7 +909,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		// Guests
 		{Method: http.MethodGet, Path: "/api/v1/guests", OperationID: "fetchGuests", Tag: "Visitors", Summary: "List guests.", Collection: true},
 		{Method: http.MethodGet, Path: "/api/v1/guests/{guestID}", OperationID: "fetchGuest", Tag: "Visitors", Summary: "Fetch a guest."},
-		{Method: http.MethodPost, Path: "/api/v1/guests", OperationID: "createGuest", Tag: "Visitors", Summary: "Register a new guest.", Created: true},
+		{Method: http.MethodPost, Path: "/api/v1/guests", OperationID: "createGuest", Tag: "Visitors", Summary: "Register a new guest with optional QR access token (door_ids, access_ttl_hours). Returns access_token for Tier 3 visitor QR code.", Created: true, RequestSchema: "GuestCreate"},
 		{Method: http.MethodPatch, Path: "/api/v1/guests/{guestID}/status", OperationID: "updateGuestStatus", Tag: "Visitors", Summary: "Update guest status (check-in, check-out, cancel)."},
 		{Method: http.MethodDelete, Path: "/api/v1/guests/{guestID}", OperationID: "deleteGuest", Tag: "Visitors", Summary: "Delete a guest record.", NoContent: true},
 
@@ -946,7 +976,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/gateway/config/applied", OperationID: "confirmGatewayConfigApplied", Tag: "Gateway Bootstrap", Summary: "Confirm gateway config version applied.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/batch", OperationID: "submitGatewayEventsBatch", Tag: "Gateway Bootstrap", Summary: "Submit gateway events in batch.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/checkpoint", OperationID: "submitGatewayEventsCheckpoint", Tag: "Gateway Bootstrap", Summary: "Submit gateway events checkpoint.", Public: true},
-		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision. Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens).", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/ota/report", OperationID: "reportGatewayOTAStatus", Tag: "Gateway Bootstrap", Summary: "Report OTA firmware update result.", Public: true},
 	}
 }
@@ -1412,6 +1442,31 @@ func openAPICameraUpdateSchema() map[string]any {
 					"status":   map[string]any{"type": "string", "enum": []string{"active", "offline", "disconnected"}},
 				},
 			},
+		},
+	}
+}
+
+func openAPIGuestCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"name", "phone", "host_name"},
+		"properties": map[string]any{
+			"tenant_id":          map[string]any{"type": "string"},
+			"building_id":        map[string]any{"type": "string"},
+			"name":               map[string]any{"type": "string"},
+			"email":              map[string]any{"type": "string", "format": "email"},
+			"phone":              map[string]any{"type": "string"},
+			"company":            map[string]any{"type": "string"},
+			"purpose":            map[string]any{"type": "string"},
+			"host_name":          map[string]any{"type": "string"},
+			"host_email":         map[string]any{"type": "string", "format": "email"},
+			"host_phone":         map[string]any{"type": "string"},
+			"id_document_type":   map[string]any{"type": "string", "enum": []string{"KTP", "KITAS", "ITAS"}},
+			"id_document_number": map[string]any{"type": "string"},
+			"expected_at":        map[string]any{"type": "string", "format": "date-time"},
+			"notify_host":        map[string]any{"type": "boolean"},
+			"door_ids":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Doors this guest can access via QR code. Empty = building-wide access."},
+			"access_ttl_hours":   map[string]any{"type": "integer", "minimum": 1, "maximum": 72, "default": 24, "description": "QR token validity in hours (default 24, max 72)."},
 		},
 	}
 }

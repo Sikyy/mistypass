@@ -8,6 +8,7 @@ import { EnterpriseAlertsWorkspace } from "@/components/enterprise/enterprise-al
 import { EnterpriseEmployeesWorkspace } from "@/components/enterprise/enterprise-employees-workspace"
 import { EnterprisePageHeader } from "@/components/enterprise/enterprise-page-header"
 import { EnterpriseIDPWorkspace } from "@/components/enterprise/enterprise-idp-workspace"
+import { EnterpriseSCIMWorkspace } from "@/components/enterprise/enterprise-scim-workspace"
 import { EnterprisePageOverview } from "@/components/enterprise/enterprise-page-overview"
 import { EnterpriseSyncWorkspace } from "@/components/enterprise/enterprise-sync-workspace"
 import { type EnterpriseSyncWorkerAlertSubscriptionSaveInput } from "@/components/enterprise/enterprise-sync-worker-alert-subscription-card"
@@ -92,7 +93,7 @@ type EnterprisePageProps = {
   viewer: CurrentUser
 }
 
-type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
+type EnterpriseSection = "employees" | "sync" | "idp" | "scim" | "alerts"
 type AlertLandingView = "overview" | "approval_backlog" | "directory_exceptions"
 type AlertSegmentHint = "receipt_recovery"
 type AlertSegmentStatusHint = "pending" | "attention" | "ready"
@@ -321,9 +322,9 @@ function workflowStateLabel(t: TFunction, state: EnterpriseWorkflowState) {
 
 function getEnterpriseSectionsForViewer(viewer: CurrentUser): EnterpriseSection[] {
   if (isPlatformViewer(viewer)) {
-    return ["sync", "alerts", "employees", "idp"]
+    return ["sync", "alerts", "employees", "idp", "scim"]
   }
-  return ["employees", "idp", "sync", "alerts"]
+  return ["employees", "idp", "scim", "sync", "alerts"]
 }
 
 function resolveEnterpriseSection(value: string | undefined, fallback: EnterpriseSection): EnterpriseSection {
@@ -331,6 +332,7 @@ function resolveEnterpriseSection(value: string | undefined, fallback: Enterpris
     case "employees":
     case "sync":
     case "idp":
+    case "scim":
     case "alerts":
       return value
     default:
@@ -346,6 +348,8 @@ function enterpriseSectionLabel(section: EnterpriseSection, t: TFunction) {
       return t("enterprisePage.labels.sync")
     case "idp":
       return t("enterprisePage.labels.idp")
+    case "scim":
+      return "SCIM"
     case "alerts":
       return t("enterprisePage.labels.alerts")
   }
@@ -3866,6 +3870,8 @@ export function EnterprisePage({ token, viewer }: EnterprisePageProps) {
           syncJobsCount={syncJobs.length}
           workerAlertCount={workerAlertCount}
         />
+
+        <EnterpriseSCIMWorkspace token={token} />
 
         <EnterpriseAlertsWorkspace
           alertRecoveryAction={alertRecoveryAction}

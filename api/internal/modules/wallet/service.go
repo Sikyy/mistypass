@@ -287,6 +287,9 @@ type JobAlertEmailDeliveryOptions struct {
 	WhatsAppAPIKey        string
 	WhatsAppPhoneNumberID string
 	WhatsAppTimeout       time.Duration
+	WhatsAppTemplateName  string
+	WhatsAppTemplateLang  string
+	LarkAlertWebhookURL   string
 }
 
 type JobAlertChannelResult struct {
@@ -442,6 +445,9 @@ type Service struct {
 	jobAlertWhatsAppProvider       string
 	jobAlertWhatsAppReceiverMap    map[string][]string
 	jobAlertWhatsAppSender         alertWhatsAppSender
+	jobAlertWhatsAppTemplateName   string
+	jobAlertWhatsAppTemplateLang   string
+	jobAlertLarkWebhookURL         string
 	stateStore                     StateStore
 	applePassProvider              *ApplePassProvider
 	googleWalletProvider           *GoogleWalletProvider
@@ -752,6 +758,9 @@ func (s *Service) SetJobAlertEmailDeliveryOptions(options JobAlertEmailDeliveryO
 	s.jobAlertWhatsAppProvider = nextWhatsAppProvider
 	s.jobAlertWhatsAppReceiverMap = nextWhatsAppReceiverMap
 	s.jobAlertWhatsAppSender = whatsAppSender
+	s.jobAlertWhatsAppTemplateName = strings.TrimSpace(options.WhatsAppTemplateName)
+	s.jobAlertWhatsAppTemplateLang = strings.TrimSpace(options.WhatsAppTemplateLang)
+	s.jobAlertLarkWebhookURL = strings.TrimSpace(options.LarkAlertWebhookURL)
 	return nil
 }
 

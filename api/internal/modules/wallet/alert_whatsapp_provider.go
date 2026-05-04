@@ -22,6 +22,10 @@ type AlertWhatsAppSendInput struct {
 	To             []string
 	IdempotencyKey string
 	Text           string
+	// Template-based messaging (optional, overrides Text if set)
+	TemplateName   string
+	TemplateParams []string // {{1}}, {{2}}, etc.
+	TemplateLang   string   // e.g. "en_US", "id"
 }
 
 type AlertWhatsAppSendResult struct {
@@ -101,14 +105,43 @@ func (s *metaWhatsAppSender) Send(ctx context.Context, input AlertWhatsAppSendIn
 
 	var providerDeliveryID string
 	for i := range nextTo {
-		payload := map[string]any{
-			"messaging_product": "whatsapp",
-			"to":                nextTo[i],
-			"type":              "text",
-			"text": map[string]any{
-				"body":        nextText,
-				"preview_url": false,
-			},
+		var payload map[string]any
+		if input.TemplateName != "" {
+			// Template-based message (approved by Meta, supports variables)
+			lang := input.TemplateLang
+			if lang == "" {
+				lang = "en_US"
+			}
+			templatePayload := map[string]any{
+				"name":     input.TemplateName,
+				"language": map[string]string{"code": lang},
+			}
+			if len(input.TemplateParams) > 0 {
+				params := make([]map[string]any, len(input.TemplateParams))
+				for j, p := range input.TemplateParams {
+					params[j] = map[string]any{"type": "text", "text": p}
+				}
+				templatePayload["components"] = []map[string]any{
+					{"type": "body", "parameters": params},
+				}
+			}
+			payload = map[string]any{
+				"messaging_product": "whatsapp",
+				"to":                nextTo[i],
+				"type":              "template",
+				"template":          templatePayload,
+			}
+		} else {
+			// Plain text message (for testing or user-initiated conversations)
+			payload = map[string]any{
+				"messaging_product": "whatsapp",
+				"to":                nextTo[i],
+				"type":              "text",
+				"text": map[string]any{
+					"body":        nextText,
+					"preview_url": false,
+				},
+			}
 		}
 		body, err := json.Marshal(payload)
 		if err != nil {

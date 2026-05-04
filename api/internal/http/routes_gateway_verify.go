@@ -83,7 +83,78 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 2: Get user details
+	// Step 2: Guest QR tokens bypass normal user lookup
+	if strings.HasPrefix(userID, "qr_guest:") {
+		guestID := strings.TrimPrefix(userID, "qr_guest:")
+		guest, err := s.accessSvc.GetGuest(tenantID, guestID)
+		if err != nil {
+			resp := verifyCredentialResponse{
+				Decision:       "deny",
+				Reason:         "guest_not_found",
+				LockID:         lockID,
+				GatewayID:      gatewayID,
+				CredentialType: credType,
+				EvaluatedAt:    now.Format(time.RFC3339),
+			}
+			s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		// Check if guest has door-level access
+		guestAllowed := len(guest.DoorIDs) == 0 // no restriction = building-wide
+		for _, did := range guest.DoorIDs {
+			if did == lockID {
+				guestAllowed = true
+				break
+			}
+		}
+		if !guestAllowed {
+			resp := verifyCredentialResponse{
+				Decision:       "deny",
+				Reason:         "no_access",
+				UserID:         guestID,
+				UserName:       guest.Name,
+				LockID:         lockID,
+				GatewayID:      gatewayID,
+				CredentialType: credType,
+				EvaluatedAt:    now.Format(time.RFC3339),
+			}
+			s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		resp := verifyCredentialResponse{
+			Decision:       "allow",
+			Reason:         "guest_qr_access",
+			UserID:         guestID,
+			UserName:       guest.Name,
+			GroupName:      "visitor",
+			LockID:         lockID,
+			GatewayID:      gatewayID,
+			CredentialType: credType,
+			EvaluatedAt:    now.Format(time.RFC3339),
+		}
+		s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+		if gatewayID != "" && s.messageBus.Enabled() {
+			cmd := bus.GatewayCommand{
+				RequestID: fmt.Sprintf("verify:%s:%s:%d", lockID, guestID, now.UnixNano()),
+				GatewayID: gatewayID,
+				Command:   "unlock",
+				LockID:    lockID,
+				TenantID:  tenantID,
+				IssuedBy:  guest.Name,
+				IssuedAt:  now.Format(time.RFC3339),
+			}
+			subject := fmt.Sprintf("gateway.%s.command", gatewayID)
+			if err := s.messageBus.PublishJSON(r.Context(), subject, cmd, nil); err != nil {
+				s.logger.Warn("failed to dispatch auto-unlock after guest verify", "error", err)
+			}
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	// Step 2b: Get user details (regular user flow)
 	user, err := s.accessSvc.GetUser(tenantID, userID)
 	if err != nil || user.Status != "active" {
 		reason := "user_not_found"
@@ -214,7 +285,11 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 		}
 
 	case "qr_code":
-		// Check group links by token
+		// Check guest QR tokens first (Tier 3: dynamic visitor QR codes)
+		if guest, ok := s.accessSvc.GetGuestByAccessToken(tenantID, credData); ok {
+			return "qr_guest:" + guest.ID, true
+		}
+		// Fall back to group links by token
 		for _, link := range s.accessSvc.ListGroupLinks(tenantID) {
 			if link.Secret == credData || link.QuickResponseCodeToken == credData {
 				if !link.LinkEnabled {

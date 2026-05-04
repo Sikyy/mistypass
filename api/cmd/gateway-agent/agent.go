@@ -30,6 +30,8 @@ type Agent struct {
 	unlockDuration     time.Duration
 	relayGPIOPin       int
 	relayRS485Device   string
+	relayOSDPDevice    string // RS485 serial device for OSDP v2 reader control
+	osdpAddress        byte   // OSDP peripheral device address (0-126)
 	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
 
 	mu              sync.RWMutex
@@ -65,11 +67,17 @@ type AccessEvent struct {
 func (a *Agent) Start() error {
 	a.stopCh = make(chan struct{})
 
-	// Initialize relay driver
+	// Initialize relay driver (priority: GPIO > OSDP > RS485 Modbus > DryRun)
 	if a.relayGPIOPin >= 0 {
 		driver, err := NewGPIORelay(a.relayGPIOPin, a.logger)
 		if err != nil {
 			return fmt.Errorf("gpio relay init: %w", err)
+		}
+		a.relay = driver
+	} else if a.relayOSDPDevice != "" {
+		driver, err := NewOSDPRelay(a.relayOSDPDevice, a.osdpAddress, a.logger)
+		if err != nil {
+			return fmt.Errorf("osdp relay init: %w", err)
 		}
 		a.relay = driver
 	} else if a.relayRS485Device != "" {
@@ -392,6 +400,112 @@ func (a *Agent) VerifyCredential(credentialType, credentialData, lockID string) 
 		return "deny", rule.UserID, rule.UserEmail
 	}
 	return "deny", "", ""
+}
+
+// VerifyBLEAuth performs BLE challenge-response verification using ECDSA.
+// It looks up the user's public key from cached access rules (type=ble_signature)
+// and verifies the signature over SHA256(nonce || userID).
+// Returns allow/deny with user info.
+func (a *Agent) VerifyBLEAuth(challenge *BLEChallenge, response *BLEAuthResponse, lockID string) (decision string, userID string, userEmail string) {
+	if challenge == nil || response == nil {
+		return "deny", "", ""
+	}
+
+	// Check challenge hasn't expired
+	if challenge.IsExpired() {
+		return "deny", response.UserID, ""
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	// Deny all access if rules cache has expired
+	if a.rulesCacheTTL > 0 && !a.rulesUpdatedAt.IsZero() {
+		if time.Since(a.rulesUpdatedAt) > a.rulesCacheTTL {
+			return "deny", response.UserID, ""
+		}
+	}
+
+	// Find the BLE credential rule for this user
+	for _, rule := range a.accessRules {
+		if strings.ToLower(rule.CredentialType) != "ble_signature" {
+			continue
+		}
+		if rule.UserID != response.UserID {
+			continue
+		}
+
+		// Verify signature using stored public key (rule.CredentialData = PEM public key)
+		err := VerifyBLESignature(rule.CredentialData, challenge.Nonce, response.UserID, response.Signature)
+		if err != nil {
+			a.logger.Warn("BLE signature verification failed",
+				"user_id", response.UserID,
+				"error", err,
+			)
+			return "deny", rule.UserID, rule.UserEmail
+		}
+
+		// Signature valid — check if user has access to this lock
+		for _, id := range rule.LockIDs {
+			if id == lockID {
+				return "allow", rule.UserID, rule.UserEmail
+			}
+		}
+		// Valid credential but no access to this lock
+		return "deny", rule.UserID, rule.UserEmail
+	}
+
+	return "deny", response.UserID, ""
+}
+
+// HandleBLEAuth is the high-level handler for a complete BLE authentication.
+// Called by the BLE reader after receiving an auth response from a phone.
+func (a *Agent) HandleBLEAuth(challenge *BLEChallenge, response *BLEAuthResponse, lockID string) BLEAuthResult {
+	decision, userID, userEmail := a.VerifyBLEAuth(challenge, response, lockID)
+
+	logger := a.logger.With(
+		"credential_type", "ble_signature",
+		"lock_id", lockID,
+		"user_id", userID,
+		"decision", decision,
+	)
+
+	if decision == "allow" {
+		logger.Info("BLE ACCESS GRANTED — unlocking door")
+		if err := a.relay.Unlock(a.unlockDuration); err != nil {
+			logger.Error("relay unlock failed", "error", err)
+		}
+		a.queueEvent(AccessEvent{
+			GatewayID:  a.gatewayID,
+			EventType:  "access_granted",
+			LockID:     lockID,
+			Actor:      userEmail,
+			Result:     "allow",
+			OccurredAt: time.Now().UTC().Format(time.RFC3339),
+		})
+		return BLEAuthResult{Code: BLEResultGranted, Reason: "access_granted"}
+	}
+
+	reason := "no_access"
+	code := BLEResultDenied
+	if challenge.IsExpired() {
+		reason = "challenge_expired"
+		code = BLEResultExpiredChallenge
+	} else if userID == "" {
+		reason = "unknown_user"
+		code = BLEResultUnknownUser
+	}
+
+	logger.Warn("BLE ACCESS DENIED", "reason", reason)
+	a.queueEvent(AccessEvent{
+		GatewayID:  a.gatewayID,
+		EventType:  "access_denied",
+		LockID:     lockID,
+		Actor:      userEmail,
+		Result:     reason,
+		OccurredAt: time.Now().UTC().Format(time.RFC3339),
+	})
+	return BLEAuthResult{Code: code, Reason: reason}
 }
 
 // HandleCredentialPresented is called when a reader detects a credential.
