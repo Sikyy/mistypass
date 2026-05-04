@@ -542,6 +542,17 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			credRouter.Post("/revoke-user", s.adminRevokeAllUserCredentials)
 		})
 
+		// Southbound device gateway (Hikvision, ZKTeco direct control)
+		r.Route("/gateway/southbound", func(sbRouter chi.Router) {
+			sbRouter.Use(s.withBearerToken)
+			sbRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			sbRouter.Post("/{provider}/{deviceID}/unlock", s.southboundUnlock)
+			sbRouter.Post("/{provider}/{deviceID}/sync-users", s.southboundSyncUsers)
+			sbRouter.Post("/{provider}/test", s.southboundTestConnection)
+			// ZKTeco push receiver (no auth — device pushes events here)
+			sbRouter.With(s.withGlobalAPIRateLimit).Post("/zkteco/push", s.southboundZKTecoPush)
+		})
+
 		r.Group(func(protected chi.Router) {
 			protected.Use(s.withBearerToken)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/auth/users/{userID}/building-scope", s.getAuthUserBuildingScope)
