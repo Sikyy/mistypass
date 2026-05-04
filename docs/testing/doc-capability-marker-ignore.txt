@@ -7,3 +7,25 @@
 
 # Generated execution evidence files; not maintained as capability docs.
 docs/testing/artifacts/**
+
+# High-level overview / process docs (not specific capabilities).
+docs/CODE-REVIEW-*.md
+docs/CREDENTIAL-FLOWS.md
+docs/MVP-ROADMAP.md
+docs/NEXT-ROADMAP.md
+docs/QUICK-START.md
+
+# Architecture comparison & evaluation docs.
+docs/architecture/communication-protocol-evaluation.md
+docs/architecture/gateway-cloud-protocol.md
+docs/architecture/kisi-comparison.md
+
+# Archived planning docs (no longer reflect current capabilities).
+docs/archive/**
+
+# Compliance, deployment, hardware, integration analysis.
+docs/compliance-uu-pdp-indonesia.md
+docs/credential-security-architecture.md
+docs/deployment/**
+docs/hardware-integration-guide.md
+docs/kisi-gap-analysis.md
