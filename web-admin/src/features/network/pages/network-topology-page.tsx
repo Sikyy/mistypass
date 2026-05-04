@@ -149,13 +149,13 @@ function DeviceCard({
     ? "bg-gradient-to-r from-[#f3f4ff] to-white border-[#c5c9ff]"
     : isGateway
       ? "bg-white border-[#e1e3e8]"
-      : "bg-[#fbfbfc] border-[#eceef2]"
+      : "bg-surface-page border-line-subtle"
 
   const iconBg = isCloud
     ? "bg-[#eef0ff] text-[#4f55ff]"
     : isGateway
-      ? "bg-[#fbfbfc] text-[#6f717c] ring-1 ring-[#eceef2]"
-      : "bg-[#f1f2f5] text-[#6f717c]"
+      ? "bg-surface-page text-content-subtle ring-1 ring-[#eceef2]"
+      : "bg-[#f1f2f5] text-content-subtle"
 
   const iconSize = isCloud || isGateway ? "size-10" : "size-8"
   const innerIconSize = isCloud || isGateway ? "size-5" : "size-4"
@@ -173,16 +173,16 @@ function DeviceCard({
           <p
             className={`truncate font-medium ${
               isCloud || isGateway
-                ? "text-sm font-semibold text-[#17171c]"
-                : "text-sm text-[#2f3037]"
+                ? "text-sm font-semibold text-content-heading"
+                : "text-sm text-content-body"
             }`}
           >
             {node.label}
           </p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#9a9ca7]">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-content-muted">
             <span className="capitalize">{node.type}</span>
             {node.protocol ? (
-              <span className="rounded bg-[#f1f2f5] px-1.5 py-0.5 text-[10px] font-medium text-[#6f717c]">
+              <span className="rounded bg-[#f1f2f5] px-1.5 py-0.5 text-[10px] font-medium text-content-subtle">
                 {protocolLabel(node.protocol)}
               </span>
             ) : null}
@@ -199,7 +199,7 @@ function DeviceCard({
 
       {/* Edge / connection label */}
       {edge && depth > 0 ? (
-        <div className="mt-2 ml-14 flex items-center gap-1.5 text-[10px] text-[#9a9ca7]">
+        <div className="mt-2 ml-14 flex items-center gap-1.5 text-[10px] text-content-muted">
           <RadioIcon className="size-3" />
           <span>via {protocolLabel(edge.protocol)}</span>
         </div>
@@ -263,9 +263,9 @@ function FlatGrid({ nodes }: { nodes: TopologyNode[] }) {
     <div className="space-y-6">
       {groups.map(([type, items]) => (
         <div key={type}>
-          <h3 className="mb-3 text-sm font-semibold capitalize text-[#17171c]">
+          <h3 className="mb-3 text-sm font-semibold capitalize text-content-heading">
             {type === "cloud" ? "Cloud" : `${type}s`}
-            <span className="ml-2 text-xs font-normal text-[#9a9ca7]">({items.length})</span>
+            <span className="ml-2 text-xs font-normal text-content-muted">({items.length})</span>
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {items.map((node) => (
@@ -290,7 +290,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => vo
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-1.5 text-xs font-medium text-[#2f3037] hover:bg-[#f1f2f5]"
+          className="inline-flex items-center gap-1.5 rounded-[6px] border border-line-default bg-white px-3 py-1.5 text-xs font-medium text-content-body hover:bg-[#f1f2f5]"
         >
           <RefreshCwIcon className="size-3" />
           Retry
@@ -339,7 +339,7 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
           type="button"
           onClick={() => topologyQuery.refetch()}
           disabled={topologyQuery.isFetching}
-          className="inline-flex items-center gap-2 rounded-[6px] border border-[#d9dbe3] bg-white px-4 py-2 text-sm font-medium text-[#2f3037] hover:bg-[#f1f2f5] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-[6px] border border-line-default bg-white px-4 py-2 text-sm font-medium text-content-body hover:bg-[#f1f2f5] disabled:opacity-50"
         >
           <RefreshCwIcon className={`size-4 ${topologyQuery.isFetching ? "animate-spin" : ""}`} />
           Refresh
@@ -386,7 +386,7 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
 
       {/* Topology visualization */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold text-[#17171c]">Topology Map</h2>
+        <h2 className="mb-4 text-lg font-semibold text-content-heading">Topology Map</h2>
 
         {error ? (
           <ErrorBanner
@@ -396,13 +396,13 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
         ) : loading ? (
           <div className="rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-12 text-center">
             <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-[#e1e3e8] border-t-[#4f55ff]" />
-            <p className="text-sm text-[#6f717c]">Loading network topology...</p>
+            <p className="text-sm text-content-subtle">Loading network topology...</p>
           </div>
         ) : !topology || topology.nodes.length === 0 ? (
           <div className="rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-12 text-center">
             <NetworkIcon className="mx-auto mb-3 size-10 text-[#d9dbe3]" />
-            <p className="text-sm font-medium text-[#2f3037]">No network devices found</p>
-            <p className="mt-1 text-xs text-[#9a9ca7]">
+            <p className="text-sm font-medium text-content-body">No network devices found</p>
+            <p className="mt-1 text-xs text-content-muted">
               Register a gateway to see your network topology here.
             </p>
           </div>
@@ -416,7 +416,7 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
       {/* Legend */}
       {topology && topology.nodes.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-[#17171c]">Legend</h2>
+          <h2 className="mb-3 text-sm font-semibold text-content-heading">Legend</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-3">
             {(
               [
@@ -430,17 +430,17 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
             ).map(([type, label]) => {
               const Icon = nodeIcon(type)
               return (
-                <span key={type} className="inline-flex items-center gap-1.5 text-xs text-[#6f717c]">
+                <span key={type} className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
                   <Icon className="size-3.5" />
                   {label}
                 </span>
               )
             })}
-            <span className="inline-flex items-center gap-1.5 text-xs text-[#6f717c]">
+            <span className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
               <span className="size-2 rounded-full bg-[#35a853]" />
               Online
             </span>
-            <span className="inline-flex items-center gap-1.5 text-xs text-[#6f717c]">
+            <span className="inline-flex items-center gap-1.5 text-xs text-content-subtle">
               <span className="size-2 rounded-full bg-[#d93025]" />
               Offline
             </span>

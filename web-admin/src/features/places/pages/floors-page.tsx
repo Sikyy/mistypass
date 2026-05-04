@@ -254,7 +254,7 @@ export function FloorsAdaptedPage({
               setActionError("")
               setAddFloorOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Floor
@@ -262,7 +262,7 @@ export function FloorsAdaptedPage({
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             Live floor resources are unavailable. Showing reference data.
           </div>
         ) : null}
@@ -272,12 +272,12 @@ export function FloorsAdaptedPage({
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             {actionError}
           </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
+        <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
           <div className="grid gap-4 p-6 md:grid-cols-3">
             {floors.map((floor) => (
               <button
@@ -285,21 +285,21 @@ export function FloorsAdaptedPage({
                 type="button"
                 onClick={() => setSelectedFloorID(floor.id)}
                 className={cn(
-                  "rounded-[6px] border border-[#eceef2] p-5 text-left transition-colors hover:bg-[#fbfbfc]",
+                  "rounded-[6px] border border-line-subtle p-5 text-left transition-colors hover:bg-surface-page",
                   selectedFloor?.id === floor.id && "bg-[#f4f3ef]"
                 )}
               >
-                <LayersIcon className="size-6 text-[#6f717c]" />
-                <h2 className="mt-5 text-lg font-semibold text-[#17171c]">{floor.name}</h2>
-                <p className="mt-2 min-h-10 text-sm text-[#6f717c]">{floor.description}</p>
+                <LayersIcon className="size-6 text-content-subtle" />
+                <h2 className="mt-5 text-lg font-semibold text-content-heading">{floor.name}</h2>
+                <p className="mt-2 min-h-10 text-sm text-content-subtle">{floor.description}</p>
                 <div className="mt-5 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-[#2f3037]">{floor.doorCount} doors</span>
+                  <span className="text-sm font-semibold text-content-body">{floor.doorCount} doors</span>
                   <StatusDot tone={floor.tone} label={floor.statusLabel} />
                 </div>
               </button>
             ))}
             {floors.length === 0 ? (
-              <div className="col-span-full px-6 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noAreas")}</div>
+              <div className="col-span-full px-6 py-10 text-center text-sm text-content-subtle">{t("kisi.floors.noAreas")}</div>
             ) : null}
           </div>
         </section>
@@ -313,7 +313,7 @@ export function FloorsAdaptedPage({
               <Button
                 disabled={!canMutate || !selectedFloor || updateFloorMutation.isPending || !floorName.trim()}
                 onClick={() => updateFloorMutation.mutate()}
-                className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
               >
                 {updateFloorMutation.isPending ? "Saving..." : "Save"}
               </Button>
@@ -321,7 +321,7 @@ export function FloorsAdaptedPage({
               <Button
                 disabled={!canMutate || !selectedArea || updateAreaMutation.isPending || !areaName.trim()}
                 onClick={() => updateAreaMutation.mutate()}
-                className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
               >
                 {updateAreaMutation.isPending ? "Saving..." : "Save Area"}
               </Button>
@@ -353,16 +353,16 @@ export function FloorsAdaptedPage({
               />
               <div className="grid gap-6 p-7 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
+                  <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.name")}</span>
                   <input
                     value={floorName}
                     disabled={!selectedFloor}
                     onChange={(event) => setFloorName(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                    className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                   />
                 </label>
                 <FormField label={t("common.description")} value={selectedFloor?.description ?? "No areas mapped yet"} />
-                <FormField label={t("common.group")} value={i18next.t("common.group")} trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+                <FormField label={t("common.group")} value={i18next.t("common.group")} trailing={<ChevronDownIcon className="size-4 text-content-subtle" />} />
                 <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
               </div>
             </>
@@ -383,7 +383,7 @@ export function FloorsAdaptedPage({
                       setActionError("")
                       setAddAreaOpen(true)
                     }}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                   >
                     <PlusIcon className="mr-1.5 size-4" />
                     Add Area
@@ -398,26 +398,26 @@ export function FloorsAdaptedPage({
                       type="button"
                       onClick={() => setSelectedAreaID(area.id)}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-[6px] border border-[#eceef2] px-4 py-3 text-left text-sm hover:bg-[#fbfbfc]",
+                        "flex w-full items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3 text-left text-sm hover:bg-surface-page",
                         selectedArea?.id === area.id && "bg-[#f4f3ef]"
                       )}
                     >
-                      <span className="font-semibold text-[#17171c]">{area.name}</span>
-                      <span className="text-[#6f717c]">{area.doorCount}</span>
+                      <span className="font-semibold text-content-heading">{area.name}</span>
+                      <span className="text-content-subtle">{area.doorCount}</span>
                     </button>
                   ))}
                   {selectedFloorAreas.length === 0 ? (
-                    <div className="rounded-[6px] border border-[#eceef2] px-4 py-8 text-center text-sm text-[#6f717c]">{t("kisi.floors.noAreas")}</div>
+                    <div className="rounded-[6px] border border-line-subtle px-4 py-8 text-center text-sm text-content-subtle">{t("kisi.floors.noAreas")}</div>
                   ) : null}
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
+                    <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.name")}</span>
                     <input
                       value={areaName}
                       disabled={!selectedArea}
                       onChange={(event) => setAreaName(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                      className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                     />
                   </label>
                   <FormField label={t("kisi.doors.title")} value={selectedArea ? String(selectedArea.doorCount) : "No area selected"} />
@@ -431,16 +431,16 @@ export function FloorsAdaptedPage({
           {activeTab === "Doors" ? (
             <>
               <PanelHeader title={t("kisi.floors.doors")} description={t("kisi.floors.description")} />
-              <div className="divide-y divide-[#eceef2]">
+              <div className="divide-y divide-line-subtle">
                 {selectedFloorDoors.map((door) => (
                   <div key={door.id} className="grid gap-3 px-7 py-5 md:grid-cols-[240px_160px_1fr] md:items-center">
                     <span className="font-semibold text-[#4f55ff]">{door.name}</span>
                     <StatusDot tone={door.status === "online" ? "success" : "warning"} label={door.status === "online" ? "Online" : "Review"} />
-                    <span className="text-sm text-[#6f717c]">{door.gatewaySerial}</span>
+                    <span className="text-sm text-content-subtle">{door.gatewaySerial}</span>
                   </div>
                 ))}
                 {selectedFloorDoors.length === 0 ? (
-                  <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noDoors")}</div>
+                  <div className="px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.floors.noDoors")}</div>
                 ) : null}
               </div>
             </>
@@ -451,15 +451,15 @@ export function FloorsAdaptedPage({
               <PanelHeader title={t("common.hardware")} description={t("kisi.floors.description")} />
               <div className="grid gap-4 p-7 md:grid-cols-2">
                 {selectedFloorHardware.map((item) => (
-                  <div key={item.id} className="rounded-[6px] border border-[#eceef2] p-5">
-                    <ServerIcon className="size-6 text-[#6f717c]" />
-                    <h3 className="mt-5 font-semibold text-[#17171c]">{item.name}</h3>
+                  <div key={item.id} className="rounded-[6px] border border-line-subtle p-5">
+                    <ServerIcon className="size-6 text-content-subtle" />
+                    <h3 className="mt-5 font-semibold text-content-heading">{item.name}</h3>
                     <div className="mt-4"><StatusDot tone={item.tone} label={item.statusLabel} /></div>
-                    <p className="mt-2 text-sm text-[#6f717c]">{item.location}</p>
+                    <p className="mt-2 text-sm text-content-subtle">{item.location}</p>
                   </div>
                 ))}
                 {selectedFloorHardware.length === 0 ? (
-                  <div className="col-span-full px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.floors.noDoors")}</div>
+                  <div className="col-span-full px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.floors.noDoors")}</div>
                 ) : null}
               </div>
             </>
@@ -490,7 +490,7 @@ export function FloorsAdaptedPage({
         title={t("kisi.floors.deleteFloor")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteFloorTarget?.name ?? "this floor"}</span> from{" "}
+            This removes <span className="font-semibold text-content-heading">{deleteFloorTarget?.name ?? "this floor"}</span> from{" "}
             {place?.name ?? "this place"}. It currently contains {deleteFloorTarget?.doorCount ?? 0} door
             {(deleteFloorTarget?.doorCount ?? 0) === 1 ? "" : "s"}.
           </>
@@ -508,7 +508,7 @@ export function FloorsAdaptedPage({
 
       <Sheet open={addFloorOpen} onOpenChange={setAddFloorOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[420px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.floors.addFloor")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
@@ -520,26 +520,26 @@ export function FloorsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={newFloorName}
                 onChange={(event) => setNewFloorName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setAddFloorOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={!canMutate || createFloorMutation.isPending || !newFloorName.trim()}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createFloorMutation.isPending ? "Creating..." : t("kisi.floors.addFloor")}
               </Button>
@@ -550,7 +550,7 @@ export function FloorsAdaptedPage({
 
       <Sheet open={addAreaOpen} onOpenChange={setAddAreaOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[420px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.floors.addArea")}</SheetTitle>
             <SheetDescription>{selectedFloor?.name ?? place?.name ?? "Selected floor"}</SheetDescription>
           </SheetHeader>
@@ -562,26 +562,26 @@ export function FloorsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={newAreaName}
                 onChange={(event) => setNewAreaName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setAddAreaOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedFloor || createAreaMutation.isPending || !newAreaName.trim()}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createAreaMutation.isPending ? "Creating..." : t("kisi.floors.addArea")}
               </Button>

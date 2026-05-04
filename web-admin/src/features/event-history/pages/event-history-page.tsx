@@ -80,25 +80,25 @@ export function EventHistoryAdaptedPage({
       description={placeScoped ? t("kisi.eventHistory.unlockDesc") : t("kisi.eventHistory.description")}
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live event resources are unavailable. Showing reference data.
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="border-b border-[#eceef2] px-5 py-4">
-          <h2 className="text-base font-semibold text-[#17171c]">{placeScoped ? t("kisi.eventHistory.unlockHistory") : t("kisi.eventHistory.title")}</h2>
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="border-b border-line-subtle px-5 py-4">
+          <h2 className="text-base font-semibold text-content-heading">{placeScoped ? t("kisi.eventHistory.unlockHistory") : t("kisi.eventHistory.title")}</h2>
         </div>
-        <div className="flex items-center gap-2 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4 text-xs text-[#6f717c]">
+        <div className="flex items-center gap-2 border-b border-line-subtle bg-surface-page px-6 py-4 text-xs text-content-subtle">
           <MapPinPlusIcon className="size-4" />
           {t("kisi.eventHistory.timezone")} <span className="text-[#4f55ff]">{t("kisi.accessLink.change")}</span>
         </div>
-        <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-4 md:flex-row md:items-center">
+        <div className="flex flex-col gap-3 border-b border-line-subtle px-6 py-4 md:flex-row md:items-center">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-10 justify-between font-normal md:w-36">
                 {dateFilter === "all" ? t("kisi.eventHistory.allTime") : dateFilter === "today" ? t("kisi.eventHistory.today") : t("kisi.eventHistory.last7Days")}
-                <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
+                <ChevronDownIcon className="ml-2 size-4 text-content-subtle" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-36">
@@ -111,7 +111,7 @@ export function EventHistoryAdaptedPage({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-10 justify-between font-normal md:w-40">
                 {actionFilter === "all" ? t("kisi.eventHistory.allActions") : actionFilter}
-                <ChevronDownIcon className="ml-2 size-4 text-[#6f717c]" />
+                <ChevronDownIcon className="ml-2 size-4 text-content-subtle" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="max-h-60 w-40 overflow-y-auto">
@@ -126,7 +126,7 @@ export function EventHistoryAdaptedPage({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] text-[#2f3037]">
+              <tr className="border-b border-line-subtle text-content-body">
                 <th className="w-12 px-6 py-4" />
                 <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.object")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.eventHistory.action")}</th>
@@ -140,25 +140,25 @@ export function EventHistoryAdaptedPage({
                 const expanded = expandedRow === row.id
                 return (
                   <Fragment key={row.id}>
-                    <tr className={cn("border-b border-[#eceef2] last:border-0", expanded && "bg-[#e7e5df]")}>
+                    <tr className={cn("border-b border-line-subtle last:border-0", expanded && "bg-[#e7e5df]")}>
                       <td className="px-6 py-4">
                         <button type="button" onClick={() => setExpandedRow(expanded ? "" : row.id)} aria-label={`Toggle ${row.object} details`}>
-                          <ChevronDownIcon className={cn("size-4 text-[#2f3037] transition-transform", !expanded && "-rotate-90")} />
+                          <ChevronDownIcon className={cn("size-4 text-content-body transition-transform", !expanded && "-rotate-90")} />
                         </button>
                       </td>
                       <td className="px-4 py-4 text-[#4f55ff]">{row.object}</td>
-                      <td className="px-4 py-4 text-[#2f3037]">{row.action}</td>
-                      <td className="px-4 py-4 text-[#6f717c]">{row.user}</td>
-                      <td className="px-4 py-4 text-[#2f3037]">{row.timeLabel}</td>
+                      <td className="px-4 py-4 text-content-body">{row.action}</td>
+                      <td className="px-4 py-4 text-content-subtle">{row.user}</td>
+                      <td className="px-4 py-4 text-content-body">{row.timeLabel}</td>
                       <td className="px-4 py-4">
                         <StatusDot tone={row.tone} label={row.statusLabel} />
                       </td>
                     </tr>
                     {expanded ? (
-                      <tr className="border-b border-[#eceef2] bg-[#f7f7f8]">
+                      <tr className="border-b border-line-subtle bg-[#f7f7f8]">
                         <td className="px-6 py-4" />
-                        <td colSpan={5} className="px-4 py-4 text-sm leading-6 text-[#6f717c]">
-                          <span className="font-semibold text-[#2f3037]">{t("kisi.eventHistory.details")}</span>
+                        <td colSpan={5} className="px-4 py-4 text-sm leading-6 text-content-subtle">
+                          <span className="font-semibold text-content-body">{t("kisi.eventHistory.details")}</span>
                           <p className="mt-1">{row.details}</p>
                         </td>
                       </tr>

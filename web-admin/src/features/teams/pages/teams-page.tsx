@@ -321,7 +321,7 @@ export function TeamsAdaptedPage({
           <Button
             disabled={!canMutate}
             onClick={openMemberSheet}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Member
@@ -330,7 +330,7 @@ export function TeamsAdaptedPage({
             variant="outline"
             disabled={!canMutate}
             onClick={openTeamSheet}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
           >
             New Team
           </Button>
@@ -341,7 +341,7 @@ export function TeamsAdaptedPage({
               setActionError("")
               setDeleteTeamConfirmOpen(true)
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
           >
             Delete Team
           </Button>
@@ -349,7 +349,7 @@ export function TeamsAdaptedPage({
       }
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live team resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -359,7 +359,7 @@ export function TeamsAdaptedPage({
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
@@ -368,15 +368,15 @@ export function TeamsAdaptedPage({
         {t("kisi.teams.pageDesc")}
       </InfoBanner>
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-base font-semibold text-[#17171c]">{t("kisi.teams.title")}</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.teams.pageDesc")}</p>
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="border-b border-line-subtle px-6 py-5">
+          <h2 className="text-base font-semibold text-content-heading">{t("kisi.teams.title")}</h2>
+          <p className="mt-1 text-sm text-content-subtle">{t("kisi.teams.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[780px] text-left text-sm">
-            <thead className="bg-[#fbfbfc]">
-              <tr className="border-b border-[#eceef2]">
+            <thead className="bg-surface-page">
+              <tr className="border-b border-line-subtle">
                 <th className="px-6 py-4 font-semibold">{t("kisi.teams.name")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.scope")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.teams.members")}</th>
@@ -388,16 +388,16 @@ export function TeamsAdaptedPage({
               {teams.map((team) => (
                 <tr
                   key={team.id}
-                  className={`border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc] ${selectedTeam?.id === team.id ? "bg-[#f7f7ff]" : ""}`}
+                  className={`border-b border-line-subtle last:border-0 hover:bg-surface-page ${selectedTeam?.id === team.id ? "bg-[#f7f7ff]" : ""}`}
                 >
                   <td className="px-6 py-5">
                     <button type="button" onClick={() => setSelectedTeamID(team.id)} className="font-semibold text-[#4f55ff]">
                       {team.name}
                     </button>
                   </td>
-                  <td className="px-4 py-5 text-[#2f3037]">{team.scopeLabel}</td>
-                  <td className="px-4 py-5 text-[#6f717c]">{team.memberCount}</td>
-                  <td className="px-4 py-5 text-[#6f717c]">{team.accessRightCount}</td>
+                  <td className="px-4 py-5 text-content-body">{team.scopeLabel}</td>
+                  <td className="px-4 py-5 text-content-subtle">{team.memberCount}</td>
+                  <td className="px-4 py-5 text-content-subtle">{team.accessRightCount}</td>
                   <td className="px-4 py-5">
                     <StatusDot tone={team.tone} label={team.statusLabel} />
                   </td>
@@ -417,7 +417,7 @@ export function TeamsAdaptedPage({
           <Button
             disabled={!canMutate || !selectedTeam || updateTeamMutation.isPending || !teamName.trim()}
             onClick={() => updateTeamMutation.mutate()}
-            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             Save
           </Button>
@@ -428,17 +428,17 @@ export function TeamsAdaptedPage({
             <PanelHeader title={t("common.general")} description={t("kisi.teams.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.teamName")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("kisi.teams.teamName")}</span>
                 <input
                   value={teamName}
                   disabled={!selectedTeam}
                   onChange={(event) => setTeamName(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <FormField label={t("kisi.teams.owner")} value="Organization Admin" />
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.teams.defaultPlace")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("kisi.teams.defaultPlace")}</span>
                 <div className="relative">
                   <select
                     value={teamScope === "organization" ? "organization" : teamPlaceID}
@@ -452,7 +452,7 @@ export function TeamsAdaptedPage({
                         setTeamPlaceID(event.target.value)
                       }
                     }}
-                    className="h-11 w-full appearance-none rounded-[6px] border border-[#d9dbe3] bg-white px-3 pr-9 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                    className="h-11 w-full appearance-none rounded-[6px] border border-line-default bg-white px-3 pr-9 text-sm text-content-body disabled:bg-surface-sunken"
                   >
                     {!placeScoped ? <option value="organization">{t("common.organization")}</option> : null}
                     {places.map((place) => (
@@ -461,19 +461,19 @@ export function TeamsAdaptedPage({
                       </option>
                     ))}
                   </select>
-                  <ChevronDownIcon className="pointer-events-none absolute right-3 top-3.5 size-4 text-[#6f717c]" />
+                  <ChevronDownIcon className="pointer-events-none absolute right-3 top-3.5 size-4 text-content-subtle" />
                 </div>
               </label>
               <FormField label="Directory source" value={selectedTeam?.sourceLabel ?? "Manual"} />
             </div>
-            <label className="block border-t border-[#eceef2] px-7 py-5">
-              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.description")}</span>
+            <label className="block border-t border-line-subtle px-7 py-5">
+              <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.description")}</span>
               <textarea
                 value={teamDescription}
                 disabled={!selectedTeam}
                 onChange={(event) => setTeamDescription(event.target.value)}
                 rows={3}
-                className="w-full rounded-[6px] border border-[#d9dbe3] px-3 py-2 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                className="w-full rounded-[6px] border border-line-default px-3 py-2 text-sm text-content-body disabled:bg-surface-sunken"
               />
             </label>
           </>
@@ -489,7 +489,7 @@ export function TeamsAdaptedPage({
                   variant="outline"
                   disabled={!canMutate || !selectedTeam}
                   onClick={openMemberSheet}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   Add Members
                 </Button>
@@ -498,7 +498,7 @@ export function TeamsAdaptedPage({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
+                  <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                     <th className="px-7 py-4 font-semibold">{t("kisi.teams.name")}</th>
                     <th className="px-4 py-4 font-semibold">{t("common.email")}</th>
                     <th className="px-4 py-4 font-semibold">{t("kisi.teams.source")}</th>
@@ -508,10 +508,10 @@ export function TeamsAdaptedPage({
                 </thead>
                 <tbody>
                   {selectedMemberships.map((membership) => (
-                    <tr key={membership.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
+                    <tr key={membership.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
                       <td className="px-7 py-5 font-semibold text-[#4f55ff]">{membership.name}</td>
-                      <td className="px-4 py-5 text-[#6f717c]">{membership.email}</td>
-                      <td className="px-4 py-5 text-[#2f3037]">{membership.sourceLabel}</td>
+                      <td className="px-4 py-5 text-content-subtle">{membership.email}</td>
+                      <td className="px-4 py-5 text-content-body">{membership.sourceLabel}</td>
                       <td className="px-4 py-5">
                         <StatusDot tone={membership.tone} label={membership.statusLabel} />
                       </td>
@@ -554,23 +554,23 @@ export function TeamsAdaptedPage({
                   variant="outline"
                   disabled={!canMutate || !selectedTeam}
                   onClick={openAccessSheet}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   Assign Access Right
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {selectedAccessRights.map((accessRight) => (
                 <div key={accessRight.id} className="grid gap-3 px-7 py-5 md:grid-cols-[210px_170px_1fr_170px] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{accessRight.ruleLabel}</span>
-                  <span className="text-sm text-[#2f3037]">{accessRight.targetLabel}</span>
-                  <span className="text-sm text-[#6f717c]">{accessRight.subjectType}</span>
+                  <span className="font-semibold text-content-heading">{accessRight.ruleLabel}</span>
+                  <span className="text-sm text-content-body">{accessRight.targetLabel}</span>
+                  <span className="text-sm text-content-subtle">{accessRight.subjectType}</span>
                   <StatusDot tone={accessRight.tone} label={accessRight.statusLabel} />
                 </div>
               ))}
               {selectedAccessRights.length === 0 ? (
-                <div className="px-7 py-10 text-sm text-[#6f717c]">{t("kisi.teams.noAR")}</div>
+                <div className="px-7 py-10 text-sm text-content-subtle">{t("kisi.teams.noAR")}</div>
               ) : null}
             </div>
           </>
@@ -601,7 +601,7 @@ export function TeamsAdaptedPage({
         title={t("kisi.teams.deleteTeam")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{selectedTeam?.name ?? "this team"}</span> and its team
+            This removes <span className="font-semibold text-content-heading">{selectedTeam?.name ?? "this team"}</span> and its team
             membership records from this workspace.
           </>
         }
@@ -622,7 +622,7 @@ export function TeamsAdaptedPage({
         title={t("kisi.teams.removeTeamMember")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteMembershipTarget?.name ?? t("common.members")}</span>{" "}
+            This removes <span className="font-semibold text-content-heading">{deleteMembershipTarget?.name ?? t("common.members")}</span>{" "}
             from {selectedTeam?.name ?? "this team"}.
           </>
         }
@@ -639,7 +639,7 @@ export function TeamsAdaptedPage({
 
       <Sheet open={teamSheetOpen} onOpenChange={setTeamSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.teams.newTeam")}</SheetTitle>
             <SheetDescription>{t("kisi.teams.createDesc")}</SheetDescription>
           </SheetHeader>
@@ -651,15 +651,15 @@ export function TeamsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.teams.name")}</span>
               <input
                 value={teamName}
                 onChange={(event) => setTeamName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scope")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scope")}</span>
               <select
                 value={teamScope === "organization" ? "organization" : teamPlaceID}
                 onChange={(event) => {
@@ -671,7 +671,7 @@ export function TeamsAdaptedPage({
                     setTeamPlaceID(event.target.value)
                   }
                 }}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {!placeScoped ? <option value="organization">{t("common.organization")}</option> : null}
                 {places.map((place) => (
@@ -682,19 +682,19 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.description")}</span>
               <textarea
                 value={teamDescription}
                 onChange={(event) => setTeamDescription(event.target.value)}
                 rows={3}
-                className="w-full rounded-[6px] border border-[#d9dbe3] px-3 py-2 text-sm text-[#2f3037]"
+                className="w-full rounded-[6px] border border-line-default px-3 py-2 text-sm text-content-body"
               />
             </label>
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutate || !teamName.trim() || createTeamMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createTeamMutation.isPending ? "Creating..." : "Create Team"}
               </Button>
@@ -705,7 +705,7 @@ export function TeamsAdaptedPage({
 
       <Sheet open={memberSheetOpen} onOpenChange={setMemberSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.teams.addMemberSheet")}</SheetTitle>
             <SheetDescription>{selectedTeam?.name ?? "Selected team"}</SheetDescription>
           </SheetHeader>
@@ -717,7 +717,7 @@ export function TeamsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.memberType")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.teams.memberType")}</span>
               <select
                 value={memberType}
                 onChange={(event) => {
@@ -731,7 +731,7 @@ export function TeamsAdaptedPage({
                     setMemberName("")
                   }
                 }}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="User">{t("common.user")}</option>
                 <option value="Guest">{t("common.guest")}</option>
@@ -739,11 +739,11 @@ export function TeamsAdaptedPage({
             </label>
             {memberType === "User" ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.user")}</span>
                 <select
                   value={memberID}
                   onChange={(event) => updateMemberID(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   {users.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -755,31 +755,31 @@ export function TeamsAdaptedPage({
             ) : (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.guestId")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.teams.guestId")}</span>
                   <input
                     value={memberID}
                     onChange={(event) => {
                       setMemberID(event.target.value)
                       setMemberEmail(event.target.value)
                     }}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.guestName")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.teams.guestName")}</span>
                   <input
                     value={memberName}
                     onChange={(event) => setMemberName(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
                   />
                 </label>
               </>
             )}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedTeam || !memberID.trim() || createMembershipMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createMembershipMutation.isPending ? "Adding..." : "Add Member"}
               </Button>
@@ -790,7 +790,7 @@ export function TeamsAdaptedPage({
 
       <Sheet open={accessSheetOpen} onOpenChange={setAccessSheetOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.teams.assignAR")}</SheetTitle>
             <SheetDescription>{selectedTeam?.name ?? "Selected team"}</SheetDescription>
           </SheetHeader>
@@ -807,18 +807,18 @@ export function TeamsAdaptedPage({
                   key={scope}
                   type="button"
                   onClick={() => updateAccessScope(scope)}
-                  className={cn("h-9 rounded-[5px] text-sm font-semibold", accessScope === scope ? "bg-white text-[#17171c] shadow-sm" : "text-[#6f717c]")}
+                  className={cn("h-9 rounded-[5px] text-sm font-semibold", accessScope === scope ? "bg-white text-content-heading shadow-sm" : "text-content-subtle")}
                 >
                   {scope}
                 </button>
               ))}
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.target")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.target")}</span>
               <select
                 value={accessScopeID}
                 onChange={(event) => setAccessScopeID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {assignableScopes.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -828,11 +828,11 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.role")}</span>
               <select
                 value={accessRoleID}
                 onChange={(event) => setAccessRoleID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {accessRoleOptions.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -842,19 +842,19 @@ export function TeamsAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.teams.validUntil")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.teams.validUntil")}</span>
               <input
                 type="datetime-local"
                 value={validUntil}
                 onChange={(event) => setValidUntil(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedTeam || !accessScopeID || !accessRoleID || assignAccessRightMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {assignAccessRightMutation.isPending ? "Assigning..." : "Assign Access Right"}
               </Button>

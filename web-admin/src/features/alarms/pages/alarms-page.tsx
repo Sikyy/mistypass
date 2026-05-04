@@ -943,7 +943,7 @@ export function AlarmsPage({ token, viewer }: AlarmsPageProps) {
 
         <Sheet open={Boolean(selectedPolicyID)} onOpenChange={(open) => { if (!open) setSelectedPolicyID(null) }}>
           <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-            <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+            <SheetHeader className="border-b border-line-subtle px-6 py-5">
               <SheetTitle>{policyDetail?.name ?? t("alarms.alertPolicies.detail.title", "Policy Details")}</SheetTitle>
               <SheetDescription>
                 {policyDetail?.description || t("alarms.alertPolicies.detail.noDescription", "No description")}

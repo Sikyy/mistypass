@@ -75,7 +75,7 @@ export function ActionInbox({
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <p className="min-w-0 font-medium text-[#17171c]">{item.title}</p>
+                    <p className="min-w-0 font-medium text-content-heading">{item.title}</p>
                     {item.statusLabel ? (
                       <Badge variant={item.statusVariant ?? "outline"}>{item.statusLabel}</Badge>
                     ) : null}

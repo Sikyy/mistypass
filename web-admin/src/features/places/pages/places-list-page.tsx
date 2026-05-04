@@ -77,7 +77,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               setActionError("")
               setCreateOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Create Place
@@ -85,7 +85,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             Live place resources are unavailable. Showing reference data.
           </div>
         ) : null}
@@ -95,7 +95,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             {actionError}
           </div>
         ) : null}
@@ -106,10 +106,10 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               <Link
                 key={place.id}
                 to={placePath("dashboard", place.id)}
-                className="rounded-[6px] border border-[#d9dbe3] bg-white p-5 transition-colors hover:bg-[#fbfbfc]"
+                className="rounded-[6px] border border-line-default bg-white p-5 transition-colors hover:bg-surface-page"
               >
                 <div className="flex items-start justify-between">
-                  <Building2Icon className="size-6 text-[#6f717c]" />
+                  <Building2Icon className="size-6 text-content-subtle" />
                   <button
                     type="button"
                     className="flex size-8 items-center justify-center rounded-[6px] hover:bg-[#f1f2f5]"
@@ -127,12 +127,12 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
                     }}
                     aria-label={favoritePlaces.has(place.id) ? "Unfavorite" : "Favorite"}
                   >
-                    <StarIcon className={`size-4 ${favoritePlaces.has(place.id) ? "fill-amber-400 text-amber-400" : "text-[#9a9ca7]"}`} />
+                    <StarIcon className={`size-4 ${favoritePlaces.has(place.id) ? "fill-amber-400 text-amber-400" : "text-content-muted"}`} />
                   </button>
                 </div>
-                <h2 className="mt-3 text-lg font-semibold text-[#17171c]">{place.name}</h2>
-                <p className="mt-2 text-sm text-[#6f717c]">{summarizePlaceCounts(place)}</p>
-                <p className="mt-1 truncate text-sm text-[#9a9ca7]">{place.region}</p>
+                <h2 className="mt-3 text-lg font-semibold text-content-heading">{place.name}</h2>
+                <p className="mt-2 text-sm text-content-subtle">{summarizePlaceCounts(place)}</p>
+                <p className="mt-1 truncate text-sm text-content-muted">{place.region}</p>
                 <div className="mt-5">
                   <StatusDot tone={place.tone} label={place.statusLabel} />
                 </div>
@@ -140,17 +140,17 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
             ))}
           </div>
         ) : (
-          <section className="rounded-[6px] border border-[#d9dbe3] bg-white px-6 py-12 text-center">
-            <Building2Icon className="mx-auto size-8 text-[#9a9ca7]" />
-            <p className="mt-3 text-sm font-semibold text-[#17171c]">{t("kisi.places.noPlaces")}</p>
-            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.places.emptyPrompt")}</p>
+          <section className="rounded-[6px] border border-line-default bg-white px-6 py-12 text-center">
+            <Building2Icon className="mx-auto size-8 text-content-muted" />
+            <p className="mt-3 text-sm font-semibold text-content-heading">{t("kisi.places.noPlaces")}</p>
+            <p className="mt-1 text-sm text-content-subtle">{t("kisi.places.emptyPrompt")}</p>
           </section>
         )}
       </PageFrame>
 
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.places.createPlace")}</SheetTitle>
             <SheetDescription>{t("kisi.places.emptyPrompt")}</SheetDescription>
           </SheetHeader>
@@ -162,42 +162,42 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={placeName}
                 onChange={(event) => setPlaceName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.description")}</span>
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.place")}</span>
               <input
                 value={region}
                 onChange={(event) => setRegion(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={!canMutate || createPlaceMutation.isPending || !placeName.trim()}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createPlaceMutation.isPending ? "Creating..." : "Create Place"}
               </Button>

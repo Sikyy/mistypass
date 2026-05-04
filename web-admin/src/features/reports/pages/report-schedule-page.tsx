@@ -160,7 +160,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       description="Configure automated report delivery."
       actions={
         <Button
-          className="h-11 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+          className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
           onClick={openCreate}
         >
           <PlusIcon className="mr-2 size-4" />
@@ -176,16 +176,16 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
 
       {/* Schedule Table */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#6f717c]">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-content-subtle">
           Scheduled Reports ({schedules.length})
         </h2>
         {schedules.length === 0 ? (
-          <p className="text-sm text-[#9a9ca7]">No report schedules configured.</p>
+          <p className="text-sm text-content-muted">No report schedules configured.</p>
         ) : (
-          <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
-            <div className="hidden border-b border-[#eceef2] px-5 py-3 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
+          <div className="overflow-hidden rounded-[6px] border border-line-subtle bg-white">
+            <div className="hidden border-b border-line-subtle px-5 py-3 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]">
               {["Name", "Type", "Frequency", "Recipients", "Last Sent", ""].map((h) => (
-                <span key={h} className="text-xs font-semibold text-[#6f717c]">{h}</span>
+                <span key={h} className="text-xs font-semibold text-content-subtle">{h}</span>
               ))}
             </div>
             {schedules.map((s) => (
@@ -224,21 +224,21 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
               </div>
             )}
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Name *</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Name *</span>
               <input
                 type="text"
                 required
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Report Type *</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Report Type *</span>
               <select
                 value={form.report_type}
                 onChange={(e) => setForm((f) => ({ ...f, report_type: e.target.value }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
               >
                 {REPORT_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -246,11 +246,11 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Frequency *</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Frequency *</span>
               <select
                 value={form.frequency}
                 onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
               >
                 {FREQUENCIES.map((f) => (
                   <option key={f.value} value={f.value}>{f.label}</option>
@@ -258,11 +258,11 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Format</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Format</span>
               <select
                 value={form.format}
                 onChange={(e) => setForm((f) => ({ ...f, format: e.target.value }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
               >
                 {FORMATS.map((f) => (
                   <option key={f.value} value={f.value}>{f.label}</option>
@@ -270,24 +270,24 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Recipients (comma-separated emails) *</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Recipients (comma-separated emails) *</span>
               <input
                 type="text"
                 required
                 value={form.recipients}
                 onChange={(e) => setForm((f) => ({ ...f, recipients: e.target.value }))}
                 placeholder="admin@example.com, ops@example.com"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
               />
             </label>
-            <div className="flex items-center justify-between rounded-[6px] border border-[#eceef2] px-4 py-3">
-              <span className="text-sm font-medium text-[#17171c]">Enabled</span>
+            <div className="flex items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3">
+              <span className="text-sm font-medium text-content-heading">Enabled</span>
               <ToggleSwitch enabled={form.enabled} onToggle={() => setForm((f) => ({ ...f, enabled: !f.enabled }))} />
             </div>
             <SheetFooter>
               <Button
                 type="submit"
-                className="h-11 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+                className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
                 disabled={saving || !form.name.trim() || !form.recipients.trim()}
               >
                 {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Schedule"}
@@ -325,18 +325,18 @@ function ReportRow({
   const typeLabel = REPORT_TYPES.find((t) => t.value === schedule.report_type)?.label ?? schedule.report_type
   const freqLabel = FREQUENCIES.find((f) => f.value === schedule.frequency)?.label ?? schedule.frequency
   return (
-    <div className="flex flex-col gap-2 border-b border-[#eceef2] px-5 py-4 last:border-b-0 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+    <div className="flex flex-col gap-2 border-b border-line-subtle px-5 py-4 last:border-b-0 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
       <div className="flex items-center gap-2">
-        <FileTextIcon className="size-4 shrink-0 text-[#6f717c]" />
+        <FileTextIcon className="size-4 shrink-0 text-content-subtle" />
         <div className="min-w-0">
-          <span className="font-semibold text-[#17171c]">{schedule.name}</span>
-          <span className="ml-2 text-xs uppercase text-[#9a9ca7]">{schedule.format}</span>
+          <span className="font-semibold text-content-heading">{schedule.name}</span>
+          <span className="ml-2 text-xs uppercase text-content-muted">{schedule.format}</span>
         </div>
       </div>
-      <span className="text-sm text-[#6f717c]">{typeLabel}</span>
-      <span className="text-sm text-[#6f717c]">{freqLabel}</span>
-      <span className="truncate text-sm text-[#6f717c]">{schedule.recipients.join(", ")}</span>
-      <span className="text-sm text-[#9a9ca7]">{schedule.last_sent_at ? new Date(schedule.last_sent_at).toLocaleDateString(i18n.language) : "Never"}</span>
+      <span className="text-sm text-content-subtle">{typeLabel}</span>
+      <span className="text-sm text-content-subtle">{freqLabel}</span>
+      <span className="truncate text-sm text-content-subtle">{schedule.recipients.join(", ")}</span>
+      <span className="text-sm text-content-muted">{schedule.last_sent_at ? new Date(schedule.last_sent_at).toLocaleDateString(i18n.language) : "Never"}</span>
       <div className="flex items-center gap-2">
         <ToggleSwitch enabled={schedule.enabled} onToggle={() => onToggle(schedule)} />
         <StatusDot tone={schedule.enabled ? "success" : "warning"} label={schedule.enabled ? "Active" : "Paused"} />

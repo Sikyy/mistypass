@@ -629,7 +629,7 @@ export function AccessRightsAdaptedPage({
               resetShareAccessForm("role_assignment")
               setShareAccessOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Share Access
@@ -637,19 +637,19 @@ export function AccessRightsAdaptedPage({
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             Live access-right resources are unavailable. Showing reference data.
           </div>
         ) : null}
 
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             {actionError}
           </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-          <div className="flex gap-8 overflow-x-auto border-b border-[#eceef2] px-6">
+        <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+          <div className="flex gap-8 overflow-x-auto border-b border-line-subtle px-6">
             {tabs.map((tab) => (
               <button
                 key={tab}
@@ -657,30 +657,30 @@ export function AccessRightsAdaptedPage({
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "whitespace-nowrap py-5 text-base font-semibold",
-                  activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-[#2f3037]"
+                  activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-content-body"
                 )}
               >
                 {tab}
               </button>
             ))}
           </div>
-          <div className="grid gap-3 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4 text-sm text-[#6f717c] sm:grid-cols-3">
+          <div className="grid gap-3 border-b border-line-subtle bg-surface-page px-6 py-4 text-sm text-content-subtle sm:grid-cols-3">
             <div>
-              Needs review <span className="font-semibold text-[#17171c]">{reviewCount}</span>
+              Needs review <span className="font-semibold text-content-heading">{reviewCount}</span>
             </div>
             <div>
-              Scheduled <span className="font-semibold text-[#17171c]">{scheduledCount}</span>
+              Scheduled <span className="font-semibold text-content-heading">{scheduledCount}</span>
             </div>
             <div>
-              Expired <span className="font-semibold text-[#17171c]">{expiredCount}</span>
+              Expired <span className="font-semibold text-content-heading">{expiredCount}</span>
             </div>
           </div>
-          <div className="flex flex-col gap-4 border-b border-[#eceef2] p-6 md:flex-row md:items-center">
+          <div className="flex flex-col gap-4 border-b border-line-subtle p-6 md:flex-row md:items-center">
             <MistyisletSearchField value={query} onChange={setQuery} placeholder={`Search ${activeTab.toLowerCase()}...`} className="h-12 bg-transparent" />
             <select
               value={activeTargetFilter}
               onChange={(event) => setTargetFilter(event.target.value)}
-              className="h-12 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm font-semibold text-[#2f3037] md:w-56"
+              className="h-12 rounded-[6px] border border-line-default bg-white px-4 text-sm font-semibold text-content-body md:w-56"
               aria-label="Filter access rights by target"
             >
               <option value="all">{t("kisi.accessRights.allTargets")}</option>
@@ -693,7 +693,7 @@ export function AccessRightsAdaptedPage({
             <select
               value={scheduleFilter}
               onChange={(event) => setScheduleFilter(event.target.value as ScheduleFilter)}
-              className="h-12 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm font-semibold text-[#2f3037] md:w-48"
+              className="h-12 rounded-[6px] border border-line-default bg-white px-4 text-sm font-semibold text-content-body md:w-48"
               aria-label="Filter access rights by schedule"
             >
               <option value="all">{t("kisi.accessRights.allSchedules")}</option>
@@ -704,10 +704,10 @@ export function AccessRightsAdaptedPage({
             </select>
           </div>
           {someVisibleSelected ? (
-            <div className="flex flex-col gap-3 border-b border-[#eceef2] bg-[#f7f8ff] px-6 py-4 text-sm text-[#2f3037] md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 border-b border-line-subtle bg-[#f7f8ff] px-6 py-4 text-sm text-content-body md:flex-row md:items-center md:justify-between">
               <div>
-                <span className="font-semibold text-[#17171c]">{selectedRows.length}</span> selected
-                <span className="ml-3 text-[#6f717c]">
+                <span className="font-semibold text-content-heading">{selectedRows.length}</span> selected
+                <span className="ml-3 text-content-subtle">
                   {selectedRows.filter(accessRightNeedsReview).length} need review
                 </span>
               </div>
@@ -716,7 +716,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || updateAccessRightsScheduleMutation.isPending}
                   onClick={openBulkScheduleSheet}
-                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-[#2f3037] hover:bg-[#f3f4f8]"
+                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-content-body hover:bg-[#f3f4f8]"
                 >
                   <CalendarClockIcon className="mr-1.5 size-4" />
                   Edit schedule
@@ -725,7 +725,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || previewAccessRightsMutation.isPending || reviewAccessRightsMutation.isPending}
                   onClick={() => previewAccessRightsMutation.mutate()}
-                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-[#2f3037] hover:bg-[#f3f4f8]"
+                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-content-body hover:bg-[#f3f4f8]"
                 >
                   <EyeIcon className="mr-1.5 size-4" />
                   {previewAccessRightsMutation.isPending ? "Previewing..." : t("kisi.accessRights.impactPreview")}
@@ -734,7 +734,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || reviewAccessRightsMutation.isPending || previewAccessRightsMutation.isPending}
                   onClick={() => reviewAccessRightsMutation.mutate()}
-                  className="h-9 rounded-[6px] bg-[#4f55ff] px-3 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                  className="h-9 rounded-[6px] bg-brand px-3 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                 >
                   <CheckIcon className="mr-1.5 size-4" />
                   {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}
@@ -744,15 +744,15 @@ export function AccessRightsAdaptedPage({
           ) : null}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] text-left text-sm">
-              <thead className="bg-[#fbfbfc]">
-                <tr className="border-b border-[#eceef2]">
+              <thead className="bg-surface-page">
+                <tr className="border-b border-line-subtle">
                   <th className="w-16 px-6 py-4">
                     <input
                       type="checkbox"
                       checked={allVisibleSelected}
                       disabled={rows.length === 0 || !canMutate}
                       onChange={(event) => toggleVisibleRows(event.target.checked)}
-                      className="size-5 rounded-[3px] border border-[#9a9ca7] accent-[#4f55ff]"
+                      className="size-5 rounded-[3px] border border-[#9a9ca7] accent-brand"
                       aria-label="Select visible access rights"
                     />
                   </th>
@@ -766,26 +766,26 @@ export function AccessRightsAdaptedPage({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={`${activeTab}-${row.id}`} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
+                  <tr key={`${activeTab}-${row.id}`} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
                     <td className="px-6 py-5">
                       <input
                         type="checkbox"
                         checked={selectedRowKeySet.has(rowSelectionKey(row))}
                         disabled={!canMutate}
                         onChange={(event) => toggleSelectedRow(row, event.target.checked)}
-                        className="size-5 rounded-[3px] border border-[#d9dbe3] accent-[#4f55ff]"
+                        className="size-5 rounded-[3px] border border-line-default accent-brand"
                         aria-label={`Select ${row.name}`}
                       />
                     </td>
                     <td className="px-4 py-5 font-semibold text-[#4f55ff]">{row.name}</td>
-                    <td className="px-4 py-5 text-[#2f3037]">{row.type}</td>
-                    <td className="px-4 py-5 text-[#6f717c]">{row.target}</td>
-                    <td className="px-4 py-5 text-[#6f717c]">{row.rule}</td>
+                    <td className="px-4 py-5 text-content-body">{row.type}</td>
+                    <td className="px-4 py-5 text-content-subtle">{row.target}</td>
+                    <td className="px-4 py-5 text-content-subtle">{row.rule}</td>
                     <td className="px-4 py-5">
                       <div className="space-y-1">
                         <StatusDot tone={row.tone} label={row.status} />
                         {row.reviewedAt ? (
-                          <div className="text-xs text-[#6f717c]">
+                          <div className="text-xs text-content-subtle">
                             Reviewed{row.reviewedBy ? ` by ${row.reviewedBy}` : ""}
                           </div>
                         ) : null}
@@ -838,7 +838,7 @@ export function AccessRightsAdaptedPage({
         title={deleteTarget?.sourceType === "share" ? "Delete access link" : "Delete role assignment"}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteTarget?.name ?? "this access right"}</span> from{" "}
+            This removes <span className="font-semibold text-content-heading">{deleteTarget?.name ?? "this access right"}</span> from{" "}
             {deleteTarget?.target ?? "this scope"}.
           </>
         }
@@ -855,7 +855,7 @@ export function AccessRightsAdaptedPage({
 
       <Sheet open={shareAccessOpen} onOpenChange={setShareAccessOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.accessRights.shareAccess")}</SheetTitle>
             <SheetDescription>{t("kisi.accessRights.shareAccessDesc")}</SheetDescription>
           </SheetHeader>
@@ -873,7 +873,7 @@ export function AccessRightsAdaptedPage({
                 onClick={() => resetShareAccessForm("role_assignment")}
                 className={cn(
                   "h-10 rounded-[5px] text-sm font-semibold",
-                  shareMode === "role_assignment" ? "bg-white text-[#17171c] shadow-sm" : "text-[#6f717c]"
+                  shareMode === "role_assignment" ? "bg-white text-content-heading shadow-sm" : "text-content-subtle"
                 )}
               >
                 Role Assignment
@@ -884,7 +884,7 @@ export function AccessRightsAdaptedPage({
                 onClick={() => resetShareAccessForm("share")}
                 className={cn(
                   "h-10 rounded-[5px] text-sm font-semibold",
-                  shareMode === "share" ? "bg-white text-[#17171c] shadow-sm" : "text-[#6f717c]"
+                  shareMode === "share" ? "bg-white text-content-heading shadow-sm" : "text-content-subtle"
                 )}
               >
                 Access Link
@@ -895,11 +895,11 @@ export function AccessRightsAdaptedPage({
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scopeType")}</span>
                     <select
                       value={scopeType}
                       onChange={(event) => updateScopeType(event.target.value as RoleAssignment["applies_to_type"])}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       {scopeTypeOptions.map((type) => (
                         <option key={type} value={type}>
@@ -909,11 +909,11 @@ export function AccessRightsAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.role")}</span>
                     <select
                       value={roleID}
                       onChange={(event) => setRoleID(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       {roleOptions.length === 0 ? (
                         <option value={roleID}>{roleID}</option>
@@ -929,11 +929,11 @@ export function AccessRightsAdaptedPage({
                 </div>
 
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scope")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scope")}</span>
                   <select
                     value={scopeID}
                     onChange={(event) => setScopeID(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     {scopeOptions.length === 0 ? (
                       <option value="">{t("common.noDataFound")}</option>
@@ -949,11 +949,11 @@ export function AccessRightsAdaptedPage({
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.assigneeType")}</span>
                     <select
                       value={assigneeType}
                       onChange={(event) => updateAssigneeType(event.target.value as RoleAssignment["assignee_type"])}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="User">{t("kisi.accessRights.user")}</option>
                       <option value="Team">{t("kisi.accessRights.team")}</option>
@@ -962,23 +962,23 @@ export function AccessRightsAdaptedPage({
                   </label>
                   {assigneeType === "Guest" ? (
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assigneeEmail")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.accessRights.assigneeEmail")}</span>
                       <input
                         value={assigneeEmail}
                         onChange={(event) => {
                           setAssigneeEmail(event.target.value)
                           setAssigneeID(event.target.value)
                         }}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       />
                     </label>
                   ) : (
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assignee")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.accessRights.assignee")}</span>
                       <select
                         value={assigneeID}
                         onChange={(event) => updateAssigneeID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         {assigneeOptions.length === 0 ? (
                           <option value="">{t("common.noDataFound")}</option>
@@ -996,11 +996,11 @@ export function AccessRightsAdaptedPage({
 
                 {assigneeType === "User" ? (
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.assigneeEmail")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.accessRights.assigneeEmail")}</span>
                     <input
                       value={assigneeEmail}
                       onChange={(event) => setAssigneeEmail(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     />
                   </label>
                 ) : null}
@@ -1009,28 +1009,28 @@ export function AccessRightsAdaptedPage({
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
                     <input
                       value={shareEmail}
                       onChange={(event) => setShareEmail(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
                     <input
                       value={shareName}
                       onChange={(event) => setShareName(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     />
                   </label>
                 </div>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
                   <select
                     value={shareGroupID}
                     onChange={(event) => setShareGroupID(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     <option value="">{t("common.noDataFound")}</option>
                     {groupRows.map((group) => (
@@ -1042,11 +1042,11 @@ export function AccessRightsAdaptedPage({
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.place")}</span>
                     <select
                       value={sharePlaceID}
                       onChange={(event) => setSharePlaceID(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="">{t("common.noDataFound")}</option>
                       {placeRows.map((place) => (
@@ -1057,11 +1057,11 @@ export function AccessRightsAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.door")}</span>
                     <select
                       value={shareLockID}
                       onChange={(event) => setShareLockID(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="">{t("common.noDataFound")}</option>
                       {doorRows.map((door) => (
@@ -1076,12 +1076,12 @@ export function AccessRightsAdaptedPage({
             )}
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scheduleTemplate")}</span>
               <select
                 value={scheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateScheduleTemplate(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
               >
                 <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
@@ -1094,7 +1094,7 @@ export function AccessRightsAdaptedPage({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validFrom")}</span>
                 <input
                   value={validFrom}
                   placeholder="Optional"
@@ -1102,11 +1102,11 @@ export function AccessRightsAdaptedPage({
                     setScheduleTemplateID("")
                     setValidFrom(event.target.value)
                   }}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
                 <input
                   value={validUntil}
                   placeholder="2026-05-01T10:00:00Z"
@@ -1114,19 +1114,19 @@ export function AccessRightsAdaptedPage({
                     setScheduleTemplateID("")
                     setValidUntil(event.target.value)
                   }}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
             </div>
 
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={
                   createAccessRightMutation.isPending ||
                   (shareMode === "role_assignment" ? !canSubmitRoleAssignment : !canSubmitShare)
                 }
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {createAccessRightMutation.isPending ? "Creating..." : t("kisi.accessRights.shareAccess")}
               </Button>
@@ -1145,17 +1145,17 @@ export function AccessRightsAdaptedPage({
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.accessRights.editARSheet")}</SheetTitle>
             <SheetDescription>{t("kisi.accessRights.editARDesc")}</SheetDescription>
           </SheetHeader>
 
           {editDetailQuery.isPending ? (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.loading")}</div>
+            <div className="px-6 py-5 text-sm text-content-subtle">{t("common.loading")}</div>
           ) : null}
 
           {editDetailQuery.error ? (
-            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
               {editDetailQuery.error instanceof Error ? editDetailQuery.error.message : "Access right detail failed"}
             </div>
           ) : null}
@@ -1168,18 +1168,18 @@ export function AccessRightsAdaptedPage({
                 updateAccessRightMutation.mutate()
               }}
             >
-              <div className="grid gap-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-4 text-sm">
+              <div className="grid gap-3 rounded-[6px] border border-line-subtle bg-surface-page p-4 text-sm">
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
-                  <span className="text-right font-semibold text-[#17171c]">{editingRow.id}</span>
+                  <span className="text-xs font-semibold text-content-subtle">{t("common.name")}</span>
+                  <span className="text-right font-semibold text-content-heading">{editingRow.id}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
-                  <span className="text-right text-[#2f3037]">{editingRow.type}</span>
+                  <span className="text-xs font-semibold text-content-subtle">{t("common.type")}</span>
+                  <span className="text-right text-content-body">{editingRow.type}</span>
                 </div>
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-xs font-semibold text-[#6f717c]">{t("common.target")}</span>
-                  <span className="max-w-[18rem] text-right text-[#2f3037]">{editingRow.target}</span>
+                  <span className="text-xs font-semibold text-content-subtle">{t("common.target")}</span>
+                  <span className="max-w-[18rem] text-right text-content-body">{editingRow.target}</span>
                 </div>
               </div>
 
@@ -1187,48 +1187,48 @@ export function AccessRightsAdaptedPage({
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scopeType")}</span>
                       <input
                         value={editRoleAssignment.applies_to_type}
                         readOnly
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#f8f8fa] px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-[#f8f8fa] px-3 text-sm text-content-body"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scopeType")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scopeType")}</span>
                       <input
                         value={editRoleAssignment.applies_to_id}
                         readOnly
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#f8f8fa] px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-[#f8f8fa] px-3 text-sm text-content-body"
                       />
                     </label>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.assigneeType")}</span>
                       <input
                         value={editRoleAssignment.assignee_type}
                         readOnly
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#f8f8fa] px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-[#f8f8fa] px-3 text-sm text-content-body"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.assigneeType")}</span>
                       <input
                         value={editRoleAssignment.assignee_id}
                         readOnly
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#f8f8fa] px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-[#f8f8fa] px-3 text-sm text-content-body"
                       />
                     </label>
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.role")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.role")}</span>
                     <select
                       value={editRoleID}
                       onChange={(event) => setEditRoleID(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       {editRoleOptions.length === 0 ? (
                         <option value={editRoleID}>{editRoleID}</option>
@@ -1248,29 +1248,29 @@ export function AccessRightsAdaptedPage({
                 <>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
                       <input
                         value={editShareEmail}
                         onChange={(event) => setEditShareEmail(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
                       <input
                         value={editShareName}
                         onChange={(event) => setEditShareName(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       />
                     </label>
                   </div>
 
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
                     <select
                       value={editShareGroupID}
                       onChange={(event) => setEditShareGroupID(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="">{t("common.noDataFound")}</option>
                       {groupRows.map((group) => (
@@ -1283,11 +1283,11 @@ export function AccessRightsAdaptedPage({
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.place")}</span>
                       <select
                         value={editSharePlaceID}
                         onChange={(event) => setEditSharePlaceID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="">{t("common.noDataFound")}</option>
                         {placeRows.map((place) => (
@@ -1298,11 +1298,11 @@ export function AccessRightsAdaptedPage({
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.door")}</span>
                       <select
                         value={editShareLockID}
                         onChange={(event) => setEditShareLockID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="">{t("common.noDataFound")}</option>
                         {doorRows.map((door) => (
@@ -1317,12 +1317,12 @@ export function AccessRightsAdaptedPage({
               ) : null}
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scheduleTemplate")}</span>
                 <select
                   value={editScheduleTemplateID}
                   disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                   onChange={(event) => updateEditScheduleTemplate(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
                 >
                   <option value="">{t("common.customSchedule")}</option>
                   {scheduleTemplates.map((template) => (
@@ -1335,7 +1335,7 @@ export function AccessRightsAdaptedPage({
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validFrom")}</span>
                   <input
                     value={editValidFrom}
                     placeholder="Optional"
@@ -1343,11 +1343,11 @@ export function AccessRightsAdaptedPage({
                       setEditScheduleTemplateID("")
                       setEditValidFrom(event.target.value)
                     }}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
                   <input
                     value={editValidUntil}
                     placeholder="2026-05-01T10:00:00Z"
@@ -1355,16 +1355,16 @@ export function AccessRightsAdaptedPage({
                       setEditScheduleTemplateID("")
                       setEditValidUntil(event.target.value)
                     }}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
               </div>
 
-              <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
                 <Button
                   type="submit"
                   disabled={!canSubmitEdit || updateAccessRightMutation.isPending}
-                  className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                  className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
                 >
                   {updateAccessRightMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
@@ -1376,7 +1376,7 @@ export function AccessRightsAdaptedPage({
 
       <Sheet open={bulkScheduleOpen} onOpenChange={setBulkScheduleOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[500px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.accessRights.editScheduleSheet")}</SheetTitle>
             <SheetDescription>{t("kisi.accessRights.editScheduleDesc")}</SheetDescription>
           </SheetHeader>
@@ -1388,28 +1388,28 @@ export function AccessRightsAdaptedPage({
               updateAccessRightsScheduleMutation.mutate()
             }}
           >
-            <div className="grid gap-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-4 text-sm">
+            <div className="grid gap-3 rounded-[6px] border border-line-subtle bg-surface-page p-4 text-sm">
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.selected")}</span>
-                <span className="text-right font-semibold text-[#17171c]">{selectedRows.length}</span>
+                <span className="text-xs font-semibold text-content-subtle">{t("kisi.accessRights.selected")}</span>
+                <span className="text-right font-semibold text-content-heading">{selectedRows.length}</span>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.roleAssignments")}</span>
-                <span className="text-right text-[#2f3037]">{selectedRows.filter((row) => row.sourceType === "role_assignment").length}</span>
+                <span className="text-xs font-semibold text-content-subtle">{t("kisi.accessRights.roleAssignments")}</span>
+                <span className="text-right text-content-body">{selectedRows.filter((row) => row.sourceType === "role_assignment").length}</span>
               </div>
               <div className="flex items-start justify-between gap-4">
-                <span className="text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.accessLinks")}</span>
-                <span className="text-right text-[#2f3037]">{selectedRows.filter((row) => row.sourceType === "share").length}</span>
+                <span className="text-xs font-semibold text-content-subtle">{t("kisi.accessRights.accessLinks")}</span>
+                <span className="text-right text-content-body">{selectedRows.filter((row) => row.sourceType === "share").length}</span>
               </div>
             </div>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.scheduleTemplate")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.scheduleTemplate")}</span>
               <select
                 value={bulkScheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateBulkScheduleTemplate(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f8f8fa]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
               >
                 <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
@@ -1422,7 +1422,7 @@ export function AccessRightsAdaptedPage({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validFrom")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validFrom")}</span>
                 <input
                   value={bulkValidFrom}
                   placeholder="Optional"
@@ -1430,11 +1430,11 @@ export function AccessRightsAdaptedPage({
                     setBulkScheduleTemplateID("")
                     setBulkValidFrom(event.target.value)
                   }}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
                 <input
                   value={bulkValidUntil}
                   placeholder="2026-05-01T10:00:00Z"
@@ -1442,16 +1442,16 @@ export function AccessRightsAdaptedPage({
                     setBulkScheduleTemplateID("")
                     setBulkValidUntil(event.target.value)
                   }}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
             </div>
 
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canSubmitBulkSchedule || updateAccessRightsScheduleMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {updateAccessRightsScheduleMutation.isPending ? "Saving..." : "Save Schedule"}
               </Button>
@@ -1462,7 +1462,7 @@ export function AccessRightsAdaptedPage({
 
       <Sheet open={impactPreviewOpen} onOpenChange={setImpactPreviewOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[560px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.accessRights.impactSheet")}</SheetTitle>
             <SheetDescription>{t("kisi.accessRights.impactDesc")}</SheetDescription>
           </SheetHeader>
@@ -1479,33 +1479,33 @@ export function AccessRightsAdaptedPage({
                   ["Places", impactPreview.affected_places],
                   ["Locks", impactPreview.affected_locks],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] px-4 py-3">
-                    <div className="text-xs font-semibold text-[#6f717c]">{label}</div>
-                    <div className="mt-1 text-lg font-semibold text-[#17171c]">{value}</div>
+                  <div key={label} className="rounded-[6px] border border-line-subtle bg-surface-page px-4 py-3">
+                    <div className="text-xs font-semibold text-content-subtle">{label}</div>
+                    <div className="mt-1 text-lg font-semibold text-content-heading">{value}</div>
                   </div>
                 ))}
               </div>
 
-              <div className="overflow-hidden rounded-[6px] border border-[#eceef2]">
-                <div className="border-b border-[#eceef2] bg-[#fbfbfc] px-4 py-3 text-sm font-semibold text-[#17171c]">
+              <div className="overflow-hidden rounded-[6px] border border-line-subtle">
+                <div className="border-b border-line-subtle bg-surface-page px-4 py-3 text-sm font-semibold text-content-heading">
                   Selected records
                 </div>
-                <div className="divide-y divide-[#eceef2]">
+                <div className="divide-y divide-line-subtle">
                   {impactPreview.items.map((item) => (
                     <div key={`${item.source_type}-${item.id}`} className="grid gap-2 px-4 py-3 text-sm">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="font-semibold text-[#17171c]">{item.name}</div>
-                          <div className="text-xs text-[#6f717c]">{item.source_type === "share" ? "Access Link" : "Role Assignment"}</div>
+                          <div className="font-semibold text-content-heading">{item.name}</div>
+                          <div className="text-xs text-content-subtle">{item.source_type === "share" ? "Access Link" : "Role Assignment"}</div>
                         </div>
                         <StatusDot tone={accessRightPreviewTone(item.status, item.needs_review)} label={item.status} />
                       </div>
-                      <div className="text-[#6f717c]">{item.target}</div>
-                      <div className="text-xs text-[#6f717c]">
+                      <div className="text-content-subtle">{item.target}</div>
+                      <div className="text-xs text-content-subtle">
                         {item.affected_users} users, {item.affected_groups} groups, {item.affected_places} places, {item.affected_locks} locks
                       </div>
                       {item.reviewed_at ? (
-                        <div className="text-xs text-[#6f717c]">
+                        <div className="text-xs text-content-subtle">
                           Reviewed{item.reviewed_by ? ` by ${item.reviewed_by}` : ""}
                         </div>
                       ) : null}
@@ -1515,15 +1515,15 @@ export function AccessRightsAdaptedPage({
               </div>
             </div>
           ) : (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.noDataFound")}</div>
+            <div className="px-6 py-5 text-sm text-content-subtle">{t("common.noDataFound")}</div>
           )}
 
-          <SheetFooter className="border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+          <SheetFooter className="border-t border-line-subtle bg-surface-page px-6 py-4">
             <Button
               type="button"
               disabled={!canMutate || selectedRows.length === 0 || reviewAccessRightsMutation.isPending}
               onClick={() => reviewAccessRightsMutation.mutate()}
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
             >
               <CheckIcon className="mr-1.5 size-4" />
               {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}

@@ -134,8 +134,8 @@ function detailDateLabel(value?: string) {
 function CredentialDetailField({ label, value }: { label: string; value?: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase text-[#6f717c]">{label}</dt>
-      <dd className="mt-1 break-all text-sm font-medium text-[#2f3037]">{value?.trim() || "None"}</dd>
+      <dt className="text-xs font-semibold uppercase text-content-subtle">{label}</dt>
+      <dd className="mt-1 break-all text-sm font-medium text-content-body">{value?.trim() || "None"}</dd>
     </div>
   )
 }
@@ -920,7 +920,7 @@ export function CredentialsAdaptedPage({
               setActionError("")
               setIssueOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Issue Credential
@@ -933,7 +933,7 @@ export function CredentialsAdaptedPage({
                 .then(() => setActionNotice("CSV card import created."))
                 .catch((err) => setActionError(err instanceof Error ? err.message : "Import failed"))
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
           >
             <FileUpIcon className="mr-1.5 size-4" />
             Import CSV
@@ -942,7 +942,7 @@ export function CredentialsAdaptedPage({
       }
     >
       {resourceQuery.summary.partial ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Some live credential resources are unavailable.
         </div>
       ) : null}
@@ -952,16 +952,16 @@ export function CredentialsAdaptedPage({
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[#eceef2] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="flex flex-col gap-3 border-b border-line-subtle px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-[#17171c]">{t("kisi.credentials.batchAudit")}</h2>
-            <p className="mt-1 text-sm text-[#6f717c]">
+            <h2 className="text-base font-semibold text-content-heading">{t("kisi.credentials.batchAudit")}</h2>
+            <p className="mt-1 text-sm text-content-subtle">
               {walletJobsQuery.isError
                 ? "Batch jobs unavailable"
                 : walletJobsQuery.isPending
@@ -969,9 +969,9 @@ export function CredentialsAdaptedPage({
                   : `${filteredBatchJobs.length} shown of ${batchJobs.length} jobs · ${batchAuditSummary.succeeded} issued · ${batchAuditSummary.queued} queued · ${batchAuditSummary.failed} failed`}
             </p>
           </div>
-          <ClipboardListIcon className="size-5 text-[#6f717c]" />
+          <ClipboardListIcon className="size-5 text-content-subtle" />
         </div>
-        <div className="flex flex-col gap-3 border-b border-[#eceef2] bg-[#fbfbfc] p-5 lg:flex-row lg:items-center">
+        <div className="flex flex-col gap-3 border-b border-line-subtle bg-surface-page p-5 lg:flex-row lg:items-center">
           <MistyisletSearchField
             value={batchQuery}
             onChange={setBatchQuery}
@@ -981,7 +981,7 @@ export function CredentialsAdaptedPage({
           <select
             value={batchStatusFilter}
             onChange={(event) => setBatchStatusFilter(event.target.value as CredentialBatchJobStatusFilter)}
-            className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm font-semibold text-[#2f3037]"
+            className="h-10 rounded-[6px] border border-line-default bg-white px-3 text-sm font-semibold text-content-body"
           >
             {batchStatusFilters.map((item) => (
               <option key={item.value} value={item.value}>
@@ -1003,7 +1003,7 @@ export function CredentialsAdaptedPage({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
+              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                 <th className="px-6 py-4 font-semibold">{t("kisi.credentials.batchAudit")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
@@ -1025,15 +1025,15 @@ export function CredentialsAdaptedPage({
                 </MistyisletEmptyTableRow>
               ) : null}
               {filteredBatchJobs.map((job) => (
-                <tr key={job.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
-                  <td className="max-w-[180px] break-all px-6 py-4 font-semibold text-[#17171c]">{job.batch_id}</td>
-                  <td className="max-w-[260px] break-words px-4 py-4 text-[#2f3037]">
+                <tr key={job.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                  <td className="max-w-[180px] break-all px-6 py-4 font-semibold text-content-heading">{job.batch_id}</td>
+                  <td className="max-w-[260px] break-words px-4 py-4 text-content-body">
                     {walletIssueJobTargetLabel(job, users)}
                   </td>
                   <td className="px-4 py-4">
                     <StatusDot tone={walletIssueJobStatusTone(job.status)} label={statusText(job.status)} />
                   </td>
-                  <td className="max-w-[180px] break-all px-4 py-4 text-[#2f3037]">
+                  <td className="max-w-[180px] break-all px-4 py-4 text-content-body">
                     {job.pass_id ? (
                       <button
                         type="button"
@@ -1046,8 +1046,8 @@ export function CredentialsAdaptedPage({
                       "None"
                     )}
                   </td>
-                  <td className="max-w-[220px] break-words px-4 py-4 text-[#6f717c]">{walletIssueJobErrorLabel(job)}</td>
-                  <td className="px-6 py-4 text-[#6f717c]">{detailDateLabel(job.updated_at)}</td>
+                  <td className="max-w-[220px] break-words px-4 py-4 text-content-subtle">{walletIssueJobErrorLabel(job)}</td>
+                  <td className="px-6 py-4 text-content-subtle">{detailDateLabel(job.updated_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1055,27 +1055,27 @@ export function CredentialsAdaptedPage({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="flex gap-10 border-b border-[#eceef2] px-6">
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="flex gap-10 border-b border-line-subtle px-6">
           {tabs.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-[#2f3037]")}
+              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-content-body")}
             >
               {tab}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-3 border-b border-[#eceef2] bg-[#fbfbfc] p-5">
+        <div className="flex items-center gap-3 border-b border-line-subtle bg-surface-page p-5">
           <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search credentials..." />
           <MistyisletFilterButton label={t("common.type")} className="gap-2" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
+              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                 <th className="px-6 py-4 font-semibold">{t("common.user")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
@@ -1086,14 +1086,14 @@ export function CredentialsAdaptedPage({
             </thead>
             <tbody>
               {visibleRows.map((row) => (
-                <tr key={row.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
-                  <td className="px-6 py-5 font-semibold text-[#17171c]">{row.user}</td>
-                  <td className="px-4 py-5 text-[#2f3037]">{row.type}</td>
+                <tr key={row.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                  <td className="px-6 py-5 font-semibold text-content-heading">{row.user}</td>
+                  <td className="px-4 py-5 text-content-body">{row.type}</td>
                   <td className="px-4 py-5">
                     <StatusDot tone={row.tone} label={row.statusLabel} />
                   </td>
-                  <td className="px-4 py-5 text-[#6f717c]">{row.issuedLabel}</td>
-                  <td className="px-4 py-5 text-[#6f717c]">{row.expiresLabel}</td>
+                  <td className="px-4 py-5 text-content-subtle">{row.issuedLabel}</td>
+                  <td className="px-4 py-5 text-content-subtle">{row.expiresLabel}</td>
                   <td className="px-6 py-5 text-right">
                     <RowActionsMenu
                       label={`Actions for ${row.user}`}
@@ -1150,7 +1150,7 @@ export function CredentialsAdaptedPage({
 
       <Sheet open={issueOpen} onOpenChange={setIssueOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.credentials.issue")}</SheetTitle>
             <SheetDescription>{t("kisi.credentials.title")}</SheetDescription>
           </SheetHeader>
@@ -1175,7 +1175,7 @@ export function CredentialsAdaptedPage({
                   }}
                   className={cn(
                     "h-9 rounded-[5px] text-sm font-semibold",
-                    issueMode === mode ? "bg-white text-[#17171c] shadow-sm" : "text-[#6f717c]"
+                    issueMode === mode ? "bg-white text-content-heading shadow-sm" : "text-content-subtle"
                   )}
                 >
                   {mode === "single" ? "Single" : "Batch"}
@@ -1185,11 +1185,11 @@ export function CredentialsAdaptedPage({
             {issueMode === "single" ? (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.user")}</span>
                   <select
                     value={selectedUser?.id ?? ""}
                     onChange={(event) => setSelectedUserID(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     {users.map((user) => (
                       <option key={user.id} value={user.id}>
@@ -1199,19 +1199,19 @@ export function CredentialsAdaptedPage({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">UID</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">UID</span>
                   <input
                     value={uid}
                     onChange={(event) => setUID(event.target.value)}
                     placeholder="Optional physical card UID"
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                    className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body placeholder:text-content-muted"
                   />
                 </label>
               </>
             ) : (
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="block text-xs font-semibold text-[#6f717c]">{t("kisi.accessRights.users")}</span>
+                  <span className="block text-xs font-semibold text-content-subtle">{t("kisi.accessRights.users")}</span>
                   <button
                     type="button"
                     onClick={() => setSelectedBatchUserIDs(selectedBatchUserIDs.length === users.length ? [] : users.map((user) => user.id))}
@@ -1220,9 +1220,9 @@ export function CredentialsAdaptedPage({
                     {selectedBatchUserIDs.length === users.length ? "Clear" : "Select all"}
                   </button>
                 </div>
-                <div className="max-h-56 overflow-y-auto rounded-[6px] border border-[#d9dbe3]">
+                <div className="max-h-56 overflow-y-auto rounded-[6px] border border-line-default">
                   {users.map((user) => (
-                    <label key={user.id} className="flex items-center gap-3 border-b border-[#eceef2] px-3 py-3 last:border-0">
+                    <label key={user.id} className="flex items-center gap-3 border-b border-line-subtle px-3 py-3 last:border-0">
                       <input
                         type="checkbox"
                         checked={selectedBatchUserIDs.includes(user.id)}
@@ -1230,30 +1230,30 @@ export function CredentialsAdaptedPage({
                         className="size-4 rounded border-[#9a9ca7]"
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-[#2f3037]">{user.name}</span>
-                        <span className="block truncate text-xs text-[#6f717c]">{user.email}</span>
+                        <span className="block truncate text-sm font-semibold text-content-body">{user.name}</span>
+                        <span className="block truncate text-xs text-content-subtle">{user.email}</span>
                       </span>
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-[#6f717c]">{selectedBatchUsers.length} selected</p>
+                <p className="mt-2 text-xs text-content-subtle">{selectedBatchUsers.length} selected</p>
               </div>
             )}
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
               <input
                 type="datetime-local"
                 value={expiresAt}
                 onChange={(event) => setExpiresAt(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
-            {users.length === 0 ? <p className="text-sm text-[#8a5a00]">{t("common.noDataFound")}</p> : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            {users.length === 0 ? <p className="text-sm text-warning-text">{t("common.noDataFound")}</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={issueMutation.isPending || users.length === 0 || (issueMode === "batch" && selectedBatchUserIDs.length === 0)}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {issueMutation.isPending ? "Issuing..." : issueMode === "batch" ? "Issue Batch" : "Issue Credential"}
               </Button>
@@ -1272,23 +1272,23 @@ export function CredentialsAdaptedPage({
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[540px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.credentials.title")}</SheetTitle>
             <SheetDescription>{selectedCardID || "Selected credential"}</SheetDescription>
           </SheetHeader>
           {detailCardQuery.isPending ? (
-            <div className="px-6 py-5 text-sm text-[#6f717c]">{t("common.loading")}</div>
+            <div className="px-6 py-5 text-sm text-content-subtle">{t("common.loading")}</div>
           ) : detailCardQuery.isError ? (
-            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
               {detailCardQuery.error instanceof Error ? detailCardQuery.error.message : "Credential detail unavailable"}
             </div>
           ) : detailCard ? (
             <div className="space-y-6 px-6 py-5">
-              <section className="rounded-[6px] border border-[#d9dbe3] p-4">
-                <div className="flex items-center justify-between gap-3 border-b border-[#eceef2] pb-4">
+              <section className="rounded-[6px] border border-line-default p-4">
+                <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-4">
                   <div>
-                    <p className="text-sm font-semibold text-[#17171c]">{detailCard.card_number || detailCard.id}</p>
-                    <p className="mt-1 text-xs text-[#6f717c]">{detailCard.template_id}</p>
+                    <p className="text-sm font-semibold text-content-heading">{detailCard.card_number || detailCard.id}</p>
+                    <p className="mt-1 text-xs text-content-subtle">{detailCard.template_id}</p>
                   </div>
                   <StatusDot tone={credentialTone(detailCard.status)} label={credentialStatusLabel(detailCard.status)} />
                 </div>
@@ -1308,10 +1308,10 @@ export function CredentialsAdaptedPage({
                 </dl>
               </section>
 
-              <section className="rounded-[6px] border border-[#d9dbe3] p-4">
-                <div className="border-b border-[#eceef2] pb-4">
-                  <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.assign")}</h3>
-                  <p className="mt-1 text-xs text-[#6f717c]">{detailAssignmentQuery.isPending ? "Loading assignment..." : detailAssignment?.id || "No assignment"}</p>
+              <section className="rounded-[6px] border border-line-default p-4">
+                <div className="border-b border-line-subtle pb-4">
+                  <h3 className="text-sm font-semibold text-content-heading">{t("kisi.credentials.assign")}</h3>
+                  <p className="mt-1 text-xs text-content-subtle">{detailAssignmentQuery.isPending ? "Loading assignment..." : detailAssignment?.id || "No assignment"}</p>
                 </div>
                 <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <CredentialDetailField label={t("common.status")} value={detailAssignment?.status ? credentialStatusLabel(detailAssignment.card.status) : "None"} />
@@ -1328,7 +1328,7 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.assigneeType")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.assigneeType")}</span>
                       <select
                         value={detailAssigneeType}
                         onChange={(event) => {
@@ -1341,7 +1341,7 @@ export function CredentialsAdaptedPage({
                             setDetailAssigneeID("")
                           }
                         }}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="User">{t("common.user")}</option>
                         <option value="Guest">{t("common.guest")}</option>
@@ -1349,11 +1349,11 @@ export function CredentialsAdaptedPage({
                     </label>
                     {detailAssigneeType === "User" ? (
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.user")}</span>
+                        <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.user")}</span>
                         <select
                           value={detailAssigneeID}
                           onChange={(event) => setDetailAssigneeID(event.target.value)}
-                          className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                          className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                         >
                           {users.map((user) => (
                             <option key={user.id} value={user.id}>
@@ -1364,12 +1364,12 @@ export function CredentialsAdaptedPage({
                       </label>
                     ) : (
                       <label className="block">
-                        <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.guest")}</span>
+                        <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.guest")}</span>
                         <input
                           value={detailGuestID}
                           onChange={(event) => setDetailGuestID(event.target.value)}
                           placeholder="Guest email or ID"
-                          className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                          className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body placeholder:text-content-muted"
                         />
                       </label>
                     )}
@@ -1377,20 +1377,20 @@ export function CredentialsAdaptedPage({
                   <Button
                     type="submit"
                     disabled={!canSubmitAssignment || detailAssignmentMutation.isPending}
-                    className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                   >
                     {detailAssignmentMutation.isPending ? "Saving..." : "Save Assignment"}
                   </Button>
                 </form>
               </section>
 
-              <section className="rounded-[6px] border border-[#d9dbe3] p-4">
-                <div className="flex items-center justify-between gap-3 border-b border-[#eceef2] pb-4">
+              <section className="rounded-[6px] border border-line-default p-4">
+                <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.title")}</h3>
-                    <p className="mt-1 text-xs text-[#6f717c]">{deliveriesQuery.isPending ? "Loading deliveries..." : `${detailDeliveries.length} attempts`}</p>
+                    <h3 className="text-sm font-semibold text-content-heading">{t("kisi.credentials.title")}</h3>
+                    <p className="mt-1 text-xs text-content-subtle">{deliveriesQuery.isPending ? "Loading deliveries..." : `${detailDeliveries.length} attempts`}</p>
                   </div>
-                  <SendIcon className="size-4 text-[#6f717c]" />
+                  <SendIcon className="size-4 text-content-subtle" />
                 </div>
                 <form
                   className="mt-4 space-y-3"
@@ -1400,38 +1400,38 @@ export function CredentialsAdaptedPage({
                   }}
                 >
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
                     <input
                       value={deliveryEmailRecipients}
                       onChange={(event) => setDeliveryEmailRecipients(event.target.value)}
                       placeholder="name@example.com"
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                      className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body placeholder:text-content-muted"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
                     <input
                       value={deliveryWhatsAppRecipients}
                       onChange={(event) => setDeliveryWhatsAppRecipients(event.target.value)}
                       placeholder="+628..."
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                      className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body placeholder:text-content-muted"
                     />
                   </label>
                   <Button
                     type="submit"
                     disabled={!canDispatchDelivery || deliveryMutation.isPending}
-                    className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                   >
                     {deliveryMutation.isPending ? t("common.saving") : t("kisi.credentials.issue")}
                   </Button>
                 </form>
                 <div className="mt-4 space-y-2">
                   {detailDeliveries.map((delivery) => (
-                    <div key={delivery.id} className="rounded-[6px] border border-[#eceef2] px-3 py-3">
+                    <div key={delivery.id} className="rounded-[6px] border border-line-subtle px-3 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#2f3037]">{delivery.channels?.join(", ") || delivery.provider || delivery.id}</p>
-                          <p className="mt-1 text-xs text-[#6f717c]">
+                          <p className="truncate text-sm font-semibold text-content-body">{delivery.channels?.join(", ") || delivery.provider || delivery.id}</p>
+                          <p className="mt-1 text-xs text-content-subtle">
                             {statusText(delivery.status)} · attempt {delivery.attempt ?? 1} · {detailDateLabel(delivery.triggered_at)}
                           </p>
                         </div>
@@ -1450,27 +1450,27 @@ export function CredentialsAdaptedPage({
                         ) : null}
                       </div>
                       {delivery.reason || delivery.provider_error ? (
-                        <p className="mt-2 text-xs text-[#8a5a00]">{delivery.provider_error || delivery.reason}</p>
+                        <p className="mt-2 text-xs text-warning-text">{delivery.provider_error || delivery.reason}</p>
                       ) : null}
                     </div>
                   ))}
                   {!deliveriesQuery.isPending && detailDeliveries.length === 0 ? (
-                    <p className="text-sm text-[#6f717c]">{t("common.noDataFound")}</p>
+                    <p className="text-sm text-content-subtle">{t("common.noDataFound")}</p>
                   ) : null}
                 </div>
               </section>
 
-              <section className="rounded-[6px] border border-[#d9dbe3] p-4">
-                <div className="flex items-center justify-between gap-3 border-b border-[#eceef2] pb-4">
+              <section className="rounded-[6px] border border-line-default p-4">
+                <div className="flex items-center justify-between gap-3 border-b border-line-subtle pb-4">
                   <div>
-                    <h3 className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.physicalCard")}</h3>
-                    <p className="mt-1 text-xs text-[#6f717c]">
+                    <h3 className="text-sm font-semibold text-content-heading">{t("kisi.credentials.physicalCard")}</h3>
+                    <p className="mt-1 text-xs text-content-subtle">
                       {physicalTasksQuery.isPending
                         ? "Loading tasks..."
                         : `${detailPhysicalTasks.length} tasks · ${availablePhysicalInventory.length} available cards · ${physicalVendors.length} vendors`}
                     </p>
                   </div>
-                  <ClipboardListIcon className="size-4 text-[#6f717c]" />
+                  <ClipboardListIcon className="size-4 text-content-subtle" />
                 </div>
                 <form
                   className="mt-4 space-y-3"
@@ -1481,11 +1481,11 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.type")}</span>
                       <select
                         value={physicalTaskType}
                         onChange={(event) => setPhysicalTaskType(event.target.value as WalletPhysicalCardTask["task_type"])}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="issue">{t("kisi.credentials.issue")}</option>
                         <option value="reissue">{t("kisi.credentials.issue")}</option>
@@ -1493,7 +1493,7 @@ export function CredentialsAdaptedPage({
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.physicalCard")}</span>
                       <select
                         value={physicalInventoryID}
                         onChange={(event) => {
@@ -1505,7 +1505,7 @@ export function CredentialsAdaptedPage({
                             setPhysicalVendorID(item.vendor_id ?? "")
                           }
                         }}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="">{t("common.noDataFound")}</option>
                         {availablePhysicalInventory.map((item) => (
@@ -1516,7 +1516,7 @@ export function CredentialsAdaptedPage({
                       </select>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalCardNumber}
                         list="physical-card-inventory-options"
@@ -1529,7 +1529,7 @@ export function CredentialsAdaptedPage({
                             setPhysicalVendorID(item.vendor_id)
                           }
                         }}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
                       />
                       <datalist id="physical-card-inventory-options">
                         {availablePhysicalInventory.map((item) => (
@@ -1538,11 +1538,11 @@ export function CredentialsAdaptedPage({
                       </datalist>
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.title")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.title")}</span>
                       <select
                         value={physicalVendorID}
                         onChange={(event) => setPhysicalVendorID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       >
                         <option value="">{t("common.noDataFound")}</option>
                         {physicalVendors.map((vendor) => (
@@ -1554,23 +1554,23 @@ export function CredentialsAdaptedPage({
                     </label>
                   </div>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.description")}</span>
                     <input
                       value={physicalTaskNote}
                       onChange={(event) => setPhysicalTaskNote(event.target.value)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
                     />
                   </label>
                   <Button
                     type="submit"
                     disabled={!canCreatePhysicalTask || physicalTaskMutation.isPending}
-                    className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                   >
                     {physicalTaskMutation.isPending ? "Creating..." : "Create Task"}
                   </Button>
                 </form>
                 <form
-                  className="mt-5 space-y-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-3"
+                  className="mt-5 space-y-3 rounded-[6px] border border-line-subtle bg-surface-page p-3"
                   onSubmit={(event) => {
                     event.preventDefault()
                     physicalInventoryScanMutation.mutate()
@@ -1578,28 +1578,28 @@ export function CredentialsAdaptedPage({
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalScanUID}
                         onChange={(event) => setPhysicalScanUID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.physicalCard")}</span>
                       <input
                         value={physicalScanCardNumber}
                         onChange={(event) => setPhysicalScanCardNumber(event.target.value)}
                         placeholder="Defaults to UID"
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body placeholder:text-content-muted"
                       />
                     </label>
                     <label className="block">
-                      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.reader")}</span>
+                      <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.reader")}</span>
                       <input
                         value={physicalScanReaderID}
                         onChange={(event) => setPhysicalScanReaderID(event.target.value)}
-                        className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                       />
                     </label>
                   </div>
@@ -1613,20 +1613,20 @@ export function CredentialsAdaptedPage({
                   </Button>
                 </form>
                 <form
-                  className="mt-5 space-y-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-3"
+                  className="mt-5 space-y-3 rounded-[6px] border border-line-subtle bg-surface-page p-3"
                   onSubmit={(event) => {
                     event.preventDefault()
                     physicalInventoryImportMutation.mutate()
                   }}
                 >
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.credentials.physicalCard")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.credentials.physicalCard")}</span>
                     <textarea
                       value={physicalInventoryCSV}
                       onChange={(event) => setPhysicalInventoryCSV(event.target.value)}
                       placeholder="card_number,uid,vendor_id,status"
                       rows={3}
-                      className="w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-2 text-sm text-[#2f3037] placeholder:text-[#9a9ca7]"
+                      className="w-full rounded-[6px] border border-line-default bg-white px-3 py-2 text-sm text-content-body placeholder:text-content-muted"
                     />
                   </label>
                   <Button
@@ -1638,11 +1638,11 @@ export function CredentialsAdaptedPage({
                     {physicalInventoryImportMutation.isPending ? "Importing..." : "Import Inventory"}
                   </Button>
                 </form>
-                <div className="mt-5 space-y-3 rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-3">
+                <div className="mt-5 space-y-3 rounded-[6px] border border-line-subtle bg-surface-page p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-[#17171c]">{t("kisi.credentials.physicalCard")}</p>
-                      <p className="mt-1 text-xs text-[#6f717c]">
+                      <p className="text-sm font-semibold text-content-heading">{t("kisi.credentials.physicalCard")}</p>
+                      <p className="mt-1 text-xs text-content-subtle">
                         {physicalInventoryCounts.total} total · {physicalInventoryCounts.available} available ·{" "}
                         {physicalInventoryCounts.frozen} frozen · {physicalInventoryCounts.scrapped} scrapped
                       </p>
@@ -1653,7 +1653,7 @@ export function CredentialsAdaptedPage({
                         onChange={(event) =>
                           setPhysicalInventoryBatchStatus(event.target.value as WalletPhysicalCardInventoryGovernanceStatus)
                         }
-                        className="h-9 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                        className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                         aria-label="Batch inventory target status"
                       >
                         <option value="available">{t("common.active")}</option>
@@ -1678,18 +1678,18 @@ export function CredentialsAdaptedPage({
                         variant="ghost"
                         disabled={selectedPhysicalInventoryCount === 0}
                         onClick={() => setSelectedPhysicalInventoryIDs([])}
-                        className="h-9 rounded-[6px] text-[#6f717c] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                        className="h-9 rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]"
                       >
                         Clear
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-[#6f717c]">
+                  <p className="text-xs text-content-subtle">
                     {selectedPhysicalInventoryCount} selected. Reserved and issued cards must continue through physical card tasks.
                   </p>
                   <div className="overflow-hidden rounded-[6px] border border-[#e1e3e8] bg-white">
                     <table className="w-full table-fixed text-left text-sm">
-                      <thead className="bg-[#fbfbfc] text-xs font-semibold uppercase text-[#6f717c]">
+                      <thead className="bg-surface-page text-xs font-semibold uppercase text-content-subtle">
                         <tr>
                           <th className="w-10 px-3 py-2"> </th>
                           <th className="px-3 py-2">{t("kisi.credentials.physicalCard")}</th>
@@ -1698,7 +1698,7 @@ export function CredentialsAdaptedPage({
                           <th className="w-12 px-3 py-2 text-right"> </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#eceef2]">
+                      <tbody className="divide-y divide-line-subtle">
                         {listedPhysicalInventory.map((item) => {
                           const busy = physicalInventoryStatusMutation.isPending || physicalInventoryBatchStatusMutation.isPending
                           const canBatchSelect = canTransitionPhysicalInventoryStatus(item.status, physicalInventoryBatchStatus)
@@ -1712,20 +1712,20 @@ export function CredentialsAdaptedPage({
                                   disabled={busy || !canBatchSelect}
                                   title={canBatchSelect ? undefined : `Cannot move ${statusText(item.status)} to ${statusText(physicalInventoryBatchStatus)}`}
                                   onChange={() => togglePhysicalInventorySelection(item.id)}
-                                  className="size-4 rounded border-[#d9dbe3]"
+                                  className="size-4 rounded border-line-default"
                                 />
                               </td>
                               <td className="min-w-0 px-3 py-2">
-                                <p className="truncate font-medium text-[#2f3037]">{item.card_number}</p>
-                                <p className="truncate text-xs text-[#6f717c]">{item.uid || item.id}</p>
+                                <p className="truncate font-medium text-content-body">{item.card_number}</p>
+                                <p className="truncate text-xs text-content-subtle">{item.uid || item.id}</p>
                               </td>
                               <td className="px-3 py-2">
                                 <StatusDot tone={physicalInventoryStatusTone(item.status)} label={statusText(item.status)} />
                               </td>
                               <td className="hidden min-w-0 px-3 py-2 sm:table-cell">
-                                <p className="truncate text-[#2f3037]">{item.vendor_name || "No vendor"}</p>
+                                <p className="truncate text-content-body">{item.vendor_name || "No vendor"}</p>
                                 {item.active_task_id || item.assigned_pass_id ? (
-                                  <p className="truncate text-xs text-[#6f717c]">
+                                  <p className="truncate text-xs text-content-subtle">
                                     {item.active_task_id || item.assigned_pass_id}
                                   </p>
                                 ) : null}
@@ -1764,7 +1764,7 @@ export function CredentialsAdaptedPage({
                         })}
                         {!physicalInventoryQuery.isPending && listedPhysicalInventory.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-3 py-5 text-center text-sm text-[#6f717c]">
+                            <td colSpan={5} className="px-3 py-5 text-center text-sm text-content-subtle">
                               No inventory cards.
                             </td>
                           </tr>
@@ -1773,7 +1773,7 @@ export function CredentialsAdaptedPage({
                     </table>
                   </div>
                   {physicalInventory.length > listedPhysicalInventory.length ? (
-                    <p className="text-xs text-[#6f717c]">
+                    <p className="text-xs text-content-subtle">
                       Showing {listedPhysicalInventory.length} of {physicalInventory.length} inventory cards.
                     </p>
                   ) : null}
@@ -1782,21 +1782,21 @@ export function CredentialsAdaptedPage({
                   {detailPhysicalTasks.map((task) => {
                     const nextStatuses = nextPhysicalTaskStatuses(task)
                     return (
-                      <div key={task.id} className="rounded-[6px] border border-[#eceef2] px-3 py-3">
+                      <div key={task.id} className="rounded-[6px] border border-line-subtle px-3 py-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#2f3037]">
+                            <p className="truncate text-sm font-semibold text-content-body">
                               {statusText(task.task_type)} · {statusText(task.status)}
                             </p>
-                            <p className="mt-1 text-xs text-[#6f717c]">
+                            <p className="mt-1 text-xs text-content-subtle">
                               {task.card_number || "No card number"} · {detailDateLabel(task.updated_at)}
                             </p>
                             {task.vendor_name || task.inventory_id ? (
-                              <p className="mt-1 text-xs text-[#6f717c]">
+                              <p className="mt-1 text-xs text-content-subtle">
                                 {task.vendor_name || "No vendor"} · {task.inventory_id || "manual card"}
                               </p>
                             ) : null}
-                            {task.note ? <p className="mt-2 text-xs text-[#6f717c]">{task.note}</p> : null}
+                            {task.note ? <p className="mt-2 text-xs text-content-subtle">{task.note}</p> : null}
                           </div>
                           {nextStatuses.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
@@ -1820,12 +1820,12 @@ export function CredentialsAdaptedPage({
                     )
                   })}
                   {!physicalTasksQuery.isPending && detailPhysicalTasks.length === 0 ? (
-                    <p className="text-sm text-[#6f717c]">{t("common.noDataFound")}</p>
+                    <p className="text-sm text-content-subtle">{t("common.noDataFound")}</p>
                   ) : null}
                 </div>
               </section>
 
-              <SheetFooter className="-mx-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+              <SheetFooter className="-mx-6 border-t border-line-subtle bg-surface-page px-6 py-4">
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
@@ -1850,7 +1850,7 @@ export function CredentialsAdaptedPage({
                     variant="ghost"
                     disabled={credentialActionMutation.isPending || detailCard.status === "unassigned" || detailCard.status === "revoked"}
                     onClick={() => requestCredentialAction({ id: detailCard.id, action: "deassign", label: detailCard.card_number || detailCard.id })}
-                    className="rounded-[6px] text-[#6f717c] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                    className="rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]"
                   >
                     Deassign
                   </Button>
@@ -1880,7 +1880,7 @@ export function CredentialsAdaptedPage({
         description={
           <>
             {physicalTaskStatusDescription(physicalTaskStatusTarget?.status)} Target:{" "}
-            <span className="font-semibold text-[#17171c]">
+            <span className="font-semibold text-content-heading">
               {physicalTaskStatusTarget?.task.card_number || physicalTaskStatusTarget?.task.id || "this task"}
             </span>.
           </>
@@ -1906,7 +1906,7 @@ export function CredentialsAdaptedPage({
         description={
           <>
             {physicalInventoryStatusDescription(physicalInventoryStatusTarget?.status)} Target:{" "}
-            <span className="font-semibold text-[#17171c]">
+            <span className="font-semibold text-content-heading">
               {physicalInventoryStatusTarget?.item.card_number || "this inventory card"}
             </span>.
           </>
@@ -1932,7 +1932,7 @@ export function CredentialsAdaptedPage({
         description={
           <>
             {physicalInventoryStatusDescription(physicalInventoryBatchStatusTarget?.status)} Target:{" "}
-            <span className="font-semibold text-[#17171c]">
+            <span className="font-semibold text-content-heading">
               {physicalInventoryBatchStatusTarget?.inventoryIDs.length ?? 0} selected inventory cards
             </span>.
           </>
@@ -1958,7 +1958,7 @@ export function CredentialsAdaptedPage({
         description={
           <>
             {credentialActionDescription(credentialActionTarget?.action)} Target:{" "}
-            <span className="font-semibold text-[#17171c]">{credentialActionTarget?.label ?? "this credential"}</span>.
+            <span className="font-semibold text-content-heading">{credentialActionTarget?.label ?? "this credential"}</span>.
           </>
         }
         confirmLabel={credentialActionConfirmLabel(credentialActionTarget?.action)}

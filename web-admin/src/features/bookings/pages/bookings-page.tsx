@@ -411,7 +411,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         description="Manage bookable spaces and reservations for meeting rooms, prayer rooms, phone booths, and more."
       >
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             {actionError}
           </div>
         ) : null}
@@ -419,22 +419,22 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         {/* Section A: Bookable Spaces */}
         <section>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[#17171c]">Bookable Spaces</h2>
+            <h2 className="text-lg font-semibold text-content-heading">Bookable Spaces</h2>
             <Button
               disabled={!canMutate}
               onClick={openCreateSpace}
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               Create Space
             </Button>
           </div>
 
-          <div className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
+          <div className="overflow-hidden rounded-[6px] border border-line-default bg-white">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-left text-xs font-semibold text-[#6f717c]">
+                  <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
                     <th className="px-4 py-3">Name</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Capacity Mode</th>
@@ -451,21 +451,21 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                       <tr
                         key={space.id}
                         className={
-                          "cursor-pointer border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]" +
-                          (selectedSpaceID === space.id ? " bg-[#f3f4ff]" : "")
+                          "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page" +
+                          (selectedSpaceID === space.id ? " bg-brand-subtle" : "")
                         }
                         onClick={() => setSelectedSpaceID(selectedSpaceID === space.id ? null : space.id)}
                       >
-                        <td className="px-4 py-4 font-semibold text-[#17171c]">{space.name}</td>
+                        <td className="px-4 py-4 font-semibold text-content-heading">{space.name}</td>
                         <td className="px-4 py-4">
-                          <span className="inline-flex items-center gap-1.5 text-[#2f3037]">
-                            <Icon className="size-4 text-[#6f717c]" />
+                          <span className="inline-flex items-center gap-1.5 text-content-body">
+                            <Icon className="size-4 text-content-subtle" />
                             {spaceTypeLabel(space.space_type)}
                           </span>
                         </td>
-                        <td className="px-4 py-4 text-[#2f3037]">{capacityModeLabel(space.capacity_mode)}</td>
-                        <td className="px-4 py-4 text-[#2f3037]">{space.max_capacity}</td>
-                        <td className="px-4 py-4 text-[#2f3037]">{space.current_occupancy}</td>
+                        <td className="px-4 py-4 text-content-body">{capacityModeLabel(space.capacity_mode)}</td>
+                        <td className="px-4 py-4 text-content-body">{space.max_capacity}</td>
+                        <td className="px-4 py-4 text-content-body">{space.current_occupancy}</td>
                         <td className="px-4 py-4">
                           <StatusDot
                             tone={space.enabled ? "success" : "danger"}
@@ -515,20 +515,20 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
 
           {/* Space status panel */}
           {selectedSpaceID && spaceStatus ? (
-            <div className="mt-4 rounded-[6px] border border-[#eceef2] bg-white p-5">
+            <div className="mt-4 rounded-[6px] border border-line-subtle bg-white p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-[#17171c]">
+                <h3 className="text-sm font-semibold text-content-heading">
                   Status: {spaceStatus.space.name}
                 </h3>
-                <span className="text-sm text-[#6f717c]">
-                  Current Occupancy: <span className="font-semibold text-[#17171c]">{spaceStatus.current_occupancy}</span>
+                <span className="text-sm text-content-subtle">
+                  Current Occupancy: <span className="font-semibold text-content-heading">{spaceStatus.current_occupancy}</span>
                 </span>
               </div>
               {spaceStatus.active_bookings.length > 0 ? (
-                <div className="overflow-x-auto rounded-[6px] border border-[#eceef2]">
+                <div className="overflow-x-auto rounded-[6px] border border-line-subtle">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-xs font-semibold text-[#6f717c]">
+                      <tr className="border-b border-line-subtle bg-surface-page text-xs font-semibold text-content-subtle">
                         <th className="px-4 py-2">Title</th>
                         <th className="px-4 py-2">User</th>
                         <th className="px-4 py-2">Start</th>
@@ -538,11 +538,11 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                     </thead>
                     <tbody>
                       {spaceStatus.active_bookings.map((b) => (
-                        <tr key={b.id} className="border-b border-[#eceef2] last:border-0">
-                          <td className="px-4 py-2 text-[#17171c]">{b.title ?? "-"}</td>
-                          <td className="px-4 py-2 text-[#2f3037]">{b.user_name}</td>
-                          <td className="px-4 py-2 text-[#6f717c]">{formatDateTime(b.start_time)}</td>
-                          <td className="px-4 py-2 text-[#6f717c]">{formatDateTime(b.end_time)}</td>
+                        <tr key={b.id} className="border-b border-line-subtle last:border-0">
+                          <td className="px-4 py-2 text-content-heading">{b.title ?? "-"}</td>
+                          <td className="px-4 py-2 text-content-body">{b.user_name}</td>
+                          <td className="px-4 py-2 text-content-subtle">{formatDateTime(b.start_time)}</td>
+                          <td className="px-4 py-2 text-content-subtle">{formatDateTime(b.end_time)}</td>
                           <td className="px-4 py-2">
                             <StatusDot tone={bookingStatusTone(b.status)} label={bookingStatusLabel(b.status)} />
                           </td>
@@ -552,12 +552,12 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                   </table>
                 </div>
               ) : (
-                <p className="text-sm text-[#9a9ca7]">No active bookings for this space.</p>
+                <p className="text-sm text-content-muted">No active bookings for this space.</p>
               )}
             </div>
           ) : null}
           {selectedSpaceID && spaceStatusQuery.isPending ? (
-            <div className="mt-4 rounded-[6px] border border-[#eceef2] bg-white p-5 text-sm text-[#6f717c]">
+            <div className="mt-4 rounded-[6px] border border-line-subtle bg-white p-5 text-sm text-content-subtle">
               Loading space status...
             </div>
           ) : null}
@@ -566,25 +566,25 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         {/* Section B: Bookings */}
         <section>
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-[#17171c]">Bookings</h2>
+            <h2 className="text-lg font-semibold text-content-heading">Bookings</h2>
             <Button
               disabled={!canMutate || spaces.length === 0}
               onClick={openCreateBooking}
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               New Booking
             </Button>
           </div>
 
-          <div className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-            <div className="flex items-center gap-3 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
-              <label className="flex items-center gap-2 text-sm text-[#6f717c]">
+          <div className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+            <div className="flex items-center gap-3 border-b border-line-subtle bg-surface-page px-6 py-4">
+              <label className="flex items-center gap-2 text-sm text-content-subtle">
                 <span className="font-semibold">Space:</span>
                 <select
                   value={filterSpaceID}
                   onChange={(e) => setFilterSpaceID(e.target.value)}
-                  className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-10 rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   <option value="">All spaces</option>
                   {spaces.map((s) => (
@@ -599,7 +599,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px] text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-left text-xs font-semibold text-[#6f717c]">
+                  <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
                     <th className="px-4 py-3">Title</th>
                     <th className="px-4 py-3">Space</th>
                     <th className="px-4 py-3">User</th>
@@ -611,12 +611,12 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                 </thead>
                 <tbody>
                   {bookings.map((booking) => (
-                    <tr key={booking.id} className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
-                      <td className="px-4 py-4 font-semibold text-[#17171c]">{booking.title ?? "-"}</td>
-                      <td className="px-4 py-4 text-[#2f3037]">{spaceNameByID(booking.space_id)}</td>
-                      <td className="px-4 py-4 text-[#2f3037]">{booking.user_name}</td>
-                      <td className="px-4 py-4 text-[#6f717c]">{formatDateTime(booking.start_time)}</td>
-                      <td className="px-4 py-4 text-[#6f717c]">{formatDateTime(booking.end_time)}</td>
+                    <tr key={booking.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                      <td className="px-4 py-4 font-semibold text-content-heading">{booking.title ?? "-"}</td>
+                      <td className="px-4 py-4 text-content-body">{spaceNameByID(booking.space_id)}</td>
+                      <td className="px-4 py-4 text-content-body">{booking.user_name}</td>
+                      <td className="px-4 py-4 text-content-subtle">{formatDateTime(booking.start_time)}</td>
+                      <td className="px-4 py-4 text-content-subtle">{formatDateTime(booking.end_time)}</td>
                       <td className="px-4 py-4">
                         <StatusDot tone={bookingStatusTone(booking.status)} label={bookingStatusLabel(booking.status)} />
                       </td>
@@ -699,7 +699,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{editSpace ? "Edit Bookable Space" : "Create Bookable Space"}</SheetTitle>
             <SheetDescription>
               {editSpace
@@ -720,32 +720,32 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Name *</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Name *</span>
               <input
                 value={spaceForm.name}
                 onChange={(e) => setSpaceForm((f) => ({ ...f, name: e.target.value }))}
                 required
                 placeholder="e.g. Meeting Room A"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Description</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Description</span>
               <input
                 value={spaceForm.description}
                 onChange={(e) => setSpaceForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Optional description"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Space Type</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Space Type</span>
               <select
                 value={spaceForm.space_type}
                 onChange={(e) => setSpaceForm((f) => ({ ...f, space_type: e.target.value as BookableSpace["space_type"] }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               >
                 {SPACE_TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -754,11 +754,11 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Capacity Mode</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Capacity Mode</span>
               <select
                 value={spaceForm.capacity_mode}
                 onChange={(e) => setSpaceForm((f) => ({ ...f, capacity_mode: e.target.value as BookableSpace["capacity_mode"] }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               >
                 {CAPACITY_MODE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -768,53 +768,53 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
 
             {spaceForm.capacity_mode === "limited_capacity" ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Max Capacity</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">Max Capacity</span>
                 <input
                   type="number"
                   min={1}
                   value={spaceForm.max_capacity}
                   onChange={(e) => setSpaceForm((f) => ({ ...f, max_capacity: Number(e.target.value) }))}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                 />
               </label>
             ) : null}
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Lock ID</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Lock ID</span>
               <input
                 value={spaceForm.lock_id}
                 onChange={(e) => setSpaceForm((f) => ({ ...f, lock_id: e.target.value }))}
                 placeholder="Optional lock identifier"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
             <div className="flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-sm text-[#2f3037]">
+              <label className="flex items-center gap-2 text-sm text-content-body">
                 <input
                   type="checkbox"
                   checked={spaceForm.requires_booking}
                   onChange={(e) => setSpaceForm((f) => ({ ...f, requires_booking: e.target.checked }))}
-                  className="size-4 rounded border-[#d9dbe3] accent-[#4f55ff]"
+                  className="size-4 rounded border-line-default accent-brand"
                 />
                 Requires booking
               </label>
-              <label className="flex items-center gap-2 text-sm text-[#2f3037]">
+              <label className="flex items-center gap-2 text-sm text-content-body">
                 <input
                   type="checkbox"
                   checked={spaceForm.enabled}
                   onChange={(e) => setSpaceForm((f) => ({ ...f, enabled: e.target.checked }))}
-                  className="size-4 rounded border-[#d9dbe3] accent-[#4f55ff]"
+                  className="size-4 rounded border-line-default accent-brand"
                 />
                 Enabled
               </label>
             </div>
 
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutate || !spaceForm.name.trim() || createSpaceMutation.isPending || updateSpaceMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createSpaceMutation.isPending || updateSpaceMutation.isPending
                   ? "Saving..."
@@ -838,7 +838,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{editBooking ? "Edit Booking" : "New Booking"}</SheetTitle>
             <SheetDescription>
               {editBooking
@@ -860,12 +860,12 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
           >
             {!editBooking ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Space *</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">Space *</span>
                 <select
                   value={bookingForm.space_id}
                   onChange={(e) => setBookingForm((f) => ({ ...f, space_id: e.target.value }))}
                   required
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                 >
                   <option value="">Select a space</option>
                   {spaces
@@ -878,38 +878,38 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             ) : null}
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Title</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Title</span>
               <input
                 value={bookingForm.title}
                 onChange={(e) => setBookingForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Optional booking title"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Start Time *</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Start Time *</span>
               <input
                 type="datetime-local"
                 value={bookingForm.start_time}
                 onChange={(e) => setBookingForm((f) => ({ ...f, start_time: e.target.value }))}
                 required
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">End Time *</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">End Time *</span>
               <input
                 type="datetime-local"
                 value={bookingForm.end_time}
                 onChange={(e) => setBookingForm((f) => ({ ...f, end_time: e.target.value }))}
                 required
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={
@@ -920,7 +920,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                   createBookingMutation.isPending ||
                   updateBookingMutation.isPending
                 }
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createBookingMutation.isPending || updateBookingMutation.isPending
                   ? "Saving..."
@@ -945,7 +945,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         description={
           <>
             This will permanently delete{" "}
-            <span className="font-semibold text-[#17171c]">{deleteSpaceTarget?.name ?? "this space"}</span>{" "}
+            <span className="font-semibold text-content-heading">{deleteSpaceTarget?.name ?? "this space"}</span>{" "}
             and all associated bookings.
           </>
         }
@@ -972,7 +972,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         description={
           <>
             This will permanently delete the booking{" "}
-            <span className="font-semibold text-[#17171c]">{deleteBookingTarget?.title ?? deleteBookingTarget?.id ?? ""}</span>.
+            <span className="font-semibold text-content-heading">{deleteBookingTarget?.title ?? deleteBookingTarget?.id ?? ""}</span>.
           </>
         }
         confirmLabel="Delete Booking"

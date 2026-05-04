@@ -55,12 +55,12 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
         {activeTab === "Overview" ? (
           <>
             <PanelHeader title={t("common.general")} description={`Current ${title.toLowerCase()} configuration for this place.`} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {rows.map((row, index) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[240px_160px_1fr] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{row[0]}</span>
+                  <span className="font-semibold text-content-heading">{row[0]}</span>
                   <StatusDot tone={index === 2 ? "warning" : "success"} label={row[1]} />
-                  <span className="text-sm text-[#6f717c]">{row[2]}</span>
+                  <span className="text-sm text-content-subtle">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -83,15 +83,15 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
         {activeTab === "Events" ? (
           <>
             <PanelHeader title={t("common.events")} description={`Recent ${title.toLowerCase()} events and audit changes.`} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {[
                 ["12:02 PM", `${title} policy evaluated`, "Success"],
                 ["10:44 AM", `${title} configuration updated`, "Success"],
                 ["Yesterday", `${title} signal needs review`, "Review"],
               ].map((row, index) => (
                 <div key={`${row[0]}-${row[1]}`} className="grid gap-3 px-7 py-5 md:grid-cols-[120px_1fr_140px] md:items-center">
-                  <span className="text-sm text-[#6f717c]">{row[0]}</span>
-                  <span className="font-semibold text-[#17171c]">{row[1]}</span>
+                  <span className="text-sm text-content-subtle">{row[0]}</span>
+                  <span className="font-semibold text-content-heading">{row[1]}</span>
                   <StatusDot tone={index === 2 ? "warning" : "success"} label={row[2]} />
                 </div>
               ))}
@@ -104,7 +104,7 @@ export function PlaceOperationsAdaptedPage({ title }: { title: string }) {
             <PanelHeader title={t("common.settings")} description={t("common.settings")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <FormField label={t("kisi.teams.owner")} value="Place Admin" />
-              <FormField label={t("common.status")} value="365 days" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("common.status")} value="365 days" trailing={<ChevronDownIcon className="size-4 text-content-subtle" />} />
               <FormField label={t("kisi.orgSetup.notifications")} value="#security-sudirman" />
               <FormField label={t("common.scope")} value="Place scoped" />
             </div>

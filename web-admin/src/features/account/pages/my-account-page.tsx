@@ -154,39 +154,39 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
       >
         {activeTab === "profile" ? (
           <>
-            <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.profile")}</h2>
+            <div className="border-b border-line-subtle px-7 py-5">
+              <h2 className="text-lg font-semibold text-content-heading">{t("kisi.myAccount.profile")}</h2>
             </div>
             <div className="grid gap-8 p-7 lg:grid-cols-[1fr_260px]">
               <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
                     <input
                       value={profileName}
                       onChange={(event) => {
                         setProfileName(event.target.value)
                         setProfileFeedback(null)
                       }}
-                      className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                      className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
-                    <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#9a9ca7]">
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
+                    <div className="flex h-12 items-center rounded-[6px] border border-line-default px-4 text-sm text-content-muted">
                       <span className="min-w-0 truncate">{viewer.email}</span>
                     </div>
                   </label>
                 </div>
                 <div className="grid gap-6 md:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.role")}</span>
-                    <div className="flex h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm text-[#2f3037]">
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.myAccount.role")}</span>
+                    <div className="flex h-12 items-center rounded-[6px] border border-line-default px-4 text-sm text-content-body">
                       <span className="min-w-0 truncate">{formatMistyisletRoleLabel(viewer)}</span>
                     </div>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.language")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.myAccount.language")}</span>
                     <div className="relative">
                       <select
                         value={profileLanguage}
@@ -194,7 +194,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                           setProfileLanguage(event.target.value)
                           setProfileFeedback(null)
                         }}
-                        className="h-12 w-full appearance-none rounded-[6px] border border-[#d9dbe3] bg-white px-4 pr-10 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                        className="h-12 w-full appearance-none rounded-[6px] border border-line-default bg-white px-4 pr-10 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
                       >
                         {languageOptions.map((language) => (
                           <option key={language.value} value={language.value}>
@@ -202,7 +202,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                           </option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-[#6f717c]" />
+                      <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-content-subtle" />
                     </div>
                   </label>
                 </div>
@@ -221,9 +221,9 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
               </div>
               <div className="flex items-center gap-7 lg:justify-center">
                 <div className="flex size-28 items-center justify-center rounded-[10px] bg-[#eef0f4]">
-                  <UserIcon className="size-14 text-[#17171c]" />
+                  <UserIcon className="size-14 text-content-heading" />
                 </div>
-                <span className="text-sm font-semibold text-[#6f717c]">{formatMistyisletRoleLabel(viewer)}</span>
+                <span className="text-sm font-semibold text-content-subtle">{formatMistyisletRoleLabel(viewer)}</span>
               </div>
             </div>
           </>
@@ -246,30 +246,30 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
 
         {activeTab === "api" ? (
           <>
-            <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
+            <div className="flex items-center justify-between gap-4 border-b border-line-subtle px-7 py-5">
               <div>
-                <h2 className="text-lg font-semibold text-[#17171c]">API</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.api")}</p>
+                <h2 className="text-lg font-semibold text-content-heading">API</h2>
+                <p className="mt-1 text-sm text-content-subtle">{t("kisi.myAccount.api")}</p>
               </div>
-              <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[6px] border border-[#d9dbe3] px-4 lg:max-w-[360px]">
-                <SearchIcon className="size-4 text-[#6f717c]" />
-                <span className="text-sm text-[#9a9ca7]">{t("common.search")}</span>
+              <div className="flex h-11 min-w-0 flex-1 items-center gap-3 rounded-[6px] border border-line-default px-4 lg:max-w-[360px]">
+                <SearchIcon className="size-4 text-content-subtle" />
+                <span className="text-sm text-content-muted">{t("common.search")}</span>
               </div>
-              <Button variant="outline" className="h-11 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
+              <Button variant="outline" className="h-11 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
                 Add API Key
               </Button>
             </div>
-            <div className="divide-y divide-[#eceef2] px-7">
+            <div className="divide-y divide-line-subtle px-7">
               {apiKeys.map((item) => (
                 <div key={item[0]} className="flex items-center gap-4 py-5">
                   <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
-                    <CloudIcon className="size-5 text-[#2f3037]" />
+                    <CloudIcon className="size-5 text-content-body" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-[#17171c]">{item[0]}</p>
-                    <p className="mt-1 text-sm text-[#6f717c]">{item[1]}</p>
+                    <p className="truncate font-semibold text-content-heading">{item[0]}</p>
+                    <p className="mt-1 text-sm text-content-subtle">{item[1]}</p>
                   </div>
-                  <button type="button" className="ml-auto flex size-9 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]" aria-label={`Delete ${item[0]}`}>
+                  <button type="button" className="ml-auto flex size-9 items-center justify-center rounded-[6px] text-content-subtle hover:bg-surface-page" aria-label={`Delete ${item[0]}`}>
                     <Trash2Icon className="size-4" />
                   </button>
                 </div>
@@ -336,10 +336,10 @@ function MFASecurityTab({ token }: { token: string }) {
   const mfaEnabled = mfaStatusQuery.data?.enabled ?? false
 
   return (
-    <div className="divide-y divide-[#eceef2]">
+    <div className="divide-y divide-line-subtle">
       <div className="px-7 py-5">
-        <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.myAccount.security")}</h2>
-        <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.mfaDescription")}</p>
+        <h2 className="text-lg font-semibold text-content-heading">{t("kisi.myAccount.security")}</h2>
+        <p className="mt-1 text-sm text-content-subtle">{t("kisi.myAccount.mfaDescription")}</p>
       </div>
 
       {mfaNotice && (
@@ -350,12 +350,12 @@ function MFASecurityTab({ token }: { token: string }) {
 
       <div className="px-7 py-5">
         <div className="flex items-start gap-4">
-          <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+          <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
             <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-[#17171c]">{t("kisi.myAccount.mfaTitle")}</h3>
-            <p className="mt-1 text-sm text-[#6f717c]">
+            <h3 className="font-semibold text-content-heading">{t("kisi.myAccount.mfaTitle")}</h3>
+            <p className="mt-1 text-sm text-content-subtle">
               {mfaEnabled ? t("kisi.myAccount.mfaEnabled") : t("kisi.myAccount.mfaDisabled")}
             </p>
 
@@ -381,24 +381,24 @@ function MFASecurityTab({ token }: { token: string }) {
 
             {mfaStep === "verify" && (
               <div className="mt-4 space-y-4">
-                <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-5">
-                  <p className="mb-3 text-sm font-semibold text-[#17171c]">{t("kisi.myAccount.mfaScanQR")}</p>
-                  <div className="rounded-[6px] border border-[#d9dbe3] bg-white p-4">
-                    <code className="block break-all text-xs text-[#6f717c]">{otpauthUrl}</code>
+                <div className="rounded-[6px] border border-line-subtle bg-surface-page p-5">
+                  <p className="mb-3 text-sm font-semibold text-content-heading">{t("kisi.myAccount.mfaScanQR")}</p>
+                  <div className="rounded-[6px] border border-line-default bg-white p-4">
+                    <code className="block break-all text-xs text-content-subtle">{otpauthUrl}</code>
                   </div>
-                  <p className="mt-3 text-xs text-[#6f717c]">
-                    {t("kisi.myAccount.mfaManualEntry")} <code className="font-mono text-[#17171c]">{totpSecret}</code>
+                  <p className="mt-3 text-xs text-content-subtle">
+                    {t("kisi.myAccount.mfaManualEntry")} <code className="font-mono text-content-heading">{totpSecret}</code>
                   </p>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.myAccount.mfaEnterCode")}</label>
+                  <label className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.myAccount.mfaEnterCode")}</label>
                   <div className="flex gap-3">
                     <input
                       value={verifyCode}
                       onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6)); setMfaError("") }}
                       placeholder="000000"
                       maxLength={6}
-                      className="h-12 w-40 rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-center font-mono text-lg tracking-[0.3em] text-[#17171c] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                      className="h-12 w-40 rounded-[6px] border border-line-default bg-white px-4 text-center font-mono text-lg tracking-[0.3em] text-content-heading outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
                     />
                     <Button
                       className="h-12 rounded-[6px] px-6"
@@ -484,11 +484,11 @@ function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => 
   const sessions = sessionsQuery.data ?? []
 
   return (
-    <div className="divide-y divide-[#eceef2]">
+    <div className="divide-y divide-line-subtle">
       <div className="flex items-center justify-between gap-4 px-7 py-5">
         <div>
-          <h2 className="text-lg font-semibold text-[#17171c]">Active Sessions</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">
+          <h2 className="text-lg font-semibold text-content-heading">Active Sessions</h2>
+          <p className="mt-1 text-sm text-content-subtle">
             Manage your active login sessions. Revoking a session will sign out that device.
           </p>
         </div>
@@ -504,30 +504,30 @@ function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => 
       </div>
 
       {sessions.length === 0 ? (
-        <div className="px-7 py-8 text-center text-sm text-[#9a9ca7]">
+        <div className="px-7 py-8 text-center text-sm text-content-muted">
           No active sessions.
         </div>
       ) : (
         sessions.map((session) => (
           <div key={session.session_id} className="flex items-center gap-4 px-7 py-5">
             <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
-              <CloudIcon className="size-5 text-[#2f3037]" />
+              <CloudIcon className="size-5 text-content-body" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-[#17171c]">
+              <p className="truncate font-semibold text-content-heading">
                 {loginMethodLabel(session.login_method)}
                 {session.ip_address ? ` · ${session.ip_address}` : ""}
               </p>
-              <p className="mt-1 truncate text-sm text-[#6f717c]">
+              <p className="mt-1 truncate text-sm text-content-subtle">
                 {formatUserAgent(session.user_agent)}
               </p>
-              <p className="mt-0.5 text-xs text-[#9a9ca7]">
+              <p className="mt-0.5 text-xs text-content-muted">
                 Created {new Date(session.created_at).toLocaleString(i18next.language)} · Expires {new Date(session.expires_at).toLocaleString(i18next.language)}
               </p>
             </div>
             <button
               type="button"
-              className="flex size-9 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
+              className="flex size-9 items-center justify-center rounded-[6px] text-content-subtle hover:bg-surface-page"
               aria-label="Revoke session"
               onClick={() => setConfirmRevoke(session.session_id)}
             >
@@ -677,11 +677,11 @@ function PasskeyCredentialsTab({ token }: { token: string }) {
   const creds = credentialsQuery.data ?? []
 
   return (
-    <div className="divide-y divide-[#eceef2]">
+    <div className="divide-y divide-line-subtle">
       <div className="flex items-center justify-between gap-4 px-7 py-5">
         <div>
-          <h2 className="text-lg font-semibold text-[#17171c]">Passkeys</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">
+          <h2 className="text-lg font-semibold text-content-heading">Passkeys</h2>
+          <p className="mt-1 text-sm text-content-subtle">
             Sign in with Touch ID, Face ID, or security keys instead of a password.
           </p>
         </div>
@@ -690,17 +690,17 @@ function PasskeyCredentialsTab({ token }: { token: string }) {
       <div className="px-7 py-5">
         <div className="flex items-end gap-3">
           <label className="block flex-1">
-            <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Passkey name</span>
+            <span className="mb-2 block text-xs font-semibold text-content-subtle">Passkey name</span>
             <input
               type="text"
               placeholder="e.g. MacBook Touch ID"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+              className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
             />
           </label>
           <Button
-            className="h-12 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+            className="h-12 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
             disabled={registering}
             onClick={handleRegister}
           >
@@ -711,24 +711,24 @@ function PasskeyCredentialsTab({ token }: { token: string }) {
       </div>
 
       {creds.length === 0 ? (
-        <div className="px-7 py-8 text-center text-sm text-[#9a9ca7]">
+        <div className="px-7 py-8 text-center text-sm text-content-muted">
           No passkeys registered yet.
         </div>
       ) : (
         creds.map((cred) => (
           <div key={cred.id} className="flex items-center gap-4 px-7 py-5">
-            <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+            <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
               <FingerprintIcon className="size-5 text-[#4f55ff]" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-[#17171c]">{cred.display_name}</p>
-              <p className="mt-1 text-sm text-[#6f717c]">
+              <p className="truncate font-semibold text-content-heading">{cred.display_name}</p>
+              <p className="mt-1 text-sm text-content-subtle">
                 Added {new Date(cred.created_at).toLocaleDateString(i18next.language)} · Sign count: {cred.sign_count}
               </p>
             </div>
             <button
               type="button"
-              className="flex size-9 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
+              className="flex size-9 items-center justify-center rounded-[6px] text-content-subtle hover:bg-surface-page"
               aria-label={`Delete ${cred.display_name}`}
               onClick={() => setConfirmDelete(cred.id)}
             >
@@ -765,17 +765,17 @@ function PasswordChangeSection({ token }: { token: string }) {
   })
 
   return (
-    <div className="border-t border-[#eceef2] px-7 py-6">
-      <h3 className="text-lg font-semibold text-[#17171c]">Change Password</h3>
-      <p className="mt-1 text-sm text-[#6f717c]">Update your password. Must be at least 8 characters with uppercase, lowercase, and a digit.</p>
+    <div className="border-t border-line-subtle px-7 py-6">
+      <h3 className="text-lg font-semibold text-content-heading">Change Password</h3>
+      <p className="mt-1 text-sm text-content-subtle">Update your password. Must be at least 8 characters with uppercase, lowercase, and a digit.</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <input type="password" placeholder="Current password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password"
-          className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]" />
+          className="h-10 rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring" />
         <input type="password" placeholder="New password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password"
-          className="h-10 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]" />
+          className="h-10 rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring" />
       </div>
       <div className="mt-3 flex items-center gap-3">
-        <Button className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]" disabled={mutation.isPending || !currentPassword || newPassword.length < 8} onClick={() => mutation.mutate()}>
+        <Button className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover" disabled={mutation.isPending || !currentPassword || newPassword.length < 8} onClick={() => mutation.mutate()}>
           {mutation.isPending ? "Changing..." : "Change Password"}
         </Button>
         {message && <span className="text-sm text-green-600">{message}</span>}
