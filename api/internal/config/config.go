@@ -130,6 +130,8 @@ type Config struct {
 	WalletAlertWhatsAppAPIKey                                    string
 	WalletAlertWhatsAppPhoneNumberID                             string
 	WalletAlertWhatsAppTimeout                                   time.Duration
+	LarkAlertWebhookURL                                          string
+	LarkVerificationToken                                        string
 	UploadStorageDir                                             string
 	UploadSigningKey                                             string
 	UploadMaxSizeBytes                                           int64
@@ -731,6 +733,12 @@ func loadWalletWhatsAppAlertConfig(cfg *Config) {
 	if cfg.WalletAlertWhatsAppTimeout < time.Second {
 		cfg.WalletAlertWhatsAppTimeout = 5 * time.Second
 	}
+
+	// Lark Bot webhook URL (optional)
+	cfg.LarkAlertWebhookURL = envString("LARK_ALERT_WEBHOOK_URL")
+
+	// Lark Event Subscription verification token (for validating incoming events)
+	cfg.LarkVerificationToken = envString("LARK_VERIFICATION_TOKEN")
 }
 
 func (cfg Config) Validate() error {

@@ -532,6 +532,27 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
 		})
 
+		// Lark integration endpoints
+		r.Route("/integrations/lark", func(larkRouter chi.Router) {
+			// Event callback (no auth — Lark pushes events here, verified by token)
+			larkRouter.Post("/events", s.larkEventCallback)
+			// Authenticated endpoints
+			larkRouter.Group(func(authed chi.Router) {
+				authed.Use(s.withBearerToken)
+				authed.Use(s.requireRoles("super_admin", "tenant_admin"))
+				authed.Post("/bot/test", s.larkBotTest)
+				authed.Post("/bot/alert", s.larkBotSendAlert)
+				authed.Post("/sync", s.larkSyncUsers)
+			})
+		})
+
+		// Google Workspace integration endpoints
+		r.Route("/integrations/google-workspace", func(gwsRouter chi.Router) {
+			gwsRouter.Use(s.withBearerToken)
+			gwsRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			gwsRouter.Post("/sync", s.googleWorkspaceSyncUsers)
+		})
+
 		// Mobile credential admin endpoints
 		r.Route("/credentials/mobile", func(credRouter chi.Router) {
 			credRouter.Use(s.withBearerToken)
