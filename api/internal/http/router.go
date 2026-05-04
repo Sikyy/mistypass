@@ -104,6 +104,16 @@ type server struct {
 	gatewayNonceMu                sync.Mutex
 	gatewayNonces                 map[string]time.Time // nonce → expiry (5-min dedup window)
 	oauth2                        *oauth2Store
+	pushDeviceMu                  sync.Mutex
+	pushDevices                   map[string]pushDevice
+}
+
+type pushDevice struct {
+	UserID   string
+	TenantID string
+	FCMToken string
+	DeviceID string
+	Platform string
 }
 
 type enterpriseHRISWebhookReceiptQueuedTask struct {
@@ -379,6 +389,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		externalAuthHTTPClient:        &http.Client{Timeout: cfg.ExternalAuthTimeout},
 		hrisHTTPClient:                &http.Client{Timeout: firstNonZeroDuration(cfg.ExternalAuthTimeout, 15*time.Second)},
 		oauth2:                        newOAuth2Store(),
+		pushDevices:                   map[string]pushDevice{},
 	}
 	webAuthnEngine, err := auth.NewWebAuthnEngine(cfg.WebAuthnRPDisplayName, cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins)
 	if err != nil {
@@ -521,7 +532,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Post("/access/qr-unlock", s.appQRUnlock)
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
 				protected.Get("/access/logs", s.appAccessLogs)
+				protected.Get("/visitor-passes", s.appListVisitorPasses)
 				protected.Post("/visitor-passes", s.appCreateVisitorPass)
+				protected.Post("/devices/register", s.appRegisterDevice)
 
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
@@ -1366,6 +1379,50 @@ func (s *server) appAccessLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": events,
 	})
+}
+
+func (s *server) appListVisitorPasses(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	items := s.accessSvc.ListVisitorPasses(user.TenantID)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+func (s *server) appRegisterDevice(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	var request struct {
+		FCMToken    string `json:"fcm_token"`
+		DeviceID    string `json:"device_id"`
+		DeviceModel string `json:"device_model"`
+		Platform    string `json:"platform"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if request.FCMToken == "" {
+		writeError(w, http.StatusBadRequest, "fcm_token is required")
+		return
+	}
+	s.pushDeviceMu.Lock()
+	s.pushDevices[request.FCMToken] = pushDevice{
+		UserID:    user.ID,
+		TenantID:  user.TenantID,
+		FCMToken:  request.FCMToken,
+		DeviceID:  request.DeviceID,
+		Platform:  request.Platform,
+	}
+	s.pushDeviceMu.Unlock()
+	writeJSON(w, http.StatusOK, map[string]any{"status": "registered"})
 }
 
 func (s *server) appCreateVisitorPass(w http.ResponseWriter, r *http.Request) {
