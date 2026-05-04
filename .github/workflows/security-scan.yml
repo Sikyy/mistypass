@@ -41,7 +41,7 @@ jobs:
         run: docker build -f api/Dockerfile -t mistypass-api:ci .
 
       - name: Trivy Scan API Image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: mistypass-api:ci
           format: table
