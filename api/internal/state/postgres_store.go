@@ -685,7 +685,12 @@ create index if not exists mistypass_change_replay_checkpoints_updated_idx
 	if err := s.ensureProjectionTables(ctx); err != nil {
 		return err
 	}
-	return s.syncProjectionTables(ctx)
+	if err := s.syncProjectionTables(ctx); err != nil {
+		return err
+	}
+
+	// Run versioned migrations after baseline schema is in place.
+	return RunMigrations(s.db, AllMigrations())
 }
 
 func (s *PostgresStore) ensureProjectionTables(ctx context.Context) error {
