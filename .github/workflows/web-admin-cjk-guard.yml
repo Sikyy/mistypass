@@ -8,6 +8,7 @@ on:
       - "scripts/check-hardcoded-cjk.mjs"
       - ".github/workflows/web-admin-cjk-guard.yml"
   push:
+    branches: [main]
     paths:
       - "web-admin/src/**"
       - "web-admin/cjk-whitelist.txt"
