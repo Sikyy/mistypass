@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -61,6 +62,7 @@ type server struct {
 	stateChangeReplayer           stateChangeReplayer
 	stateChangeCheckpointReader   stateChangeCheckpointReader
 	stateChangeCheckpointReplayer stateChangeCheckpointReplayer
+	trustedProxies                []*net.IPNet
 	gatewayTokenMu                sync.RWMutex
 	gatewayDeviceTokens           map[string]string
 	gatewayBatchFailureMu         sync.Mutex
@@ -321,6 +323,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	}); err != nil {
 		return nil, nil, err
 	}
+	if jwtSecret := strings.TrimSpace(cfg.JWTSecret); jwtSecret != "" && len(auditSvc.HMACKey()) == 0 {
+		auditHMACKey := sha256.Sum256([]byte("mistypass-audit-hmac:" + jwtSecret))
+		auditSvc.SetHMACKey(auditHMACKey[:])
+	}
 	scheduledReports, scheduledReportSeq := defaultReferenceScheduledReports(time.Now().UTC())
 
 	s := &server{
@@ -348,6 +354,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		stateChangeReplayer:           stateChangeReplayerSvc,
 		stateChangeCheckpointReader:   stateChangeCheckpointReaderSvc,
 		stateChangeCheckpointReplayer: stateChangeCheckpointReplayerSvc,
+		trustedProxies:                parseTrustedProxyCIDRs(cfg.TrustedProxyCIDRs),
 		gatewayDeviceTokens:           map[string]string{},
 		gatewayBatchFailureSeen:       map[string]struct{}{},
 		gatewayAuthzAckVersion:        map[string]string{},
@@ -466,7 +473,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withLoginRateLimit).Post("/auth/login", s.login)
 		r.With(s.withLoginRateLimit).Post("/auth/external/login", s.externalLogin)
 		r.Get("/openapi.json", s.getOpenAPISpec)
-		r.Post("/auth/refresh", s.refresh)
+		r.With(s.withLoginRateLimit).Post("/auth/refresh", s.refresh)
 		r.Put("/uploads/{uploadID}", s.uploadFile)
 		r.Get("/uploads/{uploadID}", s.downloadFile)
 		r.With(s.withLoginRateLimit).Post("/users/sign_up", s.userSignUp)

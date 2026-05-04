@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,6 +52,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 		Code:    httpStatusErrorCode(status),
 		Status:  strconv.Itoa(status),
 	})
+}
+
+func writeInternalError(w http.ResponseWriter, r *http.Request, err error) {
+	slog.ErrorContext(r.Context(), "internal error", "method", r.Method, "path", r.URL.Path, "err", err)
+	writeError(w, http.StatusInternalServerError, "internal server error")
 }
 
 func httpStatusErrorCode(status int) string {

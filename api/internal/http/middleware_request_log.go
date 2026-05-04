@@ -58,7 +58,7 @@ func (s *server) withRequestLog(next http.Handler) http.Handler {
 			"status", status,
 			"duration_ms", duration.Milliseconds(),
 			"request_id", requestID,
-			"client_ip", requestClientIP(r),
+			"client_ip", s.clientIP(r),
 			"user_agent", r.UserAgent(),
 		)
 	})

@@ -667,6 +667,8 @@ create table if not exists mistypass_change_log (
 );
 create index if not exists mistypass_change_log_state_key_created_idx
   on mistypass_change_log(state_key, created_at desc);
+create index if not exists mistypass_change_log_state_key_id_idx
+  on mistypass_change_log(state_key, id asc);
 create index if not exists mistypass_change_log_created_idx
   on mistypass_change_log(created_at desc);
 
@@ -689,7 +691,6 @@ create index if not exists mistypass_change_replay_checkpoints_updated_idx
 		return err
 	}
 
-	// Run versioned migrations after baseline schema is in place.
 	return RunMigrations(s.db, AllMigrations())
 }
 
