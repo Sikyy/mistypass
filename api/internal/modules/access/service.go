@@ -1327,6 +1327,27 @@ func (s *Service) GetUser(tenantID, userID string) (AccessUser, error) {
 	return AccessUser{}, ErrUserNotFound
 }
 
+func (s *Service) FindUserByEmail(tenantID, email string) (AccessUser, bool) {
+	nextEmail := normalizeEmail(email)
+	if nextEmail == "" {
+		return AccessUser{}, false
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.users {
+		if filterTenantID != "" && s.users[i].TenantID != filterTenantID {
+			continue
+		}
+		if normalizeEmail(s.users[i].Email) == nextEmail {
+			return cloneAccessUser(s.users[i]), true
+		}
+	}
+	return AccessUser{}, false
+}
+
 func (s *Service) CreateUser(tenantID, buildingID, name, email, role, status string, groupIDs []string) (AccessUser, error) {
 	nextTenantID := strings.TrimSpace(tenantID)
 	if nextTenantID == "" {
