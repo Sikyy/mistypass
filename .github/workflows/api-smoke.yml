@@ -56,6 +56,9 @@ jobs:
         working-directory: api
         run: go test ./...
 
+      - name: OpenAPI Spec Drift Guard
+        run: /bin/zsh ./docs/testing/check-openapi-drift.zsh
+
       - name: Pre-build API binary
         working-directory: api
         run: go build -o /tmp/mistypass-api ./cmd/api
