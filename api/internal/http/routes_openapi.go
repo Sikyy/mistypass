@@ -331,6 +331,7 @@ func openAPIComponents() map[string]any {
 			"Camera":          openAPICameraSchema(),
 			"CameraCreate":    openAPICameraCreateSchema(),
 			"CameraUpdate":    openAPICameraUpdateSchema(),
+			"GuestCreate":     openAPIGuestCreateSchema(),
 		},
 		"responses": map[string]any{
 			"UnauthorizedError": errorResponseComponent("Unauthorized"),
@@ -887,7 +888,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		// Guests
 		{Method: http.MethodGet, Path: "/api/v1/guests", OperationID: "fetchGuests", Tag: "Visitors", Summary: "List guests.", Collection: true},
 		{Method: http.MethodGet, Path: "/api/v1/guests/{guestID}", OperationID: "fetchGuest", Tag: "Visitors", Summary: "Fetch a guest."},
-		{Method: http.MethodPost, Path: "/api/v1/guests", OperationID: "createGuest", Tag: "Visitors", Summary: "Register a new guest.", Created: true},
+		{Method: http.MethodPost, Path: "/api/v1/guests", OperationID: "createGuest", Tag: "Visitors", Summary: "Register a new guest with optional QR access token (door_ids, access_ttl_hours). Returns access_token for Tier 3 visitor QR code.", Created: true, RequestSchema: "GuestCreate"},
 		{Method: http.MethodPatch, Path: "/api/v1/guests/{guestID}/status", OperationID: "updateGuestStatus", Tag: "Visitors", Summary: "Update guest status (check-in, check-out, cancel)."},
 		{Method: http.MethodDelete, Path: "/api/v1/guests/{guestID}", OperationID: "deleteGuest", Tag: "Visitors", Summary: "Delete a guest record.", NoContent: true},
 
@@ -954,7 +955,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/gateway/config/applied", OperationID: "confirmGatewayConfigApplied", Tag: "Gateway Bootstrap", Summary: "Confirm gateway config version applied.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/batch", OperationID: "submitGatewayEventsBatch", Tag: "Gateway Bootstrap", Summary: "Submit gateway events in batch.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/checkpoint", OperationID: "submitGatewayEventsCheckpoint", Tag: "Gateway Bootstrap", Summary: "Submit gateway events checkpoint.", Public: true},
-		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision.", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision. Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens).", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/ota/report", OperationID: "reportGatewayOTAStatus", Tag: "Gateway Bootstrap", Summary: "Report OTA firmware update result.", Public: true},
 	}
 }
@@ -1420,6 +1421,31 @@ func openAPICameraUpdateSchema() map[string]any {
 					"status":   map[string]any{"type": "string", "enum": []string{"active", "offline", "disconnected"}},
 				},
 			},
+		},
+	}
+}
+
+func openAPIGuestCreateSchema() map[string]any {
+	return map[string]any{
+		"type":     "object",
+		"required": []string{"name", "phone", "host_name"},
+		"properties": map[string]any{
+			"tenant_id":          map[string]any{"type": "string"},
+			"building_id":        map[string]any{"type": "string"},
+			"name":               map[string]any{"type": "string"},
+			"email":              map[string]any{"type": "string", "format": "email"},
+			"phone":              map[string]any{"type": "string"},
+			"company":            map[string]any{"type": "string"},
+			"purpose":            map[string]any{"type": "string"},
+			"host_name":          map[string]any{"type": "string"},
+			"host_email":         map[string]any{"type": "string", "format": "email"},
+			"host_phone":         map[string]any{"type": "string"},
+			"id_document_type":   map[string]any{"type": "string", "enum": []string{"KTP", "KITAS", "ITAS"}},
+			"id_document_number": map[string]any{"type": "string"},
+			"expected_at":        map[string]any{"type": "string", "format": "date-time"},
+			"notify_host":        map[string]any{"type": "boolean"},
+			"door_ids":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "description": "Doors this guest can access via QR code. Empty = building-wide access."},
+			"access_ttl_hours":   map[string]any{"type": "integer", "minimum": 1, "maximum": 72, "default": 24, "description": "QR token validity in hours (default 24, max 72)."},
 		},
 	}
 }
