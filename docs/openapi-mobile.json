@@ -1,0 +1,2241 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MistyPass Mobile API",
+    "version": "2026-05-01",
+    "description": "Mobile app endpoints extracted from the Mistyislet API."
+  },
+  "servers": [
+    {
+      "url": "https://api.mistyislet.com"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Resident mobile app endpoints.",
+      "name": "Mobile App"
+    },
+    {
+      "description": "Reference-style resource endpoints.",
+      "name": "Mobile Credentials"
+    }
+  ],
+  "paths": {
+    "/api/v1/app/access/ble-token": {
+      "get": {
+        "operationId": "fetchAppAccessBLEToken",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident BLE unlock token (legacy static token).",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/access/doors": {
+      "get": {
+        "operationId": "fetchAppAccessDoors",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident accessible doors.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/access/logs": {
+      "get": {
+        "operationId": "fetchAppAccessLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident access logs.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/access/my-doors": {
+      "get": {
+        "operationId": "fetchAppAccessMyDoors",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident accessible doors (filtered by user).",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/access/qr-unlock": {
+      "post": {
+        "operationId": "appQRUnlockDoor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unlock a door via QR code.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/access/unlock": {
+      "post": {
+        "operationId": "appUnlockDoor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unlock a door from the mobile app.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/auth/login": {
+      "post": {
+        "operationId": "createAppLoginSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "summary": "Create a resident app login session.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/auth/refresh": {
+      "post": {
+        "operationId": "refreshAppLoginSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "summary": "Refresh a resident app login session.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/credentials": {
+      "get": {
+        "operationId": "fetchAppCredentials",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident app credentials.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/credentials/apple-pass": {
+      "post": {
+        "operationId": "enrollAppApplePass",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Enroll a resident Apple Wallet pass.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/credentials/mobile": {
+      "get": {
+        "operationId": "listMobileCredentials",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List current user mobile credentials.",
+        "tags": [
+          "Mobile Credentials"
+        ]
+      }
+    },
+    "/api/v1/app/credentials/mobile/{credentialID}": {
+      "delete": {
+        "operationId": "revokeMobileCredentialSelf",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "credentialID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Self-revoke a mobile credential (lost phone).",
+        "tags": [
+          "Mobile Credentials"
+        ]
+      }
+    },
+    "/api/v1/app/credentials/mobile/{credentialID}/refresh": {
+      "post": {
+        "operationId": "refreshMobileCredential",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "credentialID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Refresh credential TTL.",
+        "tags": [
+          "Mobile Credentials"
+        ]
+      }
+    },
+    "/api/v1/app/credentials/register": {
+      "post": {
+        "operationId": "registerMobileCredential",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register mobile device keypair (EC P-256 public key + attestation).",
+        "tags": [
+          "Mobile Credentials"
+        ]
+      }
+    },
+    "/api/v1/app/me": {
+      "get": {
+        "operationId": "fetchAppCurrentUser",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch resident app profile.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    },
+    "/api/v1/app/visitor-passes": {
+      "post": {
+        "operationId": "createAppVisitorPass",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a resident visitor pass.",
+        "tags": [
+          "Mobile App"
+        ]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "LimitParam": {
+        "description": "Maximum number of items to return.",
+        "in": "query",
+        "name": "limit",
+        "required": false,
+        "schema": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "OffsetParam": {
+        "description": "Zero-based item offset.",
+        "in": "query",
+        "name": "offset",
+        "required": false,
+        "schema": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      }
+    },
+    "responses": {
+      "ConflictError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Conflict"
+      },
+      "ForbiddenError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Forbidden"
+      },
+      "NotFoundError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Not found"
+      },
+      "UnauthorizedError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Unauthorized"
+      },
+      "ValidationError": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        },
+        "description": "Validation error"
+      }
+    },
+    "schemas": {
+      "AlertPolicy": {
+        "properties": {
+          "category": {
+            "enum": [
+              "custom",
+              "wallet_jobs",
+              "enterprise_sync_worker"
+            ],
+            "type": "string"
+          },
+          "channels": {
+            "properties": {
+              "email": {
+                "type": "boolean"
+              },
+              "whatsapp": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "condition_expression": {
+            "type": "string"
+          },
+          "cooldown_seconds": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "receiver_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "resource_type": {
+            "enum": [
+              "AlertPolicy"
+            ],
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "threshold": {
+            "type": "integer"
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "window_seconds": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "type": "object"
+      },
+      "Camera": {
+        "properties": {
+          "channel": {
+            "default": 1,
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "door_id": {
+            "description": "Lock/door this camera monitors",
+            "type": "string"
+          },
+          "host": {
+            "description": "Camera IP address or hostname",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_snapshot_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "port": {
+            "default": 80,
+            "type": "integer"
+          },
+          "provider": {
+            "enum": [
+              "onvif",
+              "hikvision",
+              "dahua",
+              "zkteco",
+              "vivotek"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "offline",
+              "disconnected"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "use_tls": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "provider",
+          "host",
+          "status"
+        ],
+        "type": "object"
+      },
+      "CameraCreate": {
+        "properties": {
+          "camera": {
+            "properties": {
+              "channel": {
+                "default": 1,
+                "type": "integer"
+              },
+              "door_id": {
+                "type": "string"
+              },
+              "host": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "password": {
+                "format": "password",
+                "type": "string"
+              },
+              "place_id": {
+                "type": "string"
+              },
+              "port": {
+                "default": 80,
+                "type": "integer"
+              },
+              "provider": {
+                "enum": [
+                  "onvif",
+                  "hikvision",
+                  "dahua",
+                  "zkteco",
+                  "vivotek"
+                ],
+                "type": "string"
+              },
+              "tenant_id": {
+                "type": "string"
+              },
+              "use_tls": {
+                "type": "boolean"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "provider",
+              "host"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "camera"
+        ],
+        "type": "object"
+      },
+      "CameraUpdate": {
+        "properties": {
+          "camera": {
+            "properties": {
+              "channel": {
+                "type": "integer"
+              },
+              "door_id": {
+                "type": "string"
+              },
+              "host": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "password": {
+                "format": "password",
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              },
+              "status": {
+                "enum": [
+                  "active",
+                  "offline",
+                  "disconnected"
+                ],
+                "type": "string"
+              },
+              "use_tls": {
+                "type": "boolean"
+              },
+              "username": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "camera"
+        ],
+        "type": "object"
+      },
+      "Card": {
+        "properties": {
+          "card_number": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "credential_kind": {
+            "enum": [
+              "google_wallet",
+              "apple_wallet",
+              "physical_card"
+            ],
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "object_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "save_link": {
+            "format": "uri",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "issued",
+              "active",
+              "suspended",
+              "revoked",
+              "expired"
+            ],
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          },
+          "target_type": {
+            "enum": [
+              "user",
+              "visitor"
+            ],
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "type": "object"
+      },
+      "CardAssignment": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pass_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "pass_id",
+          "user_id"
+        ],
+        "type": "object"
+      },
+      "CollectionResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "type": "object"
+      },
+      "Controller": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "firmware": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lock_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Controller"
+            ],
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "online",
+              "offline",
+              "provisioning"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "Error": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message",
+          "code",
+          "status"
+        ],
+        "type": "object"
+      },
+      "Group": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Group"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "GuestCreate": {
+        "properties": {
+          "access_ttl_hours": {
+            "default": 24,
+            "description": "QR token validity in hours (default 24, max 72).",
+            "maximum": 72,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "building_id": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "door_ids": {
+            "description": "Doors this guest can access via QR code. Empty = building-wide access.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "expected_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "host_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "host_name": {
+            "type": "string"
+          },
+          "host_phone": {
+            "type": "string"
+          },
+          "id_document_number": {
+            "type": "string"
+          },
+          "id_document_type": {
+            "enum": [
+              "KTP",
+              "KITAS",
+              "ITAS"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notify_host": {
+            "type": "boolean"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "phone",
+          "host_name"
+        ],
+        "type": "object"
+      },
+      "HolidayCalendar": {
+        "properties": {
+          "country": {
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "properties": {
+                "date": {
+                  "format": "date",
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "date",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Lock": {
+        "properties": {
+          "area_id": {
+            "type": "string"
+          },
+          "controller_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "floor_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "office",
+              "server_room",
+              "parking",
+              "elevator",
+              "turnstile",
+              "generic"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Lock"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "online",
+              "offline",
+              "locked_down"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "LockCreate": {
+        "properties": {
+          "area_id": {
+            "type": "string"
+          },
+          "floor_id": {
+            "type": "string"
+          },
+          "gateway_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "place_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ObjectResponse": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "Pagination": {
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "offset": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "offset",
+          "limit",
+          "total",
+          "has_more"
+        ],
+        "type": "object"
+      },
+      "Place": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "floors_count": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "locks_count": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Place"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "archived"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "PlaceCreate": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "region": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "Reader": {
+        "properties": {
+          "controller_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Reader"
+            ],
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "Role": {
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "Organization",
+              "Place",
+              "Group"
+            ],
+            "type": "string"
+          },
+          "built_in": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "applies_to"
+        ],
+        "type": "object"
+      },
+      "RoleAssignment": {
+        "properties": {
+          "applies_to_id": {
+            "type": "string"
+          },
+          "applies_to_type": {
+            "enum": [
+              "Organization",
+              "Place",
+              "Group"
+            ],
+            "type": "string"
+          },
+          "assignee_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "assignee_id": {
+            "type": "string"
+          },
+          "assignee_type": {
+            "enum": [
+              "User",
+              "Team",
+              "Guest"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "exception_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "holiday_calendar_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reviewed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewed_by": {
+            "type": "string"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "time_windows": {
+            "items": {
+              "$ref": "#/components/schemas/TimeWindow"
+            },
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role_id",
+          "applies_to_type",
+          "assignee_type",
+          "assignee_id"
+        ],
+        "type": "object"
+      },
+      "Share": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "exception_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "grantee_email": {
+            "format": "email",
+            "type": "string"
+          },
+          "grantee_name": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "scope_type": {
+            "enum": [
+              "area",
+              "door",
+              "group"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "time_windows": {
+            "items": {
+              "$ref": "#/components/schemas/TimeWindow"
+            },
+            "type": "array"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "Team": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Team"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "TeamMembership": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "member_id": {
+            "type": "string"
+          },
+          "member_type": {
+            "enum": [
+              "User",
+              "Guest"
+            ],
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team_id",
+          "member_type",
+          "member_id"
+        ],
+        "type": "object"
+      },
+      "Terminal": {
+        "properties": {
+          "controller_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "place_id": {
+            "type": "string"
+          },
+          "resource_type": {
+            "enum": [
+              "Terminal"
+            ],
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "TimeWindow": {
+        "properties": {
+          "day_of_week_set": {
+            "description": "weekday, weekend, all, or comma-separated ISO days (1=Mon, 7=Sun)",
+            "type": "string"
+          },
+          "end_time": {
+            "description": "HH:MM format",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "type": "string"
+          },
+          "start_time": {
+            "description": "HH:MM format",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "IANA timezone, e.g. Asia/Jakarta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_time",
+          "end_time",
+          "day_of_week_set"
+        ],
+        "type": "object"
+      },
+      "User": {
+        "properties": {
+          "building_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "inactive",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "sync_source": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "type": "object"
+      },
+      "UserCreate": {
+        "properties": {
+          "building_id": {
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      },
+      "kisiAccessKey": {
+        "description": "Compatibility scheme: `KISI-ACCESS-KEY <key>`.",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      },
+      "kisiGroupLink": {
+        "description": "Compatibility scheme: `KISI-GROUP-LINK <token>`.",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      },
+      "kisiLogin": {
+        "description": "Compatibility scheme: `KISI-LOGIN <token>`.",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      },
+      "kisiService": {
+        "description": "Compatibility scheme: `KISI-SERVICE <token>`.",
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      },
+      "webhookSignature": {
+        "in": "header",
+        "name": "X-Signature",
+        "type": "apiKey"
+      }
+    }
+  }
+}
