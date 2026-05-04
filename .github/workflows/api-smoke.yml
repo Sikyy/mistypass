@@ -11,6 +11,8 @@ permissions:
 jobs:
   api-smoke:
     runs-on: ubuntu-latest
+    env:
+      ENABLE_DEMO_USERS: "true"
     services:
       postgres:
         image: postgres:16
