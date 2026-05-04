@@ -129,6 +129,12 @@ const AuditPage = lazy(() =>
 const AccessLinkClaimPage = lazy(() =>
   import("@/features/legacy/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
 )
+const MobileCredentialsPage = lazy(() =>
+  import("@/features/mobile-credentials/pages/mobile-credentials-page").then((module) => ({ default: module.MobileCredentialsPage }))
+)
+const SouthboundPage = lazy(() =>
+  import("@/features/southbound/pages/southbound-page").then((module) => ({ default: module.SouthboundPage }))
+)
 
 type MistyisletConsoleRoutesProps = {
   homeContent: ReactNode
@@ -259,6 +265,8 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
         <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
+        <Route path="/mobile-credentials" element={<MobileCredentialsPage token={token} viewer={viewer} />} />
+        <Route path="/southbound" element={<SouthboundPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />
         <Route path="/places/assigned/:section" element={<AssignedPlaceRedirect />} />

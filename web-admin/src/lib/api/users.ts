@@ -52,6 +52,9 @@ export type Guest = {
   expected_at?: string
   notify_host?: boolean
   host_notified_at?: string
+  access_token?: string
+  access_token_expires_at?: string
+  door_ids?: string[]
   created_at: string
   updated_at: string
 }
@@ -306,17 +309,21 @@ export async function listGuests(token: string | undefined, tenantID?: string): 
   return request<{ items: Guest[] }>(withTenantQuery("/api/v1/guests", tenantID), {}, token)
 }
 
-export async function createGuest(token: string | undefined, payload: Partial<Guest> & { tenant_id?: string }): Promise<Guest> {
+export async function getGuest(token: string | undefined, guestID: string, tenantID?: string): Promise<Guest> {
+  return request<Guest>(withTenantQuery(`/api/v1/guests/${encodePathSegment(guestID)}`, tenantID), {}, token)
+}
+
+export async function createGuest(token: string | undefined, payload: Partial<Guest> & { tenant_id?: string; access_ttl_hours?: number }): Promise<Guest> {
   return request<Guest>("/api/v1/guests", { method: "POST", body: JSON.stringify(payload) }, token)
 }
 
 export async function updateGuestStatus(token: string | undefined, guestID: string, tenantID: string, status: string): Promise<Guest> {
-  return request<Guest>(`/api/v1/guests/${guestID}/status`, {
+  return request<Guest>(`/api/v1/guests/${encodePathSegment(guestID)}/status`, {
     method: "PATCH",
     body: JSON.stringify({ tenant_id: tenantID, status }),
   }, token)
 }
 
 export async function deleteGuest(token: string | undefined, guestID: string, tenantID: string): Promise<void> {
-  return request<void>(`/api/v1/guests/${guestID}?tenant_id=${tenantID}`, { method: "DELETE" }, token)
+  return request<void>(`/api/v1/guests/${encodePathSegment(guestID)}?tenant_id=${encodeURIComponent(tenantID)}`, { method: "DELETE" }, token)
 }

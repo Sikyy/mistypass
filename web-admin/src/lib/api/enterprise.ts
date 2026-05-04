@@ -864,3 +864,112 @@ export async function replayEnterpriseHRISWebhookDLQ(token: string | undefined, 
 export async function replayBatchEnterpriseHRISWebhookDLQ(token: string | undefined, input: { tenant_id: string; entry_ids: string[]; execution_mode?: "inline" | "queued"; require_worker?: boolean }): Promise<EnterpriseHRISWebhookDLQBatchReplayResult> {
   return request<EnterpriseHRISWebhookDLQBatchReplayResult>("/api/v1/enterprise/hris-webhook-dlq/replay-batch", { method: "POST", body: JSON.stringify(input) }, token)
 }
+
+// --- SCIM Provisioning Admin ---
+
+export type SCIMConfig = {
+  scim_base_url: string
+  scim_version: string
+  auth_mode: string
+  token_configured: boolean
+  token_masked: string
+  token_label: string
+  token_created_at: string
+  token_created_by: string
+  supported_operations: string[]
+  supported_resources: string[]
+  provisioning_guide: string
+  setup_steps: Array<{ step: string; title: string; description: string }>
+}
+
+export type SCIMTokenResponse = {
+  token: string
+  label: string
+  created_at: string
+  message: string
+}
+
+export type SCIMTestResult = {
+  status: string
+  tenant_id?: string
+  user_count?: number
+  scim_base?: string
+  token_label?: string
+  message: string
+}
+
+export type SCIMProvisioningLog = {
+  id: string
+  action: string
+  actor: string
+  target: string
+  source: string
+  timestamp: string
+}
+
+export async function getSCIMConfig(token: string | undefined): Promise<SCIMConfig> {
+  return request<SCIMConfig>("/api/v1/enterprise/scim/config", {}, token)
+}
+
+export async function generateSCIMToken(token: string | undefined, label?: string): Promise<SCIMTokenResponse> {
+  return request<SCIMTokenResponse>("/api/v1/enterprise/scim/token", { method: "POST", body: JSON.stringify({ label: label || "default" }) }, token)
+}
+
+export async function revokeSCIMToken(token: string | undefined): Promise<{ status: string; message: string }> {
+  return request<{ status: string; message: string }>("/api/v1/enterprise/scim/token", { method: "DELETE" }, token)
+}
+
+export async function testSCIMEndpoint(token: string | undefined): Promise<SCIMTestResult> {
+  return request<SCIMTestResult>("/api/v1/enterprise/scim/test", { method: "POST" }, token)
+}
+
+export async function listSCIMProvisioningLogs(token: string | undefined): Promise<{ items: SCIMProvisioningLog[]; total: number }> {
+  return request<{ items: SCIMProvisioningLog[]; total: number }>("/api/v1/enterprise/scim/logs", {}, token)
+}
+
+// --- Domain Mappings ---
+
+export type EnterpriseDomainMapping = {
+  id: string
+  tenant_id: string
+  domain: string
+  idp_config_id: string
+  status: "active" | "pending" | "disabled"
+  verified_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export async function listEnterpriseDomainMappings(
+  token: string | undefined,
+  tenantID?: string
+): Promise<EnterpriseDomainMapping[]> {
+  return requestItems<EnterpriseDomainMapping>(
+    withTenantQuery("/api/v1/enterprise/domain-mappings", tenantID),
+    token
+  )
+}
+
+export async function createEnterpriseDomainMapping(
+  token: string | undefined,
+  payload: { tenant_id?: string; domain: string; idp_config_id?: string }
+): Promise<EnterpriseDomainMapping> {
+  return request<EnterpriseDomainMapping>(
+    "/api/v1/enterprise/domain-mappings",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function updateEnterpriseDomainMappingStatus(
+  token: string | undefined,
+  mappingID: string,
+  status: string,
+  tenantID?: string
+): Promise<EnterpriseDomainMapping> {
+  return request<EnterpriseDomainMapping>(
+    `/api/v1/enterprise/domain-mappings/${encodePathSegment(mappingID)}/status`,
+    { method: "PATCH", body: JSON.stringify({ status, tenant_id: tenantID }) },
+    token
+  )
+}

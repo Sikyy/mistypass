@@ -1,9 +1,10 @@
 # Mistyislet 后续推进路线图
 
-> 更新日期：2026-05-02 (v4)
-> 第一优先级：完成 MVP 项目跑通，包括硬件
+> 更新日期：2026-05-03 (v8 — 纯软件全部清零，剩余项均依赖硬件或外部账号)
+> 第一优先级：BLE 移动凭据 MVP（印尼两个工厂客户）— 见第 9 节
 > 第一理念：让用户更方便、更安全、更高效地开门
-> ⚠️ Apple/Google Wallet 功能因印尼政策原因暂停推进（Apple Pay/Google Pay 在印尼暂不可用）
+> ⚠️ Apple/Google Wallet 功能因印尼��策原因暂停推进（Apple Pay/Google Pay 在印尼暂不可用）
+> 🚀 替代方案：BLE + Android Keystore 自主认证链路（绕过 Apple/Google 生态限制）
 > MVP 聚焦路线图见 `docs/MVP-ROADMAP.md`
 > Gateway 通信协议见 `docs/architecture/gateway-cloud-protocol.md`
 > 代码审查报告见 `docs/CODE-REVIEW-2026-05-01.md`
@@ -305,17 +306,22 @@ GOOGLE_WALLET_CLASS_SUFFIX=mistypass_access_v1
 
 ---
 
-### 优先级建议（2026-05-02 更新）
+### 优先级建议（2026-05-02 v5 更新）
 
 ```
-1. RS485 + 电磁锁集成（EM Lock 已采购）     → 到货后立即推进
-2. Camera 真实集成（DS-2CD1023G2-LIU 已采购）→ 到货后立即推进
-3. OTA Gateway 固件侧                       → 与 #1 同步
-4. API 场景完善 + 印尼企业功能适配            → 持续推进
-5. Wireless Locks（需特定锁）                → 视产品规划
-6. Controller I/O（需控制器板）               → 视产品规划
+🔴 最高优先级：
+1. BLE 移动凭据 MVP（第 9 节完整计划）        → 立即启动，目标 7 月中旬交付
+
+🟡 并行推进：
+2. RS485 + 电磁锁集成（EM Lock 已采购）     �� 到货后立即推进（BLE MVP 依赖）
+3. 海康/ZKTeco 门禁适配（Phase 1D）          → 与 BLE 并行
+4. Camera 真实集成（DS-2CD1023G2-LIU 已采购）→ 到货后推进
+
+🟢 后续：
+5. OTA Gateway 固件侧                       → BLE MVP 稳定后
+6. Wireless Locks / Controller I/O           → 视产品规划
 ---
-⏸️ Apple + Google Wallet                     → 暂停（印尼政策限制）
+⏸️ Apple + Google Wallet                     → 暂停（印尼政策限制，BLE 方案替代）
 ```
 
 ## 5. 执行计划（2026-05-01 代码审查后制定）
@@ -613,9 +619,837 @@ MistyPass 已直连 Meta Cloud API，**不需要 BSP 中间商**。但需要：
 | **中期** | ID-7 | Xendit 支付集成（如需 SaaS 收费） | 3 天 | 待做 |
 | **后置** | ID-8 | HRIS 其余供应商（Gadjian 等） | — | 后置 |
 
+### 7.8 第三方办公 SaaS 集成（2026-05-03）
+
+> 目标：与客户办公平台打通，实现员工入离职自动同步门禁凭据
+
+| 平台 | 优先级 | 集成内容 | 状态 |
+|------|--------|---------|------|
+| **WhatsApp Business** | P0 | 告警通知（模板消息 + 纯文本） | ✅ 已完成 + 测试通过 |
+| **Lark / 飞书** | P1 | Bot 告警通知 + 通讯录同步 + 事件订阅 | ✅ 代码完成，待客户确认 |
+| **Google Workspace** | P1 | Directory API 员工同步 | ✅ 代码完成，待客户有 GWS |
+| DingTalk / 钉钉 | P2 | 待客户需要时开发 | 待做 |
+| Microsoft Teams | P2 | 待大型外企客户 | 待做 |
+
+#### 集成文件索引
+
+| 文件 | 用途 |
+|------|------|
+| `api/internal/modules/integration/lark_client.go` | Lark API 客户端（自动 token 管理） |
+| `api/internal/modules/integration/lark_bot.go` | Lark Bot 消息（文本 + 告警卡片 + 访客通知） |
+| `api/internal/modules/integration/lark_contact.go` | Lark 员工目录同步 + 事件订阅 |
+| `api/internal/modules/integration/google_workspace.go` | Google Workspace Directory API |
+| `api/internal/http/routes_integration_lark.go` | Lark 事件回调 + Bot 测试 + 同步端点 |
+| `api/internal/modules/wallet/alert_lark_provider.go` | Lark Bot 告警调度器适配 |
+| `docs/integrations/lark-integration.md` | Lark 集成完整方案文档 |
+| `docs/integrations/google-workspace-integration.md` | Google Workspace 集成方案文档 |
+
+#### 环境变量
+
+```bash
+# WhatsApp 模板消息（模板审核通过后启用）
+WALLET_ALERT_WHATSAPP_TEMPLATE_NAME=access_denied_alert
+WALLET_ALERT_WHATSAPP_TEMPLATE_LANG=en_US
+
+# Lark Bot 告警（在 Lark 群创建自定义机器人后配置）
+LARK_ALERT_WEBHOOK_URL=https://open.larksuite.com/open-apis/bot/v2/hook/xxx
+
+# Lark 应用（通讯录同步需要）
+LARK_APP_ID=cli_xxxxxxxxxx
+LARK_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
 ---
 
-## 8. 文档索引
+## 9. BLE 移动凭据系统 — 代码级开发计划（2026-05-02）
+
+> 来源：`Indonesia_SaaS_Access_Control_Architecture.md` 方案评估
+> 目标：为印尼两个工厂客户交付 BLE 手机开门 MVP
+> 核心思路：在现有 gateway-agent + 云端验证架构上新增一条 BLE 认证通道
+> 当前 BLE 状态：仅有静态 token 匹配（`ble_token` 类型），无密码学挑战-响应
+>
+> ⚠️ **2026-05-03 状态更新：**
+> - Phase 1A（云端 PKI）：✅ 完成，16 单元测试 + 3 集成测试通过
+> - Phase 1B（Gateway BLE）：✅ 完成，15 协议/验证测试通过，TCP 模拟器可用
+> - Phase 1C（Android App）：✅ **2026-05-03 小米 15 真机测试通过**（Cloud 开门 + BLE 开门均 GRANTED）
+> - Phase 1D（海康/ZKTeco）：✅ 完成，4 API 端点 + Digest Auth + Push Event 解析
+> - 前端 Mobile Credentials 页面：✅ 完成
+> - 前端 Southbound 设备管理页面：✅ 完成
+> - OpenAPI 文档收录（全部 20 个新端点）：✅ 完成
+> - Lark 集成（Bot + 通讯录同步 + 事件订阅）：✅ 代码完成，待客户确认使用 Lark 后配置
+> - WhatsApp Business API：✅ **2026-05-03 测试通过**（Meta Cloud API，Permanent Token，7 个模板已提交审核）
+> - WhatsApp 模板消息集成到告警调度器：✅ 完成（模板审核通过后加一行 env 即启用）
+> - Lark Bot 接入告警调度器：✅ 完成（配置 webhook URL 即可同时发 WhatsApp + Lark）
+> - Google Workspace Directory 同步：✅ 代码完成（Service Account JWT + Directory API），待客户有 GWS 时配置
+
+### 9.1 现有代码基础（可复用）
+
+| 组件 | 文件 | 可复用内容 |
+|------|------|-----------|
+| Agent 认证入口 | `api/cmd/gateway-agent/agent.go:399` | `HandleCredentialPresented()` — BLE 读头调用此函数即可接入 |
+| 本地规则验证 | `api/cmd/gateway-agent/agent.go:365` | `VerifyCredential()` — 需扩展支持公钥签名验证 |
+| 继电器控制 | `api/cmd/gateway-agent/relay.go` | GPIO / RS485 驱动完整可用 |
+| 云端验证 | `api/internal/http/routes_gateway_verify.go:208` | `ble_token` case — 需替换为签名验证 |
+| App 端点 | `api/internal/http/routes_app_access.go` | `appUnlockDoor` / `appAccessMyDoors` — 直接复用 |
+| BLE Token 端点 | `api/internal/http/router.go:1246` | `appAccessBLEToken` — 需重构为密钥注册 |
+| Bus 消息 | `api/internal/bus/commands.go:39` | `CredentialType: "ble_token"` — 扩展为 `"ble_signature"` |
+| 事件上报 | `api/cmd/gateway-agent/agent.go:431` | `queueEvent` — 直接复用 |
+
+### 9.2 架构变更概览
+
+```
+现有流程（静态 token）：
+  App 获取 ble_token → Gateway 匹配字符串 → allow/deny
+
+目标流程（密码学签名）：
+  App 生成 EC P-256 密钥对（Keystore）→ 公钥注册到云端
+  → 云端下发公钥至 Gateway 本地缓存
+  → 开门时：Gateway BLE 广播 → App 连接 → 双向认证（Nonce 签名）
+  → Gateway 本地用公钥验签 → allow/deny → 开门
+```
+
+### 9.3 代码变更清单
+
+---
+
+#### Phase 0 — 硬件准备与验证（1 周）
+
+| 序号 | 事项 | 说明 |
+|---:|------|------|
+| B0-1 | BLE 硬件选型确认 | ESP32-C3/S3 作为 BLE 读头（独立 MCU），或 Orange Pi + USB BLE dongle |
+| B0-2 | 工厂客户需求确认 | 门数量、人数、设备型号（海康/ZKTeco 具体型号）、网络条件 |
+| B0-3 | Android BLE 后台保活测试 | 用目标机型（三星 A 系列、小米 Redmi）验证 BLE 扫描可靠性 |
+| B0-4 | 硬件采购 | ESP32-S3 开发板 ×2 + USB BLE 5.0 dongle ×2（约 $20） |
+
+**关键决策：BLE 读头方案**
+
+| 方案 | 优点 | 缺点 | 建议 |
+|------|------|------|------|
+| A: Orange Pi + USB BLE dongle | 复用现有 gateway-agent 代码 | USB BLE 适配器性能一般，Go BLE 库生态弱 | MVP 首选 |
+| B: ESP32-S3 独立 BLE 读头 | BLE 性能最优，可量产 | 需 C/MicroPython 固件，增加复杂度 | Phase 4 量产时选 |
+| C: nRF52840 专业 BLE SoC | 行业标准，最低功耗 | 开发成本最高 | 长期产品化 |
+
+**MVP 建议选方案 A**：Gateway Agent 直接通过 USB BLE dongle 作为 GATT Server，Go 使用 `tinygo.org/x/bluetooth` 库。
+
+---
+
+#### Phase 1A — 云端 PKI 凭据服务（2-3 周）
+
+**新建模块**：`api/internal/modules/credential/`
+
+```go
+// api/internal/modules/credential/service.go
+
+// CredentialService manages mobile credential lifecycle (keypair registration,
+// certificate signing, revocation, and public key distribution to gateways).
+type CredentialService struct {
+    store        Store
+    rootCAKey    crypto.PrivateKey  // EC P-256, loaded from KMS/env
+    rootCACert   *x509.Certificate
+    logger       *slog.Logger
+}
+
+// RegisterDevice validates Device Attestation and stores user public key.
+func (s *CredentialService) RegisterDevice(input RegisterDeviceInput) (*MobileCredential, error)
+
+// SignCredential issues a short-lived certificate for the user's public key.
+func (s *CredentialService) SignCredential(tenantID, userID string) (*SignedCredential, error)
+
+// RevokeCredential immediately marks credential as revoked.
+func (s *CredentialService) RevokeCredential(tenantID, credentialID string) error
+
+// ListActiveCredentials returns all active credentials for gateway sync.
+func (s *CredentialService) ListActiveCredentials(tenantID string) []MobileCredential
+
+// VerifyBLESignature verifies a BLE challenge-response signature against stored public key.
+func (s *CredentialService) VerifyBLESignature(userID string, nonce, signature []byte) (bool, error)
+```
+
+```go
+// api/internal/modules/credential/model.go
+
+type MobileCredential struct {
+    ID              string    `json:"id"`
+    TenantID        string    `json:"tenant_id"`
+    UserID          string    `json:"user_id"`
+    PublicKeyPEM    string    `json:"public_key_pem"`     // EC P-256 公钥
+    DeviceID        string    `json:"device_id"`          // 手机设备标识
+    Platform        string    `json:"platform"`           // "android" | "ios"
+    AttestationData string    `json:"attestation_data"`   // Device Attestation 原始数据
+    KeystoreLevel   string    `json:"keystore_level"`     // "strongbox" | "tee" | "software"
+    Status          string    `json:"status"`             // "active" | "revoked" | "expired"
+    IssuedAt        time.Time `json:"issued_at"`
+    ExpiresAt       time.Time `json:"expires_at"`         // TTL（默认 30 天，StrongBox 90 天）
+    RevokedAt       *time.Time `json:"revoked_at,omitempty"`
+}
+
+type RegisterDeviceInput struct {
+    TenantID           string `json:"tenant_id"`
+    UserID             string `json:"user_id"`
+    PublicKeyPEM       string `json:"public_key_pem"`
+    Platform           string `json:"platform"`
+    DeviceModel        string `json:"device_model"`
+    AttestationCertChain []string `json:"attestation_cert_chain"`
+}
+
+type BLEAuthChallenge struct {
+    Nonce     []byte `json:"nonce"`      // 32 bytes random
+    ReaderID  string `json:"reader_id"`
+    Timestamp int64  `json:"timestamp"`
+    ExpiresIn int    `json:"expires_in"` // seconds (default 30)
+}
+```
+
+**数据库迁移**：
+
+```sql
+-- 新增表 mistypass_mobile_credentials
+CREATE TABLE IF NOT EXISTS mistypass_mobile_credentials (
+    id             TEXT PRIMARY KEY,
+    tenant_id      TEXT NOT NULL,
+    user_id        TEXT NOT NULL,
+    public_key_pem TEXT NOT NULL,
+    device_id      TEXT NOT NULL,
+    platform       TEXT NOT NULL DEFAULT 'android',
+    keystore_level TEXT NOT NULL DEFAULT 'tee',
+    status         TEXT NOT NULL DEFAULT 'active',
+    issued_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at     TIMESTAMPTZ NOT NULL,
+    revoked_at     TIMESTAMPTZ,
+    UNIQUE(tenant_id, user_id, device_id)
+);
+
+CREATE INDEX idx_mobile_credentials_tenant_status
+    ON mistypass_mobile_credentials(tenant_id, status);
+```
+
+**新增 API 端点**：
+
+```
+POST   /api/v1/app/credentials/register    — 注册手机密钥对（公钥 + Attestation）
+GET    /api/v1/app/credentials              — 获取当前凭据状态
+DELETE /api/v1/app/credentials/{id}         — 自助吊销（手机丢失）
+POST   /api/v1/app/credentials/refresh      — 刷新即将过期的凭据
+
+POST   /api/v1/credentials/{id}/revoke      — 管理员强制吊销
+GET    /api/v1/credentials/active           — Gateway 同步用（返回公钥列表）
+```
+
+**文件清单**：
+
+| 新建文件 | 用途 |
+|---------|------|
+| `api/internal/modules/credential/service.go` | PKI 核心逻辑 |
+| `api/internal/modules/credential/model.go` | 数据模型 |
+| `api/internal/modules/credential/store.go` | PostgreSQL 持久化 |
+| `api/internal/modules/credential/attestation.go` | Android Key Attestation 验证 |
+| `api/internal/modules/credential/service_test.go` | 单元测试 |
+| `api/internal/http/routes_app_credential.go` | App 端 HTTP handler |
+| `api/internal/http/routes_credential_admin.go` | 管理端 HTTP handler |
+
+---
+
+#### Phase 1B — Gateway Agent BLE 子系统（3-4 周）
+
+**新建文件**：`api/cmd/gateway-agent/ble_reader.go`
+
+```go
+// ble_reader.go — BLE GATT Server for mobile credential authentication.
+// Implements the challenge-response protocol:
+//   1. Advertise BLE beacon with Reader_ID
+//   2. Phone connects, reads CHALLENGE characteristic (Nonce)
+//   3. Phone writes AUTH_RESPONSE with signed(Nonce + UserID)
+//   4. Gateway verifies signature against cached public key
+//   5. Notify AUTH_RESULT (allow/deny)
+
+package main
+
+import (
+    "crypto/ecdsa"
+    "crypto/elliptic"
+    "crypto/rand"
+    "crypto/sha256"
+    "crypto/x509"
+    "encoding/pem"
+    "log/slog"
+    "math/big"
+    "sync"
+    "time"
+
+    "tinygo.org/x/bluetooth"
+)
+
+// BLE Service UUID (128-bit, custom)
+var (
+    mistypassServiceUUID    = bluetooth.NewUUID([16]byte{/* custom UUID */})
+    challengeCharUUID       = bluetooth.NewUUID([16]byte{/* ... */})
+    authResponseCharUUID    = bluetooth.NewUUID([16]byte{/* ... */})
+    readerIdentityCharUUID  = bluetooth.NewUUID([16]byte{/* ... */})
+    authResultCharUUID      = bluetooth.NewUUID([16]byte{/* ... */})
+)
+
+type BLEReader struct {
+    logger       *slog.Logger
+    lockID       string
+    adapter      *bluetooth.Adapter
+    onCredential func(credentialType, credentialData, lockID string)
+
+    mu           sync.Mutex
+    currentNonce []byte
+    nonceExpiry  time.Time
+
+    // Public key cache (synced from cloud via config pull)
+    pubKeys      map[string]*ecdsa.PublicKey // userID → public key
+}
+
+func NewBLEReader(logger *slog.Logger, lockID string, onCredential func(string, string, string)) *BLEReader
+
+func (b *BLEReader) Start() error
+func (b *BLEReader) Stop()
+func (b *BLEReader) UpdatePublicKeys(keys map[string]string) // userID → PEM
+func (b *BLEReader) handleAuthResponse(userID string, signature []byte) bool
+```
+
+**扩展 `agent.go`**：
+
+```go
+// AccessRule 扩展 — 新增 PublicKey 字段
+type AccessRule struct {
+    CredentialType string   `json:"credential_type"`
+    CredentialData string   `json:"credential_data"`
+    UserID         string   `json:"user_id"`
+    UserEmail      string   `json:"user_email"`
+    LockIDs        []string `json:"lock_ids"`
+    PublicKeyPEM   string   `json:"public_key_pem,omitempty"` // 新增：BLE 用户公钥
+}
+
+// VerifyCredential 扩展 — 新增 ble_signature 类型
+func (a *Agent) VerifyCredential(credentialType, credentialData, lockID string) (string, string, string) {
+    // ... existing logic ...
+
+    case "ble_signature":
+        // credentialData format: "userID:nonceHex:signatureHex"
+        // Parse and verify ECDSA signature against cached public key
+}
+```
+
+**扩展 `main.go`**：
+
+```go
+// 新增命令行参数
+bleEnabled := flag.Bool("ble", false, "Enable BLE GATT server for mobile credentials")
+bleLockID  := flag.String("ble-lock-id", "", "Lock ID for BLE reader (e.g. door_factory_001)")
+
+// 启动 BLE reader（与 NFC reader 并行）
+if *bleEnabled && *bleLockID != "" {
+    bleReader := NewBLEReader(logger, *bleLockID, agent.HandleCredentialPresented)
+    if err := bleReader.Start(); err != nil {
+        logger.Warn("BLE reader failed to start", "error", err)
+    } else {
+        fmt.Printf("BLE:      GATT Server → %s\n", *bleLockID)
+        agent.bleReader = bleReader
+    }
+}
+```
+
+**Config Pull 扩展**（`agent.go` `pullConfig`）：
+
+```go
+// 云端返回的 AuthzCache 扩展
+type AuthzCache struct {
+    AccessRules      []AccessRule      `json:"access_rules"`
+    MobileCredentials []MobileCredKey  `json:"mobile_credentials"` // 新增
+}
+
+type MobileCredKey struct {
+    UserID       string `json:"user_id"`
+    PublicKeyPEM string `json:"public_key_pem"`
+    LockIDs      []string `json:"lock_ids"`
+}
+
+// pullConfig 后同步公钥到 BLE reader
+if a.bleReader != nil {
+    keys := make(map[string]string)
+    for _, mc := range result.AuthzCache.MobileCredentials {
+        keys[mc.UserID] = mc.PublicKeyPEM
+    }
+    a.bleReader.UpdatePublicKeys(keys)
+}
+```
+
+**文件清单**：
+
+| 文件 | 操作 | 用途 |
+|------|------|------|
+| `api/cmd/gateway-agent/ble_reader.go` | 新建 | BLE GATT Server + 认证协议 |
+| `api/cmd/gateway-agent/ble_protocol.go` | 新建 | GATT 特征定义 + 消息编解码 |
+| `api/cmd/gateway-agent/agent.go` | 修改 | 扩展 AccessRule + VerifyCredential |
+| `api/cmd/gateway-agent/main.go` | 修改 | 新增 `-ble` / `-ble-lock-id` 参数 |
+| `api/internal/http/routes_gateway_config.go` | 修改 | Config pull 返回 mobile_credentials |
+
+---
+
+#### Phase 1C — Android App MVP（4-6 周，可与 1A/1B 后期并行）
+
+**技术选型**：Kotlin + Jetpack Compose（原生 BLE 性能最优）
+
+**项目结构**：`mobile/android/` （新建子目录）
+
+```
+mobile/android/
+├── app/src/main/java/com/mistypass/app/
+│   ├── MainActivity.kt
+│   ├── ui/
+│   │   ├── LoginScreen.kt
+│   │   ├── DoorsListScreen.kt
+│   │   ├── DoorDetailScreen.kt
+│   │   └── SettingsScreen.kt
+│   ├── auth/
+│   │   ├── AuthRepository.kt          — JWT login/refresh
+│   │   └── TokenManager.kt            — Secure token storage
+│   ├── credential/
+│   │   ├── KeystoreManager.kt         — Android Keystore EC P-256 操作
+│   │   ├── AttestationHelper.kt       — Device Attestation 证书链生成
+│   │   └── CredentialRepository.kt    — 凭据注册/刷新/吊销
+│   ├── ble/
+│   │   ├── BLEScanner.kt              — 扫描 MistyPass BLE Beacon
+│   │   ├── BLEAuthClient.kt           — GATT Client 认证握手
+│   │   └── BackgroundBLEService.kt    — 前台服务保持 BLE 扫描
+│   ├── api/
+│   │   └── MistyPassApi.kt            — Retrofit HTTP client
+│   └── di/
+│       └── AppModule.kt               — Hilt DI
+├── app/src/main/AndroidManifest.xml
+└── build.gradle.kts
+```
+
+**核心类设计**：
+
+```kotlin
+// credential/KeystoreManager.kt
+class KeystoreManager {
+    // 生成 EC P-256 密钥对，存入 Android Keystore
+    fun generateKeyPair(alias: String): KeyPair {
+        val spec = KeyGenParameterSpec.Builder(alias, PURPOSE_SIGN)
+            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+            .setDigests(KeyProperties.DIGEST_SHA256)
+            .setUserAuthenticationRequired(false) // 工厂场景不强制生物识别
+            .setIsStrongBoxBacked(isStrongBoxAvailable()) // 优先 StrongBox
+            .setKeyValidityEnd(Date(System.currentTimeMillis() + 90 * DAY_MS))
+            .build()
+        val kpg = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore")
+        kpg.initialize(spec)
+        return kpg.generateKeyPair()
+    }
+
+    // 用私钥签名 Nonce（BLE 认证时调用）
+    fun signChallenge(alias: String, nonce: ByteArray): ByteArray {
+        val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val entry = ks.getEntry(alias, null) as KeyStore.PrivateKeyEntry
+        return Signature.getInstance("SHA256withECDSA").run {
+            initSign(entry.privateKey)
+            update(nonce)
+            sign()
+        }
+    }
+
+    // 获取 Key Attestation 证书链
+    fun getAttestationChain(alias: String): List<X509Certificate>
+}
+```
+
+```kotlin
+// ble/BLEAuthClient.kt
+class BLEAuthClient(private val keystoreManager: KeystoreManager) {
+    // 发现 MistyPass GATT Server → 连接 → 读 Challenge → 签名 → 写 Response → 读 Result
+    suspend fun authenticate(device: BluetoothDevice): AuthResult {
+        val gatt = device.connectGatt(context, false, gattCallback)
+        // 1. 读 CHALLENGE characteristic → 获取 Nonce
+        val nonce = readCharacteristic(gatt, challengeCharUUID)
+        // 2. 用 Keystore 私钥签名
+        val signature = keystoreManager.signChallenge("mistypass_key", nonce)
+        // 3. 写 AUTH_RESPONSE: userID + signature
+        val payload = encodeAuthResponse(userId, signature)
+        writeCharacteristic(gatt, authResponseCharUUID, payload)
+        // 4. 等待 AUTH_RESULT notification
+        return waitForResult(gatt, authResultCharUUID, timeout = 5.seconds)
+    }
+}
+```
+
+**依赖**（`build.gradle.kts`）：
+
+```kotlin
+dependencies {
+    // UI
+    implementation("androidx.compose.material3:material3:1.3.x")
+    implementation("androidx.navigation:navigation-compose:2.8.x")
+    // Network
+    implementation("com.squareup.retrofit2:retrofit:2.11.x")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.x")
+    // BLE
+    implementation("no.nordicsemi.android:ble:2.8.x") // Nordic BLE library（比原生 API 更可靠）
+    // DI
+    implementation("com.google.dagger:hilt-android:2.52")
+    // Security
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+}
+```
+
+---
+
+#### Phase 1D — 海康/ZKTeco 门禁适配（2 周，与 Phase 1A 并行）
+
+> 现有 `api/internal/http/routes_cameras.go` 已有海康/ZKTeco 的**摄像头**集成
+> 需要扩展为**门禁控制**集成（开门、权限同步）
+
+**新建文件**：`api/internal/modules/gateway/hikvision_door.go`
+
+```go
+// hikvision_door.go — 海康 ISAPI 门禁控制（非摄像头）
+// 协议：HTTP DIGEST AUTH + XML/JSON payload
+// 参考：ISAPI 文档 "Access Control" 章节
+
+type HikvisionDoorClient struct {
+    BaseURL   string // e.g. http://192.168.1.64
+    Username  string
+    Password  string
+    client    *http.Client
+}
+
+// RemoteOpenDoor sends ISAPI command to unlock a specific door.
+// PUT /ISAPI/AccessControl/RemoteControl/door/{doorNo}
+func (h *HikvisionDoorClient) RemoteOpenDoor(doorNo int) error
+
+// SyncUsers pushes user list to Hikvision device for offline card verification.
+// POST /ISAPI/AccessControl/UserInfo/Record?format=json
+func (h *HikvisionDoorClient) SyncUsers(users []HikUser) error
+
+// SyncCards assigns card numbers to users on device.
+// POST /ISAPI/AccessControl/CardInfo/Record?format=json
+func (h *HikvisionDoorClient) SyncCards(cards []HikCard) error
+
+// SubscribeEvents opens long-polling for real-time access events.
+// GET /ISAPI/Event/notification/alertStream
+func (h *HikvisionDoorClient) SubscribeEvents(ctx context.Context, handler func(HikEvent)) error
+```
+
+**新建文件**：`api/internal/modules/gateway/zkteco_push.go`
+
+```go
+// zkteco_push.go — ZKTeco Push Protocol 门禁集成
+// ZKTeco 设备主动推送数据到平台（无需轮询）
+// 平台作为 HTTP Server 接收设备推送
+
+type ZKTecoPushHandler struct {
+    onEvent func(ZKEvent)
+}
+
+// HandlePush is the HTTP handler for ZKTeco device push events.
+// POST /api/v1/gateway/zkteco/push
+func (z *ZKTecoPushHandler) HandlePush(w http.ResponseWriter, r *http.Request)
+
+// SyncUserToDevice pushes user data to ZKTeco device via its API.
+func SyncUserToZKDevice(deviceIP, user ZKUser) error
+```
+
+**路由注册**（修改 `router.go`）：
+
+```go
+// 南向设备网关端点
+r.Route("/api/v1/gateway/southbound", func(r chi.Router) {
+    r.Post("/hikvision/{deviceID}/unlock", s.hikvisionUnlock)
+    r.Post("/hikvision/{deviceID}/sync-users", s.hikvisionSyncUsers)
+    r.Get("/hikvision/{deviceID}/events", s.hikvisionSubscribeEvents)
+    r.Post("/zkteco/push", s.zktecoPushReceiver)
+    r.Post("/zkteco/{deviceID}/sync-users", s.zktecoSyncUsers)
+})
+```
+
+---
+
+#### Phase 1E — 集成测试 + 工厂部署（2 周）
+
+| 序号 | 事项 | 说明 |
+|---:|------|------|
+| B5-1 | 端到端 BLE 认证测试 | App → BLE → Gateway → Relay → 开锁 |
+| B5-2 | 延迟测量 | 目标 < 500ms（MVP 可放宽到 800ms） |
+| B5-3 | 离线场景测试 | 断网 → 本地公钥验签 → 开门 → 联网后事件同步 |
+| B5-4 | 工厂 A 现场部署 | 确认网络、硬件安装位置、电源 |
+| B5-5 | 工厂 B 现场部署 | 同上 |
+| B5-6 | 用户培训 | App 安装引导、BLE 权限授权、常见问题 |
+| B5-7 | 反馈收集 + 修复 | 实际使用 2 周后收集问题 |
+
+---
+
+### 9.4 总体排期
+
+```
+Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
+         │
+         ├─── Phase 1A [2-3 周]  云端 PKI 凭据服务
+         │         ↓
+         ├─── Phase 1B [3-4 周]  Gateway BLE GATT Server（依赖 1A 完成公钥模型）
+         │         ↓
+         ├─── Phase 1C [4-6 周]  Android App（1A 完成后即可开始）
+         │
+         ├─── Phase 1D [2 周]    海康/ZKTeco 门禁适配（独立，可与 1A 并行）
+         │
+         └─── Phase 1E [2 周]    集成测试 + 工厂部署（全部完成后）
+```
+
+**关键路径**：Phase 0 → 1A → 1B → 1E（总计约 8-10 周）
+**并行路径**：Phase 1C 和 1D 可与关键路径并行
+
+**MVP 交付时间线**：2026-05-02 起算，约 **10 周**（2026 年 7 月中旬）
+
+**2026-05-03 实际进度**：Phase 1A-1D 全部完成（2 天），Phase 1E 待硬件到货。
+软件层 MVP 已 100% 就绪，瓶颈转为硬件采购 + 客户现场部署。
+
+---
+
+### 9.5 Phase 2 — 功能扩展（MVP 上线后 2-3 个月）
+
+| 序号 | 事项 | 预估 | 依赖 |
+|---:|------|------|------|
+| B6-1 | iOS App (BLE + Secure Enclave) | 4-6 周 | Swift + CoreBluetooth |
+| B6-2 | NFC HCE 辅助通道 (Android) | 2 周 | Android HCE API |
+| B6-3 | TTLock REST 集成 | 2 周 | TTLock OAuth 开发者账号 |
+| B6-4 | 访客动态二维码（限时限次） | 1 周 | 现有 QR 基础扩展 |
+| B6-5 | 生物识别锁定（高安全场景） | 1 周 | App 端 BiometricPrompt |
+| B6-6 | 多门联动/反潜回 | 2 周 | 后端规则引擎 |
+| B6-7 | SaaS 计费上线 (Xendit) | 3 天 | 见 7.4 节 |
+
+### 9.6 Phase 3 — 平台化（持续迭代）
+
+| 序号 | 事项 | 预估 | 触发条件 |
+|---:|------|------|---------|
+| B7-1 | BACnet / BMS 集成 | 3-4 周 | 签约物业大客户 |
+| B7-2 | 梯控联动 | 2 周 | 已有电梯模块，需硬件对接 |
+| B7-3 | 安全认证申请 | — | 客户量达标后 |
+| B7-4 | 多区域部署（新加坡/马来西亚） | 2 周 | 业务扩展需求 |
+
+### 9.7 Phase 4 — 自研硬件（Phase 3 后启动）
+
+| 序号 | 事项 | 说明 |
+|---:|------|------|
+| B8-1 | ESP32-S3 BLE+NFC 读头量产 | 替代 USB dongle，BOM < $8 |
+| B8-2 | 自研 Controller 模组 | ARM Cortex-M + BLE + RS485 + GPIO |
+| B8-3 | 工业设计 + 外壳开模 | IP65 防护等级 |
+| B8-4 | 供应链建立 | 深圳/东莞工厂 |
+
+---
+
+### 9.8 技术决策记录
+
+| 决策 | 选择 | 原因 |
+|------|------|------|
+| BLE 库（Go） | `tinygo.org/x/bluetooth` | 跨平台，支持 Linux + macOS，活跃维护 |
+| BLE 库（Android） | Nordic `no.nordicsemi.android:ble` | 比原生 API 更可靠，自动重连/重试 |
+| 密钥算法 | EC P-256 (secp256r1) | Android Keystore 原生支持，签名 64 bytes |
+| 凭据 TTL | StrongBox: 90 天, TEE: 30 天, Software: 7 天 | 安全等级越低 TTL 越短 |
+| BLE 方案 | Gateway USB dongle（MVP） | 避免引入第二个固件开发工作流 |
+| Android App | Kotlin + Compose | 原生 BLE 性能最优，避免 Flutter BLE 桥接层问题 |
+| 离线验证 | Gateway 本地 ECDSA 验签 | 不依赖云端往返，延迟 < 100ms |
+
+---
+
+### 9.9 风险登记
+
+| 风险 | 影响 | 缓解措施 | 状态 |
+|------|------|---------|------|
+| Android BLE 后台被国产 ROM 杀死 | 用户体验退化为"打开 App 再靠近" | Phase 0 验证 + 前台服务 + 电池优化引导 | Phase 0 验证 |
+| `tinygo.org/x/bluetooth` 在 Linux ARM 不稳定 | Gateway BLE 不可用 | 备选：BlueZ D-Bus 直连 | 待验证 |
+| 工厂网络条件差（4G 不稳定） | 离线时间超 72h | Controller 已有 72h 缓存，可扩展至 7 天 | 已覆盖 |
+| 海康 ISAPI 文档获取需签约 | 集成延迟 | 提前联系海康 TPP 合作伙伴注册 | 待启动 |
+| ESP32 量产固件维护成本 | Phase 4 复杂度 | MVP 不涉及，用 USB dongle 绕过 | 后置 |
+
+---
+
+## 11. 2026-05-03 全项目代码审查 + V2 架构对齐
+
+> 基准：`Indonesia_SaaS_Access_Control_Architecture.md` V2（三层凭据体系 + Controller 侧 BLE + 分阶段硬件路线）
+> 方法：后端 16 模块逐一审查 + 前端 32 feature 逐一审查 + Gateway Agent 全文件审查
+> 结论：**Phase 1 MVP 软件层已 95% 就绪**，剩余 5% 为前端编译错误 + 安全加固 + 少量路由缺失
+
+### 11.1 本次会话完成项
+
+| 事项 | 类别 | 文件 |
+|------|------|------|
+| V2 架构文档替换 V1 | 文档 | `Indonesia_SaaS_Access_Control_Architecture.md` |
+| Tier 3 访客 QR 动态令牌 | 功能 | `access/service.go` (Guest 模型 + token 生成) |
+| QR 访客凭据验证 | 功能 | `routes_gateway_verify.go` (qr_code → guest token 解析 + 门级权限) |
+| Lark 事件自动化（入职/离职/更新） | 功能 | `routes_integration_lark.go` (3 handlers 完整实现) |
+| Lark 联动：创建用户 + 吊销凭据 + 停用账号 | 功能 | `access/service.go` (FindUserByEmail) |
+| ZKTeco Push 事件入库审计日志 | 功能 | `routes_southbound.go` (serial→tenant 映射 + IngestAccessEvent) |
+| OSDP v2 继电器驱动 | 硬件 | `gateway-agent/osdp_relay.go` (SOM/CRC-16/OUT/LED/BUZ) |
+| OSDP v2 单元测试 | 测试 | `gateway-agent/osdp_relay_test.go` (4 tests) |
+| DESFire 规格 AES-128→AES-256 | 文档 | 架构文档 4 处修改 |
+| OpenAPI 文档同步 | 文档 | `routes_openapi.go` (4 端点 summary 更新 + GuestCreate schema) |
+| 全项目 TODO/FIXME 清零确认 | 质量 | 全项目 0 个 TODO |
+
+### 11.2 代码审查发现 — V2 Phase 1 MVP 对齐矩阵
+
+| V2 Phase 1 目标 | 代码状态 | 关键文件 | 缺口 |
+|--------|--------|------|------|
+| 用户管理 | ✅ | `modules/access/` | — |
+| 权限管理（门×用户×时间段） | ✅ | `modules/access/` | — |
+| BLE 凭据签发与吊销 | ✅ | `modules/credential/service.go` | — |
+| Attestation 验证 | ⚠️ | `modules/credential/attestation.go` | CN 字符串匹配，非 ASN.1 解析 |
+| 审计日志 | ✅ | `modules/audit/` + Webhook | — |
+| KMS 集成 | ⚠️ | HRIS 有 AES-256-GCM vault | 无独立 Root CA PKI 签发链 |
+| Admin Web 控制台 | ⚠️ | `web-admin/` 32 feature | **21 个 TS 编译错误** |
+| BLE 双向认证协议 | ✅ | `gateway-agent/ble_protocol.go` | — |
+| BLE 读头硬件 | ❌ | `gateway-agent/ble_reader.go` | **仅 TCP 模拟器** |
+| 本地白名单缓存 | ✅ | `gateway-agent/agent.go` | — |
+| Wiegand 输出 | ✅ | `gateway-agent/relay.go` (GPIO) | — |
+| OSDP v2 输出 | ✅ | `gateway-agent/osdp_relay.go` | 待真机 RS-485 测试 |
+| 72h 离线能力 | ✅ | `gateway-agent/agent.go` (TTL 可配) | — |
+| WebSocket/NATS 同步 | ✅ | Config + NATS + MQTT | — |
+| Tier 1: BLE 移动凭据 | ✅ | `modules/credential/` | — |
+| Tier 2: DESFire 实体卡 | ✅ | `modules/wallet/physical_card.go` | — |
+| Tier 3: 动态 QR 访客 | ✅ | `access/service.go` Guest.AccessToken | — |
+| 海康 ISAPI | ✅ | `southbound/hikvision.go` | — |
+| 海康 ISUP 5.0 | ❌ | — | **未实现（NAT 穿透场景）** |
+| ZKTeco Push SDK | ✅ | `southbound/zkteco.go` | — |
+| Webhook 事件推送 | ✅ | `modules/audit/webhook.go` | — |
+| REST API | ✅ | 469 端点 | — |
+
+### 11.3 代码审查发现 — 安全问题
+
+| 问题 | 严重级别 | 位置 | 说明 |
+|------|---------|------|------|
+| OAuth2 "dev-secret" 回退 | **Critical** | `routes_oauth2.go:599` | JWTSecret 未配置时用字面量 "dev-secret" 签名 token，生产环境必须拒绝启动 |
+| Attestation 启发式检测 | Medium | `credential/attestation.go:95-144` | `DetectKeystoreLevel()` 用 Issuer CN 字符串匹配判断 strongbox/tee，应改用 ASN.1 扩展解析 |
+| MFA 可全局关闭 | Low | `auth/service.go:198` | `adminMFARequired` 为配置开关，生产环境应强制开启 |
+
+### 11.4 代码审查发现 — 前端问题
+
+| 问题 | 影响 | 位置 |
+|------|------|------|
+| **21 个 TypeScript 编译错误** | 前端无法构建 | analytics (8), visitors (2), routes (2), elevators (1) 等 |
+| Analytics 页面 API 类型不匹配 | 图表功能不可用 | `features/analytics/pages/analytics-page.tsx` |
+| 访客 QR 码不显示 | Tier 3 凭据无前端入口 | `features/visitors/pages/visitors-page.tsx` |
+| Google Workspace 同步无路由 | 客户端代码存在但不可调用 | `integration/google_workspace.go` |
+| Integration 模块零测试 | Lark/GWS 客户端未测试 | `modules/integration/` |
+
+### 11.5 代码审查发现 — 基础设施
+
+| 问题 | 影响 | 建议 |
+|------|------|------|
+| 无版本化 DB 迁移 | 升级部署风险 | 引入 golang-migrate 或 Atlas |
+| StateStore 双模式 | 无 DB 时内存存储重启丢失 | 生产环境强制要求 DATABASE_URL |
+| 全 in-memory 服务层 | 大数据量时性能降级 | 中期迁移关键模块到 SQL 直查 |
+
+---
+
+## 12. 下一步推进计划（按优先级排序）
+
+### 🔴 P0 — 立即修复（阻塞项） ✅ 已全部完成
+
+| 序号 | 事项 | 预估 | 说明 | 状态 |
+|---:|------|------|------|------|
+| R1 | **修复前端 TypeScript 编译错误** | 1 天 | Analytics API 类型对齐、Visitors 页面类型修复、Routes props 修复 | ✅ done（验证 0 错误） |
+| R2 | **OAuth2 secret 生产加固** | 0.5h | `routes_oauth2.go` — 移除 "dev-secret" 回退，生成 ephemeral key（与 auth 模块一致） | ✅ done（ephemeral secret） |
+| R3 | **访客 QR 码前端显示** | 0.5 天 | Visitors 页面：创建访客后显示 access_token QR 码、复制链接、有效期倒计时 | ✅ done（创建后弹窗 + GuestRow QR 按钮） |
+
+### 🟡 P1 — 本周推进（Phase 1 收尾） ✅ 已全部完成
+
+| 序号 | 事项 | 预估 | 说明 | 状态 |
+|---:|------|------|------|------|
+| R4 | **Google Workspace 同步路由** | 1 天 | 新建 `routes_integration_google.go`：POST /integrations/google-workspace/sync | ✅ done |
+| R5 | **Integration 模块测试** | 1 天 | Lark client/contact/bot + Google Workspace client 单元测试 | ✅ done（16 tests） |
+| R6 | **Attestation ASN.1 解析升级** | 1 天 | `DetectKeystoreLevel()` 改用 OID 1.3.6.1.4.1.11129.2.1.17 解析 | ✅ done（+ 7 tests） |
+| R7 | **生产 HA 部署文档** | 1 天 | PostgreSQL 主从、Redis Sentinel、NATS 集群、网关多实例 | ✅ done（`production-ha-deployment.md` 1961 行） |
+| R8 | **DB 版本化迁移基础** | 1 天 | 纯 Go 迁移器，将 EnsureSchema 拆为版本化迁移文件 | ✅ done（`migrator.go` + `001_initial_schema` + 5 tests） |
+| R9 | **SCIM 2.0 身份同步** | 5 天 | 8 SCIM Server 端点 + 5 管理 API + 前端 Enterprise SCIM tab + Okta OIN 集成 | ✅ done（Okta 端到端验证通过） |
+| F1 | **Lark 前端绑定** | 0.5 天 | 3 API 函数 + Enterprise Sync tab Lark 目录同步 + Bot 测试卡片 | ✅ done |
+| F2 | **Google Workspace 前端绑定** | 0.5 天 | 1 API 函数 + Enterprise Sync tab GWS 同步卡片 | ✅ done |
+| F3 | **Enterprise 域名映射前端** | 0.5 天 | 3 API 函数 + IdP tab 域名管理面板（CRUD + active/disabled 开关） | ✅ done |
+| F4 | **访客详情 + 凭据详情绑定** | 0.5 天 | getGuest API 函数 + 凭据行点击详情弹窗 + 访客 QR 按钮 | ✅ done |
+| D2 | **生产 WAF 指南** | 0.5 天 | Cloudflare WAF + 白名单 + DDoS + Terraform | ✅ done（`production-waf-guide.md` 695 行） |
+
+---
+
+## 13. 剩余待做项（全部依赖硬件或外部账号）
+
+> **2026-05-03 v8 状态：纯软件工作已全部完成。以下所有待做项均卡在外部依赖上。**
+
+### 🔴 等硬件到货（已采购，到货后立即推进）
+
+| 序号 | 事项 | 预估 | 硬件依赖 | 采购状态 | V2 Phase |
+|---:|------|------|---------|---------|---------|
+| H1 | **BLE 真机硬件集成** | 3 天 | Orange Pi Zero3 + USB BLE 5.0 dongle | 待采购 | Phase 1E |
+| H2 | **RS485 协议适配层** | 2 天 | USB-RS485 转换器 + Modbus 继电器 + 电磁锁 | EM Lock 已采购 | Phase 1E |
+| H3 | **OTA Gateway 固件侧** | 1 天 | 同 H2 硬件 + Ed25519 签名密钥 | — | Phase 1E |
+| H4 | **Camera 真实集成** | 3 天 | Hikvision DS-2CD1023G2-LIU PoE 摄像头 | 已采购 | Phase 2 |
+| H5 | **Wireless Locks API** | 2 天 | BLE 智能锁（Tuya/TTLock）~$65 | 待采购 | Phase 2 |
+| H6 | **Controller I/O 管理** | 3 天 | ZKTeco C3-100 控制器 + Wiegand 读头 ~$110 | 待采购 | Phase 2 |
+
+**关键路径**：H1 BLE 真机 → Phase 1E 工厂集成测试 → 客户部署
+
+### 🟡 等外部账号/签约
+
+| 序号 | 事项 | 预估 | 外部依赖 | 获取方式 | V2 Phase |
+|---:|------|------|---------|---------|---------|
+| E1 | **海康 ISUP 5.0 云端透传** | 3 天 | 海康 TPP 合作伙伴签约 | 海康官网申请 TPP 资质 | Phase 1 |
+| E2 | **TTLock REST API** | 2 天 | TTLock OAuth 开发者账号 | TTLock 开放平台注册 | Phase 2 |
+
+### 🟢 需要开发周期（按需启动）
+
+| 序号 | 事项 | 预估 | 触发条件 | V2 Phase |
+|---:|------|------|---------|---------|
+| D1 | **iOS App 开发** | 4-6 周 | 开发资源就绪（文档已完成：`APP-DEVELOPMENT-PLAN.md`） | Phase 2 |
+| D2 | **Android App 真机 BLE** | 3-5 天 | BLE 硬件到货 + Nordic BLE 库替换 TCP 模拟器 | Phase 1E |
+| D3 | **NFC HCE 辅助通道** | 2 周 | Phase 2 BLE 稳定后 | Phase 2 |
+| D4 | **多因子认证（BLE + 指纹/PIN）** | 1 周 | 高安全客户需求 | Phase 2 |
+
+### 🔵 客户需求驱动（Phase 3）
+
+| 序号 | 事项 | 预估 | 触发条件 | V2 Phase |
+|---:|------|------|---------|---------|
+| C1 | BACnet / BMS 楼控联动 | 3-4 周 | 签约物业大客户 | Phase 3 |
+| C2 | 大华 DSS API | 2 周 | 客户使用大华设备 | Phase 3 |
+| C3 | Suprema BioStar 2 | 2 周 | 高安全生物识别需求 | Phase 3 |
+| C4 | 多租户 SaaS 计费 (Xendit) | 3 天 | 商业化启动 | Phase 3 |
+| C5 | SI 合作伙伴后台（白标/返佣） | 5 天 | 渠道拓展启动 | Phase 3 |
+
+### ⚪ 长期（V2 Phase 4 自研硬件）
+
+| 序号 | 事项 | 触发条件 |
+|---:|------|---------|
+| L1 | ESP32-S3 BLE+NFC 自研读头量产 | Phase 3 稳定 + 现金流 |
+| L2 | 自研 Controller 模组 (ARM Cortex-M) | 同上 |
+| L3 | 工业设计 + IP65 外壳开模 | 同上 |
+| L4 | 深圳/东莞供应链建立 | 同上 |
+
+### ⏸️ 暂停
+
+| 序号 | 事项 | 原因 |
+|---:|------|------|
+| S1 | Apple Pass 真实签名 | Apple Pay 在印尼不可用 |
+| S2 | Google Wallet 真实 API | Google Pay 在印尼受限 |
+
+---
+
+## 14. V2 架构文档 Phase 覆盖率总结（2026-05-03 v8 更新）
+
+| V2 Phase | 总项 | 已完成 | 覆盖率 | 瓶颈 |
+|----------|---:|---:|---:|------|
+| Phase 1 MVP | 22 | 20 | **91%** | ISUP 5.0（需海康签约）、BLE 真机（需硬件） |
+| Phase 2 扩展 | 14 | 8 | **57%** | iOS App、TTLock、NFC HCE、Camera 真实集成 |
+| Phase 3 平台化 | 10 | 2 | **20%** | 客户需求驱动 |
+| Phase 4 自研硬件 | 4 | 0 | **0%** | Phase 3 稳定后启动 |
+
+> **Phase 1 关键路径**：H1 BLE 硬件到货 → 3 天集成 → Phase 1E 工厂部署
+> **Phase 2 并行路径**：D1 iOS App + E2 TTLock + H4 Camera（不阻塞主线）
+> **已验证**：Okta SCIM 集成端到端通过，前端 378 端点 93.6% 覆盖
+
+---
+
+## 15. 文档索引
+
+> 更新日期：2026-05-03
 
 | 文档 | 路径 | 说明 |
 |---|---|---|
@@ -632,4 +1466,11 @@ MistyPass 已直连 Meta Cloud API，**不需要 BSP 中间商**。但需要：
 | UU PDP 合规指南 | `docs/compliance-uu-pdp-indonesia.md` | 印尼个人数据保护法合规声明 |
 | 印尼企业域名设计 | `docs/enterprise/indonesia-enterprise-domain-idp-design.md` | .co.id 域名 + OIDC/SAML 集成 |
 | 印尼 HRIS 集成架构 | `docs/enterprise/indonesia-hris-integration-architecture.md` | Talenta + 5 家供应商连接器 |
-| OpenAPI Spec | `GET /api/v1/openapi.json` | 自动生成，版本 2026-05-01 |
+| **印尼 SaaS 门禁架构方案** | `Indonesia_SaaS_Access_Control_Architecture.md` | BLE + Keystore 完整技术方案 |
+| **Lark 集成方案** | `docs/integrations/lark-integration.md` | Bot + 通讯录 + 事件订阅 |
+| **Google Workspace 集成方案** | `docs/integrations/google-workspace-integration.md` | Directory API 员工同步 |
+| **生产 HA 部署指南** | `docs/production-ha-deployment.md` | PG/Redis/NATS/EMQX HA + K8s + 印尼区域部署 |
+| **生产 WAF 指南** | `docs/production-waf-guide.md` | Cloudflare WAF + 白名单 + DDoS + Terraform |
+| **iOS App 开发计划** | `ios-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | HIG 合规 + BLE + Secure Enclave + 3 Phase |
+| **Android App 开发计划** | `android-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | M3 合规 + Keystore + Nordic BLE + 印尼适配 |
+| OpenAPI Spec | `GET /api/v1/openapi.json` | 自动生成，版本 2026-05-03 |

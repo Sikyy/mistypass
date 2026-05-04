@@ -1,7 +1,7 @@
 import { useState } from "react"
 import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { CheckCircleIcon, LogInIcon, LogOutIcon, PlusIcon, Trash2Icon, XCircleIcon } from "lucide-react"
+import { CheckCircleIcon, ClipboardCopyIcon, LogInIcon, LogOutIcon, PlusIcon, QrCodeIcon, Trash2Icon, XCircleIcon } from "lucide-react"
 
 import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
@@ -45,6 +45,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
   const tenantID = viewer.tenant_id
   const [showCreate, setShowCreate] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [qrGuest, setQrGuest] = useState<Guest | null>(null)
   const [form, setForm] = useState({
     name: "", email: "", phone: "", company: "", purpose: "",
     host_name: "", host_email: "", host_phone: "", expected_at: "",
@@ -61,11 +62,14 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
 
   const createMutation = useMutation({
     mutationFn: () => createGuest(token, { tenant_id: tenantID, ...form }),
-    onSuccess: () => {
+    onSuccess: (guest) => {
       queryClient.invalidateQueries({ queryKey: ["guests"] })
       setShowCreate(false)
       setForm({ name: "", email: "", phone: "", company: "", purpose: "", host_name: "", host_email: "", host_phone: "", expected_at: "", id_document_type: "", id_document_number: "", notify_host: true })
       setMutationError("")
+      if (guest.access_token) {
+        setQrGuest(guest)
+      }
     },
     onError: (error) => setMutationError(error instanceof Error ? error.message : "Failed to create guest"),
   })
@@ -183,7 +187,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
         ) : (
           <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
             {present.map((g) => (
-              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} />
+              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} onShowQR={setQrGuest} />
             ))}
           </div>
         )}
@@ -199,7 +203,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
         ) : (
           <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
             {upcoming.map((g) => (
-              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} />
+              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} onShowQR={setQrGuest} />
             ))}
           </div>
         )}
@@ -213,7 +217,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
           </h2>
           <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
             {past.map((g) => (
-              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} />
+              <GuestRow key={g.id} guest={g} onStatus={statusMutation.mutate} onDelete={setConfirmDelete} onShowQR={setQrGuest} />
             ))}
           </div>
         </div>
@@ -229,6 +233,47 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
         pending={deleteMutation.isPending}
         destructive
       />
+
+      {/* QR Access Token Dialog */}
+      {qrGuest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setQrGuest(null)}>
+          <div className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center gap-2">
+              <QrCodeIcon className="size-5 text-[#4f55ff]" />
+              <h3 className="text-lg font-semibold text-[#17171c]">Visitor QR Access</h3>
+            </div>
+            <p className="mb-2 text-sm text-[#6f717c]">
+              Share this token with <strong>{qrGuest.name}</strong> for door access.
+            </p>
+            <div className="mb-4 flex items-center gap-2 rounded-[6px] bg-[#f3f4f8] p-3">
+              <code className="flex-1 break-all text-sm font-mono text-[#17171c]">{qrGuest.access_token}</code>
+              <button
+                type="button"
+                title="Copy token"
+                className="shrink-0 rounded p-1 text-[#6f717c] hover:bg-[#eceef2]"
+                onClick={() => navigator.clipboard.writeText(qrGuest.access_token ?? "")}
+              >
+                <ClipboardCopyIcon className="size-4" />
+              </button>
+            </div>
+            {qrGuest.access_token_expires_at && (
+              <p className="mb-4 text-xs text-[#9a9ca7]">
+                Expires: {new Date(qrGuest.access_token_expires_at).toLocaleString(i18n.language)}
+              </p>
+            )}
+            {qrGuest.door_ids && qrGuest.door_ids.length > 0 && (
+              <p className="mb-4 text-xs text-[#9a9ca7]">
+                Access: {qrGuest.door_ids.length} door(s)
+              </p>
+            )}
+            <div className="flex justify-end">
+              <Button className="h-9 rounded-[6px] bg-[#4f55ff] px-4 text-white hover:bg-[#3439cc]" onClick={() => setQrGuest(null)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageFrame>
   )
 }
@@ -237,10 +282,12 @@ function GuestRow({
   guest,
   onStatus,
   onDelete,
+  onShowQR,
 }: {
   guest: Guest
   onStatus: (args: { guestID: string; status: string }) => void
   onDelete: (id: string) => void
+  onShowQR: (guest: Guest) => void
 }) {
   return (
     <div className="flex items-center gap-4 border-b border-[#eceef2] px-5 py-4 last:border-b-0">
@@ -274,6 +321,12 @@ function GuestRow({
             Host notified via WhatsApp
           </p>
         )}
+        {guest.access_token && guest.access_token_expires_at && new Date(guest.access_token_expires_at) > new Date() && (
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-[#4f55ff]">
+            <QrCodeIcon className="size-3" />
+            QR active until {new Date(guest.access_token_expires_at).toLocaleString(i18n.language)}
+          </p>
+        )}
       </div>
       <StatusDot tone={guestStatusTone(guest.status)} label={guestStatusLabel(guest.status)} />
       <div className="flex gap-1">
@@ -305,6 +358,16 @@ function GuestRow({
             onClick={() => onStatus({ guestID: guest.id, status: "checked_out" })}
           >
             <LogOutIcon className="size-4" />
+          </button>
+        )}
+        {guest.access_token && guest.access_token_expires_at && new Date(guest.access_token_expires_at) > new Date() && (
+          <button
+            type="button"
+            title="Show QR token"
+            className="flex size-8 items-center justify-center rounded-[6px] text-[#4f55ff] hover:bg-[#f0f0ff]"
+            onClick={() => onShowQR(guest)}
+          >
+            <QrCodeIcon className="size-4" />
           </button>
         )}
         <button

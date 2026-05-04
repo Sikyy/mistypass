@@ -36,13 +36,19 @@ type OAuth2AuthorizationCode struct {
 // ---------------------------------------------------------------------------
 
 type oauth2Store struct {
-	mu    sync.RWMutex
-	codes map[string]OAuth2AuthorizationCode // key = code
+	mu              sync.RWMutex
+	codes           map[string]OAuth2AuthorizationCode // key = code
+	ephemeralSecret string                             // generated once if JWT_SECRET not set
 }
 
 func newOAuth2Store() *oauth2Store {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		panic(fmt.Sprintf("generate oauth2 ephemeral secret: %v", err))
+	}
 	return &oauth2Store{
-		codes: make(map[string]OAuth2AuthorizationCode),
+		codes:           make(map[string]OAuth2AuthorizationCode),
+		ephemeralSecret: hex.EncodeToString(raw),
 	}
 }
 
@@ -596,7 +602,9 @@ type oauth2AccessTokenClaims struct {
 func (s *server) oauth2IssueAccessToken(authCode OAuth2AuthorizationCode) (string, int, error) {
 	secret := strings.TrimSpace(s.cfg.JWTSecret)
 	if secret == "" {
-		secret = "dev-secret"
+		// Use process-lifetime ephemeral secret (generated once in newOAuth2Store).
+		// Production MUST set JWT_SECRET; ephemeral means tokens die on restart.
+		secret = s.oauth2.ephemeralSecret
 	}
 	issuer := strings.TrimSpace(s.cfg.JWTIssuer)
 	if issuer == "" {
