@@ -15,12 +15,12 @@ import {
   type Guest,
 } from "@/lib/api"
 
-function guestStatusTone(status: string): "success" | "warning" | "info" | "error" {
+function guestStatusTone(status: string): "success" | "warning" | "info" | "danger" {
   switch (status) {
     case "checked_in": return "success"
     case "expected": return "info"
     case "checked_out": return "warning"
-    case "cancelled": return "error"
+    case "cancelled": return "danger"
     default: return "info"
   }
 }
@@ -61,7 +61,7 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
   const [mutationError, setMutationError] = useState("")
 
   const createMutation = useMutation({
-    mutationFn: () => createGuest(token, { tenant_id: tenantID, ...form }),
+    mutationFn: () => createGuest(token, { tenant_id: tenantID, ...form, id_document_type: (form.id_document_type || undefined) as Guest["id_document_type"] }),
     onSuccess: (guest) => {
       queryClient.invalidateQueries({ queryKey: ["guests"] })
       setShowCreate(false)

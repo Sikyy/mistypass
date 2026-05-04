@@ -1,4 +1,4 @@
-export type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
+export type EnterpriseSection = "employees" | "sync" | "idp" | "scim" | "alerts"
 export type AlertLandingView = "overview" | "approval_backlog" | "directory_exceptions"
 export type AlertSegmentHint = "receipt_recovery"
 export type AlertSegmentStatus = "pending" | "attention" | "ready"

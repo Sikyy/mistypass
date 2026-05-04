@@ -129,12 +129,6 @@ const AuditPage = lazy(() =>
 const AccessLinkClaimPage = lazy(() =>
   import("@/features/legacy/pages/access-link-claim-page").then((module) => ({ default: module.AccessLinkClaimPage }))
 )
-const MobileCredentialsPage = lazy(() =>
-  import("@/features/mobile-credentials/pages/mobile-credentials-page").then((module) => ({ default: module.MobileCredentialsPage }))
-)
-const SouthboundPage = lazy(() =>
-  import("@/features/southbound/pages/southbound-page").then((module) => ({ default: module.SouthboundPage }))
-)
 
 type MistyisletConsoleRoutesProps = {
   homeContent: ReactNode
@@ -163,16 +157,16 @@ function GenericAdaptedPage({ title, placeScoped = false }: { title: string; pla
       title={title}
       description="This workspace follows the same Mistyislet console layout while the detailed workflow is being adapted."
     >
-      <section className="rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-base font-semibold text-[#17171c]">{title}</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">Primary actions, filters, and records will stay in one flat surface.</p>
+      <section className="rounded-[6px] border border-line-default bg-white">
+        <div className="border-b border-line-subtle px-6 py-5">
+          <h2 className="text-base font-semibold text-content-heading">{title}</h2>
+          <p className="mt-1 text-sm text-content-subtle">Primary actions, filters, and records will stay in one flat surface.</p>
         </div>
         <div className="grid gap-4 p-6 md:grid-cols-3">
           {["Active", "Pending", "Needs review"].map((item, index) => (
-            <div key={item} className="rounded-[6px] border border-[#eceef2] p-4">
-              <p className="text-sm text-[#6f717c]">{item}</p>
-              <p className="mt-3 text-3xl font-bold text-[#17171c]">{index === 0 ? 12 : index === 1 ? 3 : 1}</p>
+            <div key={item} className="rounded-[6px] border border-line-subtle p-4">
+              <p className="text-sm text-content-subtle">{item}</p>
+              <p className="mt-3 text-3xl font-bold text-content-heading">{index === 0 ? 12 : index === 1 ? 3 : 1}</p>
             </div>
           ))}
         </div>
@@ -183,7 +177,7 @@ function GenericAdaptedPage({ title, placeScoped = false }: { title: string; pla
 
 function RouteModuleFallback() {
   return (
-    <div className="flex min-h-[240px] items-center justify-center rounded-[6px] border border-[#d9dbe3] bg-white text-sm text-[#6f717c]">
+    <div className="flex min-h-[240px] items-center justify-center rounded-[6px] border border-line-default bg-white text-sm text-content-subtle">
       Loading workspace...
     </div>
   )
@@ -265,8 +259,6 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
         <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
-        <Route path="/mobile-credentials" element={<MobileCredentialsPage token={token} viewer={viewer} />} />
-        <Route path="/southbound" element={<SouthboundPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />
         <Route path="/places/assigned/:section" element={<AssignedPlaceRedirect />} />
@@ -288,8 +280,8 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />
         <Route path="/audit" element={<AuditPage token={token} />} />
-        <Route path="/access-links/claim" element={<AccessLinkClaimPage token={token} viewer={viewer} />} />
-        <Route path="/access-link/:token" element={<AccessLinkClaimPage token={token} viewer={viewer} />} />
+        <Route path="/access-links/claim" element={<AccessLinkClaimPage />} />
+        <Route path="/access-link/:token" element={<AccessLinkClaimPage />} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
         <Route path="*" element={<GenericRoute />} />
       </Routes>

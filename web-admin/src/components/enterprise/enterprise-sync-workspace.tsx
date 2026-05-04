@@ -44,7 +44,7 @@ import {
 
 // smoke-contract markers: /access/directory /access/policies /wallet?scenario=employee_mobile
 
-type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
+type EnterpriseSection = "employees" | "sync" | "idp" | "scim" | "alerts"
 type EnterpriseWorkflowState = "completed" | "pending" | "blocked"
 type SyncFocusHint = "worker_alert"
 type HRISWebhookExecutionKindHint = "all" | "receipt_process" | "dlq_replay"

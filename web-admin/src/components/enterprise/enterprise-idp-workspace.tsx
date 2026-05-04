@@ -19,7 +19,7 @@ import {
   type EnterpriseDomainMapping,
 } from "@/lib/api"
 
-type EnterpriseSection = "employees" | "sync" | "idp" | "alerts"
+type EnterpriseSection = "employees" | "sync" | "idp" | "scim" | "alerts"
 
 type EnterpriseOutcomeAction = {
   description: string
