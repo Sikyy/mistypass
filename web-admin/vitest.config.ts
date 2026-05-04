@@ -16,5 +16,6 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     restoreMocks: true,
+    setupFiles: ["./vitest.setup.ts"],
   },
 })
