@@ -5,9 +5,10 @@ go 1.25.0
 require github.com/go-chi/chi/v5 v5.2.3
 
 require (
+	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/crewjam/saml v0.4.14
 	github.com/ebfe/scard v0.0.0-20241214075232-7af069cabc25
-	github.com/go-webauthn/webauthn v0.17.0
+	github.com/go-webauthn/webauthn v0.17.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lib/pq v1.12.3
 	github.com/nats-io/nats.go v1.51.0
@@ -23,7 +24,6 @@ require (
 )
 
 require (
-	github.com/alicebob/miniredis/v2 v2.37.0 // indirect
 	github.com/beevik/etree v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
