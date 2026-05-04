@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+env:
+  ENABLE_DEMO_USERS: "true"
+  GOCACHE: /tmp/go-build
+
 jobs:
   api-smoke:
     runs-on: ubuntu-latest
@@ -50,10 +54,14 @@ jobs:
         working-directory: api
         run: go test ./...
 
+      - name: Pre-build API binary
+        working-directory: api
+        run: go build -o /tmp/mistypass-api ./cmd/api
+
       - name: Start API with PostgreSQL
         run: |
           cd api
-          DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' ENABLE_DEMO_USERS=true nohup go run ./cmd/api >/tmp/mp_api_ci.log 2>&1 &
+          DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' nohup go run ./cmd/api >/tmp/mp_api_ci.log 2>&1 &
           echo $! >/tmp/mp_api_pid
           for i in {1..80}; do
             if curl -fsS http://localhost:8080/healthz >/dev/null; then
