@@ -181,6 +181,13 @@ func (s *Service) Append(tenantID, actor, role, action, target, source string) (
 	return record, nil
 }
 
+// HMACKey returns the current HMAC key length (zero if not configured).
+func (s *Service) HMACKey() []byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.hmacKey
+}
+
 // SetHMACKey configures the HMAC key for audit log chain integrity.
 // If set, all new log entries will include PrevHash and Hash fields.
 func (s *Service) SetHMACKey(key []byte) {

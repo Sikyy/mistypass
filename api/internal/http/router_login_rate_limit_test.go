@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"net"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -47,13 +48,26 @@ func TestAllowLoginAttemptResetsAfterWindow(t *testing.T) {
 	}
 }
 
-func TestRequestClientIPPrefersForwardedHeaders(t *testing.T) {
+func TestRequestClientIPIgnoresXFFWithoutTrustedProxy(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/auth/login", nil)
 	req.RemoteAddr = "127.0.0.1:8080"
 	req.Header.Set("X-Forwarded-For", "203.0.113.8, 10.0.0.8")
 	req.Header.Set("X-Real-IP", "198.51.100.8")
 
-	if got := requestClientIP(req); got != "203.0.113.8" {
-		t.Fatalf("expected forwarded ip, got %s", got)
+	if got := requestClientIP(req); got != "127.0.0.1" {
+		t.Fatalf("expected remote addr when no trusted proxy, got %s", got)
+	}
+}
+
+func TestResolveClientIPTrustsXFFFromConfiguredProxy(t *testing.T) {
+	_, loopback, _ := net.ParseCIDR("127.0.0.0/8")
+	trusted := []*net.IPNet{loopback}
+
+	req := httptest.NewRequest("GET", "/api/v1/auth/login", nil)
+	req.RemoteAddr = "127.0.0.1:8080"
+	req.Header.Set("X-Forwarded-For", "203.0.113.8, 10.0.0.8")
+
+	if got := resolveClientIP(req, trusted); got != "203.0.113.8" {
+		t.Fatalf("expected forwarded ip from trusted proxy, got %s", got)
 	}
 }
