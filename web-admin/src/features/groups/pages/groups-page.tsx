@@ -538,7 +538,7 @@ export function GroupsAdaptedPage({
               setActionError("")
               setCreateGroupOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Group
@@ -551,7 +551,7 @@ export function GroupsAdaptedPage({
               setActionError("")
               setDeleteGroupConfirmOpen(true)
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
           >
             <Trash2Icon className="mr-1.5 size-4" />
             Delete Group
@@ -560,25 +560,25 @@ export function GroupsAdaptedPage({
       }
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live group resources are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-base font-semibold text-[#17171c]">{placeScoped ? "Place Groups" : "Organization Groups"}</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.groups.pageDesc")}</p>
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="border-b border-line-subtle px-6 py-5">
+          <h2 className="text-base font-semibold text-content-heading">{placeScoped ? "Place Groups" : "Organization Groups"}</h2>
+          <p className="mt-1 text-sm text-content-subtle">{t("kisi.groups.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="bg-[#fbfbfc]">
-              <tr className="border-b border-[#eceef2]">
+            <thead className="bg-surface-page">
+              <tr className="border-b border-line-subtle">
                 <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
@@ -593,14 +593,14 @@ export function GroupsAdaptedPage({
                   aria-selected={currentGroup?.id === group.id}
                   onClick={() => setSelectedGroupID(group.id)}
                   className={cn(
-                    "cursor-pointer border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]",
+                    "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
                     currentGroup?.id === group.id ? "bg-[#f7f7ff]" : ""
                   )}
                 >
                   <td className="px-6 py-4 font-semibold text-[#4f55ff]">{group.name}</td>
-                  <td className="px-4 py-4 text-[#2f3037]">{group.kind}</td>
-                  <td className="px-4 py-4 text-[#6f717c]">{group.targetLabel}</td>
-                  <td className="px-4 py-4 text-[#2f3037]">{group.memberCount}</td>
+                  <td className="px-4 py-4 text-content-body">{group.kind}</td>
+                  <td className="px-4 py-4 text-content-subtle">{group.targetLabel}</td>
+                  <td className="px-4 py-4 text-content-body">{group.memberCount}</td>
                   <td className="px-4 py-4">
                     <StatusDot tone={group.tone} label={group.statusLabel} />
                   </td>
@@ -608,7 +608,7 @@ export function GroupsAdaptedPage({
               ))}
               {groupRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-[#6f717c]">
+                  <td colSpan={5} className="px-6 py-10 text-center text-sm text-content-subtle">
                     No groups found for this scope.
                   </td>
                 </tr>
@@ -630,7 +630,7 @@ export function GroupsAdaptedPage({
             type="button"
             disabled={!canMutateGroups || !groupFormDirty || !editGroupName.trim() || updateGroupMutation.isPending}
             onClick={() => updateGroupMutation.mutate()}
-            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updateGroupMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -641,25 +641,25 @@ export function GroupsAdaptedPage({
             <PanelHeader title={t("common.general")} description={t("kisi.groups.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.groups.groupName")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.groups.groupName")}</span>
                 <input
                   value={editGroupName}
                   disabled={!canMutateGroups}
                   onChange={(event) => setEditGroupName(event.target.value)}
-                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] disabled:bg-[#fbfbfc] disabled:text-[#6f717c]"
+                  className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body disabled:bg-surface-page disabled:text-content-subtle"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.description")}</span>
                 <input
                   value={editGroupDescription}
                   disabled={!canMutateGroups}
                   onChange={(event) => setEditGroupDescription(event.target.value)}
-                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] disabled:bg-[#fbfbfc] disabled:text-[#6f717c]"
+                  className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body disabled:bg-surface-page disabled:text-content-subtle"
                 />
               </label>
               <FormField label="Access enabled" value={currentGroup?.statusLabel ?? "Unavailable"} trailing={<ToggleSwitch enabled={currentGroup?.tone !== "danger"} />} />
-              <FormField label={t("kisi.groups.defaultRole")} value="Basic" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.groups.defaultRole")} value="Basic" trailing={<ChevronDownIcon className="size-4 text-content-subtle" />} />
               <FormField label={t("kisi.groups.placeScope")} value={placeScoped ? placeContext.place?.name ?? "Assigned Place" : "All organization places"} />
               <FormField label={t("kisi.teams.accessRights")} value={`${currentAccessRights.length} access rights`} />
             </div>
@@ -672,20 +672,20 @@ export function GroupsAdaptedPage({
               title={t("common.members")}
               description={t("kisi.groups.membersDesc")}
               action={
-                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]">
+                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
                   Add Members
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {memberRows.map((row) => (
                 <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_150px_1fr] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{row.name}</span>
-                  <span className="text-sm text-[#2f3037]">{row.role}</span>
-                  <span className="text-sm text-[#6f717c]">{row.email}</span>
+                  <span className="font-semibold text-content-heading">{row.name}</span>
+                  <span className="text-sm text-content-body">{row.role}</span>
+                  <span className="text-sm text-content-subtle">{row.email}</span>
                 </div>
               ))}
-              {memberRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">{t("kisi.groups.noMembers")}</div> : null}
+              {memberRows.length === 0 ? <div className="px-7 py-8 text-sm text-content-subtle">{t("kisi.groups.noMembers")}</div> : null}
             </div>
           </>
         ) : null}
@@ -705,18 +705,18 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddDoorsOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Doors
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {doorRows.map((row) => (
                 <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{row.name}</span>
-                  <span className="text-sm text-[#2f3037]">{row.floorName}</span>
+                  <span className="text-sm text-content-body">{row.floorName}</span>
                   <StatusDot tone={row.status === "online" ? "success" : "warning"} label={row.status === "online" ? t("common.online") : t("common.status")} />
                   <Button
                     type="button"
@@ -724,13 +724,13 @@ export function GroupsAdaptedPage({
                     size="sm"
                     disabled={!canMutateGroupLocks || removeDoorMutation.isPending}
                     onClick={() => removeDoorMutation.mutate(row.id)}
-                    className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                    className="justify-self-start rounded-[6px] text-content-subtle md:justify-self-end"
                   >
                     Remove
                   </Button>
                 </div>
               ))}
-              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-[#6f717c]">{t("kisi.groups.noDoors")}</div> : null}
+              {doorRows.length === 0 ? <div className="px-7 py-8 text-sm text-content-subtle">{t("kisi.groups.noDoors")}</div> : null}
             </div>
           </>
         ) : null}
@@ -740,14 +740,14 @@ export function GroupsAdaptedPage({
             <PanelHeader title={t("kisi.groups.zones")} description={t("kisi.groups.zonesDesc")} />
             <div className="grid gap-4 p-7 md:grid-cols-2">
               {zoneRows.map((row) => (
-                <div key={row.id} className="rounded-[6px] border border-[#eceef2] p-5">
-                  <LayersIcon className="size-6 text-[#6f717c]" />
-                  <h3 className="mt-5 font-semibold text-[#17171c]">{row.name}</h3>
-                  <p className="mt-1 text-sm text-[#6f717c]">{row.floorName} · {row.description}</p>
-                  <p className="mt-4 text-sm font-semibold text-[#2f3037]">{row.doorCount} doors</p>
+                <div key={row.id} className="rounded-[6px] border border-line-subtle p-5">
+                  <LayersIcon className="size-6 text-content-subtle" />
+                  <h3 className="mt-5 font-semibold text-content-heading">{row.name}</h3>
+                  <p className="mt-1 text-sm text-content-subtle">{row.floorName} · {row.description}</p>
+                  <p className="mt-4 text-sm font-semibold text-content-body">{row.doorCount} doors</p>
                 </div>
               ))}
-              {zoneRows.length === 0 ? <div className="text-sm text-[#6f717c]">{t("kisi.groups.noZones")}</div> : null}
+              {zoneRows.length === 0 ? <div className="text-sm text-content-subtle">{t("kisi.groups.noZones")}</div> : null}
             </div>
           </>
         ) : null}
@@ -767,20 +767,20 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddElevatorStopOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Elevator Stop
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {groupElevatorStops.map((row) => {
                 const stop = allElevatorStops.find((s) => s.id === row.elevator_stop_id)
                 return (
                   <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
                     <span className="font-semibold text-[#4f55ff]">{stop?.name ?? row.elevator_stop_id}</span>
-                    <span className="text-sm text-[#2f3037]">{stop?.status ?? "unknown"}</span>
+                    <span className="text-sm text-content-body">{stop?.status ?? "unknown"}</span>
                     <StatusDot tone={stop?.status === "online" ? "success" : "warning"} label={stop?.status ?? "unknown"} />
                     <Button
                       type="button"
@@ -788,7 +788,7 @@ export function GroupsAdaptedPage({
                       size="sm"
                       disabled={!canMutateGroups || removeElevatorStopMutation.isPending}
                       onClick={() => removeElevatorStopMutation.mutate(row.id)}
-                      className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                      className="justify-self-start rounded-[6px] text-content-subtle md:justify-self-end"
                     >
                       Remove
                     </Button>
@@ -796,7 +796,7 @@ export function GroupsAdaptedPage({
                 )
               })}
               {groupElevatorStops.length === 0 ? (
-                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                <div className="px-7 py-8 text-sm text-content-subtle">
                   {groupElevatorStopsQuery.isPending ? "Loading elevator stops..." : "No elevator stops are assigned to this group."}
                 </div>
               ) : null}
@@ -819,20 +819,20 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddTerminalOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Terminal
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {groupTerminals.map((row) => {
                 const terminal = allTerminals.find((t) => t.id === row.terminal_id)
                 return (
                   <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
                     <span className="font-semibold text-[#4f55ff]">{terminal?.name ?? row.terminal_id}</span>
-                    <span className="text-sm text-[#2f3037]">{terminal?.description ?? ""}</span>
+                    <span className="text-sm text-content-body">{terminal?.description ?? ""}</span>
                     <StatusDot tone={terminal?.status === "online" ? "success" : "warning"} label={terminal?.status ?? "unknown"} />
                     <Button
                       type="button"
@@ -840,7 +840,7 @@ export function GroupsAdaptedPage({
                       size="sm"
                       disabled={!canMutateGroups || removeTerminalMutation.isPending}
                       onClick={() => removeTerminalMutation.mutate(row.id)}
-                      className="justify-self-start rounded-[6px] text-[#6f717c] md:justify-self-end"
+                      className="justify-self-start rounded-[6px] text-content-subtle md:justify-self-end"
                     >
                       Remove
                     </Button>
@@ -848,7 +848,7 @@ export function GroupsAdaptedPage({
                 )
               })}
               {groupTerminals.length === 0 ? (
-                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                <div className="px-7 py-8 text-sm text-content-subtle">
                   {groupTerminalsQuery.isPending ? "Loading terminals..." : "No terminals are assigned to this group."}
                 </div>
               ) : null}
@@ -874,21 +874,21 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setCreateLinkOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Link
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {groupLinks.map((link) => (
                 <div key={link.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_140px_190px] md:items-center">
                   <div className="min-w-0">
-                    <span className="block truncate font-semibold text-[#17171c]">{link.name}</span>
-                    <span className="mt-1 block truncate text-sm text-[#6f717c]">{link.email || link.phone || "Reusable link"}</span>
+                    <span className="block truncate font-semibold text-content-heading">{link.name}</span>
+                    <span className="mt-1 block truncate text-sm text-content-subtle">{link.email || link.phone || "Reusable link"}</span>
                   </div>
-                  <span className="text-sm text-[#2f3037]">{link.valid_until ? `Expires ${link.valid_until}` : "No expiry"}</span>
+                  <span className="text-sm text-content-body">{link.valid_until ? `Expires ${link.valid_until}` : "No expiry"}</span>
                   <StatusDot tone={link.link_enabled ? "success" : "warning"} label={link.link_enabled ? "Enabled" : "Disabled"} />
                   <div className="justify-self-start md:justify-self-end">
                     <RowActionsMenu
@@ -918,7 +918,7 @@ export function GroupsAdaptedPage({
                 </div>
               ))}
               {groupLinks.length === 0 ? (
-                <div className="px-7 py-8 text-sm text-[#6f717c]">
+                <div className="px-7 py-8 text-sm text-content-subtle">
                   {groupLinksQuery.isPending ? "Loading group links..." : "No links are assigned to this group."}
                 </div>
               ) : null}
@@ -930,8 +930,8 @@ export function GroupsAdaptedPage({
           <>
             <PanelHeader title={t("kisi.groups.tabTimeRestrictions")} description={t("kisi.groups.timeDesc")} />
             <div className="p-7">
-              <div className="grid min-h-[240px] grid-cols-[56px_repeat(5,minmax(90px,1fr))] overflow-hidden rounded-[6px] border border-[#eceef2]">
-                <div className="border-r border-[#eceef2] bg-white pt-12 text-right text-xs font-semibold text-[#9a9ca7]">
+              <div className="grid min-h-[240px] grid-cols-[56px_repeat(5,minmax(90px,1fr))] overflow-hidden rounded-[6px] border border-line-subtle">
+                <div className="border-r border-line-subtle bg-white pt-12 text-right text-xs font-semibold text-content-muted">
                   {["8 AM", "12 PM", "4 PM", "8 PM"].map((time) => (
                     <div key={time} className="h-11 pr-3">
                       {time}
@@ -939,7 +939,7 @@ export function GroupsAdaptedPage({
                   ))}
                 </div>
                 {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => (
-                  <div key={day} className="border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-[#6f717c] last:border-r-0">
+                  <div key={day} className="border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-content-subtle last:border-r-0">
                     <div className="border-b border-white/80 bg-white py-4">{day}</div>
                     <div className="mx-auto mt-16 w-full max-w-[118px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
                       <p className="truncate font-semibold">{t("kisi.doors.accessPermitted")}</p>
@@ -955,20 +955,20 @@ export function GroupsAdaptedPage({
         {activeTab === "permissions" ? (
           <>
             <PanelHeader title={t("common.permissions")} description={t("kisi.groups.permDesc")} />
-            <div className="divide-y divide-[#eceef2] px-7">
+            <div className="divide-y divide-line-subtle px-7">
               {restrictions.map(({ key, title, description, enabled, icon: Icon }) => (
                 <div key={key} className="flex gap-5 py-6">
                   <div
                     className={cn(
                       "flex size-12 shrink-0 items-center justify-center rounded-[6px]",
-                      enabled ? "bg-[#4f55ff] text-white" : "bg-[#f1f2f5] text-[#2f3037]"
+                      enabled ? "bg-brand text-white" : "bg-[#f1f2f5] text-content-body"
                     )}
                   >
                     <Icon className="size-6" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-lg font-semibold text-[#17171c]">{title}</h3>
-                    <p className="mt-1 max-w-3xl text-sm leading-6 text-[#6f717c]">
+                    <h3 className="text-lg font-semibold text-content-heading">{title}</h3>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-content-subtle">
                       {description} <span className="text-[#4f55ff] underline underline-offset-2">{t("common.description")}</span>
                     </p>
                   </div>
@@ -1000,7 +1000,7 @@ export function GroupsAdaptedPage({
         title={t("kisi.groups.deleteGroup")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{currentGroup?.name ?? "this group"}</span> and its
+            This removes <span className="font-semibold text-content-heading">{currentGroup?.name ?? "this group"}</span> and its
             access-resource bindings from this workspace.
           </>
         }
@@ -1025,7 +1025,7 @@ export function GroupsAdaptedPage({
         title={t("common.delete")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteLinkTarget?.name ?? "this link"}</span>. Existing
+            This removes <span className="font-semibold text-content-heading">{deleteLinkTarget?.name ?? "this link"}</span>. Existing
             shared URLs and QR tokens for this link will stop working.
           </>
         }
@@ -1042,7 +1042,7 @@ export function GroupsAdaptedPage({
 
       <Sheet open={createGroupOpen} onOpenChange={setCreateGroupOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.groups.addGroup")}</SheetTitle>
             <SheetDescription>{t("kisi.groups.createGroupDesc")}</SheetDescription>
           </SheetHeader>
@@ -1054,38 +1054,38 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={createGroupName}
                 onChange={(event) => setCreateGroupName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.description")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.description")}</span>
               <textarea
                 value={createGroupDescription}
                 onChange={(event) => setCreateGroupDescription(event.target.value)}
                 rows={3}
-                className="w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-2 text-sm text-[#2f3037]"
+                className="w-full rounded-[6px] border border-line-default bg-white px-3 py-2 text-sm text-content-body"
               />
             </label>
             {placeScoped ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.place")}</span>
                 <input
                   value={placeContext.place?.name ?? "Assigned Place"}
                   readOnly
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
                 />
               </label>
             ) : (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.place")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.place")}</span>
                 <select
                   value={createGroupPlaceID}
                   onChange={(event) => setCreateGroupPlaceID(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   <option value="">{t("kisi.groups.orgWide")}</option>
                   {placeRows.map((place) => (
@@ -1096,11 +1096,11 @@ export function GroupsAdaptedPage({
                 </select>
               </label>
             )}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canCreateGroups || !createGroupName.trim() || createGroupMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {createGroupMutation.isPending ? "Creating..." : "Create Group"}
               </Button>
@@ -1111,7 +1111,7 @@ export function GroupsAdaptedPage({
 
       <Sheet open={addDoorsOpen} onOpenChange={setAddDoorsOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.groups.addDoors")}</SheetTitle>
             <SheetDescription>{t("kisi.groups.addDoorsDesc")}</SheetDescription>
           </SheetHeader>
@@ -1123,19 +1123,19 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.door")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.door")}</span>
               <select
                 value={selectedDoorID}
                 onChange={(event) => setSelectedDoorID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {availableDoorRows.map((door) => (
                   <option key={door.id} value={door.id}>
@@ -1144,12 +1144,12 @@ export function GroupsAdaptedPage({
                 ))}
               </select>
             </label>
-            {availableDoorRows.length === 0 ? <p className="text-sm text-[#8a5a00]">{t("kisi.groups.noDoors")}</p> : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            {availableDoorRows.length === 0 ? <p className="text-sm text-warning-text">{t("kisi.groups.noDoors")}</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutateGroupLocks || addDoorMutation.isPending || availableDoorRows.length === 0}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {addDoorMutation.isPending ? "Adding..." : "Add Doors"}
               </Button>
@@ -1160,7 +1160,7 @@ export function GroupsAdaptedPage({
 
       <Sheet open={createLinkOpen} onOpenChange={setCreateLinkOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.groups.addLink")}</SheetTitle>
             <SheetDescription>{t("kisi.groups.addLinkDesc")}</SheetDescription>
           </SheetHeader>
@@ -1172,55 +1172,55 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={createLinkName}
                 onChange={(event) => setCreateLinkName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
               <input
                 value={createLinkEmail}
                 onChange={(event) => setCreateLinkEmail(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
               <input
                 value={createLinkValidUntil}
                 placeholder="2026-05-01T10:00:00Z"
                 onChange={(event) => setCreateLinkValidUntil(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">QR code</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">QR code</span>
               <select
                 value={createLinkQRCodeType}
                 onChange={(event) => setCreateLinkQRCodeType(event.target.value as "online" | "offline" | "")}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="online">{t("common.online")}</option>
                 <option value="offline">{t("common.offline")}</option>
                 <option value="">-</option>
               </select>
             </label>
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutateGroupLinks || !createLinkName.trim() || createLinkMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {createLinkMutation.isPending ? "Creating..." : "Create Link"}
               </Button>
@@ -1239,7 +1239,7 @@ export function GroupsAdaptedPage({
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.groups.editLink")}</SheetTitle>
             <SheetDescription>{t("kisi.groups.editLinkDesc")}</SheetDescription>
           </SheetHeader>
@@ -1251,66 +1251,66 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
               />
             </label>
             <button
               type="button"
               onClick={() => setEditLinkEnabled((enabled) => !enabled)}
-              className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left"
+              className="flex w-full items-center justify-between rounded-[6px] border border-line-default bg-white px-3 py-3 text-left"
             >
               <span>
-                <span className="block text-sm font-semibold text-[#17171c]">{t("kisi.groups.linkEnabled")}</span>
-                <span className="mt-1 block text-xs text-[#6f717c]">{t("kisi.groups.linkEnabled")}</span>
+                <span className="block text-sm font-semibold text-content-heading">{t("kisi.groups.linkEnabled")}</span>
+                <span className="mt-1 block text-xs text-content-subtle">{t("kisi.groups.linkEnabled")}</span>
               </span>
               <ToggleSwitch enabled={editLinkEnabled} />
             </button>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={editLinkName}
                 onChange={(event) => setEditLinkName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.email")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.email")}</span>
               <input
                 value={editLinkEmail}
                 onChange={(event) => setEditLinkEmail(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.validUntil")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.validUntil")}</span>
               <input
                 value={editLinkValidUntil}
                 placeholder="2026-05-01T10:00:00Z"
                 onChange={(event) => setEditLinkValidUntil(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">QR code</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">QR code</span>
               <select
                 value={editLinkQRCodeType}
                 onChange={(event) => setEditLinkQRCodeType(event.target.value as "online" | "offline" | "")}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="online">{t("common.online")}</option>
                 <option value="offline">{t("common.offline")}</option>
                 <option value="">-</option>
               </select>
             </label>
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutateGroupLinks || !editLinkName.trim() || !editingLinkID || updateLinkMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {updateLinkMutation.isPending ? "Saving..." : "Save Link"}
               </Button>
@@ -1321,7 +1321,7 @@ export function GroupsAdaptedPage({
 
       <Sheet open={addElevatorStopOpen} onOpenChange={setAddElevatorStopOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>Add Elevator Stop</SheetTitle>
             <SheetDescription>Assign an elevator stop to this group.</SheetDescription>
           </SheetHeader>
@@ -1333,19 +1333,19 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Elevator Stop</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Elevator Stop</span>
               <select
                 value={selectedElevatorStopID}
                 onChange={(event) => setSelectedElevatorStopID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {availableElevatorStops.map((stop) => (
                   <option key={stop.id} value={stop.id}>
@@ -1354,12 +1354,12 @@ export function GroupsAdaptedPage({
                 ))}
               </select>
             </label>
-            {availableElevatorStops.length === 0 ? <p className="text-sm text-[#8a5a00]">No available elevator stops to assign.</p> : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            {availableElevatorStops.length === 0 ? <p className="text-sm text-warning-text">No available elevator stops to assign.</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutateGroups || addElevatorStopMutation.isPending || availableElevatorStops.length === 0}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {addElevatorStopMutation.isPending ? "Adding..." : "Add Elevator Stop"}
               </Button>
@@ -1370,7 +1370,7 @@ export function GroupsAdaptedPage({
 
       <Sheet open={addTerminalOpen} onOpenChange={setAddTerminalOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[440px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>Add Terminal</SheetTitle>
             <SheetDescription>Assign a terminal to this group.</SheetDescription>
           </SheetHeader>
@@ -1382,19 +1382,19 @@ export function GroupsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.group")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.group")}</span>
               <input
                 value={currentGroup?.name ?? "No group selected"}
                 readOnly
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-[#fbfbfc] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-surface-page px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Terminal</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">Terminal</span>
               <select
                 value={selectedTerminalID}
                 onChange={(event) => setSelectedTerminalID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 {availableTerminals.map((term) => (
                   <option key={term.id} value={term.id}>
@@ -1403,12 +1403,12 @@ export function GroupsAdaptedPage({
                 ))}
               </select>
             </label>
-            {availableTerminals.length === 0 ? <p className="text-sm text-[#8a5a00]">No available terminals to assign.</p> : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            {availableTerminals.length === 0 ? <p className="text-sm text-warning-text">No available terminals to assign.</p> : null}
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canMutateGroups || addTerminalMutation.isPending || availableTerminals.length === 0}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {addTerminalMutation.isPending ? "Adding..." : "Add Terminal"}
               </Button>

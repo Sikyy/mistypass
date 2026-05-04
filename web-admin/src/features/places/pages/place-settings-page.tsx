@@ -154,7 +154,7 @@ export function PlaceSettingsAdaptedPage({
         description={t("kisi.floors.description")}
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live place settings are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -164,7 +164,7 @@ export function PlaceSettingsAdaptedPage({
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
@@ -176,7 +176,7 @@ export function PlaceSettingsAdaptedPage({
           <Button
             disabled={!canMutate || updatePlaceMutation.isPending || !placeName.trim()}
             onClick={() => updatePlaceMutation.mutate()}
-            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updatePlaceMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -187,31 +187,31 @@ export function PlaceSettingsAdaptedPage({
             <PanelHeader title={t("common.general")} description={t("kisi.floors.description")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.name")}</span>
                 <input
                   value={placeName}
                   disabled={!place}
                   onChange={(event) => setPlaceName(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
-              <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-content-subtle" />} />
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.description")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.description")}</span>
                 <input
                   value={address}
                   disabled={!place}
                   onChange={(event) => setAddress(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.place")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.place")}</span>
                 <input
                   value={region}
                   disabled={!place}
                   onChange={(event) => setRegion(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <FormField label={t("kisi.doors.floor")} value="1st Floor" />
@@ -235,16 +235,16 @@ export function PlaceSettingsAdaptedPage({
         {activeTab === "Schedules" ? (
           <>
             <PanelHeader title={t("kisi.accessRights.schedule")} description={t("kisi.floors.description")} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {[
                 ["Business Hours", "Mon-Fri 08:00-18:00", "Default group schedule"],
                 ["After Hours", "Mon-Fri 18:00-22:00", "Facilities only"],
                 ["Weekend Maintenance", "Sat-Sun 09:00-16:00", "Temporary vendors"],
               ].map((row) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_220px_1fr] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{row[0]}</span>
-                  <span className="text-sm text-[#2f3037]">{row[1]}</span>
-                  <span className="text-sm text-[#6f717c]">{row[2]}</span>
+                  <span className="font-semibold text-content-heading">{row[0]}</span>
+                  <span className="text-sm text-content-body">{row[1]}</span>
+                  <span className="text-sm text-content-subtle">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -274,10 +274,10 @@ export function PlaceSettingsAdaptedPage({
                 [i18next.t("kisi.doors.lockdown"), i18next.t("kisi.floors.description")],
                 ["Cancel lockdown", "Cancel the current place-wide lockdown command."],
               ].map((row, index) => (
-                <div key={row[0]} className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+                <div key={row[0]} className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
                   <div>
-                    <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                    <p className="mt-1 text-sm text-[#6f717c]">{row[1]}</p>
+                    <h3 className="font-semibold text-content-heading">{row[0]}</h3>
+                    <p className="mt-1 text-sm text-content-subtle">{row[1]}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -302,8 +302,8 @@ export function PlaceSettingsAdaptedPage({
               ))}
               <div className="flex gap-5 rounded-[6px] border border-[#f1b7b2] bg-[#fffafa] p-5">
                 <div>
-                  <h3 className="font-semibold text-[#17171c]">{t("common.delete")}</h3>
-                  <p className="mt-1 text-sm text-[#6f717c]">{t("common.deleteConfirm")}</p>
+                  <h3 className="font-semibold text-content-heading">{t("common.delete")}</h3>
+                  <p className="mt-1 text-sm text-content-subtle">{t("common.deleteConfirm")}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -313,7 +313,7 @@ export function PlaceSettingsAdaptedPage({
                     setActionError("")
                     setDeleteConfirmOpen(true)
                   }}
-                  className="ml-auto h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d] disabled:border-[#d9dbe3] disabled:text-[#8d909b]"
+                  className="ml-auto h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d] disabled:border-line-default disabled:text-[#8d909b]"
                 >
                   <Trash2Icon className="mr-1.5 size-4" />
                   Delete
@@ -343,15 +343,15 @@ export function PlaceSettingsAdaptedPage({
           </DialogHeader>
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.name")}</span>
               <input
                 value={deleteConfirmText}
                 onChange={(event) => setDeleteConfirmText(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}

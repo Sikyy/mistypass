@@ -101,8 +101,8 @@ export function InvitationsAdaptedPage({
         </div>
       )}
 
-      <section className="rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="flex items-center gap-3 border-b border-[#eceef2] px-6 py-4">
+      <section className="rounded-[6px] border border-line-default bg-white">
+        <div className="flex items-center gap-3 border-b border-line-subtle px-6 py-4">
           <MistyisletSearchField value={search} onChange={setSearch} placeholder="Search by email or user ID" />
           <div className="ml-auto flex gap-2">
             {statusFilters.map((s) => (
@@ -111,8 +111,8 @@ export function InvitationsAdaptedPage({
                 onClick={() => { setStatusFilter(s); setPage(0) }}
                 className={`rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors ${
                   statusFilter === s
-                    ? "bg-[#4f55ff] text-white"
-                    : "bg-[#f5f6f8] text-[#6f717c] hover:bg-[#eceef2]"
+                    ? "bg-brand text-white"
+                    : "bg-surface-sunken text-content-subtle hover:bg-[#eceef2]"
                 }`}
               >
                 {s === "" ? t("common.all") : t(`kisi.invitations.${s === "cancelled" ? "cancelled_status" : s}`)}
@@ -124,7 +124,7 @@ export function InvitationsAdaptedPage({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-left text-xs font-semibold text-[#6f717c]">
+              <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
                 <th className="px-6 py-3">{t("common.email")}</th>
                 <th className="px-6 py-3">{t("common.user")}</th>
                 <th className="px-6 py-3">{t("common.status")}</th>
@@ -138,9 +138,9 @@ export function InvitationsAdaptedPage({
                 <MistyisletEmptyTableRow colSpan={6}>No invitations found.</MistyisletEmptyTableRow>
               ) : (
                 pagedItems.map((d) => (
-                  <tr key={d.id} className="border-b border-[#eceef2] hover:bg-[#fbfbfc]">
-                    <td className="px-6 py-3 font-medium text-[#17171c]">{d.email}</td>
-                    <td className="px-6 py-3 text-[#6f717c]">
+                  <tr key={d.id} className="border-b border-line-subtle hover:bg-surface-page">
+                    <td className="px-6 py-3 font-medium text-content-heading">{d.email}</td>
+                    <td className="px-6 py-3 text-content-subtle">
                       <Link to={`/users/${d.user_id}`} className="text-[#4f55ff] hover:underline">
                         {d.user_id}
                       </Link>
@@ -148,8 +148,8 @@ export function InvitationsAdaptedPage({
                     <td className="px-6 py-3">
                       <StatusDot tone={invitationStatusTone(d.status)} label={d.status} />
                     </td>
-                    <td className="px-6 py-3 text-[#6f717c]">{d.delivery_method}</td>
-                    <td className="px-6 py-3 text-[#6f717c]">
+                    <td className="px-6 py-3 text-content-subtle">{d.delivery_method}</td>
+                    <td className="px-6 py-3 text-content-subtle">
                       {d.delivered_at
                         ? new Date(d.delivered_at).toLocaleString()
                         : new Date(d.queued_at).toLocaleString()}
@@ -172,9 +172,9 @@ export function InvitationsAdaptedPage({
         </div>
 
         {totalPages > 1 && (
-          <div className="grid grid-cols-3 border-t border-[#eceef2] px-8 py-5 text-sm text-[#6f717c]">
+          <div className="grid grid-cols-3 border-t border-line-subtle px-8 py-5 text-sm text-content-subtle">
             <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="text-left disabled:opacity-40">Previous Page</button>
-            <span className="text-center text-[#17171c]">Page {page + 1} of {totalPages}</span>
+            <span className="text-center text-content-heading">Page {page + 1} of {totalPages}</span>
             <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} className="text-right disabled:opacity-40">Next Page</button>
           </div>
         )}

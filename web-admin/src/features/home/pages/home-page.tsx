@@ -215,15 +215,15 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
   const { t } = useTranslation()
   return (
     <section className="rounded-[6px] border border-[#e1e3e8] bg-white">
-      <div className="flex items-center justify-between border-b border-[#eceef2] px-6 py-5">
+      <div className="flex items-center justify-between border-b border-line-subtle px-6 py-5">
         <div>
-          <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.home.recentActivity")}</h2>
-          <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.recentDesc")}</p>
+          <h2 className="text-lg font-semibold text-content-heading">{t("kisi.home.recentActivity")}</h2>
+          <p className="mt-1 text-sm text-content-subtle">{t("kisi.home.recentDesc")}</p>
         </div>
-        <Clock3Icon className="hidden size-5 text-[#9a9ca7] sm:block" />
+        <Clock3Icon className="hidden size-5 text-content-muted sm:block" />
       </div>
 
-      <div className="divide-y divide-[#eceef2]">
+      <div className="divide-y divide-line-subtle">
         {loading ? (
           Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="grid grid-cols-[64px_1fr] gap-4 px-6 py-4 sm:grid-cols-[76px_1fr_120px]">
@@ -239,14 +239,14 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
           items.map((item) => (
             <div
               key={item.id}
-              className="grid grid-cols-[64px_1fr] gap-4 px-6 py-4 transition-colors hover:bg-[#fbfbfc] sm:grid-cols-[76px_1fr_120px]"
+              className="grid grid-cols-[64px_1fr] gap-4 px-6 py-4 transition-colors hover:bg-surface-page sm:grid-cols-[76px_1fr_120px]"
             >
-              <time className="text-sm font-medium text-[#6f717c]">{formatActivityTime(item.at)}</time>
+              <time className="text-sm font-medium text-content-subtle">{formatActivityTime(item.at)}</time>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#17171c]">{item.title}</p>
-                <p className="mt-1 truncate text-xs text-[#6f717c]">{item.meta}</p>
+                <p className="truncate text-sm font-semibold text-content-heading">{item.title}</p>
+                <p className="mt-1 truncate text-xs text-content-subtle">{item.meta}</p>
               </div>
-              <div className="hidden items-center justify-end gap-2 text-xs font-medium capitalize text-[#6f717c] sm:flex">
+              <div className="hidden items-center justify-end gap-2 text-xs font-medium capitalize text-content-subtle sm:flex">
                 <span className={cn("size-2 rounded-full", toneClassName(item.tone))} />
                 <span className="truncate">{item.status}</span>
               </div>
@@ -254,9 +254,9 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
           ))
         ) : (
           <div className="px-6 py-12 text-center">
-            <MessageSquareIcon className="mx-auto size-8 text-[#9a9ca7]" />
-            <p className="mt-3 text-sm font-semibold text-[#17171c]">{t("kisi.home.noActivity")}</p>
-            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.noActivity")}</p>
+            <MessageSquareIcon className="mx-auto size-8 text-content-muted" />
+            <p className="mt-3 text-sm font-semibold text-content-heading">{t("kisi.home.noActivity")}</p>
+            <p className="mt-1 text-sm text-content-subtle">{t("kisi.home.noActivity")}</p>
           </div>
         )}
       </div>
@@ -336,20 +336,20 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
               Home
             </Link>
           </div>
-          <h1 className="mt-6 text-[34px] font-bold leading-[42px] text-[#17171c] sm:text-[40px] sm:leading-[48px]">
+          <h1 className="mt-6 text-[34px] font-bold leading-[42px] text-content-heading sm:text-[40px] sm:leading-[48px]">
             {t("kisi.home.welcome", { name: personName })}
           </h1>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[#6f717c]">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-content-subtle">
             <span>{scopeName}</span>
             <span className="size-1 rounded-full bg-[#c3c6d1]" />
-            <span className="rounded-full border border-[#e1e3e8] bg-white px-2.5 py-1 text-xs font-semibold text-[#2f3037]">
+            <span className="rounded-full border border-[#e1e3e8] bg-white px-2.5 py-1 text-xs font-semibold text-content-body">
               {formatMistyisletRoleLabel(viewer, location.pathname)}
             </span>
           </div>
         </div>
 
         {summaryQuery.isError || summary?.partial ? (
-          <div className="rounded-[14px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+          <div className="rounded-[14px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
             Some live signals are unavailable.
           </div>
         ) : null}
@@ -364,8 +364,8 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
       <section className="mt-8 rounded-[6px] border border-[#e1e3e8] bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.home.quickActions")}</h2>
-            <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.home.quickDesc")}</p>
+            <h2 className="text-lg font-semibold text-content-heading">{t("kisi.home.quickActions")}</h2>
+            <p className="mt-1 text-sm text-content-subtle">{t("kisi.home.quickDesc")}</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {quickActions.map((action) => {
@@ -378,8 +378,8 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
                   className={cn(
                     "h-10 rounded-[6px] px-4",
                     action.primary
-                      ? "border-[#4f55ff] bg-[#4f55ff] text-white hover:bg-[#454bea]"
-                      : "border-[#d9dbe3] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                      ? "border-[#4f55ff] bg-brand text-white hover:bg-[#454bea]"
+                      : "border-line-default bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                   )}
                 >
                   <Link to={action.to}>

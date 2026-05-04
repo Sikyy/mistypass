@@ -457,7 +457,7 @@ export function HardwareAdaptedPage({
               setActionError("")
               setAddHardwareOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Hardware
@@ -465,7 +465,7 @@ export function HardwareAdaptedPage({
         }
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live hardware resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -475,16 +475,16 @@ export function HardwareAdaptedPage({
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
+              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                 <th className="px-6 py-4 font-semibold">{t("kisi.hardware.device")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
@@ -497,16 +497,16 @@ export function HardwareAdaptedPage({
                   key={item.id}
                   onClick={() => setSelectedDeviceID(item.id)}
                   className={cn(
-                    "cursor-pointer border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]",
+                    "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
                     selectedDevice?.id === item.id && "bg-[#f4f3ef]"
                   )}
                 >
-                  <td className="px-6 py-5 font-semibold text-[#17171c]">{item.name}</td>
-                  <td className="px-4 py-5 text-[#2f3037]">{item.type}</td>
+                  <td className="px-6 py-5 font-semibold text-content-heading">{item.name}</td>
+                  <td className="px-4 py-5 text-content-body">{item.type}</td>
                   <td className="px-4 py-5">
                     <StatusDot tone={item.tone} label={item.statusLabel} />
                   </td>
-                  <td className="px-4 py-5 text-[#6f717c]">{item.location}</td>
+                  <td className="px-4 py-5 text-content-subtle">{item.location}</td>
                 </tr>
               ))}
               {hardware.length === 0 ? <MistyisletEmptyTableRow colSpan={4}>{t("kisi.hardware.noMatch")}</MistyisletEmptyTableRow> : null}
@@ -542,7 +542,7 @@ export function HardwareAdaptedPage({
                   <select
                     value={bindDoorID}
                     onChange={(event) => setBindDoorID(event.target.value)}
-                    className="h-10 min-w-[220px] rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-10 min-w-[220px] rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     <option value="">{t("common.door")}</option>
                     {bindableDoors.map((door) => (
@@ -555,7 +555,7 @@ export function HardwareAdaptedPage({
                     variant="outline"
                     disabled={!canManageHardware || !selectedGatewayID || !bindDoorID || bindDoorMutation.isPending}
                     onClick={() => bindDoorMutation.mutate()}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                   >
                     <LinkIcon className="mr-1.5 size-4" />
                     Bind Door
@@ -563,12 +563,12 @@ export function HardwareAdaptedPage({
                 </div>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {selectedDeviceDoorRows.map((door, index) => (
                 <div key={door.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_160px_1fr_72px] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{door.name}</span>
                   <StatusDot tone={selectedDevice?.tone ?? "success"} label={selectedDevice?.statusLabel ?? "Online"} />
-                  <span className="text-sm text-[#6f717c]">{index === 0 ? "Primary controller path" : "Reader assignment"}</span>
+                  <span className="text-sm text-content-subtle">{index === 0 ? "Primary controller path" : "Reader assignment"}</span>
                   <div className="flex justify-end">
                     <RowActionsMenu
                       label={`Actions for ${door.name}`}
@@ -594,7 +594,7 @@ export function HardwareAdaptedPage({
                 </div>
               ))}
               {selectedDeviceDoorRows.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.hardware.noMatch")}</div>
+                <div className="px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.hardware.noMatch")}</div>
               ) : null}
             </div>
           </>
@@ -603,16 +603,16 @@ export function HardwareAdaptedPage({
         {activeTab === "Events" ? (
           <>
             <PanelHeader title={t("common.events")} description={t("kisi.hardware.description")} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {selectedDeviceEvents.map((event) => (
                 <div key={event.id} className="grid gap-3 px-7 py-5 md:grid-cols-[120px_1fr_140px] md:items-center">
-                  <span className="text-sm text-[#6f717c]">{event.timeLabel}</span>
-                  <span className="font-semibold text-[#17171c]">{event.action}</span>
+                  <span className="text-sm text-content-subtle">{event.timeLabel}</span>
+                  <span className="font-semibold text-content-heading">{event.action}</span>
                   <StatusDot tone={event.tone} label={event.statusLabel} />
                 </div>
               ))}
               {selectedDeviceEvents.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.hardware.noMatch")}</div>
+                <div className="px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.hardware.noMatch")}</div>
               ) : null}
             </div>
           </>
@@ -638,7 +638,7 @@ export function HardwareAdaptedPage({
                         })
                       }
                     }}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                   >
                     <RotateCwIcon className="mr-1.5 size-4" />
                     Reboot
@@ -656,7 +656,7 @@ export function HardwareAdaptedPage({
                           })
                         }
                       }}
-                      className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+                      className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
                     >
                       <ShieldOffIcon className="mr-1.5 size-4" />
                       Reset Tamper
@@ -675,7 +675,7 @@ export function HardwareAdaptedPage({
                           })
                         }
                       }}
-                      className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                      className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                     >
                       <ZapIcon className="mr-1.5 size-4" />
                       Trigger
@@ -694,7 +694,7 @@ export function HardwareAdaptedPage({
                         })
                       }
                     }}
-                    className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
                   >
                     <SendIcon className="mr-1.5 size-4" />
                     Publish Config
@@ -708,7 +708,7 @@ export function HardwareAdaptedPage({
                         setDeassignTarget(selectedDevice)
                       }
                     }}
-                    className="h-10 rounded-[6px] border-[#e0a8a8] bg-white px-5 text-[#b42318] hover:bg-[#fff5f5] disabled:border-[#d9dbe3] disabled:text-[#8d909b]"
+                    className="h-10 rounded-[6px] border-[#e0a8a8] bg-white px-5 text-[#b42318] hover:bg-[#fff5f5] disabled:border-line-default disabled:text-[#8d909b]"
                   >
                     <UnlinkIcon className="mr-1.5 size-4" />
                     Deassign
@@ -716,13 +716,13 @@ export function HardwareAdaptedPage({
                 </div>
               }
             />
-            <div className="grid gap-6 border-b border-[#eceef2] p-7 md:grid-cols-2">
+            <div className="grid gap-6 border-b border-line-subtle p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.hardware.publishConfig")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("kisi.hardware.publishConfig")}</span>
                 <input
                   value={configVersion}
                   onChange={(event) => setConfigVersion(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
                 />
               </label>
               <FormField label={t("common.controller")} value={selectedGatewayID || "No controller selected"} />
@@ -751,17 +751,17 @@ export function HardwareAdaptedPage({
           hardwareCommandTarget?.command === "trigger" ? (
             <>
               This sends a trigger command to{" "}
-              <span className="font-semibold text-[#17171c]">{hardwareCommandTarget.device.name}</span>.
+              <span className="font-semibold text-content-heading">{hardwareCommandTarget.device.name}</span>.
             </>
           ) : hardwareCommandTarget?.command === "publish_config" ? (
             <>
               This publishes config version{" "}
-              <span className="font-semibold text-[#17171c]">{hardwareCommandTarget.configVersion}</span> to{" "}
-              <span className="font-semibold text-[#17171c]">{hardwareCommandTarget.device.name}</span>.
+              <span className="font-semibold text-content-heading">{hardwareCommandTarget.configVersion}</span> to{" "}
+              <span className="font-semibold text-content-heading">{hardwareCommandTarget.device.name}</span>.
             </>
           ) : (
             <>
-              This restarts <span className="font-semibold text-[#17171c]">{hardwareCommandTarget?.device.name ?? "this hardware"}</span> and
+              This restarts <span className="font-semibold text-content-heading">{hardwareCommandTarget?.device.name ?? "this hardware"}</span> and
               can briefly interrupt access control.
             </>
           )
@@ -800,7 +800,7 @@ export function HardwareAdaptedPage({
         title={t("common.remove")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{unbindDoorTarget?.door.name ?? "this door"}</span> from{" "}
+            This removes <span className="font-semibold text-content-heading">{unbindDoorTarget?.door.name ?? "this door"}</span> from{" "}
             {unbindDoorTarget?.deviceName ?? "this hardware"}.
           </>
         }
@@ -825,7 +825,7 @@ export function HardwareAdaptedPage({
         title={t("kisi.hardware.deassign")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deassignTarget?.name ?? "this hardware"}</span> from{" "}
+            This removes <span className="font-semibold text-content-heading">{deassignTarget?.name ?? "this hardware"}</span> from{" "}
             {place?.name ?? "this place"}.
           </>
         }
@@ -842,7 +842,7 @@ export function HardwareAdaptedPage({
 
       <Sheet open={addHardwareOpen} onOpenChange={setAddHardwareOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[480px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.hardware.addHardware")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
@@ -854,26 +854,26 @@ export function HardwareAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.type")}</span>
               <select
                 value={hardwareMode}
                 onChange={(event) => {
                   setHardwareMode(event.target.value as HardwareCreateMode)
                   setHardwareSerial("")
                 }}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="controller">{t("common.controller")}</option>
                 <option value="reader">{t("common.reader")}</option>
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.hardware.device")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.hardware.device")}</span>
               <input
                 value={hardwareSerial}
                 list="hardware-serial-options"
                 onChange={(event) => setHardwareSerial(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
               <datalist id="hardware-serial-options">
                 {availableSerials.map((item) => (
@@ -883,11 +883,11 @@ export function HardwareAdaptedPage({
             </label>
             {hardwareMode === "controller" ? (
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.hardware.device")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.hardware.device")}</span>
                 <select
                   value={hardwareCapacity}
                   onChange={(event) => setHardwareCapacity(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   <option value="8">8 devices</option>
                   <option value="4">4 devices</option>
@@ -896,11 +896,11 @@ export function HardwareAdaptedPage({
             ) : (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.controller")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.controller")}</span>
                   <select
                     value={hardwareGatewayID}
                     onChange={(event) => setHardwareGatewayID(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     <option value="">{t("common.controller")}</option>
                     {controllerOptions.map((item) => (
@@ -912,11 +912,11 @@ export function HardwareAdaptedPage({
                 </label>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.type")}</span>
                     <select
                       value={hardwareProtocol}
                       onChange={(event) => setHardwareProtocol(event.target.value as GatewayDeviceProtocol)}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="osdp_v2">OSDP v2</option>
                       <option value="wiegand_26">Wiegand 26</option>
@@ -926,11 +926,11 @@ export function HardwareAdaptedPage({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
+                    <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.status")}</span>
                     <select
                       value={hardwareStatus}
                       onChange={(event) => setHardwareStatus(event.target.value as "online" | "offline")}
-                      className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                      className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                     >
                       <option value="online">{t("common.online")}</option>
                       <option value="offline">{t("common.offline")}</option>
@@ -940,11 +940,11 @@ export function HardwareAdaptedPage({
               </>
             )}
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setAddHardwareOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
@@ -956,7 +956,7 @@ export function HardwareAdaptedPage({
                   !hardwareSerial.trim() ||
                   (hardwareMode === "reader" && !hardwareGatewayID)
                 }
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {addHardwareMutation.isPending ? "Registering..." : t("kisi.hardware.addHardware")}
               </Button>

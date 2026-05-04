@@ -35,7 +35,7 @@ export function EmptyState({
           />
         )}
       </div>
-      <p className="max-w-md text-base font-medium text-[#17171c]">{title}</p>
+      <p className="max-w-md text-base font-medium text-content-heading">{title}</p>
       {description ? <p className="mt-2 max-w-md leading-6">{description}</p> : null}
       {action ? <div className="mt-4 flex flex-wrap items-center justify-center gap-2">{action}</div> : null}
     </div>

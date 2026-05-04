@@ -356,7 +356,7 @@ export function GatewayCommandCenterCard({
               <p className="text-xs font-medium uppercase text-[#62636a]">
                 {t("gateways.commandCenter.rebootConfirm.targetLabel")}
               </p>
-              <p className="mt-1 text-sm font-medium text-[#17171c]">
+              <p className="mt-1 text-sm font-medium text-content-heading">
                 {selectedGatewayRecord?.id ?? selectedGateway}
               </p>
             </div>

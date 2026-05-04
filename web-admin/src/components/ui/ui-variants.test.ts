@@ -20,12 +20,12 @@ describe("ui design variants", () => {
   })
 
   it("keeps button states readable on light Kisi work surfaces", () => {
-    expect(buttonVariants({ variant: "default" })).toContain("bg-[#4f55ff]")
+    expect(buttonVariants({ variant: "default" })).toContain("bg-brand")
     expect(buttonVariants({ variant: "default" })).toContain("hover:bg-[#454bea]")
     expect(buttonVariants({ variant: "outline" })).toContain("bg-white")
     expect(buttonVariants({ variant: "outline" })).toContain("hover:border-[#8589ff]")
     expect(buttonVariants({ variant: "outline" })).toContain("hover:text-[#3439cc]")
-    expect(buttonVariants({ variant: "ghost" })).toContain("hover:bg-[#f3f4ff]")
+    expect(buttonVariants({ variant: "ghost" })).toContain("hover:bg-brand-subtle")
     expect(buttonVariants({ variant: "destructive" })).toContain("hover:text-[#9f1d1d]")
   })
 

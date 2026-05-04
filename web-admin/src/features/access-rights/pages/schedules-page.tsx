@@ -176,15 +176,15 @@ export function SchedulesAdaptedPage({
         </div>
       )}
 
-      <section className="rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="flex items-center gap-3 border-b border-[#eceef2] px-6 py-4">
+      <section className="rounded-[6px] border border-line-default bg-white">
+        <div className="flex items-center gap-3 border-b border-line-subtle px-6 py-4">
           <MistyisletSearchField value={search} onChange={setSearch} placeholder="Search schedules" />
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-left text-xs font-semibold text-[#6f717c]">
+              <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
                 <th className="px-6 py-3">{t("kisi.schedules.name")}</th>
                 <th className="px-6 py-3">{t("kisi.schedules.timeWindows")}</th>
                 <th className="px-6 py-3">{t("kisi.schedules.validFrom")}</th>
@@ -197,17 +197,17 @@ export function SchedulesAdaptedPage({
                 <MistyisletEmptyTableRow colSpan={5}>No schedules found.</MistyisletEmptyTableRow>
               ) : (
                 pagedItems.map((s) => (
-                  <tr key={s.id} className="border-b border-[#eceef2] hover:bg-[#fbfbfc]">
+                  <tr key={s.id} className="border-b border-line-subtle hover:bg-surface-page">
                     <td className="px-6 py-3">
                       <div className="flex items-center gap-2">
-                        <CalendarClockIcon className="size-4 text-[#6f717c]" />
-                        <span className="font-medium text-[#17171c]">{s.name}</span>
+                        <CalendarClockIcon className="size-4 text-content-subtle" />
+                        <span className="font-medium text-content-heading">{s.name}</span>
                       </div>
-                      {s.description && <p className="mt-0.5 text-xs text-[#6f717c]">{s.description}</p>}
+                      {s.description && <p className="mt-0.5 text-xs text-content-subtle">{s.description}</p>}
                     </td>
-                    <td className="px-6 py-3 text-[#6f717c]">{formatTimeWindows(s.time_windows)}</td>
-                    <td className="px-6 py-3 text-[#6f717c]">{s.valid_from ? new Date(s.valid_from).toLocaleDateString() : "-"}</td>
-                    <td className="px-6 py-3 text-[#6f717c]">{s.valid_until ? new Date(s.valid_until).toLocaleDateString() : "-"}</td>
+                    <td className="px-6 py-3 text-content-subtle">{formatTimeWindows(s.time_windows)}</td>
+                    <td className="px-6 py-3 text-content-subtle">{s.valid_from ? new Date(s.valid_from).toLocaleDateString() : "-"}</td>
+                    <td className="px-6 py-3 text-content-subtle">{s.valid_until ? new Date(s.valid_until).toLocaleDateString() : "-"}</td>
                     <td className="px-6 py-3">
                       <RowActionsMenu
                         items={[
@@ -224,9 +224,9 @@ export function SchedulesAdaptedPage({
         </div>
 
         {totalPages > 1 && (
-          <div className="grid grid-cols-3 border-t border-[#eceef2] px-8 py-5 text-sm text-[#6f717c]">
+          <div className="grid grid-cols-3 border-t border-line-subtle px-8 py-5 text-sm text-content-subtle">
             <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="text-left disabled:opacity-40">Previous Page</button>
-            <span className="text-center text-[#17171c]">Page {page + 1} of {totalPages}</span>
+            <span className="text-center text-content-heading">Page {page + 1} of {totalPages}</span>
             <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} className="text-right disabled:opacity-40">Next Page</button>
           </div>
         )}
@@ -247,51 +247,51 @@ export function SchedulesAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.schedules.name")}</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.schedules.name")}</span>
               <input
                 value={draftName}
                 onChange={(e) => setDraftName(e.target.value)}
                 required
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]"
+                className="h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">Description</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">Description</span>
               <input
                 value={draftDescription}
                 onChange={(e) => setDraftDescription(e.target.value)}
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]"
+                className="h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring"
               />
             </label>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.schedules.validFrom")}</span>
+                <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.schedules.validFrom")}</span>
                 <input
                   type="date"
                   value={draftValidFrom ? draftValidFrom.slice(0, 10) : ""}
                   onChange={(e) => setDraftValidFrom(e.target.value ? e.target.value + "T00:00:00Z" : "")}
-                  className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]"
+                  className="h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring"
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.schedules.validUntil")}</span>
+                <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.schedules.validUntil")}</span>
                 <input
                   type="date"
                   value={draftValidUntil ? draftValidUntil.slice(0, 10) : ""}
                   onChange={(e) => setDraftValidUntil(e.target.value ? e.target.value + "T23:59:59Z" : "")}
-                  className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]"
+                  className="h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring"
                 />
               </label>
             </div>
-            <div className="rounded-[6px] border border-[#eceef2] p-4">
-              <h4 className="mb-3 text-xs font-semibold text-[#6f717c]">{t("kisi.schedules.timeWindows")}</h4>
+            <div className="rounded-[6px] border border-line-subtle p-4">
+              <h4 className="mb-3 text-xs font-semibold text-content-subtle">{t("kisi.schedules.timeWindows")}</h4>
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">Days</span>
+                  <span className="mb-1 block text-xs text-content-subtle">Days</span>
                   <select
                     value={draftDayOfWeek}
                     onChange={(e) => setDraftDayOfWeek(e.target.value)}
-                    className="h-9 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-2 text-sm outline-none focus:border-[#8589ff]"
+                    className="h-9 w-full rounded-[6px] border border-line-default bg-white px-2 text-sm outline-none focus:border-brand-ring"
                   >
                     <option value="all">Every day</option>
                     <option value="weekday">Weekdays</option>
@@ -299,34 +299,34 @@ export function SchedulesAdaptedPage({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">Start</span>
+                  <span className="mb-1 block text-xs text-content-subtle">Start</span>
                   <input
                     type="time"
                     value={draftStartTime}
                     onChange={(e) => setDraftStartTime(e.target.value)}
-                    className="h-9 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-2 text-sm outline-none focus:border-[#8589ff]"
+                    className="h-9 w-full rounded-[6px] border border-line-default bg-white px-2 text-sm outline-none focus:border-brand-ring"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">End</span>
+                  <span className="mb-1 block text-xs text-content-subtle">End</span>
                   <input
                     type="time"
                     value={draftEndTime}
                     onChange={(e) => setDraftEndTime(e.target.value)}
-                    className="h-9 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-2 text-sm outline-none focus:border-[#8589ff]"
+                    className="h-9 w-full rounded-[6px] border border-line-default bg-white px-2 text-sm outline-none focus:border-brand-ring"
                   />
                 </label>
               </div>
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.schedules.exceptionDates")}</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.schedules.exceptionDates")}</span>
               <input
                 value={draftExceptionDates}
                 onChange={(e) => setDraftExceptionDates(e.target.value)}
                 placeholder="2026-08-17, 2026-12-25"
-                className="h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm outline-none focus:border-[#8589ff]"
+                className="h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm outline-none focus:border-brand-ring"
               />
-              <span className="mt-1 block text-xs text-[#6f717c]">Comma-separated YYYY-MM-DD dates</span>
+              <span className="mt-1 block text-xs text-content-subtle">Comma-separated YYYY-MM-DD dates</span>
             </label>
             <SheetFooter>
               <Button type="submit" disabled={!draftName.trim() || createMutation.isPending || updateMutation.isPending}>
