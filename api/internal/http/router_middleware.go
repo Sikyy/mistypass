@@ -76,6 +76,11 @@ func allowedCORSOrigin(configuredOrigin, requestOrigin, appEnv string) string {
 
 func (s *server) withLoginRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.cfg.DisableLoginRateLimit {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		clientIP := requestClientIP(r)
 		if clientIP == "" {
 			clientIP = "unknown"

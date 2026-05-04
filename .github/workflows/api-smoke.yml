@@ -10,6 +10,7 @@ permissions:
 
 env:
   ENABLE_DEMO_USERS: "true"
+  DISABLE_LOGIN_RATE_LIMIT: "true"
   GOCACHE: /tmp/go-build
 
 jobs:
