@@ -20,6 +20,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/audit"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
+	"github.com/mistypass/cloud/api/internal/modules/credential"
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
@@ -49,6 +50,7 @@ type server struct {
 	auditSvc                      *audit.Service
 	walletSvc                     *wallet.Service
 	cameraSvc                     *camera.Service
+	credentialSvc                 *credential.Service
 	enterpriseSvc                 *enterprise.Service
 	hrisVaultSvc                  *hris.VaultService
 	hrisDLQSvc                    *hris.DLQService
@@ -203,6 +205,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	alarmSvc := alarm.NewService()
 	auditSvc := audit.NewService()
 	walletSvc := wallet.NewService()
+	credentialSvc := credential.NewService()
 	cameraSvc := camera.NewService(nil)
 	if cfg.CameraSnapshotRetentionDays > 0 {
 		cameraSvc.SetSnapshotRetentionDays(cfg.CameraSnapshotRetentionDays)
@@ -277,6 +280,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if err != nil {
 			return nil, nil, err
 		}
+		credentialSvc, err = credential.NewServiceWithStateStore(stateStore)
+		if err != nil {
+			return nil, nil, err
+		}
 		enterpriseSvc, err = enterprise.NewServiceWithStateStore(stateStore)
 		if err != nil {
 			return nil, nil, err
@@ -326,6 +333,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		alarmSvc:                      alarmSvc,
 		auditSvc:                      auditSvc,
 		walletSvc:                     walletSvc,
+		credentialSvc:                 credentialSvc,
 		cameraSvc:                     cameraSvc,
 		enterpriseSvc:                 enterpriseSvc,
 		hrisVaultSvc:                  hrisVaultSvc,
@@ -500,6 +508,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
 				protected.Get("/access/logs", s.appAccessLogs)
 				protected.Post("/visitor-passes", s.appCreateVisitorPass)
+
+				// Mobile BLE credential management
+				protected.Post("/credentials/register", s.appRegisterMobileCredential)
+				protected.Get("/credentials/mobile", s.appListMobileCredentials)
+				protected.Delete("/credentials/mobile/{credentialID}", s.appRevokeMobileCredential)
+				protected.Post("/credentials/mobile/{credentialID}/refresh", s.appRefreshMobileCredential)
 			})
 		})
 
@@ -516,6 +530,16 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/events/checkpoint", s.gatewayBootstrapEventsCheckpoint)
 			gatewayRouter.Post("/verify-credential", s.verifyCredential)
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
+		})
+
+		// Mobile credential admin endpoints
+		r.Route("/credentials/mobile", func(credRouter chi.Router) {
+			credRouter.Use(s.withBearerToken)
+			credRouter.Use(s.requireRoles("super_admin", "tenant_admin"))
+			credRouter.Get("/", s.adminListMobileCredentials)
+			credRouter.Get("/{credentialID}", s.adminGetMobileCredential)
+			credRouter.Post("/{credentialID}/revoke", s.adminRevokeMobileCredential)
+			credRouter.Post("/revoke-user", s.adminRevokeAllUserCredentials)
 		})
 
 		r.Group(func(protected chi.Router) {
