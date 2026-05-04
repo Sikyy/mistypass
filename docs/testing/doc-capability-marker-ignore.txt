@@ -23,6 +23,12 @@ docs/architecture/kisi-comparison.md
 # Archived planning docs (no longer reflect current capabilities).
 docs/archive/**
 
+# Integration guides (architecture/setup, not capability docs).
+docs/integrations/**
+
+# Production deployment guides (operational, not capability docs).
+docs/production-*.md
+
 # Compliance, deployment, hardware, integration analysis.
 docs/compliance-uu-pdp-indonesia.md
 docs/credential-security-architecture.md

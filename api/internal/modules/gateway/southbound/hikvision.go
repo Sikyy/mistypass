@@ -2,7 +2,7 @@ package southbound
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" // #nosec G501 -- Hikvision ISAPI digest auth requires MD5
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -251,16 +251,16 @@ func doDigestAuth(ctx context.Context, client *http.Client, method, url, usernam
 	qop := extractDigestParam(authHeader, "qop")
 
 	uriPath := extractPath(url)
-	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, realm, password))))
-	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, uriPath))))
+	ha1 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", username, realm, password)))) // #nosec G401
+	ha2 := fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s", method, uriPath))))             // #nosec G401
 
 	nc := "00000001"
 	cnonce := fmt.Sprintf("%08x", time.Now().UnixNano()&0xFFFFFFFF)
 	var response string
 	if qop != "" {
-		response = fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, nonce, nc, cnonce, qop, ha2))))
+		response = fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, nonce, nc, cnonce, qop, ha2)))) // #nosec G401
 	} else {
-		response = fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", ha1, nonce, ha2))))
+		response = fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%s:%s:%s", ha1, nonce, ha2)))) // #nosec G401
 	}
 
 	authValue := fmt.Sprintf(`Digest username="%s", realm="%s", nonce="%s", uri="%s", response="%s"`,
