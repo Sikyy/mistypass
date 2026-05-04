@@ -38,7 +38,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y jq lsof zsh
+          sudo apt-get install -y jq lsof zsh ripgrep libpcsclite-dev
 
       - name: Docs Capability Marker Guard
         run: /bin/zsh ./docs/testing/check-doc-capability-markers.zsh

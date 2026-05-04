@@ -3,3 +3,6 @@
 # Example:
 # ^web-admin/src/some/file\\.tsx$
 
+# Language picker labels show each language in its own script (English/中文/Bahasa)
+^.*mistyislet-admin-shell\.tsx$
+

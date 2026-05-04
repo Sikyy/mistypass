@@ -23,6 +23,11 @@ jobs:
         with:
           go-version-file: api/go.mod
 
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpcsclite-dev
+
       - name: Install gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@v2.22.10
@@ -42,7 +47,7 @@ jobs:
         run: docker build -f api/Dockerfile -t mistypass-api:ci .
 
       - name: Trivy Scan API Image
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: mistypass-api:ci
           format: table
