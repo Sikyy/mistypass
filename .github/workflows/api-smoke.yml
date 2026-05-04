@@ -11,6 +11,7 @@ permissions:
 env:
   ENABLE_DEMO_USERS: "true"
   DISABLE_LOGIN_RATE_LIMIT: "true"
+  GATEWAY_BOOTSTRAP_TOKEN: "mistypass-dev-bootstrap-local-only-20260424"
   GOCACHE: /tmp/go-build
 
 jobs:
