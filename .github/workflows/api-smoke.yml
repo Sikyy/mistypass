@@ -14,6 +14,7 @@ jobs:
     env:
       ENABLE_DEMO_USERS: "true"
       LOGIN_RATE_LIMIT_MAX_ATTEMPTS: "1000"
+      GATEWAY_BOOTSTRAP_TOKEN: "mistypass-dev-bootstrap-local-only-20260424"
     services:
       postgres:
         image: postgres:16
