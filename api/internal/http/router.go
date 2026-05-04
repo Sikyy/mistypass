@@ -983,6 +983,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/enterprise/idp-config", s.upsertEnterpriseIDPConfig)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/idp-config/validate", s.validateEnterpriseIDPConfig)
 
+			// SCIM provisioning management (admin UI)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/scim/config", s.scimAdminGetConfig)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/scim/token", s.scimAdminGenerateToken)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/enterprise/scim/token", s.scimAdminRevokeToken)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/enterprise/scim/test", s.scimAdminTestEndpoint)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/scim/logs", s.scimAdminListProvisioningLogs)
+
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/employees", s.listEnterpriseEmployees)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/jit-provision-approvals", s.listEnterpriseJITProvisionApprovals)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/enterprise/jit-provision-approvals/external-sync-pending", s.listEnterpriseJITProvisionApprovalExternalSyncPending)
@@ -1021,6 +1028,18 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		oauthRouter.Get("/authorize", s.oauth2Authorize)
 		oauthRouter.Post("/token", s.oauth2Token)
 		oauthRouter.Post("/revoke", s.oauth2Revoke)
+	})
+
+	// SCIM 2.0 Server endpoints (outside protected group — uses Bearer token auth)
+	router.Route("/scim/v2", func(scimRouter chi.Router) {
+		scimRouter.Get("/ServiceProviderConfig", s.scimServiceProviderConfig)
+		scimRouter.Get("/Schemas", s.scimSchemas)
+		scimRouter.Get("/Users", s.scimListUsers)
+		scimRouter.Get("/Users/{id}", s.scimGetUser)
+		scimRouter.Post("/Users", s.scimCreateUser)
+		scimRouter.Put("/Users/{id}", s.scimReplaceUser)
+		scimRouter.Patch("/Users/{id}", s.scimPatchUser)
+		scimRouter.Delete("/Users/{id}", s.scimDeleteUser)
 	})
 
 	s.startEnterpriseSyncReconcileWorker()
