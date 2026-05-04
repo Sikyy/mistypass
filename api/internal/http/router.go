@@ -315,6 +315,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		WhatsAppAPIKey:        cfg.WalletAlertWhatsAppAPIKey,
 		WhatsAppPhoneNumberID: cfg.WalletAlertWhatsAppPhoneNumberID,
 		WhatsAppTimeout:       cfg.WalletAlertWhatsAppTimeout,
+		WhatsAppTemplateName:  cfg.WalletAlertWhatsAppTemplateName,
+		WhatsAppTemplateLang:  cfg.WalletAlertWhatsAppTemplateLang,
+		LarkAlertWebhookURL:   cfg.LarkAlertWebhookURL,
 	}); err != nil {
 		return nil, nil, err
 	}
