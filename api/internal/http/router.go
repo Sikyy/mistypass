@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -165,9 +167,18 @@ type authContextKey string
 const authUserContextKey authContextKey = "auth_user"
 const gatewayBootstrapStateKey = "http_gateway_bootstrap"
 
+var loginRateLimitMaxAttempts = 10
+
+func init() {
+	if v := os.Getenv("LOGIN_RATE_LIMIT_MAX_ATTEMPTS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			loginRateLimitMaxAttempts = n
+		}
+	}
+}
+
 const (
-	loginRateLimitMaxAttempts                  = 10
-	loginRateLimitWindow                       = time.Minute
+	loginRateLimitWindow = time.Minute
 	loginRateLimitBucketTTL                    = 5 * time.Minute
 	loginRateLimitBucketMaxKeys                = 10000
 	apiRateLimitMaxRequests                    = 600
