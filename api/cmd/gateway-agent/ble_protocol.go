@@ -26,15 +26,15 @@ const (
 
 	// AUTH_RESPONSE characteristic: Phone → Reader (Write)
 	// Contains: [variable user_id length byte] + [user_id bytes] + [signature bytes]
-	BLECharAuthResponseUUID = "4d495354-5950-4153-532d-41555448524553" // "MISTYPASS-AUTHRES"
+	BLECharAuthResponseUUID = "4d495354-5950-4153-532d-415554485245" // "MISTYPASS-AUTHRE"
 
 	// READER_IDENTITY characteristic: Reader → Phone (Read)
 	// Contains: reader_id string (for phone to verify reader identity)
-	BLECharReaderIdentityUUID = "4d495354-5950-4153-532d-52454144455249" // "MISTYPASS-READERI"
+	BLECharReaderIdentityUUID = "4d495354-5950-4153-532d-524541444552" // "MISTYPASS-READER"
 
 	// AUTH_RESULT characteristic: Reader → Phone (Notify)
 	// Contains: [1 byte result code] + [variable reason string]
-	BLECharAuthResultUUID = "4d495354-5950-4153-532d-524553554c5400" // "MISTYPASS-RESULT"
+	BLECharAuthResultUUID = "4d495354-5950-4153-532d-524553554c54" // "MISTYPASS-RESULT"
 )
 
 // BLE Auth result codes

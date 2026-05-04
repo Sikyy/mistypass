@@ -29,6 +29,7 @@ docker-compose.*.override.yml
 # Compiled binaries
 api/gateway-agent
 api/gateway-simulator
+api/openapi-extract
 
 # Screenshots / images not part of docs
 *.png

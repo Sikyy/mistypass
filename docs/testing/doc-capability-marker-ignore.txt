@@ -10,6 +10,8 @@ docs/testing/artifacts/**
 
 # High-level overview / process docs (not specific capabilities).
 docs/CODE-REVIEW-*.md
+docs/CROSS-REPO-REVIEW-*.md
+docs/REPO-ARCHITECTURE.md
 docs/CREDENTIAL-FLOWS.md
 docs/MVP-ROADMAP.md
 docs/NEXT-ROADMAP.md
