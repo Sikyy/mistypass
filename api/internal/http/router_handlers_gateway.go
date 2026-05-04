@@ -1658,6 +1658,20 @@ func (s *server) buildGatewayAccessRules(
 		})
 	}
 
+	// Mobile BLE credentials (public keys for local signature verification)
+	if s.credentialSvc != nil {
+		mobileCredSyncs := s.credentialSvc.BuildGatewayCredentialSync(tenantID, boundDoorIDs, userLockAccess)
+		for _, mc := range mobileCredSyncs {
+			rules = append(rules, gatewayConfigAccessRule{
+				CredentialType: "ble_signature",
+				CredentialData: mc.PublicKeyPEM,
+				UserID:         mc.UserID,
+				UserEmail:      mc.UserEmail,
+				LockIDs:        mc.LockIDs,
+			})
+		}
+	}
+
 	return rules
 }
 
