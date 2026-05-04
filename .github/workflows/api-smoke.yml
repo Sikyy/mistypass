@@ -52,6 +52,10 @@ jobs:
         working-directory: api
         run: go test ./...
 
+      - name: Warm API Build Cache
+        working-directory: api
+        run: GOCACHE=/tmp/go-build go build ./cmd/api
+
       - name: Start API with PostgreSQL
         run: |
           cd api
