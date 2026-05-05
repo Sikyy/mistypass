@@ -124,3 +124,7 @@ export async function getCameraVideoLink(token: string | undefined, cameraID: st
   const result = await request<CameraVideoLink>(`/api/v1/cameras/${cameraID}/video_link`, { method: "GET" }, token)
   return result?.url ?? ""
 }
+
+export async function listEventSnapshots(token: string | undefined, eventID: string): Promise<CameraSnapshot[]> {
+  return requestItems<CameraSnapshot>(`/api/v1/events/${eventID}/snapshots`, token)
+}

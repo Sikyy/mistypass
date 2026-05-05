@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronDownIcon, MapPinPlusIcon } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { CameraIcon, ChevronDownIcon, ImageIcon, MapPinPlusIcon } from "lucide-react"
 
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
 import {
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { selectMistyisletPlaceContext } from "@/features/mistyislet-shell/resource-data"
 import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
-import type { CurrentUser } from "@/lib/api"
+import { listEventSnapshots, type CameraSnapshot, type CurrentUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
 export function EventHistoryAdaptedPage({
@@ -160,6 +161,7 @@ export function EventHistoryAdaptedPage({
                         <td colSpan={5} className="px-4 py-4 text-sm leading-6 text-content-subtle">
                           <span className="font-semibold text-content-body">{t("kisi.eventHistory.details")}</span>
                           <p className="mt-1">{row.details}</p>
+                          <EventSnapshotStrip token={token} eventID={row.id} />
                         </td>
                       </tr>
                     ) : null}
@@ -174,5 +176,76 @@ export function EventHistoryAdaptedPage({
         </div>
       </section>
     </PageFrame>
+  )
+}
+
+// --- Event Snapshot Strip ---
+
+function EventSnapshotStrip({ token, eventID }: { token: string; eventID: string }) {
+  const { t } = useTranslation()
+  const snapshotQuery = useQuery({
+    queryKey: ["event-snapshots", eventID],
+    queryFn: () => listEventSnapshots(token, eventID),
+    enabled: Boolean(token && eventID),
+    staleTime: 60_000,
+  })
+
+  if (snapshotQuery.isLoading) {
+    return (
+      <div className="mt-3 flex items-center gap-2 text-xs text-content-muted">
+        <CameraIcon className="size-3.5" />
+        {t("kisi.eventHistory.loadingSnapshots")}
+      </div>
+    )
+  }
+
+  const snapshots = snapshotQuery.data ?? []
+  if (snapshots.length === 0) return null
+
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-content-body">
+        <ImageIcon className="size-3.5" />
+        {t("kisi.eventHistory.snapshotsLabel", { count: snapshots.length })}
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {snapshots.map((snap) => (
+          <SnapshotThumb key={snap.id} snapshot={snap} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SnapshotThumb({ snapshot }: { snapshot: CameraSnapshot }) {
+  const [imgError, setImgError] = useState(false)
+  const time = new Date(snapshot.captured_at).toLocaleTimeString()
+
+  if (imgError || !snapshot.signed_url) {
+    return (
+      <div className="flex h-20 w-28 flex-shrink-0 flex-col items-center justify-center rounded-[4px] border border-line-subtle bg-surface-page text-xs text-content-muted">
+        <CameraIcon className="mb-1 size-4" />
+        {time}
+      </div>
+    )
+  }
+
+  return (
+    <a
+      href={snapshot.signed_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative flex-shrink-0 overflow-hidden rounded-[4px] border border-line-subtle transition-shadow hover:shadow-md"
+    >
+      <img
+        src={snapshot.signed_url}
+        alt={`Snapshot ${time}`}
+        className="h-20 w-28 object-cover"
+        onError={() => setImgError(true)}
+      />
+      <span className="absolute bottom-0 left-0 right-0 bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+        {time}
+      </span>
+    </a>
   )
 }

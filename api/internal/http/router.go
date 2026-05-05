@@ -910,6 +910,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/event_sets")).Get("/events/access", s.listAccessEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/device", s.listDeviceEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/stream", s.streamEvents)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/{eventID}/snapshots", s.listEventSnapshots)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms", s.listAlarms)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms/stream", s.streamAlarms)
