@@ -6,7 +6,7 @@ require github.com/go-chi/chi/v5 v5.2.5
 
 require (
 	github.com/alicebob/miniredis/v2 v2.37.0
-	github.com/crewjam/saml v0.4.14
+	github.com/crewjam/saml v0.5.1
 	github.com/ebfe/scard v0.0.0-20241214075232-7af069cabc25
 	github.com/go-webauthn/webauthn v0.17.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
