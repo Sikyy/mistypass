@@ -2,8 +2,8 @@
 
 Current-generation hardware chain, video surveillance integration, and next-generation hardware selection plan.
 
-**Version:** 1.2
-**Date:** 2026-05-01
+**Version:** 1.3
+**Date:** 2026-05-05
 
 ---
 
@@ -365,7 +365,7 @@ Orange Pi Zero3        USB转RS485          RS485 继电器模块       电锁
 - Fail-secure (断电锁门): 使用 NO (常开) 端
 - 当前代码默认使用 NO (常开) 端，适合 fail-secure 电锁
 
-#### 已采购电锁（2026-05-02）
+#### 已采购电锁（2026-05-02 下单，2026-05-05 到货）
 
 **EM Lock 600 LBS (Type B, 五线制)**
 
@@ -550,6 +550,80 @@ card> nfc_uid UID-1001 door_jkt_001
 
 ---
 
+## 5.4 BLE Gateway Hardware Checklist (2026-05-05)
+
+BLE 网关硬件调试所需的完整硬件清单。分为已有和待采购两部分。
+
+### 已有硬件
+
+| 硬件 | 型号 | 状态 | 用途 |
+|------|------|------|------|
+| 电磁锁 | EM Lock 600 LBS (280KG, 5线) | ✅ 已到货 2026-05-05 | 门锁执行器 |
+| 监控摄像头 | Hikvision DS-2CD1023G2-LIU | ✅ 已到货 2026-05-05 | 门禁事件快照 |
+| NFC 读卡器 | ACS WalletMate II (ACR1552U-MW) | ✅ 已有 | NFC UID 读取 |
+| 开发机 | macOS (M-series) | ✅ 已有 | 开发 + 本地 gateway-agent |
+| Android 测试机 | Xiaomi 15 | ✅ 已有 | BLE 门禁 App 测试 |
+
+### 待采购硬件
+
+| 硬件 | 推荐型号 | 预估价格 | 用途 | 优先级 |
+|------|---------|---------|------|--------|
+| **单板计算机 (Gateway)** | Orange Pi Zero3 (1GB) | ~$20-25 | Gateway Agent 运行平台 | **P0 必须** |
+| **USB-RS485 转换器** | CH340/FT232 USB-RS485 | ~$3-5 | 继电器 Modbus 控制 (方案 B) | P1 (若用 RS485 方案) |
+| **RS485 继电器模块** | 1路/2路 Modbus RTU 继电器 | ~$5-10 | 电锁开关控制 | P1 (若用 RS485 方案) |
+| **GPIO 继电器模块** | 5V/3.3V 单路继电器 | ~$1-3 | 电锁开关控制 (方案 A) | **P0 必须** (若用 GPIO 方案) |
+| **12V DC 电源** | 12V 2A 开关电源 | ~$5-8 | 电磁锁供电 | **P0 必须** |
+| **BLE Dongle** | USB BLE 5.0 Dongle (CSR8510/RTL8761B) | ~$5-8 | Orange Pi BLE 通信 (若内置 BLE 不稳定) | P1 备用 |
+| **PoE 交换机/注入器** | TP-Link TL-SF1005P 或单口注入器 | ~$15-25 | 摄像头 PoE 供电 | P1 (摄像头需要) |
+| **网线** | CAT5e/CAT6 若干 | ~$3-5 | 摄像头 + 网络 | P1 |
+| **杜邦线/接线端子** | 公母杜邦线 + 2P 接线端子 | ~$2-3 | GPIO/继电器/电锁接线 | **P0 必须** |
+| **microSD 卡** | 32GB Class 10 | ~$5 | Orange Pi 系统盘 | **P0 必须** |
+| **USB-C 电源线** | 5V 3A USB-C | ~$3-5 | Orange Pi 供电 | **P0 必须** |
+
+### 最小可测试配置 (P0 硬件)
+
+```
+macOS (开发机)                       12V 电源
+   │                                    │
+   │  USB                               │
+   ▼                                    ▼
+NFC Reader ──── gateway-agent ───── GPIO 继电器 ──── EM Lock 600 LBS
+(ACR1552U)      (macOS 上运行)      (3.3V 单路)     (12V, 280KG)
+                     │
+                     │ HTTPS
+                     ▼
+              Cloud API (localhost)
+```
+
+**不需要 Orange Pi 即可先测试完整链路：** 在 macOS 上用 USB 继电器模块（如 USB-RLY02）替代 GPIO 继电器，直接控制电磁锁。
+
+### 完整部署配置 (P0 + P1)
+
+```
+                              PoE 交换机
+                                 │
+Internet ──── Router ────────────┼──── Hikvision Camera
+                │                │
+                │  WiFi/Ethernet │
+                ▼                │
+          Orange Pi Zero3 ───────┘
+          (gateway-agent)
+               │
+          GPIO/RS485
+               │
+               ▼
+          继电器模块 ──── 12V 电源
+               │              │
+               ▼              ▼
+         EM Lock 600 LBS ─────┘
+               │
+          NFC Reader (USB)
+               │
+          BLE (内置/Dongle) ←──── Android App (Xiaomi 15)
+```
+
+---
+
 ## 6. Next-Gen Hardware Selection Plan
 
 ### 6.1 Selection Criteria
@@ -664,7 +738,8 @@ Gen 3 (2027 H2+)
 
 ## 7. Video Surveillance Integration
 
-> 更新日期：2026-05-01
+> 更新日期：2026-05-05
+> 摄像头已到货：Hikvision DS-2CD1023G2-LIU (2026-05-05)
 > 模块代码：`api/internal/modules/camera/`
 > OpenAPI：`GET /api/v1/openapi.json` → Cameras tag
 
