@@ -591,6 +591,19 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Put("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceFavoriteDoor)
 				protected.Delete("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceUnfavoriteDoor)
 
+				// Admin user management endpoints (place-scoped)
+				protected.Route("/places/{placeId}/users", func(adminUsers chi.Router) {
+					adminUsers.Use(s.requireRoles("super_admin", "tenant_admin", "building_admin"))
+					adminUsers.Get("/", s.appAdminListUsers)
+					adminUsers.Get("/search", s.appAdminSearchUsers)
+					adminUsers.Post("/", s.appAdminAddUser)
+					adminUsers.Get("/{userId}", s.appAdminGetUser)
+					adminUsers.Put("/{userId}/role", s.appAdminUpdateUserRole)
+					adminUsers.Get("/{userId}/logins", s.appAdminGetUserLogins)
+					adminUsers.Get("/{userId}/access-rights", s.appAdminGetAccessRights)
+					adminUsers.Post("/{userId}/share-access", s.appAdminShareAccess)
+				})
+
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
 				protected.Get("/credentials/mobile", s.appListMobileCredentials)
