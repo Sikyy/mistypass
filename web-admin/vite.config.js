@@ -12,13 +12,13 @@ export default defineConfig({
         },
     },
     build: {
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 manualChunks: function (id) {
                     if (!id.includes("node_modules")) {
                         return;
                     }
-                    if (id.includes("react-router-dom")) {
+                    if (id.includes("react-router")) {
                         return "vendor-router";
                     }
                     if (id.includes("/react/") ||
