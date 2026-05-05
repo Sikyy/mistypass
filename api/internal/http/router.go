@@ -109,6 +109,7 @@ type server struct {
 	doorFavoriteMu                sync.RWMutex
 	doorFavorites                 map[string]map[string]bool // userID → doorID → true
 	orgStore                      orgMembershipStore
+	magicLinkStore                magicLinkStore
 }
 
 type pushDevice struct {
@@ -174,6 +175,11 @@ type orgMembershipStore interface {
 	ListUserOrgMemberships(userID string) ([]state.OrgMembership, error)
 	GetUserOrgMembership(userID, tenantID string) (state.OrgMembership, bool, error)
 	UpdateOrgMembershipLastUsed(userID, tenantID string) error
+}
+
+type magicLinkStore interface {
+	CreateMagicLinkToken(email, token string, expiresAt time.Time) error
+	VerifyMagicLinkToken(token string) (string, error)
 }
 
 type loginRateLimitBucket struct {
@@ -474,6 +480,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	if orgStore, ok := stateStore.(orgMembershipStore); ok {
 		s.orgStore = orgStore
 	}
+	if mlStore, ok := stateStore.(magicLinkStore); ok {
+		s.magicLinkStore = mlStore
+	}
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, nil, err
 	}
@@ -526,6 +535,17 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.Route("/app", func(app chi.Router) {
 			app.With(s.withLoginRateLimit).Post("/auth/login", s.appLogin)
 			app.Post("/auth/refresh", s.appRefresh)
+
+			// Enhanced auth endpoints (unauthenticated)
+			app.With(s.withLoginRateLimit).Post("/auth/magic-link", s.appRequestMagicLink)
+			app.With(s.withLoginRateLimit).Post("/auth/magic-link/verify", s.appVerifyMagicLink)
+			app.Get("/auth/org-lookup", s.appOrgLookup)
+			app.Get("/auth/org/{orgId}/methods", s.appOrgMethods)
+			app.With(s.withLoginRateLimit).Post("/auth/sso/{orgId}", s.appInitiateSSO)
+			app.With(s.withLoginRateLimit).Post("/auth/2fa/verify", s.appVerify2FA)
+			app.With(s.withLoginRateLimit).Post("/auth/2fa/backup", s.appVerifyBackupCode)
+			app.With(s.withLoginRateLimit).Post("/auth/register", s.appRegister)
+			app.With(s.withLoginRateLimit).Post("/auth/restore-password", s.appRestorePassword)
 
 			app.Group(func(protected chi.Router) {
 				protected.Use(s.withBearerToken)

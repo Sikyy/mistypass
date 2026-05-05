@@ -3040,3 +3040,64 @@ func (s *PostgresStore) UpdateOrgMembershipLastUsed(userID, tenantID string) err
 		nextUserID, nextTenantID)
 	return err
 }
+
+// CreateMagicLinkToken stores a magic link token for passwordless login.
+func (s *PostgresStore) CreateMagicLinkToken(email, token string, expiresAt time.Time) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextEmail := strings.TrimSpace(strings.ToLower(email))
+	nextToken := strings.TrimSpace(token)
+	if nextEmail == "" || nextToken == "" {
+		return errors.New("email and token are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO magic_link_tokens (email, token, expires_at) VALUES ($1, $2, $3)`,
+		nextEmail, nextToken, expiresAt)
+	return err
+}
+
+// VerifyMagicLinkToken validates and consumes a magic link token, returning the associated email.
+func (s *PostgresStore) VerifyMagicLinkToken(token string) (string, error) {
+	if s == nil || s.db == nil {
+		return "", errors.New("postgres store is not initialized")
+	}
+	nextToken := strings.TrimSpace(token)
+	if nextToken == "" {
+		return "", errors.New("token is required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	var email string
+	var expiresAt time.Time
+	var usedAt *time.Time
+	err := s.db.QueryRowContext(ctx,
+		`SELECT email, expires_at, used_at FROM magic_link_tokens WHERE token = $1`, nextToken).
+		Scan(&email, &expiresAt, &usedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", errors.New("invalid or expired magic link token")
+	}
+	if err != nil {
+		return "", err
+	}
+	if usedAt != nil {
+		return "", errors.New("magic link token has already been used")
+	}
+	if time.Now().UTC().After(expiresAt) {
+		return "", errors.New("magic link token has expired")
+	}
+
+	// Mark token as used
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE magic_link_tokens SET used_at = now() WHERE token = $1`, nextToken)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}
