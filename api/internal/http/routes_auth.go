@@ -81,7 +81,7 @@ func (s *server) appLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	if strings.ToLower(strings.TrimSpace(response.User.Role)) != "resident" {
+	if !isAppAllowedRole(response.User.Role) {
 		writeError(w, http.StatusUnauthorized, "invalid app credentials")
 		return
 	}
@@ -101,12 +101,22 @@ func (s *server) appRefresh(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, err.Error())
 		return
 	}
-	if strings.ToLower(strings.TrimSpace(response.User.Role)) != "resident" {
+	if !isAppAllowedRole(response.User.Role) {
 		writeError(w, http.StatusUnauthorized, "invalid app credentials")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+// isAppAllowedRole returns true if the role is allowed to use mobile app endpoints.
+func isAppAllowedRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
+	case "resident", "tenant_admin", "building_admin", "building_manager", "super_admin", "security":
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *server) me(w http.ResponseWriter, r *http.Request) {
