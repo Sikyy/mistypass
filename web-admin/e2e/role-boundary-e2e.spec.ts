@@ -234,7 +234,14 @@ test("resident should stop at the no-permission page instead of entering app she
     building_ids: [],
   }
   await setupApiMocks(page, viewer)
-  await login(page, viewer.email)
+
+  // Resident role renders NoPermissionPage directly (not through <Routes>),
+  // so the URL may stay at /login instead of /home after navigation.
+  // Avoid the login() helper which asserts toHaveURL(/\/home$/).
+  await page.goto("/login")
+  await page.getByLabel("邮箱").fill(viewer.email)
+  await page.getByLabel("密码").fill("admin123")
+  await page.getByRole("button", { name: "登录" }).click()
 
   await expect(page.getByText("当前账号不能进入管理后台")).toBeVisible()
   await expect(page.getByText("退出并切换账号")).toBeVisible()
