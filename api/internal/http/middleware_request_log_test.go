@@ -37,7 +37,7 @@ func TestWithRequestLogRecordsStructuredFields(t *testing.T) {
 	assertContains(t, output, `"query":"region=ap"`)
 	assertContains(t, output, `"status":201`)
 	assertContains(t, output, `"request_id":"-"`)
-	assertContains(t, output, `"client_ip":"203.0.113.9"`)
+	assertContains(t, output, `"client_ip":"192.0.2.1"`)
 	assertContains(t, output, `"user_agent":"mistypass-test"`)
 	assertContains(t, output, `"duration_ms":`)
 }

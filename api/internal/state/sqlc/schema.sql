@@ -12,6 +12,7 @@ create table if not exists mistypass_change_log (
   payload jsonb not null,
   created_at timestamptz not null default now()
 );
+create index if not exists mistypass_change_log_state_key_id_idx on mistypass_change_log(state_key, id asc);
 
 create table if not exists mistypass_change_replay_checkpoints (
   state_key text primary key,

@@ -54,6 +54,7 @@ type Config struct {
 	UserInvitationResendAPIKey                                   string
 	UserInvitationResendTimeout                                  time.Duration
 	UserInvitationProviderWebhookSecret                          string
+	TrustedProxyCIDRs                                            []string
 	DatabaseURL                                                  string
 	DatabaseAutoMigrate                                          bool
 	EnterpriseJITProvisionApprovalRequired                       bool
@@ -174,6 +175,13 @@ func loadServerConfig(cfg *Config) {
 	cfg.HTTPAddr = normalizeHTTPAddr(envStringOrDefault("PORT", "8080"))
 	cfg.CORSOrigin = envStringOrDefault("CORS_ORIGIN", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:5173,http://127.0.0.1:5175")
 	cfg.DefaultTimezone = envStringOrDefault("DEFAULT_TIMEZONE", "UTC")
+	if raw := envString("TRUSTED_PROXY_CIDRS"); raw != "" {
+		for _, cidr := range strings.Split(raw, ",") {
+			if c := strings.TrimSpace(cidr); c != "" {
+				cfg.TrustedProxyCIDRs = append(cfg.TrustedProxyCIDRs, c)
+			}
+		}
+	}
 }
 
 func loadRedisConfig(cfg *Config) {
@@ -740,14 +748,9 @@ func loadWalletWhatsAppAlertConfig(cfg *Config) {
 		cfg.WalletAlertWhatsAppTimeout = 5 * time.Second
 	}
 
-	// WhatsApp template config (optional, use plain text if not set)
 	cfg.WalletAlertWhatsAppTemplateName = envString("WALLET_ALERT_WHATSAPP_TEMPLATE_NAME")
 	cfg.WalletAlertWhatsAppTemplateLang = envString("WALLET_ALERT_WHATSAPP_TEMPLATE_LANG")
-
-	// Lark Bot webhook URL (optional)
 	cfg.LarkAlertWebhookURL = envString("LARK_ALERT_WEBHOOK_URL")
-
-	// Lark Event Subscription verification token (for validating incoming events)
 	cfg.LarkVerificationToken = envString("LARK_VERIFICATION_TOKEN")
 }
 
@@ -765,6 +768,9 @@ func (cfg Config) Validate() error {
 		}
 		if strings.TrimSpace(cfg.UploadStorageDir) != "" && strings.TrimSpace(cfg.UploadSigningKey) == "" {
 			return errors.New("UPLOAD_SIGNING_KEY is required when uploads are enabled in production")
+		}
+		if strings.TrimSpace(cfg.CORSOrigin) == "" {
+			return errors.New("CORS_ORIGIN is required when APP_ENV is production")
 		}
 	}
 	if cfg.OTelEnabled {

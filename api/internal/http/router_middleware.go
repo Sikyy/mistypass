@@ -81,7 +81,7 @@ func (s *server) withLoginRateLimit(next http.Handler) http.Handler {
 			return
 		}
 
-		clientIP := requestClientIP(r)
+		clientIP := s.clientIP(r)
 		if clientIP == "" {
 			clientIP = "unknown"
 		}
@@ -99,7 +99,7 @@ func (s *server) withLoginRateLimit(next http.Handler) http.Handler {
 
 func (s *server) withGlobalAPIRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := requestClientIP(r)
+		clientIP := s.clientIP(r)
 		if clientIP == "" {
 			clientIP = "unknown"
 		}
@@ -117,7 +117,7 @@ func (s *server) withGlobalAPIRateLimit(next http.Handler) http.Handler {
 
 func (s *server) withEnterprisePublicRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := requestClientIP(r)
+		clientIP := s.clientIP(r)
 		if clientIP == "" {
 			clientIP = "unknown"
 		}
@@ -135,7 +135,7 @@ func (s *server) withEnterprisePublicRateLimit(next http.Handler) http.Handler {
 
 func (s *server) withEnterpriseWebhookRateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := requestClientIP(r)
+		clientIP := s.clientIP(r)
 		if clientIP == "" {
 			clientIP = "unknown"
 		}
@@ -152,25 +152,43 @@ func (s *server) withEnterpriseWebhookRateLimit(next http.Handler) http.Handler 
 }
 
 func requestClientIP(r *http.Request) string {
+	return resolveClientIP(r, nil)
+}
+
+func (s *server) clientIP(r *http.Request) string {
+	return resolveClientIP(r, s.trustedProxies)
+}
+
+func resolveClientIP(r *http.Request, trustedProxies []*net.IPNet) string {
 	if r == nil {
 		return ""
 	}
 
-	xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
-	if xff != "" {
-		parts := strings.Split(xff, ",")
-		first := strings.TrimSpace(parts[0])
-		if ip := net.ParseIP(first); ip != nil {
-			return ip.String()
+	remoteIP := extractRemoteIP(r)
+
+	if len(trustedProxies) > 0 && isFromTrustedProxy(remoteIP, trustedProxies) {
+		xff := strings.TrimSpace(r.Header.Get("X-Forwarded-For"))
+		if xff != "" {
+			parts := strings.Split(xff, ",")
+			first := strings.TrimSpace(parts[0])
+			if ip := net.ParseIP(first); ip != nil {
+				return ip.String()
+			}
+		}
+		if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
+			if ip := net.ParseIP(xri); ip != nil {
+				return ip.String()
+			}
 		}
 	}
 
-	if xri := strings.TrimSpace(r.Header.Get("X-Real-IP")); xri != "" {
-		if ip := net.ParseIP(xri); ip != nil {
-			return ip.String()
-		}
+	if remoteIP != "" {
+		return remoteIP
 	}
+	return ""
+}
 
+func extractRemoteIP(r *http.Request) string {
 	remote := strings.TrimSpace(r.RemoteAddr)
 	if host, _, err := net.SplitHostPort(remote); err == nil {
 		if ip := net.ParseIP(host); ip != nil {
@@ -180,8 +198,40 @@ func requestClientIP(r *http.Request) string {
 	if ip := net.ParseIP(remote); ip != nil {
 		return ip.String()
 	}
-
 	return ""
+}
+
+func isFromTrustedProxy(remoteIP string, trustedProxies []*net.IPNet) bool {
+	ip := net.ParseIP(remoteIP)
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range trustedProxies {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseTrustedProxyCIDRs(raw []string) []*net.IPNet {
+	var nets []*net.IPNet
+	for _, cidr := range raw {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			if ip := net.ParseIP(cidr); ip != nil {
+				mask := net.CIDRMask(32, 32)
+				if ip.To4() == nil {
+					mask = net.CIDRMask(128, 128)
+				}
+				ipNet = &net.IPNet{IP: ip, Mask: mask}
+			} else {
+				continue
+			}
+		}
+		nets = append(nets, ipNet)
+	}
+	return nets
 }
 
 func (s *server) allowLoginAttempt(key string, now time.Time) (bool, time.Duration) {
