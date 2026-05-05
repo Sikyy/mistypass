@@ -113,6 +113,7 @@ type PassInstance struct {
 	Token          string     `json:"token,omitempty"`
 	UID            string     `json:"uid,omitempty"`
 	CardNumber     string     `json:"card_number,omitempty"`
+	DeviceName     string     `json:"device_name,omitempty"`
 	Status         string     `json:"status"`
 	SaveLink       string     `json:"save_link"`
 	ExpiresAt      string     `json:"expires_at,omitempty"`

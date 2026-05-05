@@ -106,6 +106,8 @@ type server struct {
 	oauth2                        *oauth2Store
 	pushDeviceMu                  sync.Mutex
 	pushDevices                   map[string]pushDevice
+	doorFavoriteMu                sync.RWMutex
+	doorFavorites                 map[string]map[string]bool // userID → doorID → true
 }
 
 type pushDevice struct {
@@ -517,20 +519,29 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 
 			app.Group(func(protected chi.Router) {
 				protected.Use(s.withBearerToken)
-				protected.Use(s.requireRoles("resident"))
+				protected.Use(s.requireRoles("resident", "tenant_admin", "building_admin", "building_manager", "super_admin", "security"))
 
-				protected.Get("/me", s.appMe)
-				protected.Get("/credentials", s.appCredentials)
+				protected.Get("/me", s.appMeEnhanced)
+				protected.Patch("/me", s.appUpdateMe)
+				protected.Get("/credentials", s.appCredentialsEnhanced)
 				protected.Post("/credentials/apple-pass", s.appEnrollApplePass)
 				protected.Get("/access/doors", s.appAccessDoors)
-				protected.Get("/access/my-doors", s.appAccessMyDoors)
+				protected.Get("/access/my-doors", s.appAccessMyDoorsEnhanced)
 				protected.Post("/access/unlock", s.appUnlockDoor)
 				protected.Post("/access/qr-unlock", s.appQRUnlock)
+				protected.Post("/access/pin-unlock", s.appPINUnlock)
+				protected.Get("/access/pin-code", s.appGetPINCode)
+				protected.Put("/access/doors/{doorId}/favorite", s.appToggleDoorFavorite)
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
-				protected.Get("/access/logs", s.appAccessLogs)
-				protected.Get("/visitor-passes", s.appListVisitorPasses)
-				protected.Post("/visitor-passes", s.appCreateVisitorPass)
+				protected.Get("/access/logs", s.appAccessLogsEnhanced)
+				protected.Get("/visitor-passes", s.appListVisitorPassesEnhanced)
+				protected.Post("/visitor-passes", s.appCreateVisitorPassEnhanced)
 				protected.Post("/devices/register", s.appRegisterDevice)
+
+				// Mobile camera endpoints
+				protected.Get("/cameras", s.appListCameras)
+				protected.Get("/cameras/{cameraID}/video-link", s.appCameraVideoLink)
+				protected.Post("/cameras/{cameraID}/snapshot", s.appCameraSnapshot)
 
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
