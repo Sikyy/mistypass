@@ -108,6 +108,7 @@ type server struct {
 	pushDevices                   map[string]pushDevice
 	doorFavoriteMu                sync.RWMutex
 	doorFavorites                 map[string]map[string]bool // userID → doorID → true
+	orgStore                      orgMembershipStore
 }
 
 type pushDevice struct {
@@ -167,6 +168,12 @@ type workerQueueStore interface {
 	AckWorkerQueue(queueName, itemID, claimToken string) (bool, error)
 	RequeueWorkerQueue(queueName, itemID, claimToken string) (bool, error)
 	DescribeWorkerQueue(queueName string, itemIDs []string) (redistore.WorkerQueueTelemetry, error)
+}
+
+type orgMembershipStore interface {
+	ListUserOrgMemberships(userID string) ([]state.OrgMembership, error)
+	GetUserOrgMembership(userID, tenantID string) (state.OrgMembership, bool, error)
+	UpdateOrgMembershipLastUsed(userID, tenantID string) error
 }
 
 type loginRateLimitBucket struct {
@@ -464,6 +471,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	if tokenStore, ok := stateStore.(gatewayTokenStore); ok {
 		s.gatewayTokenStore = tokenStore
 	}
+	if orgStore, ok := stateStore.(orgMembershipStore); ok {
+		s.orgStore = orgStore
+	}
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, nil, err
 	}
@@ -542,6 +552,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/cameras", s.appListCameras)
 				protected.Get("/cameras/{cameraID}/video-link", s.appCameraVideoLink)
 				protected.Post("/cameras/{cameraID}/snapshot", s.appCameraSnapshot)
+
+				// Multi-org endpoints
+				protected.Get("/orgs", s.appListOrgs)
+				protected.Post("/orgs/{orgId}/switch", s.appSwitchOrg)
 
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
