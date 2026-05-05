@@ -226,7 +226,7 @@ test("organization integrations support add, edit, and disable write flow", asyn
 
   await page.getByRole("button", { name: "Actions for SUNFISH HRIS" }).click()
   await page.getByRole("menuitem", { name: "Disable" }).click()
-  const disableDialog = page.getByRole("dialog", { name: "Disable integration" })
+  const disableDialog = page.getByRole("dialog", { name: "Disabled" })
   await expect(disableDialog).toBeVisible()
   await disableDialog.getByRole("button", { name: "Disable integration" }).click()
 

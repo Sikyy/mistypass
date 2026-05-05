@@ -182,7 +182,7 @@ test("enterprise sync should update Talenta connector with hybrid incremental cr
       return
     }
 
-    if (path === "/api/v1/user-groups" && method === "GET") {
+    if (path === "/api/v1/groups" && method === "GET") {
       await fulfillJson(route, { items: [] })
       return
     }
@@ -192,7 +192,7 @@ test("enterprise sync should update Talenta connector with hybrid incremental cr
       return
     }
 
-    if (path === "/api/v1/wallet/passes" && method === "GET") {
+    if (path === "/api/v1/cards" && method === "GET") {
       await fulfillJson(route, { items: [] })
       return
     }
@@ -214,6 +214,14 @@ test("enterprise sync should update Talenta connector with hybrid incremental cr
       return
     }
 
+    if (path === "/api/v1/enterprise/scim/config" && method === "GET") {
+      await fulfillJson(route, { endpoint: "", token_status: "inactive", supported_operations: [], setup_steps: [] })
+      return
+    }
+    if (path === "/api/v1/enterprise/scim/logs" && method === "GET") {
+      await fulfillJson(route, { items: [], total: 0 })
+      return
+    }
     await fulfillJson(route, { error: `unmocked route: ${method} ${path}` }, 500)
   })
 
