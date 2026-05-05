@@ -53,32 +53,24 @@ test.beforeEach(async ({ page }) => {
   await setupApiMocks(page)
 })
 
-test("login and navigate access domains by browser interactions", async ({ page }) => {
+test("login and navigate to access-rights via sidebar", async ({ page }) => {
   await page.goto("/login")
 
-  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill("tenant.admin@sudirman.co")
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 
   await page.getByRole("link", { name: /权限/ }).click()
-  await expect(page).toHaveURL(/\/access\/directory$/)
-
-  await page.getByRole("tab", { name: "访问策略" }).click()
-  await expect(page).toHaveURL(/\/access\/policies$/)
-
-  await page.getByRole("tab", { name: "临时与访客授权" }).click()
-  await expect(page).toHaveURL(/\/access\/grants$/)
+  await expect(page).toHaveURL(/\/access-rights$/)
 })
 
 test("invalid access section should redirect to /access/directory and keep query", async ({ page }) => {
   await page.goto("/login")
-  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill("tenant.admin@sudirman.co")
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 
   await page.goto("/access/unknown?from=enterprise&flow=sync_to_access")
   await expect(page).toHaveURL(/\/access\/directory\?from=enterprise&flow=sync_to_access$/)

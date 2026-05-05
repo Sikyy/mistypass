@@ -904,11 +904,10 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
 
 async function login(page: Page) {
   await page.goto("/login")
-  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill(viewer.email)
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 }
 
 test("enterprise idp outcome should go to alerts when approvals are pending", async ({ page }) => {

@@ -153,11 +153,10 @@ async function setupApiMocks(page: Page, viewer: MockViewer) {
 
 async function login(page: Page, email: string) {
   await page.goto("/login")
-  await page.getByRole("button", { name: "中文" }).click()
   await page.getByLabel("邮箱").fill(email)
   await page.getByLabel("密码").fill("admin123")
   await page.getByRole("button", { name: "登录" }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 }
 
 test("super_admin should see grouped navigation, scope banner, and platform audit entry", async ({ page }) => {
@@ -285,13 +284,13 @@ test("building_admin should be redirected by enterprise/access/wallet route guar
   await login(page, viewer.email)
 
   await page.goto("/enterprise")
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 
   await page.goto("/access/directory")
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 
   await page.goto("/wallet")
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 })
 
 test("wallet should keep advanced operations collapsed behind the daily issuance path", async ({ page }) => {
@@ -374,5 +373,5 @@ test("operator should be redirected by enterprise route guard", async ({ page })
   await login(page, viewer.email)
 
   await page.goto("/enterprise")
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/home$/)
 })
