@@ -619,6 +619,34 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 					// Activity
 					placeRouter.Get("/activity", s.appAdminGetUserActivity)
 					placeRouter.Get("/activity/{eventId}", s.appAdminGetPresenceEvent)
+					// Schedules
+					placeRouter.Get("/schedules", s.appAdminListSchedules)
+					placeRouter.Post("/schedules", s.appAdminCreateSchedule)
+					placeRouter.Put("/schedules/{scheduleId}", s.appAdminUpdateSchedule)
+					placeRouter.Delete("/schedules/{scheduleId}", s.appAdminDeleteSchedule)
+					// Holiday regions
+					placeRouter.Get("/holiday-regions", s.appAdminListHolidayRegions)
+					placeRouter.Get("/holiday-regions/{regionId}/holidays", s.appAdminListHolidays)
+					// Zones
+					placeRouter.Get("/zones", s.appAdminListZones)
+					placeRouter.Get("/zones/{zoneId}", s.appAdminGetZone)
+					// Cards
+					placeRouter.Get("/cards", s.appAdminListCards)
+					placeRouter.Post("/cards/assign", s.appAdminAssignCard)
+					placeRouter.Delete("/cards/{cardUid}", s.appAdminUnassignCard)
+					placeRouter.Get("/cards/{cardUid}/status", s.appAdminGetCardStatus)
+					placeRouter.Post("/cards/manual-token", s.appAdminManualCardToken)
+					// Digital credentials
+					placeRouter.Get("/credentials", s.appAdminListCredentials)
+					placeRouter.Post("/credentials", s.appAdminCreateCredential)
+					placeRouter.Get("/credentials/search", s.appAdminSearchCredentials)
+					placeRouter.Get("/credentials/{credentialId}", s.appAdminGetCredential)
+					// Teams
+					placeRouter.Get("/teams", s.appAdminListTeams)
+					placeRouter.Post("/teams", s.appAdminCreateTeam)
+					placeRouter.Get("/teams/{teamId}", s.appAdminGetTeam)
+					placeRouter.Put("/teams/{teamId}", s.appAdminUpdateTeam)
+					placeRouter.Delete("/teams/{teamId}", s.appAdminDeleteTeam)
 				})
 
 				// Mobile BLE credential management
