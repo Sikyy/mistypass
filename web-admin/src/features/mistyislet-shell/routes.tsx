@@ -87,6 +87,12 @@ const CamerasPage = lazy(() =>
 const VisitorsPage = lazy(() =>
   import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
 )
+const MobileCredentialsPage = lazy(() =>
+  import("@/features/mobile-credentials/pages/mobile-credentials-page").then((module) => ({ default: module.MobileCredentialsPage }))
+)
+const SouthboundPage = lazy(() =>
+  import("@/features/southbound/pages/southbound-page").then((module) => ({ default: module.SouthboundPage }))
+)
 const BookingsPage = lazy(() =>
   import("@/features/bookings/pages/bookings-page").then((module) => ({ default: module.BookingsPage }))
 )
@@ -261,6 +267,8 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/network" element={<NetworkTopologyPage token={token} viewer={viewer} />} />
         <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
+        <Route path="/mobile-credentials" element={<MobileCredentialsPage token={token} viewer={viewer} />} />
+        <Route path="/southbound" element={<SouthboundPage token={token} viewer={viewer} />} />
         <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />

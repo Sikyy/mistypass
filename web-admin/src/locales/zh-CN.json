@@ -4779,5 +4779,14 @@
       "updateFailed": "更新状态失败",
       "deleteFailed": "删除访客失败"
     }
+  },
+  "nav": {
+    "holidayCalendars": "节假日日历",
+    "mobileCredentials": "移动凭证",
+    "bookings": "预约",
+    "analytics": "数据分析",
+    "network": "网络拓扑",
+    "southbound": "下行设备",
+    "alarmSchedules": "告警排班"
   }
 }
