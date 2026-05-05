@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { MailPlusIcon, PlusIcon, UsersIcon } from "lucide-react"
 
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"

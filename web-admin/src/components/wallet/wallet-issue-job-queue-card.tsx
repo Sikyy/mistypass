@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"

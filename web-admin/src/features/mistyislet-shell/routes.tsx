@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react"
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom"
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router"
 
 import { PageFrame } from "@/components/mistyislet/primitives"
 import type { CurrentUser } from "@/lib/api"

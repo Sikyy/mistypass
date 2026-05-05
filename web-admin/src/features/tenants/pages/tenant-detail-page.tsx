@@ -1,6 +1,6 @@
 import { type ColumnDef, type SortingState, type VisibilityState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { useMemo, useState } from "react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useParams } from "react-router"
 import { ArrowLeftIcon, ArrowUpDownIcon, Building2Icon, DoorOpenIcon, Layers3Icon, MapPinnedIcon, SearchIcon, SlidersHorizontalIcon } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"

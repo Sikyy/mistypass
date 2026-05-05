@@ -2,7 +2,7 @@ import i18next from "i18next"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 import {
   AlertCircleIcon,
   BellIcon,
