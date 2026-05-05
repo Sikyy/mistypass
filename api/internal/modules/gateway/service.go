@@ -294,7 +294,7 @@ func NewService() *Service {
 			SerialNumber:   "MP-GW-JKT-0001",
 			BuildingID:     "building_demo_001",
 			DeviceCapacity: 8,
-			BoundDoorIDs:   []string{"door_jkt_001", "door_jkt_014"},
+			BoundDoorIDs:   []string{"door_jkt_001", "door_jkt_002", "door_jkt_003", "door_jkt_004", "door_jkt_005", "door_jkt_006", "door_jkt_014"},
 			Devices: []GatewayDevice{
 				{
 					ID:           "gdv_demo_001",
