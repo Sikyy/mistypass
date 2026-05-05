@@ -557,6 +557,20 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/orgs", s.appListOrgs)
 				protected.Post("/orgs/{orgId}/switch", s.appSwitchOrg)
 
+				// Org-scoped place endpoints
+				protected.Get("/orgs/{orgId}/places", s.appListPlaces)
+				protected.Get("/orgs/{orgId}/places/search", s.appSearchPlaces)
+
+				// Place-scoped door endpoints
+				protected.Get("/places/{placeId}/doors", s.appPlaceListDoors)
+				protected.Get("/places/{placeId}/doors/search", s.appPlaceSearchDoors)
+				protected.Post("/places/{placeId}/doors/{doorId}/unlock", s.appPlaceUnlockDoor)
+				protected.Post("/places/{placeId}/doors/{doorId}/qr-unlock", s.appPlaceQRUnlock)
+				protected.Post("/places/{placeId}/lockdown", s.appPlaceEnableLockdown)
+				protected.Delete("/places/{placeId}/lockdown", s.appPlaceDisableLockdown)
+				protected.Put("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceFavoriteDoor)
+				protected.Delete("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceUnfavoriteDoor)
+
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
 				protected.Get("/credentials/mobile", s.appListMobileCredentials)
