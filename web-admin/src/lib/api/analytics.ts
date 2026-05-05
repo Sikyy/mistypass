@@ -94,6 +94,4 @@ export async function deleteReportSchedule(token: string | undefined, scheduleID
   return request(`/api/v1/report-schedules/${scheduleID}?tenant_id=${tenantID}`, { method: "DELETE" }, token)
 }
 
-export async function listCameras(token: string | undefined, tenantID: string): Promise<{ items: any[]; message: string }> {
-  return request(`/api/v1/cameras?tenant_id=${tenantID}`, {}, token)
-}
+// listCameras moved to cameras.ts

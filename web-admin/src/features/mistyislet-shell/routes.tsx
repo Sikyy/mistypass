@@ -81,6 +81,9 @@ const AlarmSchedulePage = lazy(() =>
 const ReportSchedulePage = lazy(() =>
   import("@/features/reports/pages/report-schedule-page").then((module) => ({ default: module.ReportSchedulePage }))
 )
+const CamerasPage = lazy(() =>
+  import("@/features/cameras/pages/cameras-page").then((module) => ({ default: module.CamerasPage }))
+)
 const VisitorsPage = lazy(() =>
   import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
 )
@@ -276,6 +279,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/access/policies" element={<AccessPoliciesPage token={token} viewer={viewer} />} />
         <Route path="/access/grants" element={<AccessGrantsPage token={token} viewer={viewer} />} />
         <Route path="/wallet" element={<WalletPage token={token} viewer={viewer} />} />
+        <Route path="/cameras" element={<CamerasPage token={token} viewer={viewer} />} />
         <Route path="/gateways" element={<GatewaysPage token={token} viewer={viewer} />} />
         <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />

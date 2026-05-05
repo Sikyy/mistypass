@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -171,7 +172,19 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		CredentialType: credType,
 		EvaluatedAt:    now.Format(time.RFC3339),
 	}
-	s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+	eventID := s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+
+	// Trigger camera snapshots for successful access (non-blocking).
+	if resp.Decision == "allow" && eventID != "" && lockID != "" {
+		go func() {
+			snapCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			snaps := s.cameraSvc.TriggerEventSnapshot(snapCtx, tenantID, lockID, eventID, "unlock")
+			if len(snaps) > 0 {
+				s.logger.Info("event snapshots captured", "event_id", eventID, "door_id", lockID, "count", len(snaps))
+			}
+		}()
+	}
 
 	// If gateway is connected, auto-dispatch unlock
 	if gatewayID != "" && s.messageBus.Enabled() {
@@ -353,9 +366,9 @@ func (s *server) evaluateAccessSchedule(tenantID, userID, placeID string, now ti
 	return ""
 }
 
-func (s *server) recordVerifyEvent(tenantID, gatewayID, lockID string, resp verifyCredentialResponse) {
+func (s *server) recordVerifyEvent(tenantID, gatewayID, lockID string, resp verifyCredentialResponse) string {
 	if tenantID == "" {
-		return
+		return ""
 	}
 	eventType := "access_denied"
 	if resp.Decision == "allow" {
@@ -365,7 +378,7 @@ func (s *server) recordVerifyEvent(tenantID, gatewayID, lockID string, resp veri
 	if gwID == "" {
 		gwID = "api_verify"
 	}
-	s.eventSvc.IngestAccessEvent(event.IngestAccessEventInput{
+	ev, _, _ := s.eventSvc.IngestAccessEvent(event.IngestAccessEventInput{
 		TenantID:  tenantID,
 		Type:      eventType,
 		Actor:     resp.UserEmail,
@@ -374,4 +387,5 @@ func (s *server) recordVerifyEvent(tenantID, gatewayID, lockID string, resp veri
 		Result:    resp.Reason,
 		At:        time.Now().UTC(),
 	})
+	return ev.ID
 }
