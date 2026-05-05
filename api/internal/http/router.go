@@ -604,6 +604,23 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 					adminUsers.Post("/{userId}/share-access", s.appAdminShareAccess)
 				})
 
+				// Admin events, incidents, and activity endpoints (place-scoped)
+				protected.Route("/places/{placeId}", func(placeRouter chi.Router) {
+					placeRouter.Use(s.requireRoles("super_admin", "tenant_admin", "building_admin"))
+					// Events
+					placeRouter.Get("/events", s.appAdminListEvents)
+					placeRouter.Get("/events/{eventId}", s.appAdminGetEvent)
+					placeRouter.Get("/events/{eventId}/related", s.appAdminGetRelatedEvents)
+					placeRouter.Get("/events/{eventId}/media", s.appAdminGetEventMedia)
+					// Incidents
+					placeRouter.Get("/incidents", s.appAdminListIncidents)
+					placeRouter.Get("/incidents/{incidentId}", s.appAdminGetIncident)
+					placeRouter.Get("/incidents/{incidentId}/occurrences", s.appAdminGetOccurrences)
+					// Activity
+					placeRouter.Get("/activity", s.appAdminGetUserActivity)
+					placeRouter.Get("/activity/{eventId}", s.appAdminGetPresenceEvent)
+				})
+
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
 				protected.Get("/credentials/mobile", s.appListMobileCredentials)
