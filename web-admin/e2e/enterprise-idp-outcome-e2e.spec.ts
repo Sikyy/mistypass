@@ -483,6 +483,16 @@ async function fulfillJson(route: Route, payload: unknown, status = 200) {
   })
 }
 
+function walletPassToCard(pass: Record<string, unknown>): Record<string, unknown> {
+  const statusMap: Record<string, string> = { issued: "unassigned", active: "activated", suspended: "deactivated", revoked: "revoked" }
+  return {
+    id: pass.id, resource_type: "Card", tenant_id: pass.tenant_id, status: statusMap[pass.status as string] ?? "unassigned",
+    token: pass.object_id ?? pass.id, provider: pass.provider, credential_kind: pass.provider, template_id: pass.template_id,
+    assignee_type: pass.target_type === "visitor" ? "Guest" : "User", assignee_id: pass.target_id, user_id: pass.target_type === "user" ? pass.target_id : undefined,
+    save_link: pass.save_link, issued_at: pass.issued_at, expires_at: pass.expires_at, created_at: pass.created_at, updated_at: pass.updated_at,
+  }
+}
+
 async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request()
@@ -665,7 +675,7 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
       return
     }
 
-    if (path === "/api/v1/user-groups" && method === "GET") {
+    if (path === "/api/v1/groups" && method === "GET") {
       await fulfillJson(route, { items: scenario.userGroups })
       return
     }
@@ -675,8 +685,8 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
       return
     }
 
-    if (path === "/api/v1/wallet/passes" && method === "GET") {
-      await fulfillJson(route, { items: scenario.walletPasses })
+    if (path === "/api/v1/cards" && method === "GET") {
+      await fulfillJson(route, { items: scenario.walletPasses.map(walletPassToCard) })
       return
     }
 
@@ -890,6 +900,16 @@ async function setupApiMocks(page: Page, scenario: EnterpriseMockScenario) {
 
     if (path === "/api/v1/wallet/physical-card-tasks" && method === "GET") {
       await fulfillJson(route, { items: scenario.walletPhysicalTasks })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/config" && method === "GET") {
+      await fulfillJson(route, { endpoint: "", token_status: "inactive", supported_operations: [], setup_steps: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/logs" && method === "GET") {
+      await fulfillJson(route, { items: [], total: 0 })
       return
     }
 

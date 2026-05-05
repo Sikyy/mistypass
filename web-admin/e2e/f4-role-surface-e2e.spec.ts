@@ -211,8 +211,21 @@ async function setupApiMocks(
       return
     }
 
-    if (path === "/api/v1/events/access" && method === "GET") {
-      await fulfillJson(route, { items: scenario.accessEvents })
+    if (path === "/api/v1/event_sets" && method === "POST") {
+      const eventSetEvents = scenario.accessEvents.map((evt) => ({
+        uuid: evt.id,
+        tenant_id: evt.tenant_id,
+        place_id: evt.building_id,
+        area_id: evt.area_id,
+        type: evt.type,
+        actor_email: evt.actor,
+        lock_id: evt.door_id,
+        gateway_id: evt.gateway_id,
+        success: evt.result === "success",
+        result: evt.result,
+        created_at: evt.at,
+      }))
+      await fulfillJson(route, { id: "mock-event-set", status: "finished", events: eventSetEvents, created_at: now })
       return
     }
 
@@ -254,12 +267,17 @@ async function setupApiMocks(
       return
     }
 
+    if (path.startsWith("/api/v1/controllers") || path.startsWith("/api/v1/readers") || path.startsWith("/api/v1/terminals")) {
+      await fulfillJson(route, { error: "reference hardware not available" }, 404)
+      return
+    }
+
     if (path === "/api/v1/gateways" && method === "GET") {
       await fulfillJson(route, { items: scenario.gateways })
       return
     }
 
-    if (path === "/api/v1/doors" && method === "GET") {
+    if (path === "/api/v1/locks" && method === "GET") {
       await fulfillJson(route, { items: scenario.doors })
       return
     }

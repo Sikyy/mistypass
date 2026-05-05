@@ -1699,7 +1699,7 @@ async function mockEnterpriseWorkerAlertFlow(
       return
     }
 
-    if (path === "/api/v1/user-groups" && method === "GET") {
+    if (path === "/api/v1/groups" && method === "GET") {
       await fulfillJson(route, { items: [] })
       return
     }
@@ -1709,7 +1709,7 @@ async function mockEnterpriseWorkerAlertFlow(
       return
     }
 
-    if (path === "/api/v1/wallet/passes" && method === "GET") {
+    if (path === "/api/v1/cards" && method === "GET") {
       await fulfillJson(route, { items: [] })
       return
     }
@@ -1728,6 +1728,16 @@ async function mockEnterpriseWorkerAlertFlow(
         created_at: now,
         updated_at: now,
       })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/config" && method === "GET") {
+      await fulfillJson(route, { endpoint: "", token_status: "inactive", supported_operations: [], setup_steps: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/logs" && method === "GET") {
+      await fulfillJson(route, { items: [], total: 0 })
       return
     }
 
@@ -3042,7 +3052,7 @@ test("enterprise alerts should switch worker alerts with platform tenant selecto
       return
     }
 
-    if (path === "/api/v1/user-groups" && method === "GET") {
+    if (path === "/api/v1/groups" && method === "GET") {
       await fulfillJson(route, {
         items: [
           {
@@ -3094,7 +3104,7 @@ test("enterprise alerts should switch worker alerts with platform tenant selecto
       return
     }
 
-    if (path === "/api/v1/wallet/passes" && method === "GET") {
+    if (path === "/api/v1/cards" && method === "GET") {
       await fulfillJson(route, { items: [] })
       return
     }
@@ -3113,6 +3123,16 @@ test("enterprise alerts should switch worker alerts with platform tenant selecto
         created_at: now,
         updated_at: now,
       })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/config" && method === "GET") {
+      await fulfillJson(route, { endpoint: "", token_status: "inactive", supported_operations: [], setup_steps: [] })
+      return
+    }
+
+    if (path === "/api/v1/enterprise/scim/logs" && method === "GET") {
+      await fulfillJson(route, { items: [], total: 0 })
       return
     }
 
