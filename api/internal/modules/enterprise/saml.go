@@ -68,7 +68,12 @@ func (s *Service) VerifySAMLResponse(config IDPConfig, rawResponse, expectedEmai
 		return SAMLIdentity{}, err
 	}
 
-	assertion, err := sp.ParseXMLResponse(responseXML, nil)
+	acsURLParsed, err := url.Parse(nextACSURL)
+	if err != nil {
+		return SAMLIdentity{}, ErrInvalidSAMLACSURL
+	}
+
+	assertion, err := sp.ParseXMLResponse(responseXML, nil, *acsURLParsed)
 	if err != nil || assertion == nil {
 		return SAMLIdentity{}, ErrInvalidSAMLResponse
 	}
