@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query"
 import { CheckCircleIcon, RefreshCwIcon, XCircleIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { z } from "zod"
 
 import {

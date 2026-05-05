@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { TableCellText } from "@/components/ui/table"
-import { useLocation } from "react-router-dom"
+import { useLocation } from "react-router"
 import {
   activateWalletPass,
   dispatchWalletPassDelivery,

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Link } from "react-router-dom"
+import { Link } from "react-router"
 import { MailXIcon, RefreshCwIcon } from "lucide-react"
 
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"

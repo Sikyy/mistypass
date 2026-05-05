@@ -1,4 +1,4 @@
-import { Navigate, useLocation, useParams } from "react-router-dom"
+import { Navigate, useLocation, useParams } from "react-router"
 
 import { resolveAccessSection } from "@/components/access/access-page-utils"
 

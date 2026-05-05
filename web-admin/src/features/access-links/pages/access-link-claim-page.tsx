@@ -2,7 +2,7 @@ import { type FormEvent, useMemo, useState } from "react"
 import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useParams, useSearchParams } from "react-router-dom"
+import { Link, useParams, useSearchParams } from "react-router"
 import {
   ArrowRightIcon,
   CalendarClockIcon,

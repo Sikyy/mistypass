@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router"
 
 import { useAuth } from "@/context/auth-context"
 import {

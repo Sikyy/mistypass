@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react"
 import i18next from "i18next"
 import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router"
 import {
   AlertCircleIcon,
   Clock3Icon,

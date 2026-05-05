@@ -2,7 +2,7 @@ import type { TFunction } from "i18next"
 import { ArrowRightIcon, Building2Icon, FingerprintIcon, GlobeIcon, LockKeyholeIcon } from "lucide-react"
 import { type FormEvent, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
