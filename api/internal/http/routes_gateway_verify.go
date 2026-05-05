@@ -109,10 +109,12 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 	allowed, groupName := s.checkUserLockAccess(tenantID, user.GroupIDs, lockID)
 
 	// Step 4: If not found via groups, check role assignments for place-level access
+	var accessPlaceID string
 	if !allowed {
 		door, doorErr := s.spaceSvc.GetDoor(tenantID, lockID)
 		if doorErr == nil {
-			allowed = s.checkRoleAssignmentAccess(tenantID, userID, door.BuildingID)
+			accessPlaceID = door.BuildingID
+			allowed = s.checkRoleAssignmentAccess(tenantID, userID, accessPlaceID)
 			if allowed {
 				groupName = "role_assignment"
 			}
@@ -136,23 +138,25 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 5: Schedule enforcement — evaluate role assignment time windows
-	if reason := s.evaluateAccessSchedule(tenantID, userID, now); reason != "" {
-		resp := verifyCredentialResponse{
-			Decision:       "deny",
-			Reason:         reason,
-			UserID:         user.ID,
-			UserName:       user.Name,
-			UserEmail:      user.Email,
-			GroupName:      groupName,
-			LockID:         lockID,
-			GatewayID:      gatewayID,
-			CredentialType: credType,
-			EvaluatedAt:    now.Format(time.RFC3339),
+	// Step 5: Schedule enforcement — only applies to role-assignment-based access
+	if groupName == "role_assignment" {
+		if reason := s.evaluateAccessSchedule(tenantID, userID, accessPlaceID, now); reason != "" {
+			resp := verifyCredentialResponse{
+				Decision:       "deny",
+				Reason:         reason,
+				UserID:         user.ID,
+				UserName:       user.Name,
+				UserEmail:      user.Email,
+				GroupName:      groupName,
+				LockID:         lockID,
+				GatewayID:      gatewayID,
+				CredentialType: credType,
+				EvaluatedAt:    now.Format(time.RFC3339),
+			}
+			s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+			writeJSON(w, http.StatusOK, resp)
+			return
 		}
-		s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
-		writeJSON(w, http.StatusOK, resp)
-		return
 	}
 
 	resp := verifyCredentialResponse{
@@ -319,10 +323,13 @@ func (s *server) checkRoleAssignmentAccess(tenantID, userID, placeID string) boo
 	return false
 }
 
-func (s *server) evaluateAccessSchedule(tenantID, userID string, now time.Time) string {
+func (s *server) evaluateAccessSchedule(tenantID, userID, placeID string, now time.Time) string {
 	assignments := s.accessSvc.ListRoleAssignments(tenantID)
 	for _, ra := range assignments {
 		if ra.AssigneeType != "User" || ra.AssigneeID != userID {
+			continue
+		}
+		if placeID != "" && ra.AppliesToID != placeID {
 			continue
 		}
 		hasTimeRestrictions := ra.ValidFrom != "" || ra.ValidUntil != "" || len(ra.TimeWindows) > 0 || len(ra.ExceptionDates) > 0
