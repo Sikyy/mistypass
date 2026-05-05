@@ -30,7 +30,7 @@ export function ScopeLockedField({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium tracking-normal text-[#62636a]">{label}</p>
-        <p className="mt-1 break-words font-medium text-[#17171c]">{value}</p>
+        <p className="mt-1 break-words font-medium text-content-heading">{value}</p>
         {description ? <p className="mt-1 text-xs leading-5 text-[#62636a]">{description}</p> : null}
       </div>
     </div>

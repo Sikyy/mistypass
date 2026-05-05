@@ -682,7 +682,7 @@ export function OrganizationSetupAdaptedPage({
                 saveAlertPoliciesMutation.mutate()
               }
             }}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {isCreatePlace
               ? "Create Place"
@@ -696,47 +696,47 @@ export function OrganizationSetupAdaptedPage({
       >
         {isCreatePlace ? (
           <>
-            <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.createPlaceDesc")}</p>
+            <div className="border-b border-line-subtle px-7 py-5">
+              <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
+              <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.createPlaceDesc")}</p>
             </div>
-            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
+            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-brand-subtle px-5 py-4 text-sm text-[#3439cc]">
               Use the Places page to create places. This wizard view is a preview placeholder.
             </div>
             {activeTab === "General" ? (
               <div className="grid gap-6 p-7 md:grid-cols-2">
                 <FormField label={t("common.name")} value="Sudirman Hub" />
-                <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-[#6f717c]" />} />
+                <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" trailing={<ChevronDownIcon className="size-4 text-content-subtle" />} />
                 <FormField label={t("common.description")} value="Jakarta, Indonesia" />
                 <FormField label={t("common.placeAdmin")} value="Place Admin" />
               </div>
             ) : null}
             {activeTab === "Floors" ? (
-              <div className="divide-y divide-[#eceef2]">
+              <div className="divide-y divide-line-subtle">
                 {[
                   ["1st Floor", "Lobby and reception", "Default"],
                   ["3rd Floor", "Office and meeting rooms", "Ready"],
                   ["Parking", "Garage and loading bay", "Ready"],
                 ].map((row, index) => (
                   <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_1fr_140px] md:items-center">
-                    <span className="font-semibold text-[#17171c]">{row[0]}</span>
-                    <span className="text-sm text-[#6f717c]">{row[1]}</span>
+                    <span className="font-semibold text-content-heading">{row[0]}</span>
+                    <span className="text-sm text-content-subtle">{row[1]}</span>
                     <StatusDot tone={index === 0 ? "info" : "success"} label={row[2]} />
                   </div>
                 ))}
               </div>
             ) : null}
             {activeTab === "Doors" ? (
-              <div className="divide-y divide-[#eceef2]">
+              <div className="divide-y divide-line-subtle">
                 {[
                   ["Lobby Turnstile", "1st Floor", "Reader required"],
                   ["Garage", "Parking", "Mobile unlock enabled"],
                   ["11th Floor Entry", "3rd Floor", "Business hours"],
                 ].map((row) => (
                   <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_160px_1fr] md:items-center">
-                    <span className="font-semibold text-[#17171c]">{row[0]}</span>
-                    <span className="text-sm text-[#2f3037]">{row[1]}</span>
-                    <span className="text-sm text-[#6f717c]">{row[2]}</span>
+                    <span className="font-semibold text-content-heading">{row[0]}</span>
+                    <span className="text-sm text-content-body">{row[1]}</span>
+                    <span className="text-sm text-content-subtle">{row[2]}</span>
                   </div>
                 ))}
               </div>
@@ -755,10 +755,10 @@ export function OrganizationSetupAdaptedPage({
 
         {isAlertPolicies ? (
           <>
-            <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
+            <div className="flex items-center justify-between gap-4 border-b border-line-subtle px-7 py-5">
               <div>
-                <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.alertDesc")}</p>
+                <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
+                <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.alertDesc")}</p>
               </div>
               <Button
                 type="button"
@@ -775,18 +775,18 @@ export function OrganizationSetupAdaptedPage({
                   setAlertPolicyError("")
                   setCreateAlertPolicyOpen(true)
                 }}
-                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:border-[#d9dbe3] disabled:text-[#9a9ca7]"
+                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc] disabled:border-line-default disabled:text-content-muted"
               >
                 <PlusIcon className="mr-1.5 size-4" />
                 Add Policy
               </Button>
             </div>
             {alertPolicyError ? (
-              <div className="border-b border-[#f1c27a] bg-[#fff8ed] px-7 py-4 text-sm text-[#8a5a00]">
+              <div className="border-b border-[#f1c27a] bg-warning-bg px-7 py-4 text-sm text-warning-text">
                 {alertPolicyError}
               </div>
             ) : null}
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {liveAlertPolicies.length > 0
                 ? liveAlertPolicies.map((policy) => {
                     const draft = alertPolicyDrafts[policy.id] ?? alertPolicyDraftFromPolicy(policy)
@@ -797,11 +797,11 @@ export function OrganizationSetupAdaptedPage({
                     return (
                       <div key={policy.id} className="grid gap-5 px-7 py-5 xl:grid-cols-[40px_minmax(180px,1fr)_minmax(260px,1.2fr)_200px] xl:items-start">
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
-                          <AlertCircleIcon className="size-5 text-[#2f3037]" />
+                          <AlertCircleIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-[#17171c]">{policy.name}</h3>
-                          <p className="mt-1 text-sm leading-6 text-[#6f717c]">
+                          <h3 className="font-semibold text-content-heading">{policy.name}</h3>
+                          <p className="mt-1 text-sm leading-6 text-content-subtle">
                             {activeTab === "Notifications"
                               ? `${channels.length > 0 ? channels.join(" + ") : "No channels"} to ${splitReceiverGroups(draft.receiver_groups).join(", ") || "security"}`
                               : activeTab === "Escalation"
@@ -818,7 +818,7 @@ export function OrganizationSetupAdaptedPage({
                                 type="button"
                                 disabled={saveAlertPoliciesMutation.isPending}
                                 onClick={() => updateAlertPolicyDraft(policy.id, { email: !draft.email })}
-                                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                className="flex h-11 items-center justify-between rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-page"
                               >
                                 Email
                                 <ToggleSwitch enabled={draft.email} />
@@ -827,7 +827,7 @@ export function OrganizationSetupAdaptedPage({
                                 type="button"
                                 disabled={saveAlertPoliciesMutation.isPending}
                                 onClick={() => updateAlertPolicyDraft(policy.id, { whatsapp: !draft.whatsapp })}
-                                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                className="flex h-11 items-center justify-between rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-page"
                               >
                                 WhatsApp
                                 <ToggleSwitch enabled={draft.whatsapp} />
@@ -838,40 +838,40 @@ export function OrganizationSetupAdaptedPage({
                                   value={draft.receiver_groups}
                                   disabled={saveAlertPoliciesMutation.isPending}
                                   onChange={(event) => updateAlertPolicyDraft(policy.id, { receiver_groups: event.target.value })}
-                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-page"
                                 />
                               </label>
                             </>
                           ) : (
                             <>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.threshold")}</span>
+                                <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.threshold")}</span>
                                 <input
                                   value={draft.threshold}
                                   disabled={saveAlertPoliciesMutation.isPending}
                                   inputMode="numeric"
                                   onChange={(event) => updateAlertPolicyDraft(policy.id, { threshold: event.target.value })}
-                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-page"
                                 />
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.windowSeconds")}</span>
+                                <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.windowSeconds")}</span>
                                 <input
                                   value={draft.window_seconds}
                                   disabled={saveAlertPoliciesMutation.isPending}
                                   inputMode="numeric"
                                   onChange={(event) => updateAlertPolicyDraft(policy.id, { window_seconds: event.target.value })}
-                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-page"
                                 />
                               </label>
                               <label className="block">
-                                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.cooldownSeconds")}</span>
+                                <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.cooldownSeconds")}</span>
                                 <input
                                   value={draft.cooldown_seconds}
                                   disabled={saveAlertPoliciesMutation.isPending}
                                   inputMode="numeric"
                                   onChange={(event) => updateAlertPolicyDraft(policy.id, { cooldown_seconds: event.target.value })}
-                                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-page"
                                 />
                               </label>
                             </>
@@ -911,11 +911,11 @@ export function OrganizationSetupAdaptedPage({
                 : alertRows.map((row) => (
                     <div key={row[0]} className="flex gap-5 px-7 py-5">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
-                        <AlertCircleIcon className="size-5 text-[#2f3037]" />
+                        <AlertCircleIcon className="size-5 text-content-body" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                        <p className="mt-1 text-sm text-[#6f717c]">{row[2]}</p>
+                        <h3 className="font-semibold text-content-heading">{row[0]}</h3>
+                        <p className="mt-1 text-sm text-content-subtle">{row[2]}</p>
                       </div>
                       <div className="ml-auto flex items-center gap-4">
                         <StatusDot tone={row[3]} label={row[1]} />
@@ -929,40 +929,40 @@ export function OrganizationSetupAdaptedPage({
 
         {isIntegrations || isSsoScim ? (
           <>
-            <div className="flex items-center justify-between gap-4 border-b border-[#eceef2] px-7 py-5">
+            <div className="flex items-center justify-between gap-4 border-b border-line-subtle px-7 py-5">
               <div>
-                <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.integrationsDesc")}</p>
+                <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
+                <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.integrationsDesc")}</p>
               </div>
               <Button
                 type="button"
                 variant="outline"
                 disabled={!defaultIntegrationTenantID || saveIntegrationMutation.isPending}
                 onClick={openCreateIntegrationSheet}
-                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] disabled:border-[#d9dbe3] disabled:text-[#9a9ca7]"
+                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc] disabled:border-line-default disabled:text-content-muted"
               >
                 <PlusIcon className="mr-1.5 size-4" />
                 Add Integration
               </Button>
             </div>
             {integrationError ? (
-              <div className="border-b border-[#f1c27a] bg-[#fff8ed] px-7 py-4 text-sm text-[#8a5a00]">
+              <div className="border-b border-[#f1c27a] bg-warning-bg px-7 py-4 text-sm text-warning-text">
                 {integrationError}
               </div>
             ) : null}
             <div className="grid gap-4 p-7 md:grid-cols-2">
               {visibleIntegrations.length > 0
                 ? visibleIntegrations.map((integration) => (
-                    <div key={integration.id} className="rounded-[6px] border border-[#eceef2] p-5">
+                    <div key={integration.id} className="rounded-[6px] border border-line-subtle p-5">
                       <div className="flex items-start gap-4">
-                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", integrationStatus(integration) === "warning" ? "bg-[#fff8ed]" : "bg-[#f1f2f5]")}>
-                          <ShieldCheckIcon className="size-5 text-[#2f3037]" />
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", integrationStatus(integration) === "warning" ? "bg-warning-bg" : "bg-[#f1f2f5]")}>
+                          <ShieldCheckIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-3">
                             <div className="min-w-0 flex-1">
-                              <h3 className="font-semibold text-[#17171c]">{integration.name}</h3>
-                              <p className="mt-1 text-sm leading-6 text-[#6f717c]">{integration.description}</p>
+                              <h3 className="font-semibold text-content-heading">{integration.name}</h3>
+                              <p className="mt-1 text-sm leading-6 text-content-subtle">{integration.description}</p>
                             </div>
                             <RowActionsMenu
                               label={`Actions for ${integration.name}`}
@@ -987,7 +987,7 @@ export function OrganizationSetupAdaptedPage({
                               ]}
                             />
                           </div>
-                          <div className="mt-4 grid gap-3 text-sm text-[#6f717c] sm:grid-cols-2">
+                          <div className="mt-4 grid gap-3 text-sm text-content-subtle sm:grid-cols-2">
                             <FormField label={t("kisi.orgSetup.provider")} value={integration.provider.toUpperCase()} />
                             <FormField label={t("kisi.orgSetup.syncMode")} value={integration.sync_mode || "Manual"} />
                             <FormField label={t("common.name")} value={integration.source_id || integration.id} />
@@ -1001,14 +1001,14 @@ export function OrganizationSetupAdaptedPage({
                     </div>
                   ))
                 : (isSsoScim ? integrationRows.slice(0, 2) : integrationRows).map((row, index) => (
-                    <div key={row[0]} className="rounded-[6px] border border-[#eceef2] p-5">
+                    <div key={row[0]} className="rounded-[6px] border border-line-subtle p-5">
                       <div className="flex items-start gap-4">
-                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-[#fff8ed]" : "bg-[#f1f2f5]")}>
-                          <ShieldCheckIcon className="size-5 text-[#2f3037]" />
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-warning-bg" : "bg-[#f1f2f5]")}>
+                          <ShieldCheckIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-[#17171c]">{row[0]}</h3>
-                          <p className="mt-1 text-sm leading-6 text-[#6f717c]">{row[2]}</p>
+                          <h3 className="font-semibold text-content-heading">{row[0]}</h3>
+                          <p className="mt-1 text-sm leading-6 text-content-subtle">{row[2]}</p>
                           <div className="mt-4">
                             <StatusDot tone={row[3]} label={row[1]} />
                           </div>
@@ -1022,19 +1022,19 @@ export function OrganizationSetupAdaptedPage({
 
         {isBilling ? (
           <>
-            <div className="border-b border-[#eceef2] px-7 py-5">
-              <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-              <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.billingDesc")}</p>
+            <div className="border-b border-line-subtle px-7 py-5">
+              <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
+              <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.billingDesc")}</p>
             </div>
-            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-[#f3f4ff] px-5 py-4 text-sm text-[#3439cc]">
+            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-brand-subtle px-5 py-4 text-sm text-[#3439cc]">
               Billing management is coming soon. The settings below are preview placeholders.
             </div>
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {billingRows.map((row, index) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_150px_1fr] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{row[0]}</span>
+                  <span className="font-semibold text-content-heading">{row[0]}</span>
                   <StatusDot tone={index === 1 ? "info" : "success"} label={row[1]} />
-                  <span className="text-sm text-[#6f717c]">{row[2]}</span>
+                  <span className="text-sm text-content-subtle">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -1056,7 +1056,7 @@ export function OrganizationSetupAdaptedPage({
         title={t("common.disabled")}
         description={
           <>
-            This marks <span className="font-semibold text-[#17171c]">{deleteIntegrationTarget?.name ?? "this integration"}</span>{" "}
+            This marks <span className="font-semibold text-content-heading">{deleteIntegrationTarget?.name ?? "this integration"}</span>{" "}
             as inactive while keeping its audit history.
           </>
         }
@@ -1084,7 +1084,7 @@ export function OrganizationSetupAdaptedPage({
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{editingIntegrationID ? "Edit Integration" : "Add Integration"}</SheetTitle>
             <SheetDescription>
               {editingIntegrationID ? "Review detail and update integration status or sync mode." : "Create an identity provider or HRIS integration."}
@@ -1099,16 +1099,16 @@ export function OrganizationSetupAdaptedPage({
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.tenantId")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.tenantId")}</span>
                 <input
                   value={integrationDraft.tenant_id}
                   disabled={Boolean(tenantID) || saveIntegrationMutation.isPending}
                   onChange={(event) => updateIntegrationDraft({ tenant_id: event.target.value })}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.type")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.type")}</span>
                 <select
                   value={integrationDraft.type}
                   disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
@@ -1121,19 +1121,19 @@ export function OrganizationSetupAdaptedPage({
                       sync_mode: nextType === "identity_provider" ? "jit" : "hybrid",
                     })
                   }}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   <option value="hris">{t("kisi.orgSetup.hris")}</option>
                   <option value="identity_provider">{t("kisi.orgSetup.identityProvider")}</option>
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.provider")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.provider")}</span>
                 <select
                   value={integrationDraft.provider}
                   disabled={Boolean(editingIntegrationID) || saveIntegrationMutation.isPending}
                   onChange={(event) => updateIntegrationDraft({ provider: event.target.value })}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   {integrationDraft.type === "identity_provider" ? (
                     <>
@@ -1152,24 +1152,24 @@ export function OrganizationSetupAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.status")}</span>
                 <select
                   value={integrationDraft.status}
                   disabled={saveIntegrationMutation.isPending}
                   onChange={(event) => updateIntegrationDraft({ status: event.target.value })}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   <option value="active">{t("common.active")}</option>
                   <option value="inactive">{t("common.inactive")}</option>
                 </select>
               </label>
               <label className="block sm:col-span-2">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.syncMode")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.syncMode")}</span>
                 <select
                   value={integrationDraft.sync_mode}
                   disabled={saveIntegrationMutation.isPending}
                   onChange={(event) => updateIntegrationDraft({ sync_mode: event.target.value })}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   {integrationDraft.type === "identity_provider" ? (
                     <>
@@ -1191,78 +1191,78 @@ export function OrganizationSetupAdaptedPage({
             {integrationDraft.type === "identity_provider" ? (
               <div className="grid gap-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.issuerUrl")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.issuerUrl")}</span>
                   <input
                     value={integrationDraft.issuer_url}
                     disabled={saveIntegrationMutation.isPending}
                     onChange={(event) => updateIntegrationDraft({ issuer_url: event.target.value })}
                     placeholder={editingIntegrationID ? "Leave blank to keep current issuer" : "https://idp.example.com"}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.clientId")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.clientId")}</span>
                   <input
                     value={integrationDraft.client_id}
                     disabled={saveIntegrationMutation.isPending}
                     onChange={(event) => updateIntegrationDraft({ client_id: event.target.value })}
                     placeholder={editingIntegrationID ? "Leave blank to keep current client" : "misty-admin"}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.authUrl")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.authUrl")}</span>
                   <input
                     value={integrationDraft.auth_url}
                     disabled={saveIntegrationMutation.isPending}
                     onChange={(event) => updateIntegrationDraft({ auth_url: event.target.value })}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
               </div>
             ) : (
               <div className="grid gap-4">
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.credentialRef")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.credentialRef")}</span>
                   <input
                     value={integrationDraft.credential_ref}
                     disabled={saveIntegrationMutation.isPending}
                     onChange={(event) => updateIntegrationDraft({ credential_ref: event.target.value })}
                     placeholder="vault://tenant/hris/provider/api_key"
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.webhookSecretRef")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.webhookSecretRef")}</span>
                   <input
                     value={integrationDraft.webhook_secret_ref}
                     disabled={saveIntegrationMutation.isPending}
                     onChange={(event) => updateIntegrationDraft({ webhook_secret_ref: event.target.value })}
                     placeholder="vault://tenant/hris/provider/webhook_secret"
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
               </div>
             )}
 
             {integrationDetailQuery.isPending && editingIntegrationID ? (
-              <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] px-4 py-3 text-sm text-[#6f717c]">
+              <div className="rounded-[6px] border border-line-subtle bg-surface-page px-4 py-3 text-sm text-content-subtle">
                 Loading integration detail...
               </div>
             ) : null}
             {integrationError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {integrationError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setIntegrationSheetOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={saveIntegrationMutation.isPending || (Boolean(editingIntegrationID) && integrationDetailQuery.isPending)}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {saveIntegrationMutation.isPending ? t("kisi.orgSetup.saving") : editingIntegrationID ? "Save Integration" : "Add Integration"}
               </Button>
@@ -1281,7 +1281,7 @@ export function OrganizationSetupAdaptedPage({
         title={t("common.delete")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{deleteAlertPolicyTarget?.name ?? "this policy"}</span>{" "}
+            This removes <span className="font-semibold text-content-heading">{deleteAlertPolicyTarget?.name ?? "this policy"}</span>{" "}
             from alert policy monitoring.
           </>
         }
@@ -1298,7 +1298,7 @@ export function OrganizationSetupAdaptedPage({
 
       <Sheet open={createAlertPolicyOpen} onOpenChange={setCreateAlertPolicyOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.orgSetup.addPolicy")}</SheetTitle>
             <SheetDescription>{t("kisi.orgSetup.addPolicyDesc")}</SheetDescription>
           </SheetHeader>
@@ -1310,7 +1310,7 @@ export function OrganizationSetupAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.tenantId")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.tenantId")}</span>
               <input
                 value={createAlertPolicyTenantID}
                 readOnly={Boolean(tenantID)}
@@ -1319,13 +1319,13 @@ export function OrganizationSetupAdaptedPage({
                   setAlertPolicyConditionPreview(null)
                 }}
                 className={cn(
-                  "h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]",
-                  tenantID ? "bg-[#fbfbfc]" : "bg-white"
+                  "h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body",
+                  tenantID ? "bg-surface-page" : "bg-white"
                 )}
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.policyType")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.policyType")}</span>
               <select
                 value={createAlertPolicyCategory}
                 onChange={(event) => {
@@ -1334,7 +1334,7 @@ export function OrganizationSetupAdaptedPage({
                   setCreateAlertPolicyDraft(defaultAlertPolicyDraft(category))
                   setAlertPolicyConditionPreview(null)
                 }}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="enterprise_sync_worker">{t("kisi.orgSetup.enterpriseSync")}</option>
                 <option value="wallet_jobs">{t("kisi.orgSetup.walletJobs")}</option>
@@ -1344,30 +1344,30 @@ export function OrganizationSetupAdaptedPage({
             {createAlertPolicyCategory === "custom" ? (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.policyName")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.policyName")}</span>
                   <input
                     value={createAlertPolicyDraft.name}
                     onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, name: event.target.value }))}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.trigger")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.trigger")}</span>
                   <input
                     value={createAlertPolicyDraft.trigger}
                     onChange={(event) => {
                       setCreateAlertPolicyDraft((draft) => ({ ...draft, trigger: event.target.value }))
                       setAlertPolicyConditionPreview(null)
                     }}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.severity")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.severity")}</span>
                   <select
                     value={createAlertPolicyDraft.severity}
                     onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, severity: event.target.value }))}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   >
                     <option value="info">{t("kisi.orgSetup.info")}</option>
                     <option value="warning">{t("kisi.orgSetup.warning")}</option>
@@ -1376,18 +1376,18 @@ export function OrganizationSetupAdaptedPage({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.conditionExpr")}</span>
+                  <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.conditionExpr")}</span>
                   <input
                     value={createAlertPolicyDraft.condition_expression}
                     onChange={(event) => {
                       setCreateAlertPolicyDraft((draft) => ({ ...draft, condition_expression: event.target.value }))
                       setAlertPolicyConditionPreview(null)
                     }}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                   />
                 </label>
-                <div className="flex items-center justify-between gap-3 rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3">
-                  <span className="text-sm font-semibold text-[#17171c]">
+                <div className="flex items-center justify-between gap-3 rounded-[6px] border border-line-default bg-white px-3 py-3">
+                  <span className="text-sm font-semibold text-content-heading">
                     {alertPolicyConditionPreview ? (alertPolicyConditionPreview.matched ? "Matched" : "Not matched") : "No preview"}
                   </span>
                   <Button
@@ -1398,7 +1398,7 @@ export function OrganizationSetupAdaptedPage({
                       !(createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID)
                     }
                     onClick={() => previewAlertPolicyConditionMutation.mutate()}
-                    className="h-9 rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-[#2f3037] hover:bg-[#f6f7fb]"
+                    className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-[#f6f7fb]"
                   >
                     <BarChart3Icon className="mr-2 h-4 w-4" />
                     {previewAlertPolicyConditionMutation.isPending ? "Previewing..." : "Preview"}
@@ -1410,40 +1410,40 @@ export function OrganizationSetupAdaptedPage({
               type="button"
               disabled={createAlertPolicyMutation.isPending}
               onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, enabled: !draft.enabled }))}
-              className="flex w-full items-center justify-between rounded-[6px] border border-[#d9dbe3] bg-white px-3 py-3 text-left disabled:bg-[#fbfbfc]"
+              className="flex w-full items-center justify-between rounded-[6px] border border-line-default bg-white px-3 py-3 text-left disabled:bg-surface-page"
             >
               <span>
-                <span className="block text-sm font-semibold text-[#17171c]">{t("kisi.orgSetup.policyEnabled")}</span>
-                <span className="mt-1 block text-xs text-[#6f717c]">{t("kisi.orgSetup.policyEnabledDesc")}</span>
+                <span className="block text-sm font-semibold text-content-heading">{t("kisi.orgSetup.policyEnabled")}</span>
+                <span className="mt-1 block text-xs text-content-subtle">{t("kisi.orgSetup.policyEnabledDesc")}</span>
               </span>
               <ToggleSwitch enabled={createAlertPolicyDraft.enabled} />
             </button>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.threshold")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.threshold")}</span>
                 <input
                   value={createAlertPolicyDraft.threshold}
                   inputMode="numeric"
                   onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, threshold: event.target.value }))}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.window")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.window")}</span>
                 <input
                   value={createAlertPolicyDraft.window_seconds}
                   inputMode="numeric"
                   onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, window_seconds: event.target.value }))}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.cooldown")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.cooldown")}</span>
                 <input
                   value={createAlertPolicyDraft.cooldown_seconds}
                   inputMode="numeric"
                   onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, cooldown_seconds: event.target.value }))}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 />
               </label>
             </div>
@@ -1452,7 +1452,7 @@ export function OrganizationSetupAdaptedPage({
                 type="button"
                 disabled={createAlertPolicyMutation.isPending}
                 onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, email: !draft.email }))}
-                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                className="flex h-11 items-center justify-between rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-page"
               >
                 Email
                 <ToggleSwitch enabled={createAlertPolicyDraft.email} />
@@ -1461,21 +1461,21 @@ export function OrganizationSetupAdaptedPage({
                 type="button"
                 disabled={createAlertPolicyMutation.isPending}
                 onClick={() => setCreateAlertPolicyDraft((draft) => ({ ...draft, whatsapp: !draft.whatsapp }))}
-                className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#fbfbfc]"
+                className="flex h-11 items-center justify-between rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-page"
               >
                 WhatsApp
                 <ToggleSwitch enabled={createAlertPolicyDraft.whatsapp} />
               </button>
             </div>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.orgSetup.receiverGroups")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.orgSetup.receiverGroups")}</span>
               <input
                 value={createAlertPolicyDraft.receiver_groups}
                 onChange={(event) => setCreateAlertPolicyDraft((draft) => ({ ...draft, receiver_groups: event.target.value }))}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               />
             </label>
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={
@@ -1486,7 +1486,7 @@ export function OrganizationSetupAdaptedPage({
                   !createAlertPolicyDraft.window_seconds.trim() ||
                   !createAlertPolicyDraft.cooldown_seconds.trim()
                 }
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
               >
                 {createAlertPolicyMutation.isPending ? "Creating..." : "Create Policy"}
               </Button>
@@ -1549,9 +1549,9 @@ function OrganizationSettingsSection({
 
   return (
     <>
-      <div className="border-b border-[#eceef2] px-7 py-5">
-        <h2 className="text-lg font-semibold text-[#17171c]">{activeTab}</h2>
-        <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.orgSetup.settingsDesc")}</p>
+      <div className="border-b border-line-subtle px-7 py-5">
+        <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
+        <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.settingsDesc")}</p>
       </div>
       {settingsNotice && (
         <div className="mx-7 mt-4 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
@@ -1574,25 +1574,25 @@ function OrganizationSettingsSection({
           />
         ) : activeTab === "Security" ? (
           <div className="space-y-5">
-            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
-              <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+            <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
+              <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
                 <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-[#17171c]">{t("kisi.myAccount.mfaTitle")}</h3>
-                <p className="mt-1 text-sm text-[#6f717c]">{t("kisi.myAccount.mfaDescription")}</p>
+                <h3 className="font-semibold text-content-heading">{t("kisi.myAccount.mfaTitle")}</h3>
+                <p className="mt-1 text-sm text-content-subtle">{t("kisi.myAccount.mfaDescription")}</p>
               </div>
               <div className="pt-1">
                 <ToggleSwitch enabled={s?.enforce_mfa ?? false} onToggle={() => handleToggle("enforce_mfa", !(s?.enforce_mfa ?? false))} />
               </div>
             </div>
-            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
-              <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f3f4ff]">
+            <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
+              <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
                 <FingerprintIcon className="size-5 text-[#4f55ff]" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-[#17171c]">WebAuthn Sign-in</h3>
-                <p className="mt-1 text-sm text-[#6f717c]">Allow users to sign in with passkeys (Touch ID, Face ID, security keys). Requires SSO enabled.</p>
+                <h3 className="font-semibold text-content-heading">WebAuthn Sign-in</h3>
+                <p className="mt-1 text-sm text-content-subtle">Allow users to sign in with passkeys (Touch ID, Face ID, security keys). Requires SSO enabled.</p>
               </div>
               <div className="pt-1">
                 <ToggleSwitch enabled={s?.webauthn_enabled ?? false} onToggle={() => handleToggle("webauthn_enabled", !(s?.webauthn_enabled ?? false))} />
@@ -1600,62 +1600,62 @@ function OrganizationSettingsSection({
             </div>
             <div className="grid gap-6 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Password policy</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">Password policy</span>
                 <select
                   value={s?.password_policy ?? "standard"}
                   onChange={(e) => updateMutation.mutate({ password_policy: e.target.value })}
-                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                  className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
                 >
                   <option value="standard">Standard</option>
                   <option value="strict">Strict</option>
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Session timeout (minutes)</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">Session timeout (minutes)</span>
                 <input
                   type="number"
                   value={s?.session_timeout_minutes ?? 480}
                   onChange={(e) => updateMutation.mutate({ session_timeout_minutes: parseInt(e.target.value, 10) || 480 })}
                   min={5}
                   max={1440}
-                  className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+                  className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
                 />
               </label>
             </div>
           </div>
         ) : activeTab === "Advanced" ? (
           <div className="space-y-4">
-            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+            <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
               <div>
-                <h3 className="font-semibold text-[#17171c]">Export organization audit log</h3>
-                <p className="mt-1 text-sm text-[#6f717c]">Generate an organization-wide event archive.</p>
+                <h3 className="font-semibold text-content-heading">Export organization audit log</h3>
+                <p className="mt-1 text-sm text-content-subtle">Generate an organization-wide event archive.</p>
               </div>
               <Button
                 variant="outline"
-                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 disabled={exportMutation.isPending}
                 onClick={() => exportMutation.mutate()}
               >
                 {exportMutation.isPending ? "Exporting..." : "Export"}
               </Button>
             </div>
-            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+            <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
               <div>
-                <h3 className="font-semibold text-[#17171c]">Rotate webhook secrets</h3>
-                <p className="mt-1 text-sm text-[#6f717c]">Rotate all organization webhook signing secrets.</p>
+                <h3 className="font-semibold text-content-heading">Rotate webhook secrets</h3>
+                <p className="mt-1 text-sm text-content-subtle">Rotate all organization webhook signing secrets.</p>
               </div>
               <Button
                 variant="outline"
-                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 onClick={() => setConfirmRotate(true)}
               >
                 Rotate
               </Button>
             </div>
-            <div className="flex gap-5 rounded-[6px] border border-[#eceef2] p-5">
+            <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
               <div>
-                <h3 className="font-semibold text-[#17171c]">Disable organization</h3>
-                <p className="mt-1 text-sm text-[#6f717c]">Reserved destructive action for tenant lifecycle operations.</p>
+                <h3 className="font-semibold text-content-heading">Disable organization</h3>
+                <p className="mt-1 text-sm text-content-subtle">Reserved destructive action for tenant lifecycle operations.</p>
               </div>
               <Button
                 variant="outline"
@@ -1727,35 +1727,35 @@ function OrgSettingsGeneralForm({
     <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Organization name</span>
+          <span className="mb-2 block text-xs font-semibold text-content-subtle">Organization name</span>
           <input
             value={name}
             onChange={(e) => { setName(e.target.value); setDirty(true) }}
-            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+            className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
           />
         </label>
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Primary domain</span>
+          <span className="mb-2 block text-xs font-semibold text-content-subtle">Primary domain</span>
           <input
             value={domain}
             onChange={(e) => { setDomain(e.target.value); setDirty(true) }}
-            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+            className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
           />
         </label>
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Timezone</span>
+          <span className="mb-2 block text-xs font-semibold text-content-subtle">Timezone</span>
           <input
             value={timezone}
             onChange={(e) => { setTimezone(e.target.value); setDirty(true) }}
-            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+            className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
           />
         </label>
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Support email</span>
+          <span className="mb-2 block text-xs font-semibold text-content-subtle">Support email</span>
           <input
             value={supportEmail}
             onChange={(e) => { setSupportEmail(e.target.value); setDirty(true) }}
-            className="h-12 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-4 text-sm text-[#2f3037] outline-none transition focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+            className="h-12 w-full rounded-[6px] border border-line-default bg-white px-4 text-sm text-content-body outline-none transition focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
           />
         </label>
       </div>

@@ -206,7 +206,7 @@ export function HolidayCalendarsAdaptedPage({
           <Button
             disabled={!canMutate}
             onClick={openCreate}
-            className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             New Calendar
@@ -214,13 +214,13 @@ export function HolidayCalendarsAdaptedPage({
         }
       >
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
             {actionError}
           </div>
         ) : null}
 
-        <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-          <div className="flex items-center gap-3 border-b border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+        <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+          <div className="flex items-center gap-3 border-b border-line-subtle bg-surface-page px-6 py-4">
             <MistyisletSearchField
               value={search}
               onChange={setSearch}
@@ -231,7 +231,7 @@ export function HolidayCalendarsAdaptedPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-left text-xs font-semibold text-[#6f717c]">
+                <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
                   <th className="w-10 px-6 py-3" />
                   <th className="px-4 py-3">{t("common.name")}</th>
                   <th className="px-4 py-3">Country</th>
@@ -281,7 +281,7 @@ export function HolidayCalendarsAdaptedPage({
         description={
           <>
             This will permanently delete{" "}
-            <span className="font-semibold text-[#17171c]">{deleteTarget?.name ?? "this calendar"}</span>{" "}
+            <span className="font-semibold text-content-heading">{deleteTarget?.name ?? "this calendar"}</span>{" "}
             and all its entries.
           </>
         }
@@ -306,7 +306,7 @@ export function HolidayCalendarsAdaptedPage({
         }}
       >
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[520px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{editCalendar ? "Edit Holiday Calendar" : "New Holiday Calendar"}</SheetTitle>
             <SheetDescription>
               {editCalendar
@@ -327,25 +327,25 @@ export function HolidayCalendarsAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
                 required
                 placeholder="e.g. Indonesia 2026"
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
               />
             </label>
 
-            <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] p-4">
-              <h4 className="mb-3 text-xs font-semibold text-[#6f717c]">Load Country Presets</h4>
+            <div className="rounded-[6px] border border-line-subtle bg-surface-page p-4">
+              <h4 className="mb-3 text-xs font-semibold text-content-subtle">Load Country Presets</h4>
               <div className="grid grid-cols-3 gap-3">
                 <label className="col-span-1 block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">Country</span>
+                  <span className="mb-1 block text-xs text-content-subtle">Country</span>
                   <select
                     value={draftCountry}
                     onChange={(event) => setDraftCountry(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                   >
                     <option value="">Select country</option>
                     {countries.map((country: HolidayPresetCountry) => (
@@ -356,14 +356,14 @@ export function HolidayCalendarsAdaptedPage({
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">Year</span>
+                  <span className="mb-1 block text-xs text-content-subtle">Year</span>
                   <input
                     type="number"
                     value={draftYear}
                     min={2020}
                     max={2040}
                     onChange={(event) => setDraftYear(Number(event.target.value))}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                   />
                 </label>
                 <div className="flex items-end">
@@ -371,7 +371,7 @@ export function HolidayCalendarsAdaptedPage({
                     type="button"
                     disabled={!draftCountry || presetsQuery.isPending}
                     onClick={loadPresets}
-                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-[#2f3037] hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-[#9a9ca7]"
+                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-content-body hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-content-muted"
                   >
                     <DownloadIcon className="mr-1.5 size-4" />
                     {presetsQuery.isPending ? "Loading..." : "Load"}
@@ -379,31 +379,31 @@ export function HolidayCalendarsAdaptedPage({
                 </div>
               </div>
               {presetsQuery.data ? (
-                <p className="mt-2 text-xs text-[#6f717c]">
+                <p className="mt-2 text-xs text-content-subtle">
                   {presetsQuery.data.entries.length} presets available for {presetsQuery.data.country_name} {presetsQuery.data.year}
                 </p>
               ) : null}
             </div>
 
-            <div className="rounded-[6px] border border-[#eceef2] p-4">
-              <h4 className="mb-3 text-xs font-semibold text-[#6f717c]">Add Entry Manually</h4>
+            <div className="rounded-[6px] border border-line-subtle p-4">
+              <h4 className="mb-3 text-xs font-semibold text-content-subtle">Add Entry Manually</h4>
               <div className="grid grid-cols-3 gap-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">Date</span>
+                  <span className="mb-1 block text-xs text-content-subtle">Date</span>
                   <input
                     type="date"
                     value={newEntryDate}
                     onChange={(event) => setNewEntryDate(event.target.value)}
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs text-[#6f717c]">{t("common.name")}</span>
+                  <span className="mb-1 block text-xs text-content-subtle">{t("common.name")}</span>
                   <input
                     value={newEntryName}
                     onChange={(event) => setNewEntryName(event.target.value)}
                     placeholder="Holiday name"
-                    className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                   />
                 </label>
                 <div className="flex items-end">
@@ -411,7 +411,7 @@ export function HolidayCalendarsAdaptedPage({
                     type="button"
                     disabled={!newEntryDate.trim() || !newEntryName.trim()}
                     onClick={addManualEntry}
-                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-[#2f3037] hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-[#9a9ca7]"
+                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-content-body hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-content-muted"
                   >
                     <PlusIcon className="mr-1.5 size-4" />
                     Add
@@ -419,19 +419,19 @@ export function HolidayCalendarsAdaptedPage({
                 </div>
               </div>
               <label className="mt-3 block">
-                <span className="mb-1 block text-xs text-[#6f717c]">Description (optional)</span>
+                <span className="mb-1 block text-xs text-content-subtle">Description (optional)</span>
                 <input
                   value={newEntryDescription}
                   onChange={(event) => setNewEntryDescription(event.target.value)}
                   placeholder="Optional description"
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring"
                 />
               </label>
             </div>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-xs font-semibold text-[#6f717c]">
+                <h4 className="text-xs font-semibold text-content-subtle">
                   Entries ({draftEntries.length})
                 </h4>
                 {draftEntries.length > 0 ? (
@@ -445,14 +445,14 @@ export function HolidayCalendarsAdaptedPage({
                 ) : null}
               </div>
               {draftEntries.length === 0 ? (
-                <div className="rounded-[6px] border border-[#eceef2] bg-[#fbfbfc] px-4 py-6 text-center text-sm text-[#6f717c]">
+                <div className="rounded-[6px] border border-line-subtle bg-surface-page px-4 py-6 text-center text-sm text-content-subtle">
                   No entries yet. Load country presets or add entries manually.
                 </div>
               ) : (
-                <div className="max-h-[280px] overflow-y-auto rounded-[6px] border border-[#eceef2]">
+                <div className="max-h-[280px] overflow-y-auto rounded-[6px] border border-line-subtle">
                   <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-[#fbfbfc]">
-                      <tr className="border-b border-[#eceef2] text-xs font-semibold text-[#6f717c]">
+                    <thead className="sticky top-0 bg-surface-page">
+                      <tr className="border-b border-line-subtle text-xs font-semibold text-content-subtle">
                         <th className="px-3 py-2">Date</th>
                         <th className="px-3 py-2">{t("common.name")}</th>
                         <th className="w-8 px-3 py-2" />
@@ -460,19 +460,19 @@ export function HolidayCalendarsAdaptedPage({
                     </thead>
                     <tbody>
                       {draftEntries.map((entry, index) => (
-                        <tr key={`${entry.date}-${index}`} className="border-b border-[#eceef2] last:border-0">
-                          <td className="px-3 py-2 text-[#2f3037]">{entry.date}</td>
-                          <td className="px-3 py-2 text-[#17171c]">
+                        <tr key={`${entry.date}-${index}`} className="border-b border-line-subtle last:border-0">
+                          <td className="px-3 py-2 text-content-body">{entry.date}</td>
+                          <td className="px-3 py-2 text-content-heading">
                             <div>{entry.name}</div>
                             {entry.description ? (
-                              <div className="text-xs text-[#6f717c]">{entry.description}</div>
+                              <div className="text-xs text-content-subtle">{entry.description}</div>
                             ) : null}
                           </td>
                           <td className="px-3 py-2">
                             <button
                               type="button"
                               onClick={() => removeEntry(index)}
-                              className="text-[#9a9ca7] hover:text-[#e0463e]"
+                              className="text-content-muted hover:text-[#e0463e]"
                               aria-label={`Remove ${entry.name}`}
                             >
                               <Trash2Icon className="size-3.5" />
@@ -486,11 +486,11 @@ export function HolidayCalendarsAdaptedPage({
               )}
             </div>
 
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button
                 type="submit"
                 disabled={!canSubmit || createMutation.isPending || updateMutation.isPending}
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."
@@ -525,12 +525,12 @@ function CalendarRow({
 }) {
   return (
     <>
-      <tr className="border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]">
+      <tr className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
         <td className="px-6 py-4">
           <button
             type="button"
             onClick={onToggle}
-            className="text-[#6f717c] hover:text-[#17171c]"
+            className="text-content-subtle hover:text-content-heading"
             aria-label={expanded ? "Collapse entries" : "Expand entries"}
           >
             {expanded ? (
@@ -542,13 +542,13 @@ function CalendarRow({
         </td>
         <td className="px-4 py-4">
           <div className="flex items-center gap-2">
-            <CalendarDaysIcon className="size-4 text-[#6f717c]" />
-            <span className="font-semibold text-[#17171c]">{calendar.name}</span>
+            <CalendarDaysIcon className="size-4 text-content-subtle" />
+            <span className="font-semibold text-content-heading">{calendar.name}</span>
           </div>
         </td>
-        <td className="px-4 py-4 text-[#2f3037]">{calendar.country ?? "-"}</td>
-        <td className="px-4 py-4 text-[#6f717c]">{calendar.entries.length}</td>
-        <td className="px-4 py-4 text-[#6f717c]">{formatDate(calendar.updated_at)}</td>
+        <td className="px-4 py-4 text-content-body">{calendar.country ?? "-"}</td>
+        <td className="px-4 py-4 text-content-subtle">{calendar.entries.length}</td>
+        <td className="px-4 py-4 text-content-subtle">{formatDate(calendar.updated_at)}</td>
         <td className="px-4 py-4">
           <RowActionsMenu
             label={`Actions for ${calendar.name}`}
@@ -573,12 +573,12 @@ function CalendarRow({
         </td>
       </tr>
       {expanded && calendar.entries.length > 0 ? (
-        <tr className="border-b border-[#eceef2]">
-          <td colSpan={6} className="bg-[#fbfbfc] px-6 py-3">
-            <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
+        <tr className="border-b border-line-subtle">
+          <td colSpan={6} className="bg-surface-page px-6 py-3">
+            <div className="overflow-hidden rounded-[6px] border border-line-subtle bg-white">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-xs font-semibold text-[#6f717c]">
+                  <tr className="border-b border-line-subtle bg-surface-page text-xs font-semibold text-content-subtle">
                     <th className="px-4 py-2">Date</th>
                     <th className="px-4 py-2">Name</th>
                     <th className="px-4 py-2">Description</th>
@@ -588,11 +588,11 @@ function CalendarRow({
                   {calendar.entries.map((entry, index) => (
                     <tr
                       key={`${entry.date}-${index}`}
-                      className="border-b border-[#eceef2] last:border-0"
+                      className="border-b border-line-subtle last:border-0"
                     >
-                      <td className="px-4 py-2 text-[#2f3037]">{entry.date}</td>
-                      <td className="px-4 py-2 font-medium text-[#17171c]">{entry.name}</td>
-                      <td className="px-4 py-2 text-[#6f717c]">{entry.description ?? "-"}</td>
+                      <td className="px-4 py-2 text-content-body">{entry.date}</td>
+                      <td className="px-4 py-2 font-medium text-content-heading">{entry.name}</td>
+                      <td className="px-4 py-2 text-content-subtle">{entry.description ?? "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -602,8 +602,8 @@ function CalendarRow({
         </tr>
       ) : null}
       {expanded && calendar.entries.length === 0 ? (
-        <tr className="border-b border-[#eceef2]">
-          <td colSpan={6} className="bg-[#fbfbfc] px-6 py-4 text-center text-sm text-[#6f717c]">
+        <tr className="border-b border-line-subtle">
+          <td colSpan={6} className="bg-surface-page px-6 py-4 text-center text-sm text-content-subtle">
             No entries in this calendar.
           </td>
         </tr>

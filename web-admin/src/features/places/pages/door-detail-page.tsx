@@ -331,7 +331,7 @@ export function DoorDetailAdaptedPage({
                 setActionError("")
                 setAddDoorOpen(true)
               }}
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               Add Door
@@ -340,7 +340,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("unlock")}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
             >
               <DoorOpenIcon className="mr-1.5 size-4" />
               Unlock
@@ -348,7 +348,7 @@ export function DoorDetailAdaptedPage({
             {selectedDoor && (
               <Button
                 variant="outline"
-                className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-3"
+                className="h-10 rounded-[6px] border-line-default bg-white px-3"
                 onClick={() => {
                   const isFav = favoriteLocks.has(selectedDoor.id)
                   if (isFav) {
@@ -360,7 +360,7 @@ export function DoorDetailAdaptedPage({
                   }
                 }}
               >
-                <StarIcon className={`size-4 ${favoriteLocks.has(selectedDoor.id) ? "fill-amber-400 text-amber-400" : "text-[#9a9ca7]"}`} />
+                <StarIcon className={`size-4 ${favoriteLocks.has(selectedDoor.id) ? "fill-amber-400 text-amber-400" : "text-content-muted"}`} />
               </Button>
             )}
             <Button
@@ -376,7 +376,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("cancel_lockdown")}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
             >
               <ShieldOffIcon className="mr-1.5 size-4" />
               Cancel
@@ -385,7 +385,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("first_to_arrive")}
-              className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
             >
               First to Arrive
             </Button>
@@ -393,7 +393,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("last_to_leave")}
-              className="h-10 rounded-[6px] border-[#d9dbe3] bg-white px-5 text-[#6f717c] hover:border-[#9a9ca7] hover:bg-[#fbfbfc]"
+              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
             >
               Last to Leave
             </Button>
@@ -413,7 +413,7 @@ export function DoorDetailAdaptedPage({
         }
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live door resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -423,16 +423,16 @@ export function DoorDetailAdaptedPage({
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           {actionError}
         </div>
       ) : null}
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-[#2f3037]">
+              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                 <th className="px-6 py-4 font-semibold">{t("common.door")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.doors.floor")}</th>
                 <th className="px-4 py-4 font-semibold">{t("kisi.doors.area")}</th>
@@ -446,14 +446,14 @@ export function DoorDetailAdaptedPage({
                   key={door.id}
                   onClick={() => setSelectedDoorID(door.id)}
                   className={cn(
-                    "cursor-pointer border-b border-[#eceef2] last:border-0 hover:bg-[#fbfbfc]",
+                    "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
                     selectedDoor?.id === door.id && "bg-[#f4f3ef]"
                   )}
                 >
-                  <td className="px-6 py-5 font-semibold text-[#17171c]">{door.name}</td>
-                  <td className="px-4 py-5 text-[#2f3037]">{door.floorName}</td>
-                  <td className="px-4 py-5 text-[#6f717c]">{door.areaName}</td>
-                  <td className="px-4 py-5 text-[#6f717c]">{door.gatewaySerial}</td>
+                  <td className="px-6 py-5 font-semibold text-content-heading">{door.name}</td>
+                  <td className="px-4 py-5 text-content-body">{door.floorName}</td>
+                  <td className="px-4 py-5 text-content-subtle">{door.areaName}</td>
+                  <td className="px-4 py-5 text-content-subtle">{door.gatewaySerial}</td>
                   <td className="px-4 py-5">
                     <StatusDot tone={door.status === "online" ? "success" : "warning"} label={door.status === "online" ? "Online" : "Review"} />
                   </td>
@@ -473,7 +473,7 @@ export function DoorDetailAdaptedPage({
           <Button
             disabled={!canMutate || updateLockMutation.isPending || !doorName.trim()}
             onClick={() => updateLockMutation.mutate()}
-            className="h-10 rounded-[8px] bg-[#4f55ff] px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updateLockMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -484,30 +484,30 @@ export function DoorDetailAdaptedPage({
             <PanelHeader title={t("common.general")} description={t("kisi.doors.generalDesc")} />
             <div className="grid gap-6 p-7 md:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.name")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.name")}</span>
                 <input
                   value={doorName}
                   disabled={!selectedDoor}
                   onChange={(event) => setDoorName(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.doors.gatewayId")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("kisi.doors.gatewayId")}</span>
                 <input
                   value={gatewayID}
                   disabled={!selectedDoor}
                   onChange={(event) => setGatewayID(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 />
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("kisi.doors.kind")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("kisi.doors.kind")}</span>
                 <select
                   value={doorKind}
                   disabled={!selectedDoor}
                   onChange={(event) => setDoorKind(event.target.value as Lock["kind"])}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   <option value="office">{t("kisi.doors.office")}</option>
                   <option value="turnstile">{t("kisi.doors.turnstile")}</option>
@@ -518,39 +518,39 @@ export function DoorDetailAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold uppercase text-[#6f717c]">{t("common.status")}</span>
+                <span className="mb-2 block text-xs font-semibold uppercase text-content-subtle">{t("common.status")}</span>
                 <select
                   value={doorStatus}
                   disabled={!selectedDoor}
                   onChange={(event) => setDoorStatus(event.target.value as Lock["status"])}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] disabled:bg-[#f5f6f8]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   <option value="online">{t("common.online")}</option>
                   <option value="offline">{t("common.offline")}</option>
                 </select>
               </label>
               <FormField label={t("common.description")} value={selectedDoor?.description ?? "No door selected"} />
-              <FormField label={t("kisi.doors.belongsToFloor")} value={selectedDoor?.floorName ?? "Unassigned floor"} trailing={<SearchIcon className="size-4 text-[#6f717c]" />} />
+              <FormField label={t("kisi.doors.belongsToFloor")} value={selectedDoor?.floorName ?? "Unassigned floor"} trailing={<SearchIcon className="size-4 text-content-subtle" />} />
               <FormField label={t("kisi.doors.area")} value={selectedDoor?.areaName ?? "Unassigned area"} />
               <FormField label={t("kisi.doors.timezone")} value="Asia/Jakarta" />
             </div>
             {selectedDoor && (
-              <div className="border-t border-[#eceef2] px-7 py-5">
-                <h3 className="mb-3 text-xs font-semibold uppercase text-[#6f717c]">Gateway Connection</h3>
+              <div className="border-t border-line-subtle px-7 py-5">
+                <h3 className="mb-3 text-xs font-semibold uppercase text-content-subtle">Gateway Connection</h3>
                 {selectedHardware.length > 0 ? (
                   <div className="flex flex-wrap gap-4">
                     {selectedHardware.filter((h) => h.type === "Controller" || h.type === "Gateway").map((h) => (
-                      <div key={h.id} className="flex items-center gap-3 rounded-[6px] border border-[#eceef2] px-4 py-3">
+                      <div key={h.id} className="flex items-center gap-3 rounded-[6px] border border-line-subtle px-4 py-3">
                         <StatusDot tone={h.tone} label={h.statusLabel} />
                         <div className="text-sm">
-                          <span className="font-medium text-[#17171c]">{h.name}</span>
-                          <span className="ml-2 text-[#6f717c]">{h.lastSeenLabel}</span>
+                          <span className="font-medium text-content-heading">{h.name}</span>
+                          <span className="ml-2 text-content-subtle">{h.lastSeenLabel}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-[#6f717c]">No gateway bound to this door. Unlock commands will be accepted but not dispatched to hardware.</p>
+                  <p className="text-sm text-content-subtle">No gateway bound to this door. Unlock commands will be accepted but not dispatched to hardware.</p>
                 )}
               </div>
             )}
@@ -565,21 +565,21 @@ export function DoorDetailAdaptedPage({
               action={
                 <Button
                   variant="outline"
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
                 >
                   Add Group
                 </Button>
               }
             />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {[
                 [i18next.t("common.group"), "08:00-18:00", i18next.t("common.permissions")],
                 [i18next.t("common.group"), "24/7", i18next.t("common.reader")],
               ].map((row) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_190px_1fr] md:items-center">
                   <span className="font-semibold text-[#4f55ff]">{row[0]}</span>
-                  <span className="text-sm text-[#2f3037]">{row[1]}</span>
-                  <span className="text-sm text-[#6f717c]">{row[2]}</span>
+                  <span className="text-sm text-content-body">{row[1]}</span>
+                  <span className="text-sm text-content-subtle">{row[2]}</span>
                 </div>
               ))}
             </div>
@@ -589,17 +589,17 @@ export function DoorDetailAdaptedPage({
         {activeTab === "Hardware" ? (
           <>
             <PanelHeader title={t("common.hardware")} description={t("kisi.doors.hardwareDesc")} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {selectedHardware.map((item) => (
                 <div key={item.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_150px_150px_1fr] md:items-center">
-                  <span className="font-semibold text-[#17171c]">{item.name}</span>
-                  <span className="text-sm text-[#2f3037]">{item.type}</span>
+                  <span className="font-semibold text-content-heading">{item.name}</span>
+                  <span className="text-sm text-content-body">{item.type}</span>
                   <StatusDot tone={item.tone} label={item.statusLabel} />
-                  <span className="text-sm text-[#6f717c]">{item.lastSeenLabel}</span>
+                  <span className="text-sm text-content-subtle">{item.lastSeenLabel}</span>
                 </div>
               ))}
               {selectedHardware.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.doors.noHardware")}</div>
+                <div className="px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.doors.noHardware")}</div>
               ) : null}
             </div>
           </>
@@ -608,17 +608,17 @@ export function DoorDetailAdaptedPage({
         {activeTab === "Events" ? (
           <>
             <PanelHeader title={t("common.events")} description={t("kisi.doors.eventsDesc")} />
-            <div className="divide-y divide-[#eceef2]">
+            <div className="divide-y divide-line-subtle">
               {selectedEvents.map((event) => (
                 <div key={event.id} className="grid gap-3 px-7 py-5 md:grid-cols-[120px_180px_180px_1fr] md:items-center">
-                  <span className="text-sm text-[#6f717c]">{event.timeLabel}</span>
+                  <span className="text-sm text-content-subtle">{event.timeLabel}</span>
                   <StatusDot tone={event.tone} label={event.action} />
-                  <span className="text-sm font-semibold text-[#17171c]">{event.user}</span>
-                  <span className="text-sm text-[#6f717c]">{event.details}</span>
+                  <span className="text-sm font-semibold text-content-heading">{event.user}</span>
+                  <span className="text-sm text-content-subtle">{event.details}</span>
                 </div>
               ))}
               {selectedEvents.length === 0 ? (
-                <div className="px-7 py-10 text-center text-sm text-[#6f717c]">{t("kisi.doors.noEvents")}</div>
+                <div className="px-7 py-10 text-center text-sm text-content-subtle">{t("kisi.doors.noEvents")}</div>
               ) : null}
             </div>
           </>
@@ -638,54 +638,54 @@ export function DoorDetailAdaptedPage({
         ) : null}
       </SettingsPanel>
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="flex items-center justify-center gap-14 border-b border-[#eceef2] px-6 py-4">
-          <button className="text-base font-semibold text-[#2f3037]">{t("kisi.doors.unlockSchedules")}</button>
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="flex items-center justify-center gap-14 border-b border-line-subtle px-6 py-4">
+          <button className="text-base font-semibold text-content-body">{t("kisi.doors.unlockSchedules")}</button>
           <button className="border-b-2 border-[#4f55ff] px-4 pb-4 text-base font-semibold text-[#4f55ff]">{t("kisi.doors.accessSchedules")}</button>
         </div>
-        <div className="flex items-center gap-4 border-b border-[#eceef2] px-8 py-6">
-          <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#4f55ff] text-white">
+        <div className="flex items-center gap-4 border-b border-line-subtle px-8 py-6">
+          <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand text-white">
             <Clock3Icon className="size-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-[#17171c]">{t("kisi.doors.timeRestriction")}</h3>
-            <p className="text-sm text-[#6f717c]">{t("kisi.doors.timeRestrictionDesc")}</p>
+            <h3 className="font-semibold text-content-heading">{t("kisi.doors.timeRestriction")}</h3>
+            <p className="text-sm text-content-subtle">{t("kisi.doors.timeRestrictionDesc")}</p>
           </div>
           <span className="ml-auto h-5 w-10 rounded-full bg-[#7f88ff] p-0.5">
-            <span className="ml-auto block size-4 rounded-full bg-[#4f55ff]" />
+            <span className="ml-auto block size-4 rounded-full bg-brand" />
           </span>
         </div>
-        <div className="grid gap-4 border-b border-[#eceef2] px-6 py-5 lg:grid-cols-[180px_1fr_210px] lg:items-center">
-          <button type="button" className="flex h-11 items-center justify-between rounded-[6px] border border-[#d9dbe3] px-4 text-sm font-semibold text-[#2f3037]">
+        <div className="grid gap-4 border-b border-line-subtle px-6 py-5 lg:grid-cols-[180px_1fr_210px] lg:items-center">
+          <button type="button" className="flex h-11 items-center justify-between rounded-[6px] border border-line-default px-4 text-sm font-semibold text-content-body">
             Weekly View
             <ChevronDownIcon className="size-4" />
           </button>
-          <div className="flex items-center justify-center gap-5 text-sm font-semibold text-[#2f3037]">
+          <div className="flex items-center justify-center gap-5 text-sm font-semibold text-content-body">
             <span className="text-[#4f55ff]">‹</span>
             <span>Week: Apr 20 - Apr 26</span>
             <span className="text-[#4f55ff]">›</span>
           </div>
           <Button
             variant="outline"
-            className="h-11 rounded-[6px] border-[#8589ff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+            className="h-11 rounded-[6px] border-[#8589ff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
           >
             Add Schedule
             <ChevronDownIcon className="ml-1.5 size-4" />
           </Button>
         </div>
-        <div className="flex items-center gap-2 border-b border-[#eceef2] bg-[#fbfbfc] px-8 py-4 text-sm text-[#6f717c]">
+        <div className="flex items-center gap-2 border-b border-line-subtle bg-surface-page px-8 py-4 text-sm text-content-subtle">
           <MapPinPlusIcon className="size-4" />
           The timezone is Asia/Jakarta
         </div>
         <div className="p-8">
-          <div className="grid min-h-[360px] grid-cols-[64px_repeat(7,minmax(100px,1fr))] overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
-            <div className="border-r border-[#eceef2] bg-white pt-12 text-right text-xs font-semibold text-[#9a9ca7]">
+          <div className="grid min-h-[360px] grid-cols-[64px_repeat(7,minmax(100px,1fr))] overflow-hidden rounded-[6px] border border-line-subtle bg-white">
+            <div className="border-r border-line-subtle bg-white pt-12 text-right text-xs font-semibold text-content-muted">
               {["3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"].map((time) => (
                 <div key={time} className="h-11 pr-3">{time}</div>
               ))}
             </div>
             {["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24", "Sat 25", "Sun 26"].map((day, index) => (
-              <div key={day} className={cn("border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-[#6f717c] last:border-r-0", index > 3 && "bg-[#c4c6cc]")}>
+              <div key={day} className={cn("border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-content-subtle last:border-r-0", index > 3 && "bg-[#c4c6cc]")}>
                 <div className="border-b border-white/80 bg-white py-4">{day}</div>
                 {day.startsWith("Thu") ? (
                   <div className="mx-auto mt-[188px] w-full max-w-[120px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
@@ -696,7 +696,7 @@ export function DoorDetailAdaptedPage({
               </div>
             ))}
           </div>
-          <div className="mt-6 flex flex-wrap gap-8 text-sm font-semibold text-[#2f3037]">
+          <div className="mt-6 flex flex-wrap gap-8 text-sm font-semibold text-content-body">
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#202443]" />{t("kisi.doors.accessPermitted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#c4c6cc]" />{t("kisi.doors.accessRestricted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#3b3c42]" />{t("kisi.doors.accessException")}</span>
@@ -715,7 +715,7 @@ export function DoorDetailAdaptedPage({
         title={t("kisi.doors.deleteDialog")}
         description={
           <>
-            This removes <span className="font-semibold text-[#17171c]">{selectedDoor?.name ?? "this door"}</span> from{" "}
+            This removes <span className="font-semibold text-content-heading">{selectedDoor?.name ?? "this door"}</span> from{" "}
             {place?.name ?? "this place"}.
           </>
         }
@@ -728,7 +728,7 @@ export function DoorDetailAdaptedPage({
 
       <Sheet open={addDoorOpen} onOpenChange={setAddDoorOpen}>
         <SheetContent className="w-full overflow-y-auto bg-white sm:max-w-[460px]">
-          <SheetHeader className="border-b border-[#eceef2] px-6 py-5">
+          <SheetHeader className="border-b border-line-subtle px-6 py-5">
             <SheetTitle>{t("kisi.doors.addDoorSheet")}</SheetTitle>
             <SheetDescription>{place?.name ?? "Selected place"}</SheetDescription>
           </SheetHeader>
@@ -740,19 +740,19 @@ export function DoorDetailAdaptedPage({
             }}
           >
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.name")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <input
                 value={newDoorName}
                 onChange={(event) => setNewDoorName(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default px-3 text-sm text-content-body"
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.floor")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.doors.floor")}</span>
               <select
                 value={newDoorFloorID}
                 onChange={(event) => setNewDoorFloorID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="">{t("kisi.doors.selectFloor")}</option>
                 {floors.map((floor) => (
@@ -763,11 +763,11 @@ export function DoorDetailAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.area")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.doors.area")}</span>
               <select
                 value={newDoorAreaID}
                 onChange={(event) => setNewDoorAreaID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="">{t("kisi.doors.selectArea")}</option>
                 {newDoorAreaOptions.map((area) => (
@@ -778,11 +778,11 @@ export function DoorDetailAdaptedPage({
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.gateway")}</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.doors.gateway")}</span>
               <select
                 value={newDoorGatewayID}
                 onChange={(event) => setNewDoorGatewayID(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
               >
                 <option value="">{t("common.noDataFound")}</option>
                 {gatewayOptions.map((item) => (
@@ -794,11 +794,11 @@ export function DoorDetailAdaptedPage({
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("kisi.doors.kind")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("kisi.doors.kind")}</span>
                 <select
                   value={newDoorKind}
                   onChange={(event) => setNewDoorKind(event.target.value as Lock["kind"])}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   <option value="office">{t("kisi.doors.office")}</option>
                   <option value="turnstile">{t("kisi.doors.turnstile")}</option>
@@ -809,11 +809,11 @@ export function DoorDetailAdaptedPage({
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{t("common.status")}</span>
+                <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("common.status")}</span>
                 <select
                   value={newDoorStatus}
                   onChange={(event) => setNewDoorStatus(event.target.value as Lock["status"])}
-                  className="h-11 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body"
                 >
                   <option value="online">{t("common.online")}</option>
                   <option value="offline">{t("common.offline")}</option>
@@ -821,11 +821,11 @@ export function DoorDetailAdaptedPage({
               </label>
             </div>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-4 py-3 text-sm text-[#8a5a00]">
+              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
                 {actionError}
               </div>
             ) : null}
-            <SheetFooter className="-mx-6 mt-6 border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+            <SheetFooter className="-mx-6 mt-6 border-t border-line-subtle bg-surface-page px-6 py-4">
               <Button type="button" variant="outline" onClick={() => setAddDoorOpen(false)} className="h-10 rounded-[6px]">
                 Cancel
               </Button>
@@ -838,7 +838,7 @@ export function DoorDetailAdaptedPage({
                   !newDoorFloorID ||
                   !newDoorAreaID
                 }
-                className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
               >
                 {createLockMutation.isPending ? "Creating..." : t("kisi.doors.addDoor")}
               </Button>

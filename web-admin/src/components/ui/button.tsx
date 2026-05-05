@@ -10,13 +10,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-[#4f55ff] text-white shadow-[0_1px_2px_rgba(35,38,120,0.18)] hover:bg-[#454bea] active:bg-[#3f44d4] disabled:bg-[#eef0f4] disabled:text-[#8d909b] disabled:shadow-none disabled:opacity-100",
+          "bg-brand text-white shadow-[0_1px_2px_rgba(35,38,120,0.18)] hover:bg-[#454bea] active:bg-[#3f44d4] disabled:bg-[#eef0f4] disabled:text-[#8d909b] disabled:shadow-none disabled:opacity-100",
         outline:
-          "border-[#d9dbe3] bg-white text-[#2f3037] hover:border-[#8589ff] hover:bg-[#f3f4ff] hover:text-[#3439cc] aria-expanded:border-[#8589ff] aria-expanded:bg-[#f3f4ff] aria-expanded:text-[#3439cc] disabled:border-[#d9dbe3] disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
+          "border-line-default bg-white text-content-body hover:border-[#8589ff] hover:bg-brand-subtle hover:text-[#3439cc] aria-expanded:border-[#8589ff] aria-expanded:bg-brand-subtle aria-expanded:text-[#3439cc] disabled:border-line-default disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
         secondary:
-          "bg-[#eef0f4] text-[#2f3037] hover:bg-[#e2e5ec] aria-expanded:bg-[#e2e5ec] aria-expanded:text-[#2f3037] disabled:bg-[#f1f2f5] disabled:text-[#8d909b] disabled:opacity-100",
+          "bg-[#eef0f4] text-content-body hover:bg-[#e2e5ec] aria-expanded:bg-[#e2e5ec] aria-expanded:text-content-body disabled:bg-[#f1f2f5] disabled:text-[#8d909b] disabled:opacity-100",
         ghost:
-          "text-[#2f3037] hover:bg-[#f3f4ff] hover:text-[#3439cc] aria-expanded:bg-[#f3f4ff] aria-expanded:text-[#3439cc] disabled:bg-transparent disabled:text-[#8d909b] disabled:opacity-100",
+          "text-content-body hover:bg-brand-subtle hover:text-[#3439cc] aria-expanded:bg-brand-subtle aria-expanded:text-[#3439cc] disabled:bg-transparent disabled:text-[#8d909b] disabled:opacity-100",
         interaction:
           "bg-transparent text-foreground hover:bg-transparent hover:text-interaction focus-visible:border-interaction focus-visible:ring-interaction/30 aria-expanded:text-interaction disabled:text-[#8d909b] disabled:opacity-100",
         destructive:

@@ -16,10 +16,10 @@ import {
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
-const COLORS = ["bg-[#4f55ff]/60", "bg-[#35a853]/60", "bg-[#d98b06]/60", "bg-[#d93025]/60",
+const COLORS = ["bg-brand/60", "bg-[#35a853]/60", "bg-[#d98b06]/60", "bg-[#d93025]/60",
   "bg-[#1863dc]/60", "bg-[#9333ea]/60", "bg-[#0891b2]/60", "bg-[#e11d48]/60"]
 const parseHour = (t: string) => parseInt(t.split(":")[0], 10)
-const INPUT_CLS = "h-10 w-full rounded-[6px] border border-[#d9dbe3] bg-white px-3 text-sm text-[#2f3037] outline-none focus:border-[#8589ff] focus:ring-2 focus:ring-[#8589ff]/20"
+const INPUT_CLS = "h-10 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body outline-none focus:border-brand-ring focus:ring-2 focus:ring-brand-ring/20"
 
 type AlarmSchedulePageProps = { token: string; viewer: CurrentUser }
 
@@ -89,7 +89,7 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
       description="Configure weekly alarm monitoring windows."
       actions={
         <Button
-          className="h-11 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+          className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
           onClick={() => setShowCreate(true)}
         >
           <PlusIcon className="mr-2 size-4" />
@@ -104,10 +104,10 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
       )}
 
       {/* Weekly Calendar Grid */}
-      <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
-        <div className="border-b border-[#eceef2] px-5 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-[#17171c]">
-            <CalendarClockIcon className="size-4 text-[#6f717c]" />
+      <div className="overflow-hidden rounded-[6px] border border-line-subtle bg-white">
+        <div className="border-b border-line-subtle px-5 py-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-content-heading">
+            <CalendarClockIcon className="size-4 text-content-subtle" />
             Weekly Calendar
           </h2>
         </div>
@@ -116,18 +116,18 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
             {/* Header row */}
             <div />
             {DAY_LABELS.map((day) => (
-              <div key={day} className="py-1 text-center text-xs font-semibold text-[#6f717c]">{day}</div>
+              <div key={day} className="py-1 text-center text-xs font-semibold text-content-subtle">{day}</div>
             ))}
             {/* Hour rows */}
             {HOURS.map((hour) => (
               <div key={hour} className="contents">
-                <div className="flex items-center justify-end pr-2 text-[10px] text-[#9a9ca7]">{String(hour).padStart(2, "0")}:00</div>
+                <div className="flex items-center justify-end pr-2 text-[10px] text-content-muted">{String(hour).padStart(2, "0")}:00</div>
                 {DAY_LABELS.map((_, dayIdx) => {
                   const active = calendarEntries.filter((e) => e.day_of_week === dayIdx && parseHour(e.start_time) <= hour && parseHour(e.end_time) > hour)
                   return (
                     <div key={dayIdx} className="relative h-5 rounded-sm border border-[#f0f0f3] bg-[#fafafa]">
                       {active.map((e) => (
-                        <div key={e.schedule_id} className={`absolute inset-0 rounded-sm ${colorMap.get(e.schedule_id) ?? "bg-[#4f55ff]/40"}`} title={e.name} />
+                        <div key={e.schedule_id} className={`absolute inset-0 rounded-sm ${colorMap.get(e.schedule_id) ?? "bg-brand/40"}`} title={e.name} />
                       ))}
                     </div>
                   )
@@ -140,15 +140,15 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
 
       {/* Create Form */}
       {showCreate && (
-        <div className="rounded-[6px] border border-[#eceef2] bg-white p-6">
-          <h3 className="mb-4 text-lg font-semibold text-[#17171c]">New Alarm Schedule</h3>
+        <div className="rounded-[6px] border border-line-subtle bg-white p-6">
+          <h3 className="mb-4 text-lg font-semibold text-content-heading">New Alarm Schedule</h3>
           <div className="grid gap-4 md:grid-cols-2">
             {([
               ["name", "Name *", "text"], ["timezone", "Timezone", "text"],
               ["start_time", "Start Time", "time"], ["end_time", "End Time", "time"],
             ] as const).map(([key, label, type]) => (
               <label key={key} className="block">
-                <span className="mb-1 block text-xs font-semibold text-[#6f717c]">{label}</span>
+                <span className="mb-1 block text-xs font-semibold text-content-subtle">{label}</span>
                 <input
                   type={type}
                   value={form[key]}
@@ -159,7 +159,7 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
             ))}
           </div>
           <div className="mt-4">
-            <span className="mb-2 block text-xs font-semibold text-[#6f717c]">Days of Week *</span>
+            <span className="mb-2 block text-xs font-semibold text-content-subtle">Days of Week *</span>
             <div className="flex flex-wrap gap-2">
               {DAY_LABELS.map((day, idx) => (
                 <button
@@ -168,8 +168,8 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
                   onClick={() => toggleDay(idx)}
                   className={`rounded-[6px] border px-3 py-1.5 text-sm font-medium transition-colors ${
                     form.days_of_week.includes(idx)
-                      ? "border-[#4f55ff] bg-[#4f55ff] text-white"
-                      : "border-[#d9dbe3] bg-white text-[#6f717c] hover:border-[#8589ff]"
+                      ? "border-[#4f55ff] bg-brand text-white"
+                      : "border-line-default bg-white text-content-subtle hover:border-[#8589ff]"
                   }`}
                 >
                   {day}
@@ -179,7 +179,7 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
           </div>
           <div className="mt-4 flex gap-2">
             <Button
-              className="h-10 rounded-[6px] bg-[#4f55ff] px-6 text-white hover:bg-[#3439cc]"
+              className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
               disabled={createMutation.isPending || !form.name.trim() || form.days_of_week.length === 0}
               onClick={() => createMutation.mutate()}
             >
@@ -194,13 +194,13 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
 
       {/* Schedule List */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#6f717c]">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-content-subtle">
           Schedules ({schedules.length})
         </h2>
         {schedules.length === 0 ? (
-          <p className="text-sm text-[#9a9ca7]">No alarm schedules configured.</p>
+          <p className="text-sm text-content-muted">No alarm schedules configured.</p>
         ) : (
-          <div className="overflow-hidden rounded-[6px] border border-[#eceef2] bg-white">
+          <div className="overflow-hidden rounded-[6px] border border-line-subtle bg-white">
             {schedules.map((s) => (
               <ScheduleRow key={s.id} schedule={s} color={colorMap.get(s.id)} onDelete={setConfirmDelete} />
             ))}
@@ -225,11 +225,11 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
 function ScheduleRow({ schedule, color, onDelete }: { schedule: AlarmSchedule; color?: string; onDelete: (id: string) => void }) {
   const days = schedule.days_of_week.map((d) => DAY_LABELS[d]).join(", ")
   return (
-    <div className="flex items-center gap-4 border-b border-[#eceef2] px-5 py-4 last:border-b-0">
-      <span className={`size-3 shrink-0 rounded-full ${color ?? "bg-[#4f55ff]/60"}`} />
+    <div className="flex items-center gap-4 border-b border-line-subtle px-5 py-4 last:border-b-0">
+      <span className={`size-3 shrink-0 rounded-full ${color ?? "bg-brand/60"}`} />
       <div className="min-w-0 flex-1">
-        <span className="font-semibold text-[#17171c]">{schedule.name}</span>
-        <p className="mt-0.5 text-sm text-[#6f717c]">
+        <span className="font-semibold text-content-heading">{schedule.name}</span>
+        <p className="mt-0.5 text-sm text-content-subtle">
           {days} &middot; {schedule.start_time} &ndash; {schedule.end_time} ({schedule.timezone})
         </p>
       </div>
@@ -238,7 +238,7 @@ function ScheduleRow({ schedule, color, onDelete }: { schedule: AlarmSchedule; c
       <button
         type="button"
         title="Delete"
-        className="flex size-8 items-center justify-center rounded-[6px] text-[#6f717c] hover:bg-[#fbfbfc]"
+        className="flex size-8 items-center justify-center rounded-[6px] text-content-subtle hover:bg-surface-page"
         onClick={() => onDelete(schedule.id)}
       >
         <Trash2Icon className="size-4" />

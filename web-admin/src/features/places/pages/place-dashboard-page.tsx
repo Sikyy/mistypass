@@ -63,7 +63,7 @@ export function PlaceDashboardAdaptedPage({
       description={place ? t("kisi.placeDashboard.description", { place: place.name }) : t("kisi.placeDashboard.description", { place: "" })}
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-[#fff8ed] px-5 py-4 text-sm text-[#8a5a00]">
+        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
           Live place resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -75,22 +75,22 @@ export function PlaceDashboardAdaptedPage({
       <DailyUsageTable events={events} t={t} />
       <UnlockHeatmap events={events} t={t} />
 
-      <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-        <div className="border-b border-[#eceef2] px-6 py-5">
-          <h2 className="text-lg font-semibold text-[#17171c]">{t("kisi.placeDashboard.recentActivity")}</h2>
+      <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+        <div className="border-b border-line-subtle px-6 py-5">
+          <h2 className="text-lg font-semibold text-content-heading">{t("kisi.placeDashboard.recentActivity")}</h2>
         </div>
-        <div className="divide-y divide-[#eceef2]">
+        <div className="divide-y divide-line-subtle">
           {events.length > 0 ? (
             events.slice(0, 6).map((event, index) => (
               <div key={event.id} className={cn("grid grid-cols-[90px_1fr_180px_120px] items-center px-6 py-4 text-sm", index === 0 && "bg-[#e7e5df]")}>
-                <span className="font-medium text-[#6f717c]">{event.timeLabel}</span>
+                <span className="font-medium text-content-subtle">{event.timeLabel}</span>
                 <span className="font-semibold text-[#4f55ff]">{event.object}</span>
-                <span className="text-[#2f3037]">{event.action}</span>
+                <span className="text-content-body">{event.action}</span>
                 <StatusDot tone={event.tone} label={event.statusLabel} />
               </div>
             ))
           ) : (
-            <div className="px-6 py-12 text-center text-sm text-[#6f717c]">
+            <div className="px-6 py-12 text-center text-sm text-content-subtle">
               {t("kisi.placeDashboard.noActivity")}
             </div>
           )}
@@ -137,17 +137,17 @@ function DailyUsageTable({ events, t }: { events: EventRow[]; t: TFn }) {
   const maxUnlocks = Math.max(1, ...dailyData.map((d) => d.unlocks))
 
   return (
-    <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-      <div className="border-b border-[#eceef2] px-6 py-5">
-        <h2 className="text-lg font-semibold text-[#17171c]">
-          <span className="mr-2 inline-block size-3 rounded-sm bg-[#4f55ff]" />
+    <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+      <div className="border-b border-line-subtle px-6 py-5">
+        <h2 className="text-lg font-semibold text-content-heading">
+          <span className="mr-2 inline-block size-3 rounded-sm bg-brand" />
           {t("kisi.placeDashboard.dailyUsage")}
         </h2>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px] text-left text-sm">
           <thead>
-            <tr className="border-b border-[#eceef2] bg-[#fbfbfc] text-xs text-[#6f717c]">
+            <tr className="border-b border-line-subtle bg-surface-page text-xs text-content-subtle">
               <th className="px-6 py-3 font-semibold">{t("kisi.placeDashboard.date")}</th>
               <th className="px-4 py-3 text-right font-semibold">{t("kisi.placeDashboard.unlockCount")}</th>
               <th className="px-4 py-3 text-right font-semibold">{t("kisi.placeDashboard.uniqueUsersCol")}</th>
@@ -156,8 +156,8 @@ function DailyUsageTable({ events, t }: { events: EventRow[]; t: TFn }) {
           </thead>
           <tbody>
             {dailyData.map((row) => (
-              <tr key={row.date} className="border-b border-[#eceef2] last:border-0">
-                <td className="px-6 py-3 text-[#2f3037]">{row.label}</td>
+              <tr key={row.date} className="border-b border-line-subtle last:border-0">
+                <td className="px-6 py-3 text-content-body">{row.label}</td>
                 <td className="px-4 py-3 text-right">
                   <span className="inline-block rounded px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: `rgba(79,85,255,${Math.max(0.15, row.unlocks / maxUnlocks)})`, color: row.unlocks > 0 ? "#fff" : "#6f717c" }}>
                     {row.unlocks}
@@ -167,7 +167,7 @@ function DailyUsageTable({ events, t }: { events: EventRow[]; t: TFn }) {
                   <span className="inline-block rounded bg-[#e8e9ff] px-2 py-0.5 text-xs font-semibold text-[#4f55ff]">{row.uniqueUsers}</span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-semibold", row.occupancy > 50 ? "bg-[#d4f5db] text-[#1f6b3a]" : "bg-[#f5f6f8] text-[#6f717c]")}>{row.occupancy}%</span>
+                  <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-semibold", row.occupancy > 50 ? "bg-[#d4f5db] text-[#1f6b3a]" : "bg-surface-sunken text-content-subtle")}>{row.occupancy}%</span>
                 </td>
               </tr>
             ))}
@@ -204,10 +204,10 @@ function UnlockHeatmap({ events, t }: { events: EventRow[]; t: TFn }) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
 
   return (
-    <section className="overflow-hidden rounded-[6px] border border-[#d9dbe3] bg-white">
-      <div className="border-b border-[#eceef2] px-6 py-5">
-        <h2 className="text-lg font-semibold text-[#17171c]">
-          <span className="mr-2 inline-block size-3 rounded-sm bg-[#4f55ff]" />
+    <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
+      <div className="border-b border-line-subtle px-6 py-5">
+        <h2 className="text-lg font-semibold text-content-heading">
+          <span className="mr-2 inline-block size-3 rounded-sm bg-brand" />
           {t("kisi.placeDashboard.unlockHeatmap")}
         </h2>
       </div>
@@ -216,12 +216,12 @@ function UnlockHeatmap({ events, t }: { events: EventRow[]; t: TFn }) {
           <div className="mb-1 flex">
             <div className="w-[130px]" />
             {hours.map((h) => (
-              <div key={h} className="flex-1 text-center text-[10px] text-[#6f717c]">{h}</div>
+              <div key={h} className="flex-1 text-center text-[10px] text-content-subtle">{h}</div>
             ))}
           </div>
           {heatmapData.grid.map((row, dayIdx) => (
             <div key={heatmapData.dayLabels[dayIdx]} className="mb-[2px] flex items-center">
-              <div className="w-[130px] truncate pr-2 text-xs text-[#2f3037]">{heatmapData.dayLabels[dayIdx]}</div>
+              <div className="w-[130px] truncate pr-2 text-xs text-content-body">{heatmapData.dayLabels[dayIdx]}</div>
               {row.map((val, hourIdx) => (
                 <div
                   key={hourIdx}

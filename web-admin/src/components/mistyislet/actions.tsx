@@ -52,7 +52,7 @@ export function RowActionsMenu({
           variant="ghost"
           size="icon-sm"
           aria-label={label}
-          className={cn("rounded-[6px] text-[#6f717c] hover:bg-[#f3f4ff] hover:text-[#3439cc]", className)}
+          className={cn("rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]", className)}
         >
           <MoreHorizontalIcon className="size-4" />
         </Button>
@@ -62,7 +62,7 @@ export function RowActionsMenu({
         side="bottom"
         sideOffset={6}
         avoidCollisions={false}
-        className="w-44 rounded-[6px] border-[#d9dbe3] bg-white p-1 text-[#2f3037] shadow-lg"
+        className="w-44 rounded-[6px] border-line-default bg-white p-1 text-content-body shadow-lg"
       >
         {visibleItems.map((item) => {
           const Icon = item.icon
@@ -75,7 +75,7 @@ export function RowActionsMenu({
                 item.onSelect()
               }}
               className={cn(
-                "cursor-pointer rounded-[5px] px-2.5 py-2 text-sm text-[#2f3037] focus:bg-[#f3f4ff] focus:text-[#3439cc]",
+                "cursor-pointer rounded-[5px] px-2.5 py-2 text-sm text-content-body focus:bg-brand-subtle focus:text-[#3439cc]",
                 item.destructive &&
                   "text-[#bd2f2f] data-[variant=destructive]:text-[#bd2f2f] data-[variant=destructive]:focus:bg-[#fff5f5] data-[variant=destructive]:focus:text-[#9f1d1d]"
               )}
@@ -117,13 +117,13 @@ export function ConfirmActionDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-[6px] border-[#d9dbe3] bg-white p-0 text-[#2f3037]">
+      <DialogContent className="max-w-md rounded-[6px] border-line-default bg-white p-0 text-content-body">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription className="leading-6">{description}</DialogDescription> : null}
         </DialogHeader>
-        {children ? <div className="px-6 text-sm text-[#2f3037]">{children}</div> : null}
-        <DialogFooter className="mx-0 mb-0 mt-2 rounded-b-[6px] border-t border-[#eceef2] bg-[#fbfbfc] px-6 py-4">
+        {children ? <div className="px-6 text-sm text-content-body">{children}</div> : null}
+        <DialogFooter className="mx-0 mb-0 mt-2 rounded-b-[6px] border-t border-line-subtle bg-surface-page px-6 py-4">
           <Button
             type="button"
             variant="outline"

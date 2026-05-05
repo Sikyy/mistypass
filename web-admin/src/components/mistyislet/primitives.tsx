@@ -37,14 +37,14 @@ export function KpiCard({
     <div className="min-h-[146px] rounded-[6px] border border-[#e1e3e8] bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-[#6f717c]">{label}</p>
-          <p className="mt-3 text-[34px] font-bold leading-10 text-[#17171c]">{loading ? "--" : value}</p>
+          <p className="text-sm font-medium text-content-subtle">{label}</p>
+          <p className="mt-3 text-[34px] font-bold leading-10 text-content-heading">{loading ? "--" : value}</p>
         </div>
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-[#fbfbfc] text-[#6f717c] ring-1 ring-[#eceef2]">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-[14px] bg-surface-page text-content-subtle ring-1 ring-[#eceef2]">
           <Icon className="size-5" />
         </div>
       </div>
-      <div className="mt-5 flex items-center gap-2 text-xs font-medium text-[#6f717c]">
+      <div className="mt-5 flex items-center gap-2 text-xs font-medium text-content-subtle">
         <span className={cn("size-2 rounded-full", toneClassName(tone))} />
         <span>{note}</span>
       </div>
@@ -57,10 +57,10 @@ export function PageBreadcrumbs({ items }: { items: string[] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
       {items.map((item, index) => (
         <span key={`${item}-${index}`} className="flex items-center gap-2">
-          <span className={index === items.length - 1 ? "text-[#6f717c]" : "text-[#4f55ff] underline underline-offset-2"}>
+          <span className={index === items.length - 1 ? "text-content-subtle" : "text-[#4f55ff] underline underline-offset-2"}>
             {item}
           </span>
-          {index < items.length - 1 ? <span className="text-[#9a9ca7]">›</span> : null}
+          {index < items.length - 1 ? <span className="text-content-muted">›</span> : null}
         </span>
       ))}
     </div>
@@ -87,11 +87,11 @@ export function PageFrame({
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div>
           <PageBreadcrumbs items={breadcrumbs} />
-          <h1 className="mt-5 text-[34px] font-bold leading-[42px] text-[#17171c]">
+          <h1 className="mt-5 text-[34px] font-bold leading-[42px] text-content-heading">
             {title}
-            {count !== undefined ? <span className="ml-2 text-[#6f717c]">{count}</span> : null}
+            {count !== undefined ? <span className="ml-2 text-content-subtle">{count}</span> : null}
           </h1>
-          <p className="mt-2 text-sm text-[#6f717c]">{description}</p>
+          <p className="mt-2 text-sm text-content-subtle">{description}</p>
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap gap-3">{actions}</div> : null}
       </div>
@@ -102,8 +102,8 @@ export function PageFrame({
 
 export function InfoBanner({ children }: { children: ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-[6px] border border-[#6268ff] bg-[#f3f4ff] px-5 py-4 text-sm leading-6 text-[#2f3037]">
-      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4f55ff] text-xs font-bold text-white">
+    <div className="flex gap-3 rounded-[6px] border border-[#6268ff] bg-brand-subtle px-5 py-4 text-sm leading-6 text-content-body">
+      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
         i
       </span>
       <p>{children}</p>
@@ -113,7 +113,7 @@ export function InfoBanner({ children }: { children: ReactNode }) {
 
 export function StatusDot({ tone, label }: { tone: ActivityTone; label: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-[#6f717c]">
+    <span className="inline-flex items-center gap-2 text-sm text-content-subtle">
       <span className={cn("size-2 rounded-full", toneClassName(tone))} />
       {label}
     </span>
@@ -122,17 +122,20 @@ export function StatusDot({ tone, label }: { tone: ActivityTone; label: string }
 
 export function EnabledCheck({ label = "Enabled" }: { label?: string }) {
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-[#6f717c]">
+    <span className="inline-flex items-center gap-2 text-sm text-content-subtle">
       <CheckCircle2Icon className="size-5 fill-[#35a853] text-white" />
       {label ? <span>{label}</span> : null}
     </span>
   )
 }
 
-export function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle?: () => void }) {
+export function ToggleSwitch({ enabled, onToggle, label }: { enabled: boolean; onToggle?: () => void; label?: string }) {
   return (
     <button
       type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
       onClick={onToggle}
       className={cn(
         "relative inline-flex h-5 w-10 shrink-0 rounded-full transition-colors",
@@ -143,7 +146,7 @@ export function ToggleSwitch({ enabled, onToggle }: { enabled: boolean; onToggle
       <span
         className={cn(
           "absolute top-0.5 size-4 rounded-full shadow-sm transition-all",
-          enabled ? "right-0.5 bg-[#4f55ff]" : "left-0.5 bg-white"
+          enabled ? "right-0.5 bg-brand" : "left-0.5 bg-white"
         )}
       />
     </button>
@@ -163,11 +166,11 @@ export function FormField({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold text-[#6f717c]">{label}</span>
+      <span className="mb-2 block text-xs font-semibold text-content-subtle">{label}</span>
       <div
         className={cn(
-          "flex min-h-12 items-center rounded-[6px] border border-[#d9dbe3] px-4 text-sm",
-          muted ? "text-[#9a9ca7]" : "text-[#2f3037]"
+          "flex min-h-12 items-center rounded-[6px] border border-line-default px-4 text-sm",
+          muted ? "text-content-muted" : "text-content-body"
         )}
       >
         <span className="min-w-0 flex-1 truncate">{value}</span>
@@ -187,10 +190,10 @@ export function PanelHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-[#eceef2] px-7 py-5 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-4 border-b border-line-subtle px-7 py-5 md:flex-row md:items-center md:justify-between">
       <div>
-        <h2 className="text-lg font-semibold text-[#17171c]">{title}</h2>
-        {description ? <p className="mt-1 text-sm text-[#6f717c]">{description}</p> : null}
+        <h2 className="text-lg font-semibold text-content-heading">{title}</h2>
+        {description ? <p className="mt-1 text-sm text-content-subtle">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -205,17 +208,17 @@ export function SettingToggleRows({
   onToggle?: (index: number) => void
 }) {
   return (
-    <div className="divide-y divide-[#eceef2]">
+    <div className="divide-y divide-line-subtle">
       {rows.map(([title, enabled, description, Icon], index) => (
         <div key={title} className="flex gap-5 px-7 py-5">
           {Icon ? (
-            <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", enabled ? "bg-[#eef0ff] text-[#4f55ff]" : "bg-[#f1f2f5] text-[#6f717c]")}>
+            <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", enabled ? "bg-[#eef0ff] text-[#4f55ff]" : "bg-[#f1f2f5] text-content-subtle")}>
               <Icon className="size-5" />
             </div>
           ) : null}
           <div className="min-w-0">
-            <h3 className="font-semibold text-[#17171c]">{title}</h3>
-            <p className="mt-1 text-sm leading-6 text-[#6f717c]">{description}</p>
+            <h3 className="font-semibold text-content-heading">{title}</h3>
+            <p className="mt-1 text-sm leading-6 text-content-subtle">{description}</p>
           </div>
           <div className="ml-auto pt-1">
             <ToggleSwitch enabled={enabled} onToggle={onToggle ? () => onToggle(index) : undefined} />
@@ -240,8 +243,8 @@ export function SettingsPanel({
   onTabChange?: (tab: string) => void
 }) {
   return (
-    <section className="grid rounded-[6px] border border-[#d9dbe3] bg-white lg:grid-cols-[280px_1fr]">
-      <div className="border-b border-[#eceef2] p-5 lg:border-b-0 lg:border-r lg:p-7">
+    <section className="grid rounded-[6px] border border-line-default bg-white lg:grid-cols-[280px_1fr]">
+      <div className="border-b border-line-subtle p-5 lg:border-b-0 lg:border-r lg:p-7">
         {tabs.map((item) => (
           <button
             key={item}
@@ -249,7 +252,7 @@ export function SettingsPanel({
             onClick={() => onTabChange?.(item)}
             className={cn(
               "mb-2 flex h-12 w-full items-center rounded-[6px] px-5 text-left text-base font-semibold",
-              item === active ? "bg-[#4f55ff] text-white" : "text-[#2f3037] hover:bg-[#f3f4ff] hover:text-[#3439cc]"
+              item === active ? "bg-brand text-white" : "text-content-body hover:bg-brand-subtle hover:text-[#3439cc]"
             )}
           >
             {item}
@@ -258,7 +261,7 @@ export function SettingsPanel({
       </div>
       <div className="min-w-0 overflow-x-auto">
         {children}
-        {footer ? <div className="flex justify-end border-t border-[#eceef2] bg-[#fbfbfc] p-5">{footer}</div> : null}
+        {footer ? <div className="flex justify-end border-t border-line-subtle bg-surface-page p-5">{footer}</div> : null}
       </div>
     </section>
   )
