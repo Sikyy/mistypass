@@ -1267,7 +1267,10 @@ func (s *server) appCredentials(w http.ResponseWriter, r *http.Request) {
 			"credential_kind": passes[i].CredentialKind,
 			"status":          passes[i].Status,
 			"save_link":       passes[i].SaveLink,
+			"card_number":     passes[i].CardNumber,
+			"user_id":         user.ID,
 			"issued_at":       passes[i].IssuedAt,
+			"created_at":      passes[i].IssuedAt,
 		})
 	}
 
@@ -1373,8 +1376,50 @@ func (s *server) appAccessLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	events := s.eventSvc.ListAccessEvents(user.TenantID)
+
+	// Build door name lookup for enrichment
+	doors := s.spaceSvc.ListDoors(user.TenantID)
+	doorNames := make(map[string]string, len(doors))
+	for _, d := range doors {
+		doorNames[d.ID] = d.Name
+	}
+
+	// Parse pagination params
+	offset, limit := parsePagination(r, len(events))
+	total := len(events)
+
+	// Apply pagination
+	if offset > len(events) {
+		offset = len(events)
+	}
+	end := offset + limit
+	if end > len(events) {
+		end = len(events)
+	}
+	page := events[offset:end]
+
+	// Enrich with door_name
+	items := make([]map[string]any, 0, len(page))
+	for _, ev := range page {
+		items = append(items, map[string]any{
+			"id":        ev.ID,
+			"door_id":   ev.DoorID,
+			"door_name": doorNames[ev.DoorID],
+			"type":      ev.Type,
+			"result":    ev.Result,
+			"actor":     ev.Actor,
+			"at":        ev.At,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": events,
+		"items": items,
+		"pagination": map[string]any{
+			"offset":   offset,
+			"limit":    limit,
+			"total":    total,
+			"has_more": end < total,
+		},
 	})
 }
 
@@ -1384,9 +1429,24 @@ func (s *server) appListVisitorPasses(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid access token")
 		return
 	}
-	items := s.accessSvc.ListVisitorPasses(user.TenantID)
+	all := s.accessSvc.ListVisitorPasses(user.TenantID)
+	total := len(all)
+	offset, limit := parsePagination(r, total)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
+		"items": all[offset:end],
+		"pagination": map[string]any{
+			"offset":   offset,
+			"limit":    limit,
+			"total":    total,
+			"has_more": end < total,
+		},
 	})
 }
 

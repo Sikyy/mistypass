@@ -330,7 +330,12 @@ func (s *server) appAccessMyDoors(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
-		"total": len(items),
+		"pagination": map[string]any{
+			"offset":   0,
+			"limit":    len(items),
+			"total":    len(items),
+			"has_more": false,
+		},
 	})
 }
 
