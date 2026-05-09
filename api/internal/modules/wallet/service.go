@@ -499,6 +499,21 @@ func NewService() *Service {
 				CreatedAt: now,
 				UpdatedAt: now,
 			},
+			{
+				ID:       "wpt_nfc_card_demo",
+				TenantID: "tenant_demo_jakarta",
+				Provider: "physical",
+				PassType: "nfc_card",
+				ClassID:  "mistypass.nfc.card",
+				Name:     "NFC 门禁卡",
+				StyleConfig: map[string]string{
+					"brand":    "MistyPass",
+					"cardType": "desfire_ev3",
+				},
+				Status:    "active",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
 		},
 		passes: []PassInstance{
 			{

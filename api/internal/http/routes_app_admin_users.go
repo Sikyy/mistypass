@@ -607,3 +607,145 @@ func accessRightSource(fromGroup, fromRole bool) string {
 	}
 	return "role"
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/app/places/{placeId}/users/invite — Invite user by email
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (s *server) appAdminInviteUser(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	if strings.TrimSpace(placeID) == "" {
+		writeError(w, http.StatusBadRequest, "place id is required")
+		return
+	}
+
+	var req struct {
+		Email string `json:"email"`
+		Role  string `json:"role"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	email := strings.TrimSpace(req.Email)
+	if email == "" {
+		writeError(w, http.StatusBadRequest, "email is required")
+		return
+	}
+
+	tenantID := user.TenantID
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	role := strings.ToLower(strings.TrimSpace(req.Role))
+	if role == "" {
+		role = "employee"
+	}
+
+	created, err := s.accessSvc.CreateUser(tenantID, placeID, email, email, role, "invited", nil)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"id":       created.ID,
+		"name":     created.Name,
+		"email":    created.Email,
+		"role":     created.Role,
+		"status":   created.Status,
+		"place_id": placeID,
+	})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/v1/app/places/{placeId}/users/{userId} — Remove user from place
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (s *server) appAdminRemoveUser(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	userID := chi.URLParam(r, "userId")
+	if strings.TrimSpace(placeID) == "" || strings.TrimSpace(userID) == "" {
+		writeError(w, http.StatusBadRequest, "place_id and user_id are required")
+		return
+	}
+
+	tenantID := user.TenantID
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	accessUser, err := s.accessSvc.GetUser(tenantID, userID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if accessUser.BuildingID != placeID {
+		writeError(w, http.StatusNotFound, "user not found in this place")
+		return
+	}
+
+	if _, err := s.accessSvc.DeleteUser(tenantID, userID); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"status": "removed"})
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/v1/app/places/{placeId}/users/{userId}/sign-out — Force sign-out
+// ─────────────────────────────────────────────────────────────────────────────
+
+func (s *server) appAdminSignOutUser(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	userID := chi.URLParam(r, "userId")
+	if strings.TrimSpace(placeID) == "" || strings.TrimSpace(userID) == "" {
+		writeError(w, http.StatusBadRequest, "place_id and user_id are required")
+		return
+	}
+
+	tenantID := user.TenantID
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	accessUser, err := s.accessSvc.GetUser(tenantID, userID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if accessUser.BuildingID != placeID {
+		writeError(w, http.StatusNotFound, "user not found in this place")
+		return
+	}
+
+	// Revoke all sessions for this user by email
+	count := s.authService.RevokeRefreshTokensByUserEmail(accessUser.Email)
+	_ = count
+
+	writeJSON(w, http.StatusOK, map[string]any{"status": "signed_out"})
+}

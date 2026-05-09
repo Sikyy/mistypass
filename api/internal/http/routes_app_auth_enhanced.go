@@ -109,11 +109,16 @@ func (s *server) appOrgLookup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	normalize := func(s string) string {
+		return strings.ReplaceAll(strings.ReplaceAll(s, "_", ""), "-", "")
+	}
+	normalizedDomain := normalize(domain)
+
 	tenants := s.tenantSvc.List()
 	for _, t := range tenants {
 		tenantID := strings.ToLower(t.ID)
 		tenantName := strings.ToLower(t.Name)
-		if tenantID == domain || tenantName == domain {
+		if tenantID == domain || tenantName == domain || normalize(tenantID) == normalizedDomain || normalize(tenantName) == normalizedDomain {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"org_id":  t.ID,
 				"domain":  domain,
@@ -214,16 +219,7 @@ func (s *server) appVerify2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stub: accept hardcoded code "000000" for testing.
-	if code != "000000" {
-		writeError(w, http.StatusUnauthorized, "invalid 2fa code")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"verified": true,
-		"user_id":  userID,
-	})
+	writeError(w, http.StatusUnauthorized, "2fa is not configured for this account")
 }
 
 // appVerifyBackupCode verifies a backup/recovery code for 2FA bypass.
@@ -266,16 +262,17 @@ func (s *server) appVerifyBackupCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stub when MFA is not configured for the user.
-	writeJSON(w, http.StatusOK, map[string]any{
-		"verified": true,
-		"user_id":  userID,
-	})
+	writeError(w, http.StatusUnauthorized, "2fa is not configured for this account")
 }
 
 // appRegister creates a new user account.
 // POST /app/auth/register
 func (s *server) appRegister(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.SelfRegistrationEnabled {
+		writeError(w, http.StatusForbidden, "registration is disabled")
+		return
+	}
+
 	var req struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`

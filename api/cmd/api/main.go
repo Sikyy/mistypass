@@ -59,7 +59,7 @@ func main() {
 		}()
 	}
 
-	router, err := httpx.NewRouter(cfg, stateStore)
+	router, stopWorkers, err := httpx.NewRouter(cfg, stateStore)
 	if err != nil {
 		failFast(logger, "router init failed", err)
 	}
@@ -84,6 +84,8 @@ func main() {
 	}()
 
 	<-stopSignals
+	logger.Info("received shutdown signal, stopping workers...")
+	stopWorkers()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"fmt"
+	"hash/crc32"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/bus"
 )
+
+func placeNumericID(id string) int64 {
+	return int64(crc32.ChecksumIEEE([]byte(id)))
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/v1/app/orgs/{orgId}/places — List places user can access in an org
@@ -31,16 +36,13 @@ func (s *server) appListPlaces(w http.ResponseWriter, r *http.Request) {
 
 	// Verify org matches the user's current tenant context
 	if tenantID != orgID {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"items": []any{},
-		})
+		writeJSON(w, http.StatusOK, []any{})
 		return
 	}
 
 	buildings := s.spaceSvc.ListBuildings(tenantID)
 	allDoors := s.spaceSvc.ListDoors(tenantID)
 
-	// Count doors per building
 	doorCount := make(map[string]int, len(buildings))
 	for _, door := range allDoors {
 		doorCount[door.BuildingID]++
@@ -53,21 +55,12 @@ func (s *server) appListPlaces(w http.ResponseWriter, r *http.Request) {
 			"name":        b.Name,
 			"address":     b.Address,
 			"org_id":      b.TenantID,
-			"status":      b.Status,
 			"is_lockdown": false,
 			"door_count":  doorCount[b.ID],
 		})
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
-		"pagination": map[string]any{
-			"offset":   0,
-			"limit":    len(items),
-			"total":    len(items),
-			"has_more": false,
-		},
-	})
+	writeJSON(w, http.StatusOK, items)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,6 +289,7 @@ func (s *server) appPlaceUnlockDoor(w http.ResponseWriter, r *http.Request) {
 	// Check user access to this door
 	accessUser, err := s.accessSvc.GetUser(tenantID, user.ID)
 	if err != nil || accessUser.Status != "active" {
+		s.logger.Error("unlock denied: user_not_active", "tenant_id", tenantID, "user_id", user.ID, "err", err)
 		s.recordAppAccessEvent(tenantID, doorID, user.Email, "access_denied", "user_not_active")
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"decision": "deny",
@@ -314,6 +308,7 @@ func (s *server) appPlaceUnlockDoor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !allowed {
+		s.logger.Error("unlock denied: no_access", "tenant_id", tenantID, "user_id", user.ID, "door_id", doorID, "groups", accessUser.GroupIDs)
 		s.recordAppAccessEvent(tenantID, doorID, user.Email, "access_denied", "no_access")
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"decision": "deny",

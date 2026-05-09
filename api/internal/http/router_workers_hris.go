@@ -958,15 +958,20 @@ func (s *server) startEnterpriseJITApprovalExternalSyncWorker() {
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			s.runEnterpriseJITApprovalExternalSyncWorkerTick(
-				batchSize,
-				maxAttempts,
-				retryCooldown,
-				alertFailureThreshold,
-				forceError,
-				forceErrorTenantID,
-			)
+		for {
+			select {
+			case <-s.quit:
+				return
+			case <-ticker.C:
+				s.runEnterpriseJITApprovalExternalSyncWorkerTick(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					alertFailureThreshold,
+					forceError,
+					forceErrorTenantID,
+				)
+			}
 		}
 	}()
 }
@@ -1043,6 +1048,8 @@ func (s *server) startEnterpriseHRISWebhookReceiptWorker() {
 		defer ticker.Stop()
 		for {
 			select {
+			case <-s.quit:
+				return
 			case <-ticker.C:
 				s.runEnterpriseHRISWebhookReceiptWorkerTickWithLeaseAndRetryBackoff(
 					batchSize,
@@ -1142,6 +1149,8 @@ func (s *server) startEnterpriseHRISWebhookDLQWorker() {
 		defer ticker.Stop()
 		for {
 			select {
+			case <-s.quit:
+				return
 			case <-ticker.C:
 				s.runEnterpriseHRISWebhookDLQWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
 					batchSize,
@@ -1245,17 +1254,22 @@ func (s *server) startEnterpriseHRISPullWorker() {
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
-				batchSize,
-				maxAttempts,
-				retryCooldown,
-				retryMaxBackoff,
-				reconcileInterval,
-				processingTimeout,
-				alertFailureThreshold,
-				lockTTL,
-			)
+		for {
+			select {
+			case <-s.quit:
+				return
+			case <-ticker.C:
+				s.runEnterpriseHRISPullWorkerTickWithLeaseAndRetryBackoffAndProcessingTimeout(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					retryMaxBackoff,
+					reconcileInterval,
+					processingTimeout,
+					alertFailureThreshold,
+					lockTTL,
+				)
+			}
 		}
 	}()
 }

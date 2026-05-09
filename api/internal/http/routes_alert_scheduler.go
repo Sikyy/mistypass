@@ -37,8 +37,13 @@ func (s *server) startAlertPolicyEventScheduler() {
 
 	go func() {
 		var lastAccessCount, lastDeviceCount int
-		for range changeCh {
-			s.evaluateAlertPoliciesOnEventChange(&lastAccessCount, &lastDeviceCount)
+		for {
+			select {
+			case <-s.quit:
+				return
+			case <-changeCh:
+				s.evaluateAlertPoliciesOnEventChange(&lastAccessCount, &lastDeviceCount)
+			}
 		}
 	}()
 }

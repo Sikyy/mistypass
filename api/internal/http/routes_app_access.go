@@ -344,14 +344,19 @@ func (s *server) recordAppAccessEvent(tenantID, lockID, actor, eventType, reason
 	if gw, found := s.gatewaySvc.FindGatewayByDoorID(tenantID, lockID); found {
 		gwID = gw.ID
 	}
+	var buildingID string
+	if door, err := s.spaceSvc.GetDoor(tenantID, lockID); err == nil {
+		buildingID = door.BuildingID
+	}
 	s.eventSvc.IngestAccessEvent(event.IngestAccessEventInput{
-		TenantID:  tenantID,
-		Type:      eventType,
-		Actor:     actor,
-		DoorID:    lockID,
-		GatewayID: gwID,
-		Result:    reason,
-		At:        time.Now().UTC(),
+		TenantID:   tenantID,
+		BuildingID: buildingID,
+		Type:       eventType,
+		Actor:      actor,
+		DoorID:     lockID,
+		GatewayID:  gwID,
+		Result:     reason,
+		At:         time.Now().UTC(),
 	})
 }
 

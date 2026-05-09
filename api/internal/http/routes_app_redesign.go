@@ -131,7 +131,7 @@ func (s *server) appGetPINCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
-	pin := generateTOTPPin(user.TenantID, user.ID, now)
+	pin := generateTOTPPin(s.cfg.JWTSecret, user.TenantID, user.ID, now)
 	validUntil := now.Truncate(time.Duration(pinTOTPPeriod) * time.Second).Add(time.Duration(pinTOTPPeriod) * time.Second)
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -206,8 +206,8 @@ func (s *server) appPINUnlock(w http.ResponseWriter, r *http.Request) {
 
 	// Verify PIN — allow current period and previous period (clock skew tolerance)
 	validPIN := false
-	currentPIN := generateTOTPPin(tenantID, user.ID, now)
-	prevPIN := generateTOTPPin(tenantID, user.ID, now.Add(-time.Duration(pinTOTPPeriod)*time.Second))
+	currentPIN := generateTOTPPin(s.cfg.JWTSecret, tenantID, user.ID, now)
+	prevPIN := generateTOTPPin(s.cfg.JWTSecret, tenantID, user.ID, now.Add(-time.Duration(pinTOTPPeriod)*time.Second))
 	if pin == currentPIN || pin == prevPIN {
 		validPIN = true
 	}
@@ -267,12 +267,12 @@ func (s *server) appPINUnlock(w http.ResponseWriter, r *http.Request) {
 }
 
 // generateTOTPPin produces a 6-digit TOTP PIN using tenant+user as seed.
-func generateTOTPPin(tenantID, userID string, t time.Time) string {
+func generateTOTPPin(baseKey, tenantID, userID string, t time.Time) string {
 	// TOTP: counter = floor(time / period)
 	counter := uint64(t.Unix()) / uint64(pinTOTPPeriod)
 
-	// Key derivation: HMAC-SHA256(tenantID, userID)
-	key := hmac.New(sha256.New, []byte("mistypass-pin-v1:"+tenantID))
+	// Key derivation: HMAC-SHA256(baseKey:tenantID, userID)
+	key := hmac.New(sha256.New, []byte(baseKey+":"+tenantID))
 	key.Write([]byte(userID))
 	secret := key.Sum(nil)
 

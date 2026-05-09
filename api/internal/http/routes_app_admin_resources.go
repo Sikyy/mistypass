@@ -10,7 +10,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/credential"
-	"github.com/mistypass/cloud/api/internal/modules/wallet"
 )
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -44,9 +43,30 @@ func (s *server) appAdminListSchedules(w http.ResponseWriter, r *http.Request) {
 		items = []access.Schedule{}
 	}
 
+	mapped := make([]map[string]any, 0, len(items))
+	for _, sched := range items {
+		startTime, endTime, daysOfWeek := "", "", []int{}
+		if len(sched.TimeWindows) > 0 {
+			tw := sched.TimeWindows[0]
+			startTime = tw.StartTime
+			endTime = tw.EndTime
+			daysOfWeek = parseDayOfWeekSet(tw.DayOfWeekSet)
+		}
+		mapped = append(mapped, map[string]any{
+			"id":            sched.ID,
+			"name":          sched.Name,
+			"description":   sched.Description,
+			"schedule_type": "unlock",
+			"start_time":    startTime,
+			"end_time":      endTime,
+			"days_of_week":  daysOfWeek,
+			"is_enabled":    true,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
-		"total": len(items),
+		"items": mapped,
+		"total": len(mapped),
 	})
 }
 
@@ -97,7 +117,7 @@ func (s *server) appAdminCreateSchedule(w http.ResponseWriter, r *http.Request) 
 			errors.Is(err, access.ErrScheduleNameRequired):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
@@ -152,7 +172,7 @@ func (s *server) appAdminUpdateSchedule(w http.ResponseWriter, r *http.Request) 
 		if errors.Is(err, access.ErrScheduleNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
@@ -187,7 +207,7 @@ func (s *server) appAdminDeleteSchedule(w http.ResponseWriter, r *http.Request) 
 		if errors.Is(err, access.ErrScheduleNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
@@ -318,12 +338,14 @@ func (s *server) appAdminListZones(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		items = append(items, map[string]any{
-			"id":         area.ID,
-			"name":       area.Name,
-			"place_id":   placeID,
-			"floor_id":   area.FloorID,
-			"door_count": doorCountByArea[area.ID],
-			"created_at": area.CreatedAt.Format(time.RFC3339),
+			"id":          area.ID,
+			"name":        area.Name,
+			"place_id":    placeID,
+			"description": "",
+			"status":      "active",
+			"floor_id":    area.FloorID,
+			"door_count":  doorCountByArea[area.ID],
+			"created_at":  area.CreatedAt.Format(time.RFC3339),
 		})
 	}
 
@@ -418,15 +440,53 @@ func (s *server) appAdminListCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status := r.URL.Query().Get("status")
-	items := s.walletSvc.ListPhysicalCardInventory(tenantID, status)
-	if items == nil {
-		items = []wallet.PhysicalCardInventoryItem{}
+	statusFilter := r.URL.Query().Get("status")
+
+	// Return user-bound NFC cards from wallet passes (credential_kind=physical_card)
+	allPasses := s.walletSvc.ListPasses(tenantID)
+	mapped := make([]map[string]any, 0)
+	for _, p := range allPasses {
+		if p.CredentialKind != "physical_card" {
+			continue
+		}
+		if statusFilter != "" && p.Status != statusFilter {
+			continue
+		}
+
+		userName := ""
+		userEmail := ""
+		if p.TargetID != "" {
+			if u, err := s.authService.GetUserByID(p.TargetID); err == nil {
+				userName = u.Name
+				userEmail = u.Email
+			}
+		}
+		deviceName := p.DeviceName
+		if deviceName == "" {
+			deviceName = "NFC Card"
+		}
+
+		item := map[string]any{
+			"id":          p.ID,
+			"card_uid":    p.UID,
+			"card_number": p.CardNumber,
+			"status":      p.Status,
+			"type":        "physical_card",
+			"user_id":     p.TargetID,
+			"user_name":   userName,
+			"user_email":  userEmail,
+			"device_name": deviceName,
+			"issued_at":   p.IssuedAt.Format(time.RFC3339),
+		}
+		if p.ExpiresAt != "" {
+			item["expires_at"] = p.ExpiresAt
+		}
+		mapped = append(mapped, item)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
-		"total": len(items),
+		"items": mapped,
+		"total": len(mapped),
 	})
 }
 
@@ -658,13 +718,32 @@ func (s *server) appAdminListCredentials(w http.ResponseWriter, r *http.Request)
 		creds = filtered
 	}
 
-	if creds == nil {
-		creds = []credential.MobileCredential{}
+	mapped := make([]map[string]any, 0, len(creds))
+	for _, c := range creds {
+		userName := ""
+		if c.UserEmail != "" {
+			if u, err := s.authService.FindUserByEmail(c.UserEmail); err == nil {
+				userName = u.Name
+			}
+		}
+		mapped = append(mapped, map[string]any{
+			"id":              c.ID,
+			"type":            "mobile_" + c.Platform,
+			"user_email":      c.UserEmail,
+			"user_name":       userName,
+			"recipient_email": c.UserEmail,
+			"platform":        c.Platform,
+			"device_model":    c.DeviceModel,
+			"status":          c.Status,
+			"issued_at":       c.IssuedAt.Format(time.RFC3339),
+			"expires_at":      c.ExpiresAt.Format(time.RFC3339),
+			"usage_count":     0,
+		})
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": creds,
-		"total": len(creds),
+		"items": mapped,
+		"total": len(mapped),
 	})
 }
 
@@ -888,7 +967,7 @@ func (s *server) appAdminCreateTeam(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, access.ErrTeamNameRequired) {
 			writeError(w, http.StatusBadRequest, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
@@ -1033,7 +1112,7 @@ func (s *server) appAdminUpdateTeam(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, access.ErrTeamNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
@@ -1088,10 +1167,56 @@ func (s *server) appAdminDeleteTeam(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, access.ErrTeamNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 		} else {
-			writeError(w, http.StatusInternalServerError, err.Error())
+			writeInternalError(w, r, err)
 		}
 		return
 	}
 
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func parseDayOfWeekSet(s string) []int {
+	dayMap := map[string]int{"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}
+	var result []int
+	for _, part := range strings.Split(s, ",") {
+		if v, ok := dayMap[strings.ToLower(strings.TrimSpace(part))]; ok {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CREDENTIAL REVOKE (admin, place-scoped)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/v1/app/places/{placeId}/credentials/{credentialId}/revoke
+func (s *server) appAdminRevokeCredential(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	if strings.TrimSpace(placeID) == "" {
+		writeError(w, http.StatusBadRequest, "place id is required")
+		return
+	}
+
+	credentialID := chi.URLParam(r, "credentialId")
+	tenantID := user.TenantID
+
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	if err := s.credentialSvc.RevokeCredential(tenantID, credentialID); err != nil {
+		writeError(w, http.StatusNotFound, "credential not found")
+		return
+	}
+
+	s.auditSvc.Append(tenantID, user.Email, user.Role, "mobile_credential_revoked", credentialID, "mobile_admin")
 	w.WriteHeader(http.StatusNoContent)
 }

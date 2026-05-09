@@ -106,6 +106,26 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Step 2.5: Spatiotemporal anomaly detection for NFC credentials
+	if credType == "nfc_uid" {
+		if reason := s.checkCredentialAnomaly(tenantID, credData, lockID, now); reason != "" {
+			resp := verifyCredentialResponse{
+				Decision:       "deny",
+				Reason:         reason,
+				UserID:         user.ID,
+				UserName:       user.Name,
+				UserEmail:      user.Email,
+				LockID:         lockID,
+				GatewayID:      gatewayID,
+				CredentialType: credType,
+				EvaluatedAt:    now.Format(time.RFC3339),
+			}
+			s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+	}
+
 	// Step 3: Check if user has access to this lock via group → door_group binding
 	allowed, groupName := s.checkUserLockAccess(tenantID, user.GroupIDs, lockID)
 
@@ -277,6 +297,67 @@ func isPassExpired(expiresAt string, now time.Time) bool {
 	return now.After(t)
 }
 
+// checkCredentialAnomaly detects impossible travel (same credential at different doors
+// within a short window) and rapid-fire taps (rate limiting).
+func (s *server) checkCredentialAnomaly(tenantID, credData, lockID string, now time.Time) string {
+	key := tenantID + ":" + credData
+
+	s.credLastSeenMu.Lock()
+	defer s.credLastSeenMu.Unlock()
+
+	prev, exists := s.credLastSeen[key]
+
+	if exists {
+		elapsed := now.Sub(prev.SeenAt)
+
+		// Different door within 30 seconds = impossible travel
+		if prev.LockID != lockID && elapsed < 30*time.Second {
+			s.logger.Warn("anomaly: impossible travel",
+				"credential", credData,
+				"prev_door", prev.LockID,
+				"curr_door", lockID,
+				"elapsed_sec", elapsed.Seconds(),
+			)
+			return "anomaly_impossible_travel"
+		}
+
+		// Same door >5 taps in 60 seconds = rate limit
+		if prev.LockID == lockID && elapsed < 60*time.Second {
+			prev.Count++
+			if prev.Count > 5 {
+				s.credLastSeen[key] = prev
+				s.logger.Warn("anomaly: rate limit exceeded",
+					"credential", credData,
+					"door", lockID,
+					"count", prev.Count,
+				)
+				return "anomaly_rate_limit"
+			}
+			prev.SeenAt = now
+			s.credLastSeen[key] = prev
+			return ""
+		}
+	}
+
+	s.credLastSeen[key] = credentialSighting{
+		LockID: lockID,
+		SeenAt: now,
+		Count:  1,
+	}
+
+	// Evict stale entries (older than 2 minutes) to prevent unbounded growth.
+	if len(s.credLastSeen) > 500 {
+		cutoff := now.Add(-2 * time.Minute)
+		for k, v := range s.credLastSeen {
+			if v.SeenAt.Before(cutoff) {
+				delete(s.credLastSeen, k)
+			}
+		}
+	}
+
+	return ""
+}
+
 // isGroupLinkExpired returns true if the group link has a valid_until time that has passed.
 func isGroupLinkExpired(validUntil string, now time.Time) bool {
 	vu := strings.TrimSpace(validUntil)
@@ -309,6 +390,7 @@ func (s *server) checkUserLockAccess(tenantID string, userGroupIDs []string, loc
 		if _, bound := userGroupSet[dg.ID]; !bound {
 			continue
 		}
+		s.logger.Info("checkUserLockAccess: matched group", "group_id", dg.ID, "door_ids", dg.DoorIDs, "looking_for", lockID)
 		for _, doorID := range dg.DoorIDs {
 			if doorID == lockID {
 				return true, dg.Name
@@ -316,6 +398,7 @@ func (s *server) checkUserLockAccess(tenantID string, userGroupIDs []string, loc
 		}
 	}
 
+	s.logger.Info("checkUserLockAccess: no match", "tenant", tenantID, "groups_checked", len(doorGroups), "lock_id", lockID)
 	return false, ""
 }
 

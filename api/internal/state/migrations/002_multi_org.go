@@ -7,8 +7,8 @@ func MultiOrgUp(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS user_org_memberships (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			user_id UUID NOT NULL,
-			tenant_id UUID NOT NULL,
+			user_id TEXT NOT NULL,
+			tenant_id TEXT NOT NULL,
 			role TEXT NOT NULL DEFAULT 'resident',
 			joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 			last_used_at TIMESTAMPTZ,
@@ -57,7 +57,7 @@ func MultiOrgUp(tx *sql.Tx) error {
 	// Backfill: create org membership for every existing user
 	_, err = tx.Exec(`
 		INSERT INTO user_org_memberships (user_id, tenant_id, role)
-		SELECT id, tenant_id, role FROM users
+		SELECT id, tenant_id, role FROM mistypass_auth_users
 		ON CONFLICT (user_id, tenant_id) DO NOTHING
 	`)
 	return err

@@ -772,6 +772,12 @@ func (cfg Config) Validate() error {
 		if strings.TrimSpace(cfg.CORSOrigin) == "" {
 			return errors.New("CORS_ORIGIN is required when APP_ENV is production")
 		}
+		if cfg.EnableDemoUsers {
+			return errors.New("ENABLE_DEMO_USERS must not be enabled in production")
+		}
+		if cfg.DisableLoginRateLimit {
+			return errors.New("DISABLE_LOGIN_RATE_LIMIT must not be set in production")
+		}
 	}
 	if cfg.OTelEnabled {
 		if strings.TrimSpace(cfg.OTelExporterOTLPEndpoint) == "" {

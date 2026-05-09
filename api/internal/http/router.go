@@ -35,6 +35,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+type credentialSighting struct {
+	LockID string
+	SeenAt time.Time
+	Count  int
+}
+
 type server struct {
 	cfg                           config.Config
 	stateStore                    state.Store
@@ -100,6 +106,10 @@ type server struct {
 	hrisWebhookDLQWorkerQueue     chan enterpriseHRISWebhookDLQQueuedTask
 	messageBus                    bus.Publisher
 	externalAuthHTTPClient        *http.Client
+	memStoreMu                    sync.RWMutex
+	memStore                      map[string]any
+	credLastSeenMu                sync.RWMutex
+	credLastSeen                  map[string]credentialSighting
 	hrisHTTPClient                *http.Client
 	gatewayNonceMu                sync.Mutex
 	gatewayNonces                 map[string]time.Time // nonce → expiry (5-min dedup window)
@@ -110,14 +120,16 @@ type server struct {
 	doorFavorites                 map[string]map[string]bool // userID → doorID → true
 	orgStore                      orgMembershipStore
 	magicLinkStore                magicLinkStore
+	quit                          chan struct{}
 }
 
 type pushDevice struct {
-	UserID   string
-	TenantID string
-	FCMToken string
-	DeviceID string
-	Platform string
+	UserID       string
+	TenantID     string
+	FCMToken     string
+	DeviceID     string
+	Platform     string
+	RegisteredAt time.Time
 }
 
 type enterpriseHRISWebhookReceiptQueuedTask struct {
@@ -218,9 +230,12 @@ const (
 	enterpriseHRISWebhookQueuedTaskBufferSize  = 128
 )
 
-func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) {
-	handler, _, err := newRouterInternal(cfg, stateStore)
-	return handler, err
+func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, func(), error) {
+	handler, srv, err := newRouterInternal(cfg, stateStore)
+	if err != nil {
+		return nil, nil, err
+	}
+	return handler, func() { close(srv.quit) }, nil
 }
 
 func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler, *server, error) {
@@ -400,7 +415,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		externalAuthHTTPClient:        &http.Client{Timeout: cfg.ExternalAuthTimeout},
 		hrisHTTPClient:                &http.Client{Timeout: firstNonZeroDuration(cfg.ExternalAuthTimeout, 15*time.Second)},
 		oauth2:                        newOAuth2Store(),
+		memStore:                      map[string]any{},
+		credLastSeen:                  map[string]credentialSighting{},
 		pushDevices:                   map[string]pushDevice{},
+		quit:                          make(chan struct{}),
 	}
 	webAuthnEngine, err := auth.NewWebAuthnEngine(cfg.WebAuthnRPDisplayName, cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins)
 	if err != nil {
@@ -532,6 +550,18 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withEnterprisePublicRateLimit).Post("/group_links/verify", s.verifyReferenceGroupLinkToken)
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/users/invitations/provider-receipts", s.receiveUserInvitationProviderReceipt)
 
+		// Kisi-compatible routes (no /app prefix)
+		r.Get("/organizations/{domain}/public", s.kisiOrgPublic)
+		r.With(s.withLoginRateLimit).Post("/logins", s.kisiLogin)
+		r.With(s.withLoginRateLimit).Post("/logins/resolve", s.kisiLogin)
+		r.Group(func(kisiAuth chi.Router) {
+			kisiAuth.Use(s.withBearerToken)
+			kisiAuth.Get("/login", s.kisiGetLogin)
+			kisiAuth.Get("/organization", s.kisiGetOrganization)
+			kisiAuth.Get("/places", s.kisiListPlaces)
+			kisiAuth.Get("/places/{id}", s.kisiGetPlace)
+		})
+
 		r.Route("/app", func(app chi.Router) {
 			app.With(s.withLoginRateLimit).Post("/auth/login", s.appLogin)
 			app.Post("/auth/refresh", s.appRefresh)
@@ -553,8 +583,17 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 
 				protected.Get("/me", s.appMeEnhanced)
 				protected.Patch("/me", s.appUpdateMe)
+				protected.Post("/me/avatar", s.appUploadAvatar)
+				protected.Post("/me/change-password", s.appChangePassword)
+				protected.Get("/me/logins", s.appListMyLogins)
+				protected.Delete("/me/logins/{loginId}", s.appRevokeMyLogin)
+				protected.Post("/me/primary-device", s.appSetPrimaryDevice)
 				protected.Get("/credentials", s.appCredentialsEnhanced)
 				protected.Post("/credentials/apple-pass", s.appEnrollApplePass)
+				protected.Get("/credentials/nfc", s.appListNFCCards)
+				protected.Post("/credentials/nfc", s.appBindNFCCard)
+				protected.Delete("/credentials/nfc/{credentialId}", s.appUnbindNFCCard)
+				protected.Post("/qr-token", s.appGenerateQRToken)
 				protected.Get("/access/doors", s.appAccessDoors)
 				protected.Get("/access/my-doors", s.appAccessMyDoorsEnhanced)
 				protected.Post("/access/unlock", s.appUnlockDoor)
@@ -567,15 +606,38 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/visitor-passes", s.appListVisitorPassesEnhanced)
 				protected.Post("/visitor-passes", s.appCreateVisitorPassEnhanced)
 				protected.Post("/devices/register", s.appRegisterDevice)
+				protected.Post("/devices/apns", s.appRegisterAPNSDevice)
 
 				// Mobile camera endpoints
 				protected.Get("/cameras", s.appListCameras)
 				protected.Get("/cameras/{cameraID}/video-link", s.appCameraVideoLink)
 				protected.Post("/cameras/{cameraID}/snapshot", s.appCameraSnapshot)
+				protected.Patch("/cameras/{cameraId}", s.appRenameCamera)
+
+				// Hardware management
+				protected.Patch("/gateways/{gatewayId}", s.appRenameGateway)
+
+				// Bookings
+				protected.Get("/bookable-spaces", s.appListBookableSpaces)
+				protected.Get("/bookable-spaces/{spaceID}/status", s.appGetBookableSpaceStatus)
+				protected.Get("/bookings", s.appListBookings)
+				protected.Post("/bookings", s.appCreateBooking)
+				protected.Post("/bookings/{bookingID}/cancel", s.appCancelBooking)
+				protected.Post("/bookings/{bookingID}/check-in", s.appCheckInBooking)
+				protected.Post("/bookings/{bookingID}/check-out", s.appCheckOutBooking)
+
+				// Alarms
+				protected.Get("/alarms", s.appListAlarms)
+				protected.Get("/alarms/stream", s.appStreamAlarms)
+				protected.Patch("/alarms/{alarmID}/status", s.appUpdateAlarmStatus)
+				protected.Get("/alarm-schedules", s.appListAlarmSchedules)
+				protected.Get("/alarm-schedules/calendar", s.appGetAlarmCalendar)
 
 				// Multi-org endpoints
 				protected.Get("/orgs", s.appListOrgs)
 				protected.Post("/orgs/{orgId}/switch", s.appSwitchOrg)
+				protected.Get("/orgs/{orgId}/settings", s.appGetOrgSettings)
+				protected.Put("/orgs/{orgId}/settings", s.appUpdateOrgSettings)
 
 				// Org-scoped place endpoints
 				protected.Get("/orgs/{orgId}/places", s.appListPlaces)
@@ -590,6 +652,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Delete("/places/{placeId}/lockdown", s.appPlaceDisableLockdown)
 				protected.Put("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceFavoriteDoor)
 				protected.Delete("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceUnfavoriteDoor)
+				protected.Post("/places/{placeId}/doors/{doorId}/lockdown", s.appPlaceEnableDoorLockdown)
+				protected.Delete("/places/{placeId}/doors/{doorId}/lockdown", s.appPlaceDisableDoorLockdown)
+				protected.Get("/places/{placeId}/doors/{doorId}/restrictions", s.appPlaceDoorRestrictions)
+				protected.Get("/places/{placeId}/doors/{doorId}/schedules", s.appPlaceDoorSchedules)
+				protected.Patch("/places/{placeId}/doors/{doorId}", s.appPlaceRenameDoor)
+				protected.Put("/places/{placeId}/settings", s.appUpdatePlaceSettings)
 
 				// Admin user management endpoints (place-scoped)
 				protected.Route("/places/{placeId}/users", func(adminUsers chi.Router) {
@@ -599,9 +667,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 					adminUsers.Post("/", s.appAdminAddUser)
 					adminUsers.Get("/{userId}", s.appAdminGetUser)
 					adminUsers.Put("/{userId}/role", s.appAdminUpdateUserRole)
+					adminUsers.Patch("/{userId}/role", s.appAdminUpdateUserRole)
+					adminUsers.Delete("/{userId}", s.appAdminRemoveUser)
+					adminUsers.Post("/{userId}/sign-out", s.appAdminSignOutUser)
 					adminUsers.Get("/{userId}/logins", s.appAdminGetUserLogins)
 					adminUsers.Get("/{userId}/access-rights", s.appAdminGetAccessRights)
 					adminUsers.Post("/{userId}/share-access", s.appAdminShareAccess)
+					adminUsers.Post("/invite", s.appAdminInviteUser)
 				})
 
 				// Admin events, incidents, and activity endpoints (place-scoped)
@@ -647,6 +719,40 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 					placeRouter.Get("/teams/{teamId}", s.appAdminGetTeam)
 					placeRouter.Put("/teams/{teamId}", s.appAdminUpdateTeam)
 					placeRouter.Delete("/teams/{teamId}", s.appAdminDeleteTeam)
+					placeRouter.Get("/teams/{teamId}/members", s.appAdminListTeamMembers)
+					placeRouter.Post("/teams/{teamId}/members", s.appAdminAddTeamMember)
+					placeRouter.Delete("/teams/{teamId}/members/{memberId}", s.appAdminRemoveTeamMember)
+					placeRouter.Get("/teams/{teamId}/access-rights", s.appAdminListTeamAccessRights)
+					placeRouter.Post("/teams/{teamId}/access-rights", s.appAdminAssignTeamAccessRight)
+					placeRouter.Delete("/teams/{teamId}/access-rights/{accessRightId}", s.appAdminRemoveTeamAccessRight)
+					// Access groups
+					placeRouter.Get("/groups", s.appAdminListGroups)
+					placeRouter.Post("/groups", s.appAdminCreateGroup)
+					placeRouter.Patch("/groups/{groupId}", s.appAdminUpdateGroup)
+					placeRouter.Delete("/groups/{groupId}", s.appAdminDeleteGroup)
+					placeRouter.Get("/groups/{groupId}/members", s.appAdminListGroupMembers)
+					placeRouter.Post("/groups/{groupId}/members", s.appAdminAddGroupMember)
+					placeRouter.Delete("/groups/{groupId}/members/{memberId}", s.appAdminRemoveGroupMember)
+					placeRouter.Get("/groups/{groupId}/doors", s.appAdminListGroupDoors)
+					placeRouter.Post("/groups/{groupId}/doors", s.appAdminAddGroupDoor)
+					placeRouter.Delete("/groups/{groupId}/doors/{doorId}", s.appAdminRemoveGroupDoor)
+					// Visitor groups
+					placeRouter.Get("/visitor-groups", s.appListVisitorGroups)
+					placeRouter.Post("/visitor-groups", s.appCreateVisitorGroup)
+					placeRouter.Get("/visitor-groups/{groupId}/members", s.appListVisitorGroupMembers)
+					placeRouter.Post("/visitor-groups/{groupId}/cleanup-expired", s.appCleanupExpiredVisitors)
+					// Analytics & Reports
+					placeRouter.Get("/analytics/summary", s.appAnalyticsSummary)
+					placeRouter.Get("/analytics/presence", s.appUserPresence)
+					placeRouter.Get("/analytics/failed-attempts", s.appAnalyticsFailedAttempts)
+					placeRouter.Post("/reports/export", s.appExportReport)
+					// Guest management
+					placeRouter.Get("/guests", s.appAdminListGuests)
+					placeRouter.Post("/guests", s.appAdminCreateGuest)
+					placeRouter.Patch("/guests/{guestId}", s.appAdminUpdateGuestStatus)
+					placeRouter.Delete("/guests/{guestId}", s.appAdminDeleteGuest)
+					// Credential revoke (admin)
+					placeRouter.Post("/credentials/{credentialId}/revoke", s.appAdminRevokeCredential)
 				})
 
 				// Mobile BLE credential management
@@ -1589,11 +1695,12 @@ func (s *server) appRegisterDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	s.pushDeviceMu.Lock()
 	s.pushDevices[request.FCMToken] = pushDevice{
-		UserID:    user.ID,
-		TenantID:  user.TenantID,
-		FCMToken:  request.FCMToken,
-		DeviceID:  request.DeviceID,
-		Platform:  request.Platform,
+		UserID:       user.ID,
+		TenantID:     user.TenantID,
+		FCMToken:     request.FCMToken,
+		DeviceID:     request.DeviceID,
+		Platform:     request.Platform,
+		RegisteredAt: time.Now(),
 	}
 	s.pushDeviceMu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{"status": "registered"})
