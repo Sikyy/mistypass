@@ -10,7 +10,7 @@ import (
 )
 
 func TestWebAuthnRegisterBeginRequiresOrgToggle(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-test",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -30,7 +30,7 @@ func TestWebAuthnRegisterBeginRequiresOrgToggle(t *testing.T) {
 }
 
 func TestWebAuthnRegisterBeginAfterOrgEnabled(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-test2",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -63,7 +63,7 @@ func TestWebAuthnRegisterBeginAfterOrgEnabled(t *testing.T) {
 }
 
 func TestWebAuthnLoginBeginNoCredentials(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-login-test",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -91,7 +91,7 @@ func TestWebAuthnLoginBeginNoCredentials(t *testing.T) {
 }
 
 func TestWebAuthnListCredentialsEmpty(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-list-test",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -115,7 +115,7 @@ func TestWebAuthnListCredentialsEmpty(t *testing.T) {
 }
 
 func TestWebAuthnDeleteCredentialNotFound(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-delete-test",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -134,7 +134,7 @@ func TestWebAuthnDeleteCredentialNotFound(t *testing.T) {
 }
 
 func TestWebAuthnRequiresSSOConfigured(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:             "webauthn-sso-test",
 		EnableDemoUsers:       true,
 		WebAuthnRPDisplayName: "MistyPass",
@@ -162,7 +162,7 @@ func TestWebAuthnRequiresSSOConfigured(t *testing.T) {
 }
 
 func TestWebAuthnOrgSettingsToggle(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "webauthn-org-toggle",
 		EnableDemoUsers: true,
 	}, nil)

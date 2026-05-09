@@ -330,7 +330,12 @@ func (s *server) appAccessMyDoors(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
-		"total": len(items),
+		"pagination": map[string]any{
+			"offset":   0,
+			"limit":    len(items),
+			"total":    len(items),
+			"has_more": false,
+		},
 	})
 }
 
@@ -339,14 +344,19 @@ func (s *server) recordAppAccessEvent(tenantID, lockID, actor, eventType, reason
 	if gw, found := s.gatewaySvc.FindGatewayByDoorID(tenantID, lockID); found {
 		gwID = gw.ID
 	}
+	var buildingID string
+	if door, err := s.spaceSvc.GetDoor(tenantID, lockID); err == nil {
+		buildingID = door.BuildingID
+	}
 	s.eventSvc.IngestAccessEvent(event.IngestAccessEventInput{
-		TenantID:  tenantID,
-		Type:      eventType,
-		Actor:     actor,
-		DoorID:    lockID,
-		GatewayID: gwID,
-		Result:    reason,
-		At:        time.Now().UTC(),
+		TenantID:   tenantID,
+		BuildingID: buildingID,
+		Type:       eventType,
+		Actor:      actor,
+		DoorID:     lockID,
+		GatewayID:  gwID,
+		Result:     reason,
+		At:         time.Now().UTC(),
 	})
 }
 

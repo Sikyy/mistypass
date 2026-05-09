@@ -558,49 +558,90 @@ BLE 网关硬件调试所需的完整硬件清单。分为已有和待采购两�
 
 | 硬件 | 型号 | 状态 | 用途 |
 |------|------|------|------|
-| 电磁锁 | EM Lock 600 LBS (280KG, 5线) | ✅ 已到货 2026-05-05 | 门锁执行器 |
+| 电磁锁 | EM Lock 600 LBS (280KG, 2线简版) | ✅ 已到货 2026-05-05 | 门锁执行器 |
 | 监控摄像头 | Hikvision DS-2CD1023G2-LIU | ✅ 已到货 2026-05-05 | 门禁事件快照 |
+| PoE 交换机 | （已有） | ✅ 已有 | 摄像头 PoE 供电 + 网络 |
 | NFC 读卡器 | ACS WalletMate II (ACR1552U-MW) | ✅ 已有 | NFC UID 读取 |
 | 开发机 | macOS (M-series) | ✅ 已有 | 开发 + 本地 gateway-agent |
 | Android 测试机 | Xiaomi 15 | ✅ 已有 | BLE 门禁 App 测试 |
+
+### 硬件开箱记录 (2026-05-05)
+
+#### EM Lock 600 LBS
+
+实际到货为 **2 线简版**（非说明书上的 5 线版），只有红黑两根供电线：
+
+- **红线** = V+（正极，接 12V DC）
+- **黑线** = V-（负极 / GND）
+
+接线方式（fail-safe，断电开门）：
+
+```
+12V 3A 电源
+  ├── V+ ──→ 继电器 COM
+  └── V- ──→ EM Lock 黑线 (GND)
+
+继电器 NO ──→ EM Lock 红线 (V+)
+
+继电器断开 → 锁不通电 → 无磁力 → 门可推开 (fail-safe)
+继电器闭合 → 锁通电 12V → 电磁吸合 280KG → 门锁住
+```
+
+> **fail-safe 接法**：断电时门自动解锁，符合消防安全要求。
+> 如需 fail-secure（断电锁门），将 EM Lock 红线改接继电器 NC 口。
+
+规格：12VDC / 400mA（额定），建议使用 12V 3A 电源留足余量。
+
+#### Hikvision DS-2CD1023G2-LIU
+
+摄像头尾线有两个接口：
+
+- **RJ45 网口** — PoE 供电 + 数据（主供电方式，接 PoE 交换机即可一线通）
+- **DC 12V 圆口** (5.5x2.1mm) — 备用供电（若无 PoE 设备时使用 12V 1A 适配器）
+
+已有 PoE 交换机，用网线直连即可上电。摄像头不自带电源适配器（PoE 型号的标准做法）。
+
+> **注意**：EM Lock 电源 (12V 3A) 和摄像头 DC 备用供电 (12V 1A) 不应共用同一电源，电流规格不同且电磁锁开关瞬间可能产生电压波动影响摄像头。
 
 ### 待采购硬件
 
 | 硬件 | 推荐型号 | 预估价格 | 用途 | 优先级 |
 |------|---------|---------|------|--------|
-| **单板计算机 (Gateway)** | Orange Pi Zero3 (1GB) | ~$20-25 | Gateway Agent 运行平台 | **P0 必须** |
-| **USB-RS485 转换器** | CH340/FT232 USB-RS485 | ~$3-5 | 继电器 Modbus 控制 (方案 B) | P1 (若用 RS485 方案) |
-| **RS485 继电器模块** | 1路/2路 Modbus RTU 继电器 | ~$5-10 | 电锁开关控制 | P1 (若用 RS485 方案) |
-| **GPIO 继电器模块** | 5V/3.3V 单路继电器 | ~$1-3 | 电锁开关控制 (方案 A) | **P0 必须** (若用 GPIO 方案) |
-| **12V DC 电源** | 12V 2A 开关电源 | ~$5-8 | 电磁锁供电 | **P0 必须** |
-| **BLE Dongle** | USB BLE 5.0 Dongle (CSR8510/RTL8761B) | ~$5-8 | Orange Pi BLE 通信 (若内置 BLE 不稳定) | P1 备用 |
-| **PoE 交换机/注入器** | TP-Link TL-SF1005P 或单口注入器 | ~$15-25 | 摄像头 PoE 供电 | P1 (摄像头需要) |
-| **网线** | CAT5e/CAT6 若干 | ~$3-5 | 摄像头 + 网络 | P1 |
-| **杜邦线/接线端子** | 公母杜邦线 + 2P 接线端子 | ~$2-3 | GPIO/继电器/电锁接线 | **P0 必须** |
-| **microSD 卡** | 32GB Class 10 | ~$5 | Orange Pi 系统盘 | **P0 必须** |
-| **USB-C 电源线** | 5V 3A USB-C | ~$3-5 | Orange Pi 供电 | **P0 必须** |
+| **12V DC 电源** | 12V 3A 开关电源 | ~$5-8 | 电磁锁供电 | **P0 必须** |
+| **USB 继电器模块** | USB-RLY02 或 CH340 USB 单路继电器 | ~$5-10 | macOS 直接控制电锁（无需 GPIO） | **P0 必须** |
+| **杜邦线/接线端子** | 公母杜邦线 + 2P 接线端子 | ~$2-3 | 继电器/电锁接线 | **P0 必须** |
+| **单板计算机 (Gateway)** | Orange Pi Zero3 (1GB) | ~$20-25 | Gateway Agent 独立运行平台 | P1 (macOS 验证后) |
+| **GPIO 继电器模块** | 5V/3.3V 单路继电器 | ~$1-3 | Orange Pi GPIO 控门 | P1 (配合 Orange Pi) |
+| **USB-RS485 转换器** | CH340/FT232 USB-RS485 | ~$3-5 | 继电器 Modbus 控制 (方案 B) | P2 (若用 RS485 方案) |
+| **RS485 继电器模块** | 1路/2路 Modbus RTU 继电器 | ~$5-10 | 电锁开关控制 | P2 (若用 RS485 方案) |
+| **BLE Dongle** | USB BLE 5.0 Dongle (CSR8510/RTL8761B) | ~$5-8 | Orange Pi BLE 通信 (若内置 BLE 不稳定) | P2 备用 |
+| **microSD 卡** | 32GB Class 10 | ~$5 | Orange Pi 系统盘 | P1 (配合 Orange Pi) |
+| **USB-C 电源线** | 5V 3A USB-C | ~$3-5 | Orange Pi 供电 | P1 (配合 Orange Pi) |
 
-### 最小可测试配置 (P0 硬件)
+### 最小可测试配置 — macOS 先行 (P0)
 
 ```
-macOS (开发机)                       12V 电源
+macOS (开发机)                       12V 3A 电源
    │                                    │
    │  USB                               │
    ▼                                    ▼
-NFC Reader ──── gateway-agent ───── GPIO 继电器 ──── EM Lock 600 LBS
-(ACR1552U)      (macOS 上运行)      (3.3V 单路)     (12V, 280KG)
+NFC Reader ──── gateway-agent ───── USB 继电器 ──── EM Lock 600 LBS
+(ACR1552U)      (macOS 上运行)      (USB-RLY02)     (12V, 280KG, 2线)
                      │
-                     │ HTTPS
-                     ▼
-              Cloud API (localhost)
+                     │ HTTPS             PoE 交换机
+                     ▼                      │
+              Cloud API (localhost)         │
+                                           ▼
+                                    Hikvision Camera
+                                    (DS-2CD1023G2-LIU)
 ```
 
-**不需要 Orange Pi 即可先测试完整链路：** 在 macOS 上用 USB 继电器模块（如 USB-RLY02）替代 GPIO 继电器，直接控制电磁锁。
+**不需要 Orange Pi 即可测试完整链路：** macOS 上用 USB 继电器模块直接控制电磁锁，PoE 交换机给摄像头供电。P0 只需再买 3 样东西（12V 电源 + USB 继电器 + 杜邦线），总计约 $15。
 
 ### 完整部署配置 (P0 + P1)
 
 ```
-                              PoE 交换机
+                              PoE 交换机 (已有)
                                  │
 Internet ──── Router ────────────┼──── Hikvision Camera
                 │                │
@@ -612,10 +653,11 @@ Internet ──── Router ────────────┼────
           GPIO/RS485
                │
                ▼
-          继电器模块 ──── 12V 电源
+          继电器模块 ──── 12V 3A 电源
                │              │
                ▼              ▼
          EM Lock 600 LBS ─────┘
+         (红线=V+, 黑线=GND)
                │
           NFC Reader (USB)
                │

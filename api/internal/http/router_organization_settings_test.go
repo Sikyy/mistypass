@@ -9,7 +9,7 @@ import (
 )
 
 func TestOrganizationSettingsGetDefault(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "org-settings-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -49,7 +49,7 @@ func TestOrganizationSettingsGetDefault(t *testing.T) {
 }
 
 func TestOrganizationSettingsUpdate(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "org-settings-update-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -108,7 +108,7 @@ func TestOrganizationSettingsUpdate(t *testing.T) {
 }
 
 func TestOrganizationAdvancedOperations(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "org-advanced-test",
 		EnableDemoUsers: true,
 	}, nil)

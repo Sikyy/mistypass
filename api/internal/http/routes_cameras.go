@@ -185,6 +185,20 @@ func (s *server) discoverCameras(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": discovered})
 }
 
+func (s *server) listEventSnapshots(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	eventID := chi.URLParam(r, "eventID")
+	if strings.TrimSpace(eventID) == "" {
+		writeError(w, http.StatusBadRequest, "event ID is required")
+		return
+	}
+	items := s.cameraSvc.ListSnapshotsByEventID(tenantID, eventID)
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func handleCameraError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, camera.ErrCameraNotFound):

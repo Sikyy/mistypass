@@ -318,6 +318,24 @@ func (s *Service) ListSnapshots(tenantID, cameraID string) []Snapshot {
 	return all
 }
 
+// ListSnapshotsByEventID returns all snapshots linked to a specific event across all cameras.
+func (s *Service) ListSnapshotsByEventID(tenantID, eventID string) []Snapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var matched []Snapshot
+	for _, cam := range s.cameras {
+		if tenantID != "" && cam.TenantID != tenantID {
+			continue
+		}
+		for _, snap := range s.snapshots[cam.ID] {
+			if snap.EventID == eventID {
+				matched = append(matched, snap)
+			}
+		}
+	}
+	return matched
+}
+
 // TriggerEventSnapshot captures snapshots from all cameras mapped to the given door.
 func (s *Service) TriggerEventSnapshot(ctx context.Context, tenantID, doorID, eventID, eventType string) []Snapshot {
 	s.mu.RLock()

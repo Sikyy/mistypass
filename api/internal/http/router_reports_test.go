@@ -10,7 +10,7 @@ import (
 )
 
 func TestReferenceReportsListDetailDownloadAndScope(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-reports-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -94,7 +94,7 @@ func TestReferenceReportsListDetailDownloadAndScope(t *testing.T) {
 }
 
 func TestReferenceScheduledReportsCRUD(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-scheduled-reports-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

@@ -11,7 +11,7 @@ import (
 )
 
 func TestReferenceAccessRightsImpactPreviewAndBulkReview(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-access-rights-review-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -110,7 +110,7 @@ func TestReferenceAccessRightsImpactPreviewAndBulkReview(t *testing.T) {
 }
 
 func TestReferenceAccessRightsScheduleTemplatesAndShareValidFrom(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-access-rights-schedule-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -207,7 +207,7 @@ func TestReferenceAccessRightsScheduleTemplatesAndShareValidFrom(t *testing.T) {
 }
 
 func TestReferenceAccessRightsBulkScheduleUpdate(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-access-rights-bulk-schedule-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

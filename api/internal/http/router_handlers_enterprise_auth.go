@@ -920,15 +920,20 @@ func (s *server) startEnterpriseSyncReconcileWorker() {
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			s.runEnterpriseSyncReconcileWorkerTick(
-				batchSize,
-				maxAttempts,
-				retryCooldown,
-				alertFailureThreshold,
-				forceError,
-				forceErrorTenantID,
-			)
+		for {
+			select {
+			case <-s.quit:
+				return
+			case <-ticker.C:
+				s.runEnterpriseSyncReconcileWorkerTick(
+					batchSize,
+					maxAttempts,
+					retryCooldown,
+					alertFailureThreshold,
+					forceError,
+					forceErrorTenantID,
+				)
+			}
 		}
 	}()
 }
@@ -992,14 +997,19 @@ func (s *server) startEnterpriseSyncWorkerAlertAutoRetryWorker() {
 
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTickWithLease(
-				batchSize,
-				maxAttempts,
-				baseBackoff,
-				maxBackoff,
-				lockTTL,
-			)
+		for {
+			select {
+			case <-s.quit:
+				return
+			case <-ticker.C:
+				s.runEnterpriseSyncWorkerAlertAutoRetryWorkerTickWithLease(
+					batchSize,
+					maxAttempts,
+					baseBackoff,
+					maxBackoff,
+					lockTTL,
+				)
+			}
 		}
 	}()
 }

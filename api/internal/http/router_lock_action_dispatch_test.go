@@ -10,7 +10,7 @@ import (
 )
 
 func TestLockActionDispatchAuditAndStatus(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "lock-dispatch-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -57,7 +57,7 @@ func TestLockActionDispatchAuditAndStatus(t *testing.T) {
 }
 
 func TestPlaceActionDispatchAudit(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "place-dispatch-test",
 		EnableDemoUsers: true,
 	}, nil)

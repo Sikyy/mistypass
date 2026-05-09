@@ -103,6 +103,8 @@ func TestConfigValidateRequiresJWTSecretInProduction(t *testing.T) {
 	t.Setenv("JWT_SECRET", "")
 	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
 	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+	t.Setenv("ENABLE_DEMO_USERS", "false")
+	t.Setenv("DISABLE_LOGIN_RATE_LIMIT", "false")
 	cfg := FromEnv()
 	if err := cfg.Validate(); err == nil {
 		t.Fatalf("expected validate to fail when JWT_SECRET is empty in production")
@@ -120,6 +122,8 @@ func TestConfigValidateRequiresHRISVaultMasterKeyInProduction(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret")
 	t.Setenv("HRIS_VAULT_MASTER_KEY", "")
 	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+	t.Setenv("ENABLE_DEMO_USERS", "false")
+	t.Setenv("DISABLE_LOGIN_RATE_LIMIT", "false")
 
 	cfg := FromEnv()
 	if err := cfg.Validate(); err == nil {
@@ -138,6 +142,8 @@ func TestConfigValidateRequiresGatewayBootstrapTokenInProduction(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-secret")
 	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
 	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "")
+	t.Setenv("ENABLE_DEMO_USERS", "false")
+	t.Setenv("DISABLE_LOGIN_RATE_LIMIT", "false")
 
 	cfg := FromEnv()
 	if err := cfg.Validate(); err == nil {
@@ -148,6 +154,34 @@ func TestConfigValidateRequiresGatewayBootstrapTokenInProduction(t *testing.T) {
 	cfg = FromEnv()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("expected validate to pass with GATEWAY_BOOTSTRAP_TOKEN in production: %v", err)
+	}
+}
+
+func TestConfigValidateRejectsDemoUsersInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+	t.Setenv("DISABLE_LOGIN_RATE_LIMIT", "false")
+	t.Setenv("ENABLE_DEMO_USERS", "true")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when ENABLE_DEMO_USERS is true in production")
+	}
+}
+
+func TestConfigValidateRejectsDisabledRateLimitInProduction(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("HRIS_VAULT_MASTER_KEY", "vault-master-key-001")
+	t.Setenv("GATEWAY_BOOTSTRAP_TOKEN", "bootstrap-token-001")
+	t.Setenv("ENABLE_DEMO_USERS", "false")
+	t.Setenv("DISABLE_LOGIN_RATE_LIMIT", "true")
+
+	cfg := FromEnv()
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail when DISABLE_LOGIN_RATE_LIMIT is true in production")
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 func TestListLoginSessions(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "sessions-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -35,7 +35,7 @@ func TestListLoginSessions(t *testing.T) {
 }
 
 func TestRevokeLoginSession(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "sessions-revoke-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -68,7 +68,7 @@ func TestRevokeLoginSession(t *testing.T) {
 }
 
 func TestRevokeAllLoginSessions(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "sessions-revoke-all-test",
 		EnableDemoUsers: true,
 	}, nil)

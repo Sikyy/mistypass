@@ -143,17 +143,17 @@ func (r *PCSCReader) tryReadFromReader(ctx *scard.Context, readerName string) (s
 	}
 	defer card.Disconnect(scard.LeaveCard)
 
-	// APDU: GET UID — works on ISO 14443 Type A/B cards
-	// CLA=0xFF, INS=0xCA, P1=0x00, P2=0x00, Le=0x00
-	getUIDCmd := []byte{0xFF, 0xCA, 0x00, 0x00, 0x00}
+	// Verify chip fingerprint before reading UID
+	if !r.verifyChipFingerprint(card, readerName) {
+		return "", fmt.Errorf("chip fingerprint rejected")
+	}
 
+	getUIDCmd := []byte{0xFF, 0xCA, 0x00, 0x00, 0x00}
 	resp, err := card.Transmit(getUIDCmd)
 	if err != nil {
 		return "", err
 	}
 
-	// Response: [UID bytes...] [SW1] [SW2]
-	// Success: SW1=0x90, SW2=0x00
 	if len(resp) < 2 {
 		return "", fmt.Errorf("response too short: %d bytes", len(resp))
 	}
@@ -171,6 +171,58 @@ func (r *PCSCReader) tryReadFromReader(ctx *scard.Context, readerName string) (s
 
 	uid := strings.ToUpper(hex.EncodeToString(uidBytes))
 	return uid, nil
+}
+
+// verifyChipFingerprint checks ATR and GET VERSION to reject clone cards.
+// Real DESFire EV2/EV3: Vendor=0x04(NXP), 7-byte UID, ATR starts with 3B81.
+// Magic cards (MIFARE Classic clones) fail these checks.
+func (r *PCSCReader) verifyChipFingerprint(card *scard.Card, readerName string) bool {
+	status, err := card.Status()
+	if err != nil {
+		return false
+	}
+
+	atr := status.Atr
+	if len(atr) < 4 {
+		r.logger.Warn("card rejected: ATR too short", "reader", readerName, "atr_len", len(atr))
+		return false
+	}
+
+	// DESFire ATR starts with 3B 81 (or 3B 8x for contactless)
+	if atr[0] != 0x3B {
+		r.logger.Warn("card rejected: invalid TS byte", "reader", readerName, "ts", fmt.Sprintf("%02X", atr[0]))
+		return false
+	}
+
+	// GET VERSION: DESFire native command wrapped in PC/SC
+	resp, err := card.Transmit([]byte{0x90, 0x60, 0x00, 0x00, 0x00})
+	if err != nil || len(resp) < 9 {
+		r.logger.Warn("card rejected: GET VERSION failed", "reader", readerName)
+		return false
+	}
+
+	sw := resp[len(resp)-1]
+	if sw != 0xAF && sw != 0x00 {
+		r.logger.Warn("card rejected: GET VERSION bad status", "reader", readerName, "sw", fmt.Sprintf("%02X", sw))
+		return false
+	}
+
+	data := resp[:len(resp)-2]
+	vendorID := data[0]
+	majorVer := data[3]
+
+	if vendorID != 0x04 {
+		r.logger.Warn("card rejected: not NXP chip", "reader", readerName, "vendor", fmt.Sprintf("%02X", vendorID))
+		return false
+	}
+
+	// Major version: 0x30=EV1, 0x31=EV2, 0x33=EV3
+	if majorVer < 0x30 {
+		r.logger.Warn("card rejected: not DESFire EV series", "reader", readerName, "major", fmt.Sprintf("%02X", majorVer))
+		return false
+	}
+
+	return true
 }
 
 // listPCSCReaders returns available PC/SC reader names (for diagnostics).

@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+func normalizeNFCUID(raw string) string {
+	s := strings.TrimSpace(raw)
+	s = strings.ReplaceAll(s, ":", "")
+	s = strings.ReplaceAll(s, "-", "")
+	s = strings.ReplaceAll(s, " ", "")
+	return strings.ToUpper(s)
+}
+
 func (s *Service) ListTemplates(tenantID string) []PassTemplate {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -617,5 +625,46 @@ func (s *Service) ActivatePass(tenantID, passID, actor string) (PassInstance, er
 
 func (s *Service) RevokePass(tenantID, passID, actor string) (PassInstance, error) {
 	return s.updatePassStatus(tenantID, passID, "revoked", actor)
+}
+
+func (s *Service) RegisterNFCCard(tenantID, uid, cardType, targetID, label, expiresAt, actor string) (PassInstance, error) {
+	now := time.Now().UTC()
+	id, err := walletID("wps_")
+	if err != nil {
+		return PassInstance{}, err
+	}
+
+	record := PassInstance{
+		ID:             id,
+		TenantID:       strings.TrimSpace(tenantID),
+		Provider:       "physical_card",
+		CredentialKind: "physical_card",
+		TemplateID:     "nfc_card",
+		ObjectID:       fmt.Sprintf("mistypass.nfc.%s", id),
+		UID:            normalizeNFCUID(uid),
+		Token:          normalizeNFCUID(uid),
+		DeviceName:     label,
+		TargetType:     "user",
+		TargetID:       strings.TrimSpace(targetID),
+		Status:         "active",
+		ExpiresAt:      strings.TrimSpace(expiresAt),
+		IssuedAt:       now,
+		CreatedBy:      actor,
+		UpdatedBy:      actor,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	activated := now
+	record.ActivatedAt = &activated
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.passes = append([]PassInstance{record}, s.passes...)
+	s.appendAuditLocked(record.TenantID, "wallet.nfc.register", actor, record.ID, "success")
+	if err := s.persistLocked(); err != nil {
+		return PassInstance{}, err
+	}
+	return record, nil
 }
 

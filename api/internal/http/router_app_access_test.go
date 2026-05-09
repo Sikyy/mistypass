@@ -9,7 +9,7 @@ import (
 )
 
 func TestAppUnlockDoor(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-unlock-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -45,7 +45,7 @@ func TestAppUnlockDoor(t *testing.T) {
 }
 
 func TestAppUnlockDoorNoAccess(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-unlock-deny-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -63,7 +63,7 @@ func TestAppUnlockDoorNoAccess(t *testing.T) {
 }
 
 func TestAppQRUnlock(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-qr-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -93,7 +93,7 @@ func TestAppQRUnlock(t *testing.T) {
 }
 
 func TestAppQRUnlockInvalidToken(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-qr-invalid-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -110,7 +110,7 @@ func TestAppQRUnlockInvalidToken(t *testing.T) {
 }
 
 func TestAppMyDoors(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-mydoors-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -129,11 +129,14 @@ func TestAppMyDoors(t *testing.T) {
 			Name          string `json:"name"`
 			GatewayStatus string `json:"gateway_status"`
 			CanUnlock     bool   `json:"can_unlock"`
+			IsFavorite    bool   `json:"is_favorite"`
 		} `json:"items"`
-		Total int `json:"total"`
+		Pagination struct {
+			Total int `json:"total"`
+		} `json:"pagination"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &result)
-	if result.Total == 0 {
+	if result.Pagination.Total == 0 {
 		t.Errorf("expected at least 1 accessible door")
 	}
 	for _, item := range result.Items {

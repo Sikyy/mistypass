@@ -9,7 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"strings"
 	"sync"
@@ -37,8 +37,56 @@ type Service struct {
 }
 
 func NewService() *Service {
+	now := time.Now().UTC()
+	lastUsed := now.Add(-2 * time.Hour)
 	return &Service{
-		credentials: []MobileCredential{},
+		credentials: []MobileCredential{
+			{
+				ID:            "cred_andri_android",
+				TenantID:      "tenant_demo_jakarta",
+				UserID:        "usr_1001",
+				UserEmail:     "andri.pratama@mistypass.local",
+				DeviceID:      "dev_pixel8_001",
+				Platform:      "android",
+				DeviceModel:   "Google Pixel 8",
+				KeystoreLevel: "strongbox",
+				PublicKeyPEM:  "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDemo1234567890abcdef\n-----END PUBLIC KEY-----",
+				Status:        "active",
+				IssuedAt:      now.Add(-30 * 24 * time.Hour),
+				ExpiresAt:     now.Add(60 * 24 * time.Hour),
+				LastUsedAt:    &lastUsed,
+			},
+			{
+				ID:            "cred_rina_android",
+				TenantID:      "tenant_demo_factory",
+				UserID:        "usr_1002",
+				UserEmail:     "rina.hartono@mistypass.local",
+				DeviceID:      "dev_samsung_a54_001",
+				Platform:      "android",
+				DeviceModel:   "Samsung Galaxy A54",
+				KeystoreLevel: "tee",
+				PublicKeyPEM:  "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDemo0987654321fedcba\n-----END PUBLIC KEY-----",
+				Status:        "active",
+				IssuedAt:      now.Add(-14 * 24 * time.Hour),
+				ExpiresAt:     now.Add(16 * 24 * time.Hour),
+				LastUsedAt:    &lastUsed,
+			},
+			{
+				ID:            "cred_admin_ios",
+				TenantID:      "tenant_demo_jakarta",
+				UserID:        "usr_building_admin_jkt_001",
+				UserEmail:     "building.admin.sudirman@mistypass.local",
+				DeviceID:      "dev_iphone15_001",
+				Platform:      "ios",
+				DeviceModel:   "iPhone 15 Pro",
+				KeystoreLevel: "strongbox",
+				PublicKeyPEM:  "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEDemoAdminKey12345678\n-----END PUBLIC KEY-----",
+				Status:        "active",
+				IssuedAt:      now.Add(-60 * 24 * time.Hour),
+				ExpiresAt:     now.Add(30 * 24 * time.Hour),
+				LastUsedAt:    &lastUsed,
+			},
+		},
 	}
 }
 
@@ -352,7 +400,7 @@ func (s *Service) persistLocked() {
 		Credentials: s.credentials,
 	}
 	if err := s.stateStore.Save(stateKey, snap); err != nil {
-		log.Printf("[credential] persist failed: %v", err)
+		slog.Warn("credential persist failed", "error", err)
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 func TestMetricsEndpointExposed(t *testing.T) {
-	router, err := NewRouter(config.Config{}, nil)
+	router, _, err := NewRouter(config.Config{}, nil)
 	if err != nil {
 		t.Fatalf("expected router init success: %v", err)
 	}

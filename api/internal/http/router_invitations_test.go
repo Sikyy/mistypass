@@ -10,7 +10,7 @@ import (
 )
 
 func TestInvitationsListAndDetail(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "invitations-list-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -78,7 +78,7 @@ func TestInvitationsListAndDetail(t *testing.T) {
 }
 
 func TestInvitationsCancelAndResend(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "invitations-cancel-test",
 		EnableDemoUsers: true,
 	}, nil)

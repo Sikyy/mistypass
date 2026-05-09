@@ -59,6 +59,19 @@ func writeInternalError(w http.ResponseWriter, r *http.Request, err error) {
 	writeError(w, http.StatusInternalServerError, "internal server error")
 }
 
+// parsePagination extracts offset/limit from query params with defaults.
+func parsePagination(r *http.Request, total int) (offset, limit int) {
+	offset, _ = strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, _ = strconv.Atoi(r.URL.Query().Get("limit"))
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	return offset, limit
+}
+
 func httpStatusErrorCode(status int) string {
 	text := strings.ToLower(strings.TrimSpace(http.StatusText(status)))
 	if text == "" {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestCurrentUserProfileGetAndUpdate(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "current-user-profile-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -102,7 +102,7 @@ func TestCurrentUserProfileGetAndUpdate(t *testing.T) {
 }
 
 func TestCurrentUserProfileRejectsUnsupportedLanguage(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "current-user-profile-language-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

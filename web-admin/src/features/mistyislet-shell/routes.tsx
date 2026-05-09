@@ -81,8 +81,17 @@ const AlarmSchedulePage = lazy(() =>
 const ReportSchedulePage = lazy(() =>
   import("@/features/reports/pages/report-schedule-page").then((module) => ({ default: module.ReportSchedulePage }))
 )
+const CamerasPage = lazy(() =>
+  import("@/features/cameras/pages/cameras-page").then((module) => ({ default: module.CamerasPage }))
+)
 const VisitorsPage = lazy(() =>
   import("@/features/visitors/pages/visitors-page").then((module) => ({ default: module.VisitorsPage }))
+)
+const MobileCredentialsPage = lazy(() =>
+  import("@/features/mobile-credentials/pages/mobile-credentials-page").then((module) => ({ default: module.MobileCredentialsPage }))
+)
+const SouthboundPage = lazy(() =>
+  import("@/features/southbound/pages/southbound-page").then((module) => ({ default: module.SouthboundPage }))
 )
 const BookingsPage = lazy(() =>
   import("@/features/bookings/pages/bookings-page").then((module) => ({ default: module.BookingsPage }))
@@ -258,6 +267,8 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/network" element={<NetworkTopologyPage token={token} viewer={viewer} />} />
         <Route path="/alarm-schedules" element={<AlarmSchedulePage token={token} viewer={viewer} />} />
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
+        <Route path="/mobile-credentials" element={<MobileCredentialsPage token={token} viewer={viewer} />} />
+        <Route path="/southbound" element={<SouthboundPage token={token} viewer={viewer} />} />
         <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />
@@ -276,6 +287,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/access/policies" element={<AccessPoliciesPage token={token} viewer={viewer} />} />
         <Route path="/access/grants" element={<AccessGrantsPage token={token} viewer={viewer} />} />
         <Route path="/wallet" element={<WalletPage token={token} viewer={viewer} />} />
+        <Route path="/cameras" element={<CamerasPage token={token} viewer={viewer} />} />
         <Route path="/gateways" element={<GatewaysPage token={token} viewer={viewer} />} />
         <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />

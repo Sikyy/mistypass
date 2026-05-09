@@ -33,7 +33,7 @@ func TestUserInvitationResendProviderDispatchesAndRecordsReceipt(t *testing.T) {
 	}))
 	defer provider.Close()
 
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:                    "user-invitation-resend-test-secret",
 		EnableDemoUsers:              true,
 		UserInvitationEmailProvider:  "resend",
@@ -91,7 +91,7 @@ func TestUserInvitationResendProviderDispatchesAndRecordsReceipt(t *testing.T) {
 
 func TestUserInvitationProviderWebhookRecordsSignedReceipt(t *testing.T) {
 	const webhookSecret = "provider-webhook-secret-001"
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:                           "user-invitation-provider-webhook-test-secret",
 		EnableDemoUsers:                     true,
 		UserInvitationEmailProvider:         "queue",

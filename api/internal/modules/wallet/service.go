@@ -113,6 +113,7 @@ type PassInstance struct {
 	Token          string     `json:"token,omitempty"`
 	UID            string     `json:"uid,omitempty"`
 	CardNumber     string     `json:"card_number,omitempty"`
+	DeviceName     string     `json:"device_name,omitempty"`
 	Status         string     `json:"status"`
 	SaveLink       string     `json:"save_link"`
 	ExpiresAt      string     `json:"expires_at,omitempty"`
@@ -493,6 +494,21 @@ func NewService() *Service {
 				StyleConfig: map[string]string{
 					"brand":      "MistyPass",
 					"themeColor": "#0369A1",
+				},
+				Status:    "active",
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			{
+				ID:       "wpt_nfc_card_demo",
+				TenantID: "tenant_demo_jakarta",
+				Provider: "physical",
+				PassType: "nfc_card",
+				ClassID:  "mistypass.nfc.card",
+				Name:     "NFC 门禁卡",
+				StyleConfig: map[string]string{
+					"brand":    "MistyPass",
+					"cardType": "desfire_ev3",
 				},
 				Status:    "active",
 				CreatedAt: now,

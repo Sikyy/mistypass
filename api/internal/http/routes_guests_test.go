@@ -10,7 +10,7 @@ import (
 )
 
 func TestGuestCRUDLifecycle(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "guest-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -100,7 +100,7 @@ func TestGuestCRUDLifecycle(t *testing.T) {
 }
 
 func TestGuestCreateValidation(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "guest-validation-test",
 		EnableDemoUsers: true,
 	}, nil)

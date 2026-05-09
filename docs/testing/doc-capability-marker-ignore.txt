@@ -37,3 +37,6 @@ docs/credential-security-architecture.md
 docs/deployment/**
 docs/hardware-integration-guide.md
 docs/kisi-gap-analysis.md
+
+# App redesign planning doc (not a capability doc).
+docs/app-redesign-plan.md

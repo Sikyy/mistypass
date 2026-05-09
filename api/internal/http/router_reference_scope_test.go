@@ -11,7 +11,7 @@ import (
 )
 
 func TestReferencePlaceAdminURLScopeBlocksUnassignedPlace(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-place-admin-scope-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -77,7 +77,7 @@ func TestReferencePlaceAdminURLScopeBlocksUnassignedPlace(t *testing.T) {
 
 func TestReferencePlaceAdminScopeDerivesFromRoleAssignmentsWithoutJWTBuildingIDs(t *testing.T) {
 	const jwtSecret = "reference-place-admin-role-assignment-scope-test-secret"
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       jwtSecret,
 		EnableDemoUsers: true,
 	}, nil)
@@ -133,7 +133,7 @@ func TestReferencePlaceAdminScopeDerivesFromRoleAssignmentsWithoutJWTBuildingIDs
 }
 
 func TestReferencePlaceAdminAccessRightsScopeBlocksCrossPlaceWrites(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-place-admin-access-rights-scope-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -196,7 +196,7 @@ func TestReferencePlaceAdminAccessRightsScopeBlocksCrossPlaceWrites(t *testing.T
 }
 
 func TestReferenceOperatorReadOnlyWriteGuard(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-operator-write-guard-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

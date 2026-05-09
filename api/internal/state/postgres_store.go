@@ -2943,3 +2943,161 @@ func normalizeReplayLimit(limit int) int {
 	}
 	return limit
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Org Membership (multi-org support)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// OrgMembership represents a user's membership in an organization (tenant).
+type OrgMembership struct {
+	ID         string
+	UserID     string
+	TenantID   string
+	Role       string
+	JoinedAt   time.Time
+	LastUsedAt *time.Time
+}
+
+// ListUserOrgMemberships returns all org memberships for a user.
+func (s *PostgresStore) ListUserOrgMemberships(userID string) ([]OrgMembership, error) {
+	if s == nil || s.db == nil {
+		return nil, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, tenant_id, role, joined_at, last_used_at
+		   FROM user_org_memberships
+		  WHERE user_id = $1
+		  ORDER BY joined_at ASC`, nextUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var memberships []OrgMembership
+	for rows.Next() {
+		var m OrgMembership
+		if err := rows.Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.JoinedAt, &m.LastUsedAt); err != nil {
+			return nil, err
+		}
+		memberships = append(memberships, m)
+	}
+	return memberships, rows.Err()
+}
+
+// GetUserOrgMembership returns a single membership for validation (e.g. org switch).
+func (s *PostgresStore) GetUserOrgMembership(userID, tenantID string) (OrgMembership, bool, error) {
+	if s == nil || s.db == nil {
+		return OrgMembership{}, false, errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextUserID == "" || nextTenantID == "" {
+		return OrgMembership{}, false, nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	var m OrgMembership
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, user_id, tenant_id, role, joined_at, last_used_at
+		   FROM user_org_memberships
+		  WHERE user_id = $1 AND tenant_id = $2`, nextUserID, nextTenantID).
+		Scan(&m.ID, &m.UserID, &m.TenantID, &m.Role, &m.JoinedAt, &m.LastUsedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return OrgMembership{}, false, nil
+	}
+	if err != nil {
+		return OrgMembership{}, false, err
+	}
+	return m, true, nil
+}
+
+// UpdateOrgMembershipLastUsed sets last_used_at to now for a membership.
+func (s *PostgresStore) UpdateOrgMembershipLastUsed(userID, tenantID string) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextUserID := strings.TrimSpace(userID)
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextUserID == "" || nextTenantID == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE user_org_memberships SET last_used_at = now() WHERE user_id = $1 AND tenant_id = $2`,
+		nextUserID, nextTenantID)
+	return err
+}
+
+// CreateMagicLinkToken stores a magic link token for passwordless login.
+func (s *PostgresStore) CreateMagicLinkToken(email, token string, expiresAt time.Time) error {
+	if s == nil || s.db == nil {
+		return errors.New("postgres store is not initialized")
+	}
+	nextEmail := strings.TrimSpace(strings.ToLower(email))
+	nextToken := strings.TrimSpace(token)
+	if nextEmail == "" || nextToken == "" {
+		return errors.New("email and token are required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO magic_link_tokens (email, token, expires_at) VALUES ($1, $2, $3)`,
+		nextEmail, nextToken, expiresAt)
+	return err
+}
+
+// VerifyMagicLinkToken validates and consumes a magic link token, returning the associated email.
+func (s *PostgresStore) VerifyMagicLinkToken(token string) (string, error) {
+	if s == nil || s.db == nil {
+		return "", errors.New("postgres store is not initialized")
+	}
+	nextToken := strings.TrimSpace(token)
+	if nextToken == "" {
+		return "", errors.New("token is required")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	var email string
+	var expiresAt time.Time
+	var usedAt *time.Time
+	err := s.db.QueryRowContext(ctx,
+		`SELECT email, expires_at, used_at FROM magic_link_tokens WHERE token = $1`, nextToken).
+		Scan(&email, &expiresAt, &usedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", errors.New("invalid or expired magic link token")
+	}
+	if err != nil {
+		return "", err
+	}
+	if usedAt != nil {
+		return "", errors.New("magic link token has already been used")
+	}
+	if time.Now().UTC().After(expiresAt) {
+		return "", errors.New("magic link token has expired")
+	}
+
+	// Mark token as used
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE magic_link_tokens SET used_at = now() WHERE token = $1`, nextToken)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}

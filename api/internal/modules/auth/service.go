@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 	"net/url"
 	"strings"
 	"sync"
@@ -375,7 +376,10 @@ func (s *Service) Login(request LoginRequest, meta ...SessionMetadata) (LoginRes
 	if err != nil {
 		return LoginResponse{}, ErrInvalidCredentials
 	}
-	if !exists || !verifyPassword(record.PasswordHash, password) {
+	if !exists {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
+	if !verifyPassword(record.PasswordHash, password) {
 		return LoginResponse{}, ErrInvalidCredentials
 	}
 	if !record.User.PasswordAuthEnabled {
@@ -1470,6 +1474,7 @@ func (s *Service) signToken(user User, tokenType string, ttl time.Duration) (str
 			ID:        jti,
 			Subject:   user.ID,
 			Issuer:    s.issuer,
+			Audience:  jwt.ClaimStrings{s.issuer},
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
@@ -1506,6 +1511,9 @@ func (s *Service) parseTokenClaims(rawToken, expectedType string) (tokenClaims, 
 	}
 	if claims.Issuer != s.issuer {
 		return tokenClaims{}, errors.New("invalid token issuer")
+	}
+	if len(claims.Audience) > 0 && !slices.Contains(claims.Audience, s.issuer) {
+		return tokenClaims{}, errors.New("invalid token audience")
 	}
 	if claims.UserID == "" || claims.ID == "" {
 		return tokenClaims{}, errors.New("invalid token claims")
@@ -2455,8 +2463,8 @@ func buildDemoUsers() []userRecord {
 			User: User{
 				ID:       "usr_resident_siky_001",
 				Name:     "Siky",
-				Email:    "siky",
-				Role:     "resident",
+				Email:    "siky@mistyislet.com",
+				Role:     "tenant_admin",
 				TenantID: "tenant_demo_jakarta",
 				Language: "zh-CN",
 			},

@@ -9,7 +9,7 @@ import (
 )
 
 func TestLegacyAccessPolicyWritesAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-access-policy-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -44,7 +44,7 @@ func TestLegacyAccessPolicyWritesAppendAuditLogs(t *testing.T) {
 }
 
 func TestLegacySpaceAndTemporaryAccessWritesAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-space-access-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

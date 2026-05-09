@@ -35,6 +35,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+type credentialSighting struct {
+	LockID string
+	SeenAt time.Time
+	Count  int
+}
+
 type server struct {
 	cfg                           config.Config
 	stateStore                    state.Store
@@ -100,20 +106,30 @@ type server struct {
 	hrisWebhookDLQWorkerQueue     chan enterpriseHRISWebhookDLQQueuedTask
 	messageBus                    bus.Publisher
 	externalAuthHTTPClient        *http.Client
+	memStoreMu                    sync.RWMutex
+	memStore                      map[string]any
+	credLastSeenMu                sync.RWMutex
+	credLastSeen                  map[string]credentialSighting
 	hrisHTTPClient                *http.Client
 	gatewayNonceMu                sync.Mutex
 	gatewayNonces                 map[string]time.Time // nonce → expiry (5-min dedup window)
 	oauth2                        *oauth2Store
 	pushDeviceMu                  sync.Mutex
 	pushDevices                   map[string]pushDevice
+	doorFavoriteMu                sync.RWMutex
+	doorFavorites                 map[string]map[string]bool // userID → doorID → true
+	orgStore                      orgMembershipStore
+	magicLinkStore                magicLinkStore
+	quit                          chan struct{}
 }
 
 type pushDevice struct {
-	UserID   string
-	TenantID string
-	FCMToken string
-	DeviceID string
-	Platform string
+	UserID       string
+	TenantID     string
+	FCMToken     string
+	DeviceID     string
+	Platform     string
+	RegisteredAt time.Time
 }
 
 type enterpriseHRISWebhookReceiptQueuedTask struct {
@@ -167,6 +183,17 @@ type workerQueueStore interface {
 	DescribeWorkerQueue(queueName string, itemIDs []string) (redistore.WorkerQueueTelemetry, error)
 }
 
+type orgMembershipStore interface {
+	ListUserOrgMemberships(userID string) ([]state.OrgMembership, error)
+	GetUserOrgMembership(userID, tenantID string) (state.OrgMembership, bool, error)
+	UpdateOrgMembershipLastUsed(userID, tenantID string) error
+}
+
+type magicLinkStore interface {
+	CreateMagicLinkToken(email, token string, expiresAt time.Time) error
+	VerifyMagicLinkToken(token string) (string, error)
+}
+
 type loginRateLimitBucket struct {
 	WindowStart time.Time
 	Attempts    int
@@ -203,9 +230,12 @@ const (
 	enterpriseHRISWebhookQueuedTaskBufferSize  = 128
 )
 
-func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, error) {
-	handler, _, err := newRouterInternal(cfg, stateStore)
-	return handler, err
+func NewRouter(cfg config.Config, stateStore state.Store) (http.Handler, func(), error) {
+	handler, srv, err := newRouterInternal(cfg, stateStore)
+	if err != nil {
+		return nil, nil, err
+	}
+	return handler, func() { close(srv.quit) }, nil
 }
 
 func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler, *server, error) {
@@ -385,7 +415,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		externalAuthHTTPClient:        &http.Client{Timeout: cfg.ExternalAuthTimeout},
 		hrisHTTPClient:                &http.Client{Timeout: firstNonZeroDuration(cfg.ExternalAuthTimeout, 15*time.Second)},
 		oauth2:                        newOAuth2Store(),
+		memStore:                      map[string]any{},
+		credLastSeen:                  map[string]credentialSighting{},
 		pushDevices:                   map[string]pushDevice{},
+		quit:                          make(chan struct{}),
 	}
 	webAuthnEngine, err := auth.NewWebAuthnEngine(cfg.WebAuthnRPDisplayName, cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins)
 	if err != nil {
@@ -462,6 +495,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	if tokenStore, ok := stateStore.(gatewayTokenStore); ok {
 		s.gatewayTokenStore = tokenStore
 	}
+	if orgStore, ok := stateStore.(orgMembershipStore); ok {
+		s.orgStore = orgStore
+	}
+	if mlStore, ok := stateStore.(magicLinkStore); ok {
+		s.magicLinkStore = mlStore
+	}
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, nil, err
 	}
@@ -511,26 +550,210 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withEnterprisePublicRateLimit).Post("/group_links/verify", s.verifyReferenceGroupLinkToken)
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/users/invitations/provider-receipts", s.receiveUserInvitationProviderReceipt)
 
+		// Kisi-compatible routes (no /app prefix)
+		r.Get("/organizations/{domain}/public", s.kisiOrgPublic)
+		r.With(s.withLoginRateLimit).Post("/logins", s.kisiLogin)
+		r.With(s.withLoginRateLimit).Post("/logins/resolve", s.kisiLogin)
+		r.Group(func(kisiAuth chi.Router) {
+			kisiAuth.Use(s.withBearerToken)
+			kisiAuth.Get("/login", s.kisiGetLogin)
+			kisiAuth.Get("/organization", s.kisiGetOrganization)
+			kisiAuth.Get("/places", s.kisiListPlaces)
+			kisiAuth.Get("/places/{id}", s.kisiGetPlace)
+		})
+
 		r.Route("/app", func(app chi.Router) {
 			app.With(s.withLoginRateLimit).Post("/auth/login", s.appLogin)
 			app.Post("/auth/refresh", s.appRefresh)
 
+			// Enhanced auth endpoints (unauthenticated)
+			app.With(s.withLoginRateLimit).Post("/auth/magic-link", s.appRequestMagicLink)
+			app.With(s.withLoginRateLimit).Post("/auth/magic-link/verify", s.appVerifyMagicLink)
+			app.Get("/auth/org-lookup", s.appOrgLookup)
+			app.Get("/auth/org/{orgId}/methods", s.appOrgMethods)
+			app.With(s.withLoginRateLimit).Post("/auth/sso/{orgId}", s.appInitiateSSO)
+			app.With(s.withLoginRateLimit).Post("/auth/2fa/verify", s.appVerify2FA)
+			app.With(s.withLoginRateLimit).Post("/auth/2fa/backup", s.appVerifyBackupCode)
+			app.With(s.withLoginRateLimit).Post("/auth/register", s.appRegister)
+			app.With(s.withLoginRateLimit).Post("/auth/restore-password", s.appRestorePassword)
+
 			app.Group(func(protected chi.Router) {
 				protected.Use(s.withBearerToken)
-				protected.Use(s.requireRoles("resident"))
+				protected.Use(s.requireRoles("resident", "tenant_admin", "building_admin", "building_manager", "super_admin", "security"))
 
-				protected.Get("/me", s.appMe)
-				protected.Get("/credentials", s.appCredentials)
+				protected.Get("/me", s.appMeEnhanced)
+				protected.Patch("/me", s.appUpdateMe)
+				protected.Post("/me/avatar", s.appUploadAvatar)
+				protected.Post("/me/change-password", s.appChangePassword)
+				protected.Get("/me/logins", s.appListMyLogins)
+				protected.Delete("/me/logins/{loginId}", s.appRevokeMyLogin)
+				protected.Post("/me/primary-device", s.appSetPrimaryDevice)
+				protected.Get("/credentials", s.appCredentialsEnhanced)
 				protected.Post("/credentials/apple-pass", s.appEnrollApplePass)
+				protected.Get("/credentials/nfc", s.appListNFCCards)
+				protected.Post("/credentials/nfc", s.appBindNFCCard)
+				protected.Delete("/credentials/nfc/{credentialId}", s.appUnbindNFCCard)
+				protected.Post("/qr-token", s.appGenerateQRToken)
 				protected.Get("/access/doors", s.appAccessDoors)
-				protected.Get("/access/my-doors", s.appAccessMyDoors)
+				protected.Get("/access/my-doors", s.appAccessMyDoorsEnhanced)
 				protected.Post("/access/unlock", s.appUnlockDoor)
 				protected.Post("/access/qr-unlock", s.appQRUnlock)
+				protected.Post("/access/pin-unlock", s.appPINUnlock)
+				protected.Get("/access/pin-code", s.appGetPINCode)
+				protected.Put("/access/doors/{doorId}/favorite", s.appToggleDoorFavorite)
 				protected.Get("/access/ble-token", s.appAccessBLEToken)
-				protected.Get("/access/logs", s.appAccessLogs)
-				protected.Get("/visitor-passes", s.appListVisitorPasses)
-				protected.Post("/visitor-passes", s.appCreateVisitorPass)
+				protected.Get("/access/logs", s.appAccessLogsEnhanced)
+				protected.Get("/visitor-passes", s.appListVisitorPassesEnhanced)
+				protected.Post("/visitor-passes", s.appCreateVisitorPassEnhanced)
 				protected.Post("/devices/register", s.appRegisterDevice)
+				protected.Post("/devices/apns", s.appRegisterAPNSDevice)
+
+				// Mobile camera endpoints
+				protected.Get("/cameras", s.appListCameras)
+				protected.Get("/cameras/{cameraID}/video-link", s.appCameraVideoLink)
+				protected.Post("/cameras/{cameraID}/snapshot", s.appCameraSnapshot)
+				protected.Patch("/cameras/{cameraId}", s.appRenameCamera)
+
+				// Hardware management
+				protected.Patch("/gateways/{gatewayId}", s.appRenameGateway)
+
+				// Bookings
+				protected.Get("/bookable-spaces", s.appListBookableSpaces)
+				protected.Get("/bookable-spaces/{spaceID}/status", s.appGetBookableSpaceStatus)
+				protected.Get("/bookings", s.appListBookings)
+				protected.Post("/bookings", s.appCreateBooking)
+				protected.Post("/bookings/{bookingID}/cancel", s.appCancelBooking)
+				protected.Post("/bookings/{bookingID}/check-in", s.appCheckInBooking)
+				protected.Post("/bookings/{bookingID}/check-out", s.appCheckOutBooking)
+
+				// Alarms
+				protected.Get("/alarms", s.appListAlarms)
+				protected.Get("/alarms/stream", s.appStreamAlarms)
+				protected.Patch("/alarms/{alarmID}/status", s.appUpdateAlarmStatus)
+				protected.Get("/alarm-schedules", s.appListAlarmSchedules)
+				protected.Get("/alarm-schedules/calendar", s.appGetAlarmCalendar)
+
+				// Multi-org endpoints
+				protected.Get("/orgs", s.appListOrgs)
+				protected.Post("/orgs/{orgId}/switch", s.appSwitchOrg)
+				protected.Get("/orgs/{orgId}/settings", s.appGetOrgSettings)
+				protected.Put("/orgs/{orgId}/settings", s.appUpdateOrgSettings)
+
+				// Org-scoped place endpoints
+				protected.Get("/orgs/{orgId}/places", s.appListPlaces)
+				protected.Get("/orgs/{orgId}/places/search", s.appSearchPlaces)
+
+				// Place-scoped door endpoints
+				protected.Get("/places/{placeId}/doors", s.appPlaceListDoors)
+				protected.Get("/places/{placeId}/doors/search", s.appPlaceSearchDoors)
+				protected.Post("/places/{placeId}/doors/{doorId}/unlock", s.appPlaceUnlockDoor)
+				protected.Post("/places/{placeId}/doors/{doorId}/qr-unlock", s.appPlaceQRUnlock)
+				protected.Post("/places/{placeId}/lockdown", s.appPlaceEnableLockdown)
+				protected.Delete("/places/{placeId}/lockdown", s.appPlaceDisableLockdown)
+				protected.Put("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceFavoriteDoor)
+				protected.Delete("/places/{placeId}/doors/{doorId}/favorite", s.appPlaceUnfavoriteDoor)
+				protected.Post("/places/{placeId}/doors/{doorId}/lockdown", s.appPlaceEnableDoorLockdown)
+				protected.Delete("/places/{placeId}/doors/{doorId}/lockdown", s.appPlaceDisableDoorLockdown)
+				protected.Get("/places/{placeId}/doors/{doorId}/restrictions", s.appPlaceDoorRestrictions)
+				protected.Get("/places/{placeId}/doors/{doorId}/schedules", s.appPlaceDoorSchedules)
+				protected.Patch("/places/{placeId}/doors/{doorId}", s.appPlaceRenameDoor)
+				protected.Put("/places/{placeId}/settings", s.appUpdatePlaceSettings)
+
+				// Admin user management endpoints (place-scoped)
+				protected.Route("/places/{placeId}/users", func(adminUsers chi.Router) {
+					adminUsers.Use(s.requireRoles("super_admin", "tenant_admin", "building_admin"))
+					adminUsers.Get("/", s.appAdminListUsers)
+					adminUsers.Get("/search", s.appAdminSearchUsers)
+					adminUsers.Post("/", s.appAdminAddUser)
+					adminUsers.Get("/{userId}", s.appAdminGetUser)
+					adminUsers.Put("/{userId}/role", s.appAdminUpdateUserRole)
+					adminUsers.Patch("/{userId}/role", s.appAdminUpdateUserRole)
+					adminUsers.Delete("/{userId}", s.appAdminRemoveUser)
+					adminUsers.Post("/{userId}/sign-out", s.appAdminSignOutUser)
+					adminUsers.Get("/{userId}/logins", s.appAdminGetUserLogins)
+					adminUsers.Get("/{userId}/access-rights", s.appAdminGetAccessRights)
+					adminUsers.Post("/{userId}/share-access", s.appAdminShareAccess)
+					adminUsers.Post("/invite", s.appAdminInviteUser)
+				})
+
+				// Admin events, incidents, and activity endpoints (place-scoped)
+				protected.Route("/places/{placeId}", func(placeRouter chi.Router) {
+					placeRouter.Use(s.requireRoles("super_admin", "tenant_admin", "building_admin"))
+					// Events
+					placeRouter.Get("/events", s.appAdminListEvents)
+					placeRouter.Get("/events/{eventId}", s.appAdminGetEvent)
+					placeRouter.Get("/events/{eventId}/related", s.appAdminGetRelatedEvents)
+					placeRouter.Get("/events/{eventId}/media", s.appAdminGetEventMedia)
+					// Incidents
+					placeRouter.Get("/incidents", s.appAdminListIncidents)
+					placeRouter.Get("/incidents/{incidentId}", s.appAdminGetIncident)
+					placeRouter.Get("/incidents/{incidentId}/occurrences", s.appAdminGetOccurrences)
+					// Activity
+					placeRouter.Get("/activity", s.appAdminGetUserActivity)
+					placeRouter.Get("/activity/{eventId}", s.appAdminGetPresenceEvent)
+					// Schedules
+					placeRouter.Get("/schedules", s.appAdminListSchedules)
+					placeRouter.Post("/schedules", s.appAdminCreateSchedule)
+					placeRouter.Put("/schedules/{scheduleId}", s.appAdminUpdateSchedule)
+					placeRouter.Delete("/schedules/{scheduleId}", s.appAdminDeleteSchedule)
+					// Holiday regions
+					placeRouter.Get("/holiday-regions", s.appAdminListHolidayRegions)
+					placeRouter.Get("/holiday-regions/{regionId}/holidays", s.appAdminListHolidays)
+					// Zones
+					placeRouter.Get("/zones", s.appAdminListZones)
+					placeRouter.Get("/zones/{zoneId}", s.appAdminGetZone)
+					// Cards
+					placeRouter.Get("/cards", s.appAdminListCards)
+					placeRouter.Post("/cards/assign", s.appAdminAssignCard)
+					placeRouter.Delete("/cards/{cardUid}", s.appAdminUnassignCard)
+					placeRouter.Get("/cards/{cardUid}/status", s.appAdminGetCardStatus)
+					placeRouter.Post("/cards/manual-token", s.appAdminManualCardToken)
+					// Digital credentials
+					placeRouter.Get("/credentials", s.appAdminListCredentials)
+					placeRouter.Post("/credentials", s.appAdminCreateCredential)
+					placeRouter.Get("/credentials/search", s.appAdminSearchCredentials)
+					placeRouter.Get("/credentials/{credentialId}", s.appAdminGetCredential)
+					// Teams
+					placeRouter.Get("/teams", s.appAdminListTeams)
+					placeRouter.Post("/teams", s.appAdminCreateTeam)
+					placeRouter.Get("/teams/{teamId}", s.appAdminGetTeam)
+					placeRouter.Put("/teams/{teamId}", s.appAdminUpdateTeam)
+					placeRouter.Delete("/teams/{teamId}", s.appAdminDeleteTeam)
+					placeRouter.Get("/teams/{teamId}/members", s.appAdminListTeamMembers)
+					placeRouter.Post("/teams/{teamId}/members", s.appAdminAddTeamMember)
+					placeRouter.Delete("/teams/{teamId}/members/{memberId}", s.appAdminRemoveTeamMember)
+					placeRouter.Get("/teams/{teamId}/access-rights", s.appAdminListTeamAccessRights)
+					placeRouter.Post("/teams/{teamId}/access-rights", s.appAdminAssignTeamAccessRight)
+					placeRouter.Delete("/teams/{teamId}/access-rights/{accessRightId}", s.appAdminRemoveTeamAccessRight)
+					// Access groups
+					placeRouter.Get("/groups", s.appAdminListGroups)
+					placeRouter.Post("/groups", s.appAdminCreateGroup)
+					placeRouter.Patch("/groups/{groupId}", s.appAdminUpdateGroup)
+					placeRouter.Delete("/groups/{groupId}", s.appAdminDeleteGroup)
+					placeRouter.Get("/groups/{groupId}/members", s.appAdminListGroupMembers)
+					placeRouter.Post("/groups/{groupId}/members", s.appAdminAddGroupMember)
+					placeRouter.Delete("/groups/{groupId}/members/{memberId}", s.appAdminRemoveGroupMember)
+					placeRouter.Get("/groups/{groupId}/doors", s.appAdminListGroupDoors)
+					placeRouter.Post("/groups/{groupId}/doors", s.appAdminAddGroupDoor)
+					placeRouter.Delete("/groups/{groupId}/doors/{doorId}", s.appAdminRemoveGroupDoor)
+					// Visitor groups
+					placeRouter.Get("/visitor-groups", s.appListVisitorGroups)
+					placeRouter.Post("/visitor-groups", s.appCreateVisitorGroup)
+					placeRouter.Get("/visitor-groups/{groupId}/members", s.appListVisitorGroupMembers)
+					placeRouter.Post("/visitor-groups/{groupId}/cleanup-expired", s.appCleanupExpiredVisitors)
+					// Analytics & Reports
+					placeRouter.Get("/analytics/summary", s.appAnalyticsSummary)
+					placeRouter.Get("/analytics/presence", s.appUserPresence)
+					placeRouter.Get("/analytics/failed-attempts", s.appAnalyticsFailedAttempts)
+					placeRouter.Post("/reports/export", s.appExportReport)
+					// Guest management
+					placeRouter.Get("/guests", s.appAdminListGuests)
+					placeRouter.Post("/guests", s.appAdminCreateGuest)
+					placeRouter.Patch("/guests/{guestId}", s.appAdminUpdateGuestStatus)
+					placeRouter.Delete("/guests/{guestId}", s.appAdminDeleteGuest)
+					// Credential revoke (admin)
+					placeRouter.Post("/credentials/{credentialId}/revoke", s.appAdminRevokeCredential)
+				})
 
 				// Mobile BLE credential management
 				protected.Post("/credentials/register", s.appRegisterMobileCredential)
@@ -910,6 +1133,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/event_sets")).Get("/events/access", s.listAccessEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/device", s.listDeviceEvents)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/stream", s.streamEvents)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/events/{eventID}/snapshots", s.listEventSnapshots)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms", s.listAlarms)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/alarms/stream", s.streamAlarms)
@@ -1266,7 +1490,10 @@ func (s *server) appCredentials(w http.ResponseWriter, r *http.Request) {
 			"credential_kind": passes[i].CredentialKind,
 			"status":          passes[i].Status,
 			"save_link":       passes[i].SaveLink,
+			"card_number":     passes[i].CardNumber,
+			"user_id":         user.ID,
 			"issued_at":       passes[i].IssuedAt,
+			"created_at":      passes[i].IssuedAt,
 		})
 	}
 
@@ -1372,8 +1599,50 @@ func (s *server) appAccessLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	events := s.eventSvc.ListAccessEvents(user.TenantID)
+
+	// Build door name lookup for enrichment
+	doors := s.spaceSvc.ListDoors(user.TenantID)
+	doorNames := make(map[string]string, len(doors))
+	for _, d := range doors {
+		doorNames[d.ID] = d.Name
+	}
+
+	// Parse pagination params
+	offset, limit := parsePagination(r, len(events))
+	total := len(events)
+
+	// Apply pagination
+	if offset > len(events) {
+		offset = len(events)
+	}
+	end := offset + limit
+	if end > len(events) {
+		end = len(events)
+	}
+	page := events[offset:end]
+
+	// Enrich with door_name
+	items := make([]map[string]any, 0, len(page))
+	for _, ev := range page {
+		items = append(items, map[string]any{
+			"id":        ev.ID,
+			"door_id":   ev.DoorID,
+			"door_name": doorNames[ev.DoorID],
+			"type":      ev.Type,
+			"result":    ev.Result,
+			"actor":     ev.Actor,
+			"at":        ev.At,
+		})
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": events,
+		"items": items,
+		"pagination": map[string]any{
+			"offset":   offset,
+			"limit":    limit,
+			"total":    total,
+			"has_more": end < total,
+		},
 	})
 }
 
@@ -1383,9 +1652,24 @@ func (s *server) appListVisitorPasses(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "invalid access token")
 		return
 	}
-	items := s.accessSvc.ListVisitorPasses(user.TenantID)
+	all := s.accessSvc.ListVisitorPasses(user.TenantID)
+	total := len(all)
+	offset, limit := parsePagination(r, total)
+	if offset > total {
+		offset = total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
+		"items": all[offset:end],
+		"pagination": map[string]any{
+			"offset":   offset,
+			"limit":    limit,
+			"total":    total,
+			"has_more": end < total,
+		},
 	})
 }
 
@@ -1411,11 +1695,12 @@ func (s *server) appRegisterDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	s.pushDeviceMu.Lock()
 	s.pushDevices[request.FCMToken] = pushDevice{
-		UserID:    user.ID,
-		TenantID:  user.TenantID,
-		FCMToken:  request.FCMToken,
-		DeviceID:  request.DeviceID,
-		Platform:  request.Platform,
+		UserID:       user.ID,
+		TenantID:     user.TenantID,
+		FCMToken:     request.FCMToken,
+		DeviceID:     request.DeviceID,
+		Platform:     request.Platform,
+		RegisteredAt: time.Now(),
 	}
 	s.pushDeviceMu.Unlock()
 	writeJSON(w, http.StatusOK, map[string]any{"status": "registered"})

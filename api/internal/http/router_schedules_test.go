@@ -10,7 +10,7 @@ import (
 )
 
 func TestSchedulesCRUD(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "schedules-crud-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -111,7 +111,7 @@ func TestSchedulesCRUD(t *testing.T) {
 }
 
 func TestScheduleCreateValidation(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "schedules-validation-test",
 		EnableDemoUsers: true,
 	}, nil)

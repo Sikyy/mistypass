@@ -9,7 +9,7 @@ import (
 )
 
 func TestUserMFAFullFlow(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "user-mfa-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -80,7 +80,7 @@ func TestUserMFAFullFlow(t *testing.T) {
 }
 
 func TestUserMFAAvailableForNonAdmin(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "user-mfa-nonadmin-test",
 		EnableDemoUsers: true,
 	}, nil)

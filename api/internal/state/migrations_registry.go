@@ -12,3 +12,11 @@ func migrations001InitialSchema() Migration {
 		Up:          migrations.InitialSchemaUp,
 	}
 }
+
+func migrations002MultiOrg() Migration {
+	return Migration{
+		Version:     2,
+		Description: "multi-org memberships and magic link tokens",
+		Up:          migrations.MultiOrgUp,
+	}
+}

@@ -36,7 +36,7 @@ func TestAllowedCORSOriginMatchesConfiguredOriginList(t *testing.T) {
 }
 
 func TestRouterCORSReflectsAllowedRequestOrigin(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:  "cors-test-secret",
 		CORSOrigin: "http://localhost:5173, http://127.0.0.1:5173",
 	}, nil)

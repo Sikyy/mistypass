@@ -107,5 +107,6 @@ func appliedVersions(db *sql.DB) (map[int]bool, error) {
 func AllMigrations() []Migration {
 	return []Migration{
 		migrations001InitialSchema(),
+		migrations002MultiOrg(),
 	}
 }
