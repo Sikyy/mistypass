@@ -1,6 +1,6 @@
 module github.com/mistypass/cloud/api
 
-go 1.25.9
+go 1.25.11
 
 require github.com/go-chi/chi/v5 v5.2.5
 
