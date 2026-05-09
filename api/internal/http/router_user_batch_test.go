@@ -10,7 +10,7 @@ import (
 )
 
 func TestBatchUpdateUserStatusEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "batch-user-status-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -42,7 +42,7 @@ func TestBatchUpdateUserStatusEndpoint(t *testing.T) {
 }
 
 func TestBatchDeleteUsersEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "batch-user-delete-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -72,7 +72,7 @@ func TestBatchDeleteUsersEndpoint(t *testing.T) {
 }
 
 func TestBatchInviteUsersEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "batch-user-invite-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -101,7 +101,7 @@ func TestBatchInviteUsersEndpoint(t *testing.T) {
 }
 
 func TestExportUsersCSVEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "export-users-csv-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -126,7 +126,7 @@ func TestExportUsersCSVEndpoint(t *testing.T) {
 }
 
 func TestImportUsersCSVEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "import-users-csv-test",
 		EnableDemoUsers: true,
 	}, nil)

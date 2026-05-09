@@ -9,7 +9,7 @@ import (
 )
 
 func TestLegacyEndpointsAdvertiseReferenceReplacements(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-deprecation-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

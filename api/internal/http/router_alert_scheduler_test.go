@@ -86,7 +86,7 @@ func TestAlertPolicySchedulerDispatchesOnEventIngest(t *testing.T) {
 }
 
 func TestAlertPolicyNotificationsEndpointFilters(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "alert-notif-filter-test",
 		EnableDemoUsers: true,
 	}, nil)

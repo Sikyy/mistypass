@@ -14,7 +14,7 @@ import (
 )
 
 func TestMobileCredentialRegistrationAndRevoke(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "credential-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -108,7 +108,7 @@ func TestMobileCredentialRegistrationAndRevoke(t *testing.T) {
 }
 
 func TestMobileCredentialAdminRevoke(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "credential-admin-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -152,7 +152,7 @@ func TestMobileCredentialAdminRevoke(t *testing.T) {
 }
 
 func TestMobileCredentialInvalidKey(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "credential-invalid-key-test",
 		EnableDemoUsers: true,
 	}, nil)

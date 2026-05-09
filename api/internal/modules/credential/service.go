@@ -9,7 +9,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"strings"
 	"sync"
@@ -400,7 +400,7 @@ func (s *Service) persistLocked() {
 		Credentials: s.credentials,
 	}
 	if err := s.stateStore.Save(stateKey, snap); err != nil {
-		log.Printf("[credential] persist failed: %v", err)
+		slog.Warn("credential persist failed", "error", err)
 	}
 }
 

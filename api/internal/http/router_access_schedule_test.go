@@ -10,7 +10,7 @@ import (
 )
 
 func TestScheduleTemplatesIncludeTimeWindows(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "schedule-template-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -54,7 +54,7 @@ func TestScheduleTemplatesIncludeTimeWindows(t *testing.T) {
 }
 
 func TestScheduleEvaluateEndpoint(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "schedule-eval-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -100,7 +100,7 @@ func TestScheduleEvaluateEndpoint(t *testing.T) {
 }
 
 func TestScheduleEvaluateExceptionDate(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "schedule-exception-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -129,7 +129,7 @@ func TestScheduleEvaluateExceptionDate(t *testing.T) {
 }
 
 func TestHolidayCalendarCRUD(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "holiday-calendar-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -210,7 +210,7 @@ func TestHolidayCalendarCRUD(t *testing.T) {
 }
 
 func TestHolidayCalendarPresetCountries(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "preset-countries-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -247,7 +247,7 @@ func TestHolidayCalendarPresetCountries(t *testing.T) {
 }
 
 func TestHolidayCalendarPresets(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "preset-entries-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -303,7 +303,7 @@ func TestHolidayCalendarPresets(t *testing.T) {
 }
 
 func TestHolidayCalendarCreateWithPreset(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "preset-create-test",
 		EnableDemoUsers: true,
 	}, nil)

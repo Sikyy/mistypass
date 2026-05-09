@@ -146,7 +146,9 @@ func (s *server) appGenerateQRToken(w http.ResponseWriter, r *http.Request) {
 		"expires_at": expiresAt.Format(time.RFC3339),
 	}
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(tokenKey, tokenData)
+		if err := s.stateStore.Save(tokenKey, tokenData); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", tokenKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[tokenKey] = tokenData
@@ -181,7 +183,11 @@ func (s *server) appGetOrgSettings(w http.ResponseWriter, r *http.Request) {
 	var settings map[string]any
 	found := false
 	if s.stateStore != nil {
-		found, _ = s.stateStore.Load(settingsKey, &settings)
+		var loadErr error
+		found, loadErr = s.stateStore.Load(settingsKey, &settings)
+		if loadErr != nil {
+			s.loggerOrDefault().Warn("state store load failed", "key", settingsKey, "error", loadErr)
+		}
 	} else {
 		s.memStoreMu.RLock()
 		if v, ok := s.memStore[settingsKey]; ok {
@@ -246,7 +252,9 @@ func (s *server) appUpdateOrgSettings(w http.ResponseWriter, r *http.Request) {
 
 	settingsKey := "org_settings:" + tenantID
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(settingsKey, settings)
+		if err := s.stateStore.Save(settingsKey, settings); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", settingsKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[settingsKey] = settings
@@ -308,7 +316,9 @@ func (s *server) appUpdatePlaceSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(placeKey, settings)
+		if err := s.stateStore.Save(placeKey, settings); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", placeKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[placeKey] = settings
@@ -366,6 +376,8 @@ func (s *server) appListNFCCards(w http.ResponseWriter, r *http.Request) {
 
 func randomHex(n int) string {
 	b := make([]byte, n)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }

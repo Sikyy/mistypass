@@ -257,28 +257,23 @@ func TestAppPlaceList(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	var result struct {
-		Items []struct {
-			ID        string `json:"id"`
-			Name      string `json:"name"`
-			Address   string `json:"address"`
-			OrgID     string `json:"org_id"`
-			DoorCount int    `json:"door_count"`
-		} `json:"items"`
-		Pagination struct {
-			Total int `json:"total"`
-		} `json:"pagination"`
+	var places []struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		Address   string `json:"address"`
+		OrgID     string `json:"org_id"`
+		DoorCount int    `json:"door_count"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+	if err := json.Unmarshal(rec.Body.Bytes(), &places); err != nil {
 		t.Fatalf("decode places: %v body=%s", err, rec.Body.String())
 	}
 
-	if result.Pagination.Total == 0 {
+	if len(places) == 0 {
 		t.Fatalf("expected at least 1 place")
 	}
 
 	// Verify all places belong to the correct org
-	for _, place := range result.Items {
+	for _, place := range places {
 		if place.OrgID != "tenant_demo_jakarta" {
 			t.Errorf("expected org_id=tenant_demo_jakarta, got %q for place %s", place.OrgID, place.ID)
 		}
@@ -349,7 +344,7 @@ func TestAppPlaceDoors_WrongTenant(t *testing.T) {
 // TestAppBackwardCompat verifies that the old /app/access/my-doors endpoint
 // still works with a regular token (no org switch needed).
 func TestAppBackwardCompat(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-backward-compat-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -606,20 +601,15 @@ func TestAppOrgSwitch_ThenListPlaces(t *testing.T) {
 		t.Fatalf("list places: expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 
-	var placesResult struct {
-		Items []struct {
-			ID    string `json:"id"`
-			OrgID string `json:"org_id"`
-		} `json:"items"`
-		Pagination struct {
-			Total int `json:"total"`
-		} `json:"pagination"`
+	var places []struct {
+		ID    string `json:"id"`
+		OrgID string `json:"org_id"`
 	}
-	_ = json.Unmarshal(rec.Body.Bytes(), &placesResult)
-	if placesResult.Pagination.Total == 0 {
+	_ = json.Unmarshal(rec.Body.Bytes(), &places)
+	if len(places) == 0 {
 		t.Fatalf("expected at least 1 place in factory org")
 	}
-	for _, place := range placesResult.Items {
+	for _, place := range places {
 		if place.OrgID != "tenant_demo_factory" {
 			t.Errorf("expected org_id=tenant_demo_factory, got %q", place.OrgID)
 		}

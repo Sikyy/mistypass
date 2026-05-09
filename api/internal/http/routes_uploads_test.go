@@ -12,7 +12,7 @@ import (
 
 func TestSignedUploadURLFlow(t *testing.T) {
 	tmpDir := t.TempDir()
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:        "upload-test",
 		EnableDemoUsers:  true,
 		UploadStorageDir: tmpDir,
@@ -79,7 +79,7 @@ func TestSignedUploadURLFlow(t *testing.T) {
 }
 
 func TestSignedUploadURLNotConfigured(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "upload-noconfig-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -97,7 +97,7 @@ func TestSignedUploadURLNotConfigured(t *testing.T) {
 
 func TestUploadExpiredSignature(t *testing.T) {
 	tmpDir := t.TempDir()
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:        "upload-expired-test",
 		EnableDemoUsers:  true,
 		UploadStorageDir: tmpDir,

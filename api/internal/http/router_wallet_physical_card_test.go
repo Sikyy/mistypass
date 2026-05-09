@@ -10,7 +10,7 @@ import (
 )
 
 func TestWalletPhysicalCardInventoryRoutes(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "wallet-physical-card-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

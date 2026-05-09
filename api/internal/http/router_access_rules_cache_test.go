@@ -9,7 +9,7 @@ import (
 )
 
 func TestGatewayAccessRulesPreview(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "access-rules-preview-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -83,7 +83,7 @@ func TestGatewayAccessRulesPreview(t *testing.T) {
 }
 
 func TestGatewayAccessRulesUnknownGateway(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "access-rules-unknown-test",
 		EnableDemoUsers: true,
 	}, nil)

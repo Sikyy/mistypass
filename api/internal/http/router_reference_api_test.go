@@ -12,7 +12,7 @@ import (
 )
 
 func TestReferenceResourceEndpointsExposeKisiStyleModels(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -286,7 +286,7 @@ func TestReferenceResourceEndpointsExposeKisiStyleModels(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapPlacesLocksAndShares(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -824,7 +824,7 @@ func TestReferenceResourceEndpointsMapPlacesLocksAndShares(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapCardsAndAssignments(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-card-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -943,7 +943,7 @@ func TestReferenceResourceEndpointsMapCardsAndAssignments(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapControllersAndReaders(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-hardware-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1125,7 +1125,7 @@ func TestReferenceResourceEndpointsMapControllersAndReaders(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapEventSetsAndMetadata(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-events-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1176,7 +1176,7 @@ func TestReferenceResourceEndpointsMapEventSetsAndMetadata(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapIntegrations(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-integrations-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1234,7 +1234,7 @@ func TestReferenceResourceEndpointsMapIntegrations(t *testing.T) {
 }
 
 func TestReferenceResourceEndpointsMapAlertPolicies(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-alert-policies-api-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1266,7 +1266,7 @@ func TestReferenceResourceEndpointsMapAlertPolicies(t *testing.T) {
 }
 
 func TestReferenceAlertPolicyPatchPersistsSubscription(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-alert-policy-patch-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1344,7 +1344,7 @@ func TestReferenceAlertPolicyPatchPersistsSubscription(t *testing.T) {
 }
 
 func TestReferenceAlertPolicyCreateAndDeletePersistSubscription(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-alert-policy-create-delete-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1425,7 +1425,7 @@ func TestReferenceAlertPolicyCreateAndDeletePersistSubscription(t *testing.T) {
 }
 
 func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-destructive-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1566,7 +1566,7 @@ func TestReferenceDestructiveMutationsAppendAuditLogs(t *testing.T) {
 }
 
 func TestReferenceDestructiveMutationAuditCoversAccessHardwareAndCardStatus(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-destructive-audit-coverage-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1782,7 +1782,7 @@ func TestReferenceDestructiveMutationAuditCoversAccessHardwareAndCardStatus(t *t
 }
 
 func TestLegacyGatewayHighRiskMutationsAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-gateway-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -1848,7 +1848,7 @@ func TestLegacyGatewayHighRiskMutationsAppendAuditLogs(t *testing.T) {
 }
 
 func TestReferenceUsersCRUDEndpoints(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-users-crud-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

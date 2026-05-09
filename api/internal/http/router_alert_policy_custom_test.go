@@ -10,7 +10,7 @@ import (
 )
 
 func TestReferenceCustomAlertPolicyCRUD(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "reference-custom-alert-policy-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

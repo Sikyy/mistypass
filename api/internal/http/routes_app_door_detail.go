@@ -43,7 +43,9 @@ func (s *server) appPlaceEnableDoorLockdown(w http.ResponseWriter, r *http.Reque
 		"enabled_at": time.Now().UTC().Format(time.RFC3339),
 	}
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(lockdownKey, lockdownData)
+		if err := s.stateStore.Save(lockdownKey, lockdownData); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", lockdownKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[lockdownKey] = lockdownData
@@ -78,7 +80,9 @@ func (s *server) appPlaceDisableDoorLockdown(w http.ResponseWriter, r *http.Requ
 		"enabled":  false,
 	}
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(lockdownKey, lockdownOffData)
+		if err := s.stateStore.Save(lockdownKey, lockdownOffData); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", lockdownKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[lockdownKey] = lockdownOffData
@@ -117,7 +121,11 @@ func (s *server) appPlaceDoorRestrictions(w http.ResponseWriter, r *http.Request
 	var restrictions []map[string]any
 	found := false
 	if s.stateStore != nil {
-		found, _ = s.stateStore.Load(restrictionKey, &restrictions)
+		var loadErr error
+		found, loadErr = s.stateStore.Load(restrictionKey, &restrictions)
+		if loadErr != nil {
+			s.loggerOrDefault().Warn("state store load failed", "key", restrictionKey, "error", loadErr)
+		}
 	}
 	if !found {
 		restrictions = []map[string]any{}
@@ -150,7 +158,11 @@ func (s *server) appPlaceDoorSchedules(w http.ResponseWriter, r *http.Request) {
 	var allSchedules []map[string]any
 	schedFound := false
 	if s.stateStore != nil {
-		schedFound, _ = s.stateStore.Load(schedulesKey, &allSchedules)
+		var loadErr error
+		schedFound, loadErr = s.stateStore.Load(schedulesKey, &allSchedules)
+		if loadErr != nil {
+			s.loggerOrDefault().Warn("state store load failed", "key", schedulesKey, "error", loadErr)
+		}
 	}
 	if !schedFound {
 		allSchedules = []map[string]any{}
@@ -213,7 +225,9 @@ func (s *server) appPlaceRenameDoor(w http.ResponseWriter, r *http.Request) {
 		"renamed_at": time.Now().UTC().Format(time.RFC3339),
 	}
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(renameKey, renameData)
+		if err := s.stateStore.Save(renameKey, renameData); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", renameKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[renameKey] = renameData
@@ -260,7 +274,9 @@ func (s *server) appRenameGateway(w http.ResponseWriter, r *http.Request) {
 		"name":       name,
 	}
 	if s.stateStore != nil {
-		_ = s.stateStore.Save(renameKey, gwRenameData)
+		if err := s.stateStore.Save(renameKey, gwRenameData); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", renameKey, "error", err)
+		}
 	} else {
 		s.memStoreMu.Lock()
 		s.memStore[renameKey] = gwRenameData

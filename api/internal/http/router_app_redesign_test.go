@@ -10,7 +10,7 @@ import (
 )
 
 func TestAppMeEnhanced(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-me-enhanced-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -44,7 +44,7 @@ func TestAppMeEnhanced(t *testing.T) {
 }
 
 func TestAppUpdateMe(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-update-me-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -72,7 +72,7 @@ func TestAppUpdateMe(t *testing.T) {
 }
 
 func TestAppGetPINCode(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-pin-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -103,7 +103,7 @@ func TestAppGetPINCode(t *testing.T) {
 }
 
 func TestAppPINUnlock(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-pin-unlock-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -142,7 +142,7 @@ func TestAppPINUnlock(t *testing.T) {
 }
 
 func TestAppPINUnlock_InvalidPIN(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-pin-unlock-invalid-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -167,7 +167,7 @@ func TestAppPINUnlock_InvalidPIN(t *testing.T) {
 }
 
 func TestAppDoorFavorite(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-favorite-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -220,7 +220,7 @@ func TestAppDoorFavorite(t *testing.T) {
 }
 
 func TestAppListCameras(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-cameras-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -250,7 +250,7 @@ func TestAppListCameras(t *testing.T) {
 }
 
 func TestAppAccessLogsEnhanced(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-logs-enhanced-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -279,7 +279,7 @@ func TestAppAccessLogsEnhanced(t *testing.T) {
 }
 
 func TestAppVisitorPassesEnhanced(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "app-visitors-enhanced-test",
 		EnableDemoUsers: true,
 	}, nil)

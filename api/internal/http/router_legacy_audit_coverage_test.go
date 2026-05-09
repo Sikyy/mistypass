@@ -9,7 +9,7 @@ import (
 )
 
 func TestLegacyUserAndGroupWritesAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-user-group-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -56,7 +56,7 @@ func TestLegacyUserAndGroupWritesAppendAuditLogs(t *testing.T) {
 }
 
 func TestLegacyFloorAndAreaWritesAppendAuditLogs(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-floor-area-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -118,7 +118,7 @@ func TestLegacyFloorAndAreaWritesAppendAuditLogs(t *testing.T) {
 }
 
 func TestLegacyAlarmStatusUpdateAppendsAuditLog(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "legacy-alarm-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -155,7 +155,7 @@ func TestLegacyAlarmStatusUpdateAppendsAuditLog(t *testing.T) {
 }
 
 func TestWalletPassIssueAppendsAuditLog(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "wallet-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)
@@ -187,7 +187,7 @@ func TestWalletPassIssueAppendsAuditLog(t *testing.T) {
 }
 
 func TestWalletPhysicalCardInventoryCreateAppendsAuditLog(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "wallet-phys-audit-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

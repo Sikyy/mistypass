@@ -10,7 +10,7 @@ import (
 )
 
 func TestAppApplePassSelfEnrollmentAndAdminLifecycle(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "wallet-apple-pass-test-secret",
 		EnableDemoUsers: true,
 	}, nil)

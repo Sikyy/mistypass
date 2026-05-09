@@ -9,7 +9,7 @@ import (
 )
 
 func TestPasswordResetFlow(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "pw-reset-test",
 		EnableDemoUsers: true,
 		AppEnv:          "development",
@@ -77,7 +77,7 @@ func TestPasswordResetFlow(t *testing.T) {
 }
 
 func TestPasswordResetInvalidToken(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "pw-reset-invalid-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -93,7 +93,7 @@ func TestPasswordResetInvalidToken(t *testing.T) {
 }
 
 func TestPasswordResetNonexistentEmail(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "pw-reset-nouser-test",
 		EnableDemoUsers: true,
 		AppEnv:          "development",

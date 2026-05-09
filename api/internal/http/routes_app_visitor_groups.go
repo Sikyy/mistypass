@@ -196,7 +196,9 @@ func (s *server) appCleanupExpiredVisitors(w http.ResponseWriter, r *http.Reques
 			}
 		}
 		groups[i].Members = active
-		_ = s.stateStore.Save(stateKey, groups)
+		if err := s.stateStore.Save(stateKey, groups); err != nil {
+			s.loggerOrDefault().Warn("state store save failed", "key", stateKey, "error", err)
+		}
 		break
 	}
 

@@ -9,7 +9,7 @@ import (
 )
 
 func TestVerifyCredentialNFCUID(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "verify-cred-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -51,7 +51,7 @@ func TestVerifyCredentialNFCUID(t *testing.T) {
 }
 
 func TestVerifyCredentialUnknownUID(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "verify-unknown-test",
 		EnableDemoUsers: true,
 	}, nil)
@@ -85,7 +85,7 @@ func TestVerifyCredentialUnknownUID(t *testing.T) {
 }
 
 func TestVerifyCredentialEmptyCredential(t *testing.T) {
-	router, err := NewRouter(config.Config{
+	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "verify-empty-test",
 		EnableDemoUsers: true,
 	}, nil)
