@@ -6475,8 +6475,8 @@ func TestReceiveEnterpriseHRISWebhookReceiptWorkerRetriesAfterCooldown(t *testin
 	if len(s.enterpriseSvc.ListEmployees("tenant_demo_jakarta")) != 2 {
 		t.Fatalf("expected retry path to sync one enterprise employee (1 seeded + 1 synced)")
 	}
-	if len(s.accessSvc.ListUsers("tenant_demo_jakarta")) != 4 {
-		t.Fatalf("expected retry path to sync one access user (3 seeded + 1 synced)")
+	if len(s.accessSvc.ListUsers("tenant_demo_jakarta")) != 5 {
+		t.Fatalf("expected retry path to sync one access user (4 seeded + 1 synced)")
 	}
 	if len(s.hrisDLQSvc.ListEntries("tenant_demo_jakarta", connector.ID, 10)) != 0 {
 		t.Fatalf("expected successful retry to avoid DLQ entries")
