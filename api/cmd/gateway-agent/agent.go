@@ -5,6 +5,7 @@ import (
 	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -43,6 +44,8 @@ type Agent struct {
 	eventQueue      []AccessEvent
 	stopCh          chan struct{}
 	relay           RelayDriver
+	nonceCache      *NonceCache // replay-protection cache for v2 challenge nonces
+	gatewayIDUint32 uint32      // numeric gateway ID embedded in v2 challenges
 }
 
 // AccessRule is a local credential → lock mapping for offline decision.
@@ -66,6 +69,9 @@ type AccessEvent struct {
 
 func (a *Agent) Start() error {
 	a.stopCh = make(chan struct{})
+
+	// Initialize nonce replay-protection cache for v2 challenge verification
+	a.nonceCache = NewNonceCache(10000, 30*time.Second)
 
 	// Initialize relay driver (priority: GPIO > OSDP > RS485 Modbus > DryRun)
 	if a.relayGPIOPin >= 0 {
@@ -456,6 +462,62 @@ func (a *Agent) VerifyBLEAuth(challenge *BLEChallenge, response *BLEAuthResponse
 	}
 
 	return "deny", response.UserID, ""
+}
+
+// VerifyAuthResponseV2 performs the full v2 verification chain in fast-to-slow order:
+// nonce cache -> gateway_id -> credential lookup -> ECDSA verify.
+// transport is "BLE" or "NFC_HCE" (use TransportTagBLE / TransportTagNFCHCE).
+func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, transport string) BLEAuthResult {
+	if len(challenge) < 32 {
+		return BLEAuthResult{Code: BLEResultDenied, Reason: "challenge_too_short"}
+	}
+	nonce := challenge[:32]
+
+	// 1. Nonce reuse check (fastest — in-memory LRU)
+	if a.nonceCache != nil && a.nonceCache.Contains(nonce) {
+		return BLEAuthResult{Code: BLEResultDenied, Reason: "nonce_reuse"}
+	}
+
+	// 2. Gateway ID check (fast — compare uint32)
+	if len(challenge) >= ChallengeV2Size {
+		gatewayID := binary.BigEndian.Uint32(challenge[48:52])
+		if gatewayID != a.gatewayIDUint32 {
+			return BLEAuthResult{Code: BLEResultDenied, Reason: "gateway_id_mismatch"}
+		}
+	}
+
+	// 3. Credential lookup from cached access rules
+	a.mu.RLock()
+	var publicKeyPEM string
+	var userEmail string
+	for _, rule := range a.accessRules {
+		if rule.CredentialType == "ble_signature" && rule.UserID == resp.UserID {
+			publicKeyPEM = rule.CredentialData
+			userEmail = rule.UserEmail
+			break
+		}
+	}
+	a.mu.RUnlock()
+
+	if publicKeyPEM == "" {
+		return BLEAuthResult{Code: BLEResultUnknownUser, Reason: "unknown_user"}
+	}
+
+	// 4. ECDSA signature verification (most expensive — last)
+	var nonceArr [32]byte
+	copy(nonceArr[:], nonce)
+	err := VerifyBLESignatureV2(publicKeyPEM, nonceArr, resp.UserID, transport, resp.Signature)
+	if err != nil {
+		return BLEAuthResult{Code: BLEResultInvalidSignature, Reason: err.Error()}
+	}
+
+	// 5. Mark nonce as used (only after successful verification)
+	if a.nonceCache != nil {
+		a.nonceCache.Add(nonce)
+	}
+
+	_ = userEmail // available for audit logging in caller
+	return BLEAuthResult{Code: BLEResultGranted, Reason: "access_granted"}
 }
 
 // HandleBLEAuth is the high-level handler for a complete BLE authentication.
