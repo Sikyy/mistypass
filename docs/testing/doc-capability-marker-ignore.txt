@@ -40,3 +40,8 @@ docs/kisi-gap-analysis.md
 
 # App redesign planning doc (not a capability doc).
 docs/app-redesign-plan.md
+
+# Mobile client integration guides and gap analysis (client-side docs, not backend capability).
+docs/api/INTEGRATION-ANDROID.md
+docs/api/INTEGRATION-IOS.md
+docs/ANDROID-GAP-ANALYSIS.md
