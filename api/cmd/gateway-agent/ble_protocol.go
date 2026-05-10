@@ -39,12 +39,26 @@ const (
 
 // BLE Auth result codes
 const (
-	BLEResultGranted          byte = 0x01
-	BLEResultDenied           byte = 0x02
-	BLEResultExpiredChallenge byte = 0x03
-	BLEResultInvalidSignature byte = 0x04
-	BLEResultUnknownUser      byte = 0x05
-	BLEResultCredentialExpired byte = 0x06
+	BLEResultGranted              byte = 0x01
+	BLEResultDenied               byte = 0x02
+	BLEResultExpiredChallenge     byte = 0x03
+	BLEResultInvalidSignature     byte = 0x04
+	BLEResultUnknownUser          byte = 0x05
+	BLEResultCredentialExpired    byte = 0x06
+	BLEResultCredentialRevoked    byte = 0x07
+	BLEResultCredentialSuspended  byte = 0x08
+	BLEResultGatewayOfflineLimit  byte = 0x09
+)
+
+// ChallengeV2Size is the byte length of an encoded BLEChallengeV2.
+// Layout: 32B nonce + 8B issued_at + 8B expires_at + 4B gateway_id = 52 bytes.
+const ChallengeV2Size = 52
+
+// Transport tag constants identify the bearer channel in v2 signatures,
+// preventing cross-transport replay attacks.
+const (
+	TransportTagBLE    = "BLE"
+	TransportTagNFCHCE = "NFC_HCE"
 )
 
 // challengeValidDuration is how long a BLE challenge nonce remains valid.
@@ -163,6 +177,100 @@ func VerifyBLESignature(publicKeyPEM string, nonce [32]byte, userID string, sign
 
 	// Try raw r||s format (64 bytes for P-256: r=32 + s=32)
 	// Some Android implementations use this format
+	if len(signature) == 64 {
+		r := new(big.Int).SetBytes(signature[:32])
+		s := new(big.Int).SetBytes(signature[32:])
+		if ecdsa.Verify(pubKey, hash[:], r, s) {
+			return nil
+		}
+	}
+
+	return errors.New("ECDSA signature verification failed")
+}
+
+// --- Protocol v2 ---
+
+// BLEChallengeV2 extends the v1 challenge with a GatewayID field.
+// This allows the signing phone to bind its response to a specific gateway,
+// providing cross-gateway replay protection in addition to the nonce.
+type BLEChallengeV2 struct {
+	Nonce     [32]byte
+	IssuedAt  time.Time
+	ExpiresAt time.Time
+	GatewayID uint32
+}
+
+// NewBLEChallengeV2 generates a fresh v2 challenge for the given gateway.
+func NewBLEChallengeV2(gatewayID uint32) (*BLEChallengeV2, error) {
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		return nil, fmt.Errorf("generate nonce: %w", err)
+	}
+	now := time.Now()
+	return &BLEChallengeV2{
+		Nonce:     nonce,
+		IssuedAt:  now,
+		ExpiresAt: now.Add(challengeValidDuration),
+		GatewayID: gatewayID,
+	}, nil
+}
+
+// Encode serializes the v2 challenge to ChallengeV2Size (52) bytes.
+// Format: [0:32] nonce | [32:40] issued_at BigEndian uint64 | [40:48] expires_at BigEndian uint64 | [48:52] gateway_id BigEndian uint32
+func (c *BLEChallengeV2) Encode() []byte {
+	buf := make([]byte, ChallengeV2Size)
+	copy(buf[:32], c.Nonce[:])
+	binary.BigEndian.PutUint64(buf[32:40], uint64(c.IssuedAt.Unix()))
+	binary.BigEndian.PutUint64(buf[40:48], uint64(c.ExpiresAt.Unix()))
+	binary.BigEndian.PutUint32(buf[48:52], c.GatewayID)
+	return buf
+}
+
+// DecodeBLEChallengeV2 deserializes a 52-byte encoded v2 challenge.
+func DecodeBLEChallengeV2(data []byte) (*BLEChallengeV2, error) {
+	if len(data) != ChallengeV2Size {
+		return nil, fmt.Errorf("v2 challenge must be %d bytes, got %d", ChallengeV2Size, len(data))
+	}
+	var nonce [32]byte
+	copy(nonce[:], data[:32])
+	issuedAt := time.Unix(int64(binary.BigEndian.Uint64(data[32:40])), 0)
+	expiresAt := time.Unix(int64(binary.BigEndian.Uint64(data[40:48])), 0)
+	gatewayID := binary.BigEndian.Uint32(data[48:52])
+	return &BLEChallengeV2{
+		Nonce:     nonce,
+		IssuedAt:  issuedAt,
+		ExpiresAt: expiresAt,
+		GatewayID: gatewayID,
+	}, nil
+}
+
+// IsExpired returns true if the v2 challenge has passed its validity window.
+func (c *BLEChallengeV2) IsExpired() bool {
+	return time.Now().After(c.ExpiresAt)
+}
+
+// VerifyBLESignatureV2 verifies an ECDSA signature produced under the v2 protocol.
+// The message signed is SHA256(nonce || userID || transportTag).
+// The transportTag parameter (e.g. TransportTagBLE, TransportTagNFCHCE) binds the
+// signature to a single transport channel, preventing cross-transport replay attacks.
+// Supports both ASN.1 DER and raw r||s (64 bytes) signature formats.
+func VerifyBLESignatureV2(publicKeyPEM string, nonce [32]byte, userID string, transportTag string, signature []byte) error {
+	pubKey, err := parseBLEPublicKey(publicKeyPEM)
+	if err != nil {
+		return fmt.Errorf("parse public key: %w", err)
+	}
+
+	// Message: SHA256(nonce || userID || transportTag)
+	message := append(nonce[:], []byte(userID)...)
+	message = append(message, []byte(transportTag)...)
+	hash := sha256.Sum256(message)
+
+	// Try ASN.1 DER format first (standard ECDSA encoding)
+	if ecdsa.VerifyASN1(pubKey, hash[:], signature) {
+		return nil
+	}
+
+	// Try raw r||s format (64 bytes for P-256: r=32 + s=32)
 	if len(signature) == 64 {
 		r := new(big.Int).SetBytes(signature[:32])
 		s := new(big.Int).SetBytes(signature[32:])

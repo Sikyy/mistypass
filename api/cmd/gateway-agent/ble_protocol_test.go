@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/pem"
 	"log/slog"
 	"testing"
@@ -311,4 +312,148 @@ func TestAgentVerifyBLEAuth_UnknownUser(t *testing.T) {
 
 func testLogger() *slog.Logger {
 	return slog.Default()
+}
+
+// --- v2 protocol tests ---
+
+func TestBLEChallengeV2_Encode(t *testing.T) {
+	c, err := NewBLEChallengeV2(42)
+	if err != nil {
+		t.Fatalf("NewBLEChallengeV2: %v", err)
+	}
+
+	encoded := c.Encode()
+	if len(encoded) != ChallengeV2Size {
+		t.Fatalf("expected %d bytes, got %d", ChallengeV2Size, len(encoded))
+	}
+
+	// Nonce (bytes 0-31) must not be all zeros
+	allZero := true
+	for _, b := range encoded[:32] {
+		if b != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero {
+		t.Fatal("nonce should not be all zeros")
+	}
+
+	// GatewayID (bytes 48-51) must encode the value 42
+	gwID := binary.BigEndian.Uint32(encoded[48:52])
+	if gwID != 42 {
+		t.Fatalf("expected gateway_id 42, got %d", gwID)
+	}
+
+	// Validity window should be ~30 seconds
+	issuedAt := int64(binary.BigEndian.Uint64(encoded[32:40]))
+	expiresAt := int64(binary.BigEndian.Uint64(encoded[40:48]))
+	window := expiresAt - issuedAt
+	if window != int64(challengeValidDuration/time.Second) {
+		t.Fatalf("expected 30s window, got %ds", window)
+	}
+}
+
+func TestBLEChallengeV2_IsExpired(t *testing.T) {
+	fresh, err := NewBLEChallengeV2(1)
+	if err != nil {
+		t.Fatalf("NewBLEChallengeV2: %v", err)
+	}
+	if fresh.IsExpired() {
+		t.Fatal("fresh v2 challenge should not be expired")
+	}
+
+	old := &BLEChallengeV2{
+		Nonce:     [32]byte{1},
+		IssuedAt:  time.Now().Add(-60 * time.Second),
+		ExpiresAt: time.Now().Add(-30 * time.Second),
+		GatewayID: 1,
+	}
+	if !old.IsExpired() {
+		t.Fatal("old v2 challenge should be expired")
+	}
+}
+
+func TestVerifyBLESignatureV2_WithTransportTag(t *testing.T) {
+	priv, pubPEM := generateTestECKey(t)
+
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		t.Fatalf("rand: %v", err)
+	}
+
+	userID := "usr_v2_001"
+
+	// Build signature with BLE transport tag
+	msg := append(nonce[:], []byte(userID)...)
+	msg = append(msg, []byte(TransportTagBLE)...)
+	hash := sha256.Sum256(msg)
+
+	sig, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	// Correct tag must pass
+	if err := VerifyBLESignatureV2(pubPEM, nonce, userID, TransportTagBLE, sig); err != nil {
+		t.Fatalf("VerifyBLESignatureV2 with correct tag: %v", err)
+	}
+
+	// Wrong tag (NFC_HCE) must fail — cross-transport replay protection
+	if err := VerifyBLESignatureV2(pubPEM, nonce, userID, TransportTagNFCHCE, sig); err == nil {
+		t.Fatal("expected failure when verifying BLE sig with NFC_HCE tag")
+	}
+}
+
+func TestVerifyBLESignatureV2_RawRS(t *testing.T) {
+	priv, pubPEM := generateTestECKey(t)
+
+	var nonce [32]byte
+	rand.Read(nonce[:])
+
+	userID := "usr_v2_raw"
+	msg := append(nonce[:], []byte(userID)...)
+	msg = append(msg, []byte(TransportTagNFCHCE)...)
+	hash := sha256.Sum256(msg)
+
+	r, s, err := ecdsa.Sign(rand.Reader, priv, hash[:])
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	rawSig := make([]byte, 64)
+	rBytes := r.Bytes()
+	sBytes := s.Bytes()
+	copy(rawSig[32-len(rBytes):32], rBytes)
+	copy(rawSig[64-len(sBytes):64], sBytes)
+
+	if err := VerifyBLESignatureV2(pubPEM, nonce, userID, TransportTagNFCHCE, rawSig); err != nil {
+		t.Fatalf("VerifyBLESignatureV2 raw r||s: %v", err)
+	}
+}
+
+func TestDecodeBLEChallengeV2(t *testing.T) {
+	original, err := NewBLEChallengeV2(99)
+	if err != nil {
+		t.Fatalf("NewBLEChallengeV2: %v", err)
+	}
+
+	encoded := original.Encode()
+	decoded, err := DecodeBLEChallengeV2(encoded)
+	if err != nil {
+		t.Fatalf("DecodeBLEChallengeV2: %v", err)
+	}
+
+	if decoded.Nonce != original.Nonce {
+		t.Fatal("nonce mismatch after decode")
+	}
+	if decoded.GatewayID != 99 {
+		t.Fatalf("expected gateway_id 99, got %d", decoded.GatewayID)
+	}
+	if decoded.IssuedAt.Unix() != original.IssuedAt.Unix() {
+		t.Fatal("issued_at mismatch after decode")
+	}
+	if decoded.ExpiresAt.Unix() != original.ExpiresAt.Unix() {
+		t.Fatal("expires_at mismatch after decode")
+	}
 }
