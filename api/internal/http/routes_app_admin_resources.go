@@ -1220,3 +1220,63 @@ func (s *server) appAdminRevokeCredential(w http.ResponseWriter, r *http.Request
 	s.auditSvc.Append(tenantID, user.Email, user.Role, "mobile_credential_revoked", credentialID, "mobile_admin")
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (s *server) appAdminSuspendCredential(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	if strings.TrimSpace(placeID) == "" {
+		writeError(w, http.StatusBadRequest, "place id is required")
+		return
+	}
+
+	credentialID := chi.URLParam(r, "credentialId")
+	tenantID := user.TenantID
+
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	if err := s.credentialSvc.SuspendCredential(tenantID, credentialID); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.auditSvc.Append(tenantID, user.Email, user.Role, "mobile_credential_suspended", credentialID, "mobile_admin")
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) appAdminActivateCredential(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	placeID := chi.URLParam(r, "placeId")
+	if strings.TrimSpace(placeID) == "" {
+		writeError(w, http.StatusBadRequest, "place id is required")
+		return
+	}
+
+	credentialID := chi.URLParam(r, "credentialId")
+	tenantID := user.TenantID
+
+	if _, err := s.spaceSvc.GetBuilding(tenantID, placeID); err != nil {
+		writeError(w, http.StatusNotFound, "place not found")
+		return
+	}
+
+	if err := s.credentialSvc.ActivateCredential(tenantID, credentialID); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	s.auditSvc.Append(tenantID, user.Email, user.Role, "mobile_credential_activated", credentialID, "mobile_admin")
+	w.WriteHeader(http.StatusNoContent)
+}

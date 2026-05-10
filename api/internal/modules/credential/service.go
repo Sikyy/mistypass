@@ -224,6 +224,48 @@ func (s *Service) RevokeCredential(tenantID, credentialID string) error {
 	return errors.New("credential not found")
 }
 
+// SuspendCredential temporarily suspends a credential (can be reactivated later).
+func (s *Service) SuspendCredential(tenantID, credentialID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.credentials {
+		if s.credentials[i].ID == credentialID && s.credentials[i].TenantID == tenantID {
+			if s.credentials[i].Status == "revoked" {
+				return errors.New("cannot suspend a revoked credential")
+			}
+			if s.credentials[i].Status == "suspended" {
+				return errors.New("credential already suspended")
+			}
+			s.credentials[i].Status = "suspended"
+			s.persistLocked()
+			return nil
+		}
+	}
+	return errors.New("credential not found")
+}
+
+// ActivateCredential reactivates a suspended credential.
+func (s *Service) ActivateCredential(tenantID, credentialID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.credentials {
+		if s.credentials[i].ID == credentialID && s.credentials[i].TenantID == tenantID {
+			if s.credentials[i].Status == "revoked" {
+				return errors.New("cannot activate a revoked credential")
+			}
+			if s.credentials[i].Status == "active" {
+				return errors.New("credential already active")
+			}
+			s.credentials[i].Status = "active"
+			s.persistLocked()
+			return nil
+		}
+	}
+	return errors.New("credential not found")
+}
+
 // RevokeAllUserCredentials revokes all active credentials for a user (e.g. on employee termination).
 func (s *Service) RevokeAllUserCredentials(tenantID, userID string) int {
 	s.mu.Lock()

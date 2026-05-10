@@ -107,17 +107,18 @@
 
 ---
 
-### 6. Wallet Pass 挂起 / 激活
+### 6. Wallet Pass 挂起 / 激活 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ suspend / activate / revoke 三个操作 | ⚠️ 只有 revoke |
-| API | `PATCH /wallet/passes/{passId}/suspend`<br>`PATCH /wallet/passes/{passId}/activate`<br>`PATCH /wallet/passes/{passId}/revoke` | AdminApi 只有 revokeCredential |
+| 状态 | ✅ suspend / activate / revoke 三个操作 | ✅ suspend / activate / revoke 三个操作 |
+| API | `PATCH /wallet/passes/{passId}/suspend`<br>`PATCH /wallet/passes/{passId}/activate`<br>`PATCH /wallet/passes/{passId}/revoke` | AdminApi: `suspendCredential()`, `activateCredential()`, `revokeCredential()` |
 
-**需要做：**
+**已完成：** PR #6
 - AdminApi 新增 `suspendCredential()` 和 `activateCredential()` 方法
-- AdminDigitalCredentialsScreen 的凭证操作菜单增加"挂起"和"激活"选项
-- 状态联动：挂起的凭证不可用但可恢复，吊销不可恢复
+- AdminRepository 新增对应 repository 方法
+- AdminDigitalCredentialsScreen 凭证详情增加"暂停"和"激活"按钮
+- 后端新增 `POST /app/places/{placeId}/credentials/{credentialId}/suspend|activate` 路由
 
 ---
 
@@ -307,16 +308,16 @@
 
 ---
 
-### 20. 主设备标记
+### 20. 主设备标记 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `POST /app/me/primary-device` | ❌ UserApi 无此方法 |
+| 状态 | ✅ `POST /app/me/primary-device` | ✅ UserApi.setPrimaryDevice() + ProfileScreen 按钮 |
 
-**需要做：**
-- UserApi 新增 `@POST("app/me/primary-device")`
-- ProfileScreen 增加"设为主设备"按钮
-- 主设备在多设备场景下优先接收推送
+**已完成：** PR #6
+- UserApi 新增 `@POST("app/me/primary-device")` → `SetPrimaryDeviceResponse`
+- ProfileViewModel 新增 `setPrimaryDevice()` 方法
+- ProfileScreen 设备设置卡片中增加"设为主设备"按钮，设置成功后显示 ✅
 
 ---
 
@@ -329,15 +330,15 @@
 | `GET /app/auth/org-lookup` | ✅ | ❌ |
 | `POST /app/orgs/{orgId}/switch` | ✅ | ❌ |
 | `PATCH /app/me` (更新资料) | ✅ | ❌ |
-| `POST /app/me/primary-device` | ✅ | ❌ |
+| `POST /app/me/primary-device` | ✅ | ✅ |
 | `POST /app/credentials/nfc` | ✅ | ✅ (BindCardScreen) |
 | `GET /app/credentials/nfc` | ✅ | ❌ |
 | `DELETE /app/credentials/nfc/{id}` | ✅ | ❌ |
-| `GET /app/alarms/stream` (SSE) | ✅ | ❌ |
-| `PATCH .../groups/{groupId}` | ✅ | ❌ |
-| `PATCH /wallet/passes/{id}/suspend` | ✅ | ❌ |
-| `PATCH /wallet/passes/{id}/activate` | ✅ | ❌ |
-| `GET /app/bookable-spaces/{id}/status` | ✅ | ❌ |
+| `GET /app/alarms/stream` (SSE) | ✅ | ✅ |
+| `PATCH .../groups/{groupId}` | ✅ | ✅ |
+| `PATCH /wallet/passes/{id}/suspend` | ✅ | ✅ |
+| `PATCH /wallet/passes/{id}/activate` | ✅ | ✅ |
+| `GET /app/bookable-spaces/{id}/status` | ✅ | ✅ |
 | `GET /app/orgs/{orgId}/places/search` | ✅ | ❌ |
 
 ---
