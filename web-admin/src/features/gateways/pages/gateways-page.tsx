@@ -9,6 +9,15 @@ import { z } from "zod"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -23,6 +32,7 @@ import {
   exportGatewaySerialInventoryCSV,
   importGatewaySerialInventoryCSV,
   importGatewaySerialInventory,
+  listGatewayCertificateRevocations,
   probeGatewayLegacyDevices,
   listDoors,
   listGateways,
@@ -33,23 +43,29 @@ import {
   rebootGateway,
   registerGatewayDevice,
   registerGateway,
+  restoreGatewayCertificateSerial,
+  revokeGatewayCertificateSerial,
+  updateGatewayStatus,
   updateGatewaySerialInventoryStatus,
   unbindGatewayDoor,
   type CurrentUser,
   type Door,
   type Gateway,
+  type GatewayCertificateRevocation,
   type GatewayCommandAck,
   type GatewayCheckpointSummaryResponse,
   type GatewayDevice,
   type GatewaySerialInventoryItem,
   type GatewaySerialInventoryProductType,
   type GatewaySerialInventoryStatus,
+  type GatewayStatus,
   type Tenant,
 } from "@/lib/api"
 import { CheckpointMonitor } from "@/components/gateways/checkpoint-monitor"
 import { GatewayCommandCenterCard } from "@/components/gateways/gateway-command-center-card"
 import { GatewayListCard } from "@/components/gateways/gateway-list-card"
 import { GatewaySearchCard } from "@/components/gateways/gateway-search-card"
+import { GatewaySecurityCard } from "@/components/gateways/gateway-security-card"
 import { GatewaySerialInventoryIngestCard } from "@/components/gateways/gateway-serial-inventory-ingest-card"
 import { GatewaySerialInventoryLedgerCard } from "@/components/gateways/gateway-serial-inventory-ledger-card"
 import {
@@ -81,6 +97,12 @@ type CommandTask = {
 type GatewayDeviceKind = "reader" | "door_controller" | "relay" | "sensor" | "legacy_reader" | "legacy_controller"
 type GatewayDeviceSource = "mistypass_procured" | "legacy_integration"
 type GatewayDeviceProtocol = "auto" | "wiegand_26" | "wiegand_34" | "osdp_v2" | "rs485" | "ble"
+type GatewayRuntimeStatus = "online" | "offline" | "disabled" | "revoked"
+
+type PendingGatewayStatusChange = {
+  gateway: Gateway
+  status: GatewayRuntimeStatus
+}
 
 const gatewayDeviceCapacityValues = ["4", "8"] as const
 type GatewayRegistrationFormValues = {
@@ -94,6 +116,10 @@ function statusVariant(status: string) {
   switch (status) {
     case "online":
       return "outline"
+    case "disabled":
+      return "warning"
+    case "revoked":
+      return "destructive"
     case "offline":
       return "destructive"
     default:
@@ -107,6 +133,10 @@ function statusLabel(status: string, t: (key: string) => string) {
       return t("gateways.status.online")
     case "offline":
       return t("gateways.status.offline")
+    case "disabled":
+      return t("gateways.status.disabled")
+    case "revoked":
+      return t("gateways.status.revoked")
     default:
       return status
   }
@@ -241,6 +271,7 @@ type GatewaysPageData = {
   tenants: Tenant[]
   doors: Door[]
   serialInventory: GatewaySerialInventoryItem[]
+  certificateRevocations: GatewayCertificateRevocation[]
 }
 
 type LoadGatewaysPageDataArgs = {
@@ -251,15 +282,19 @@ type LoadGatewaysPageDataArgs = {
   missingBuildingScope: boolean
   viewerBuildingIDs: Set<string>
   inventoryVisible: boolean
+  gatewaySecurityVisible: boolean
 }
 
 async function loadGatewaysPageData(args: LoadGatewaysPageDataArgs): Promise<GatewaysPageData> {
-  const [gatewayItems, doorItems, tenantItems, serialInventoryItems] = await Promise.all([
+  const [gatewayItems, doorItems, tenantItems, serialInventoryItems, certificateRevocationItems] = await Promise.all([
     listGateways(args.token),
     listDoors(args.token),
     args.platformViewer ? listTenants(args.token) : Promise.resolve([]),
     args.inventoryVisible
       ? listGatewaySerialInventory(args.token, args.platformViewer ? undefined : args.viewerTenantID || undefined)
+      : Promise.resolve([]),
+    args.gatewaySecurityVisible
+      ? listGatewayCertificateRevocations(args.token, args.platformViewer ? undefined : args.viewerTenantID || undefined)
       : Promise.resolve([]),
   ])
   const scopedGateways = args.missingBuildingScope
@@ -277,6 +312,7 @@ async function loadGatewaysPageData(args: LoadGatewaysPageDataArgs): Promise<Gat
     doors: scopedDoors,
     tenants: tenantItems,
     serialInventory: serialInventoryItems,
+    certificateRevocations: certificateRevocationItems,
   }
 }
 
@@ -311,6 +347,7 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
   const inventoryVisible = canAccessGatewayInventory(viewer)
   const inventoryEditable = canEditGatewayInventory(viewer)
   const gatewayOpsEditable = canManageGateways(viewer)
+  const gatewaySecurityVisible = ["super_admin", "tenant_admin", "operator"].includes(viewer.role)
   const gatewayRegistrationVisible = canRegisterGateways(viewer)
   const readOnlyBoundaryHint = t("gateways.readOnlyBoundaryHint")
 
@@ -318,8 +355,9 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [query, setQuery] = useState("")
-  const [gatewayStatusFilter, setGatewayStatusFilter] = useState<"all" | "online" | "offline">("all")
+  const [gatewayStatusFilter, setGatewayStatusFilter] = useState<"all" | GatewayStatus>("all")
   const [setupPanelOpen, setSetupPanelOpen] = useState(false)
+  const [pendingGatewayStatusChange, setPendingGatewayStatusChange] = useState<PendingGatewayStatusChange | null>(null)
   const gatewayRegistrationForm = useForm<GatewayRegistrationFormValues>({
     resolver: zodResolver(gatewayRegistrationSchema),
     defaultValues: {
@@ -371,13 +409,17 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
         buildingAdmin ? "building-admin" : "regular",
         missingBuildingScope ? "missing-scope" : "scope-ready",
         inventoryVisible ? "inventory-on" : "inventory-off",
+        gatewaySecurityVisible ? "gateway-security-on" : "gateway-security-off",
+        platformViewer && (inventoryVisible || gatewaySecurityVisible) ? tenantID.trim() || "all-tenants" : "tenant-fixed",
         viewerBuildingIDList.join(","),
       ] as const,
     [
       buildingAdmin,
+      gatewaySecurityVisible,
       inventoryVisible,
       missingBuildingScope,
       platformViewer,
+      tenantID,
       viewerBuildingIDList,
       viewerTenantID,
     ]
@@ -388,11 +430,12 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
       loadGatewaysPageData({
         token,
         platformViewer,
-        viewerTenantID,
+        viewerTenantID: platformViewer ? tenantID.trim() : viewerTenantID,
         buildingAdmin,
         missingBuildingScope,
         viewerBuildingIDs: new Set(viewerBuildingIDList),
         inventoryVisible,
+        gatewaySecurityVisible,
       }),
     staleTime: 30 * 1000,
   })
@@ -400,6 +443,7 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
   const tenants = gatewaysPageQuery.data?.tenants ?? []
   const doors = gatewaysPageQuery.data?.doors ?? []
   const serialInventory = gatewaysPageQuery.data?.serialInventory ?? []
+  const certificateRevocations = gatewaysPageQuery.data?.certificateRevocations ?? []
   const loading = gatewaysPageQuery.isPending
   const queryError =
     gatewaysPageQuery.error instanceof Error ? gatewaysPageQuery.error.message : ""
@@ -494,7 +538,10 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
   const filteredGateways = useMemo(() => {
     const q = query.trim().toLowerCase()
     return gateways.filter((item) => {
-      if (gatewayStatusFilter !== "all" && item.status !== gatewayStatusFilter) {
+      if (
+        gatewayStatusFilter !== "all" &&
+        normalizeGatewayStatusFilter(item.status) !== normalizeGatewayStatusFilter(gatewayStatusFilter)
+      ) {
         return false
       }
       if (!q) {
@@ -1079,6 +1126,89 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
     }
   }
 
+  async function onUpdateGatewayStatus(gateway: Gateway, status: GatewayRuntimeStatus) {
+    if (gateway.status === status) {
+      setPendingGatewayStatusChange(null)
+      return
+    }
+    if ((status === "disabled" || status === "revoked") && pendingGatewayStatusChange?.gateway.id !== gateway.id) {
+      setPendingGatewayStatusChange({ gateway, status })
+      return
+    }
+    setCommandBusy(true)
+    setError("")
+    try {
+      const updated = await updateGatewayStatus(token, gateway.id, {
+        tenant_id: gateway.tenant_id || undefined,
+        status,
+      })
+      patchGatewayInCache(updated)
+      setCommandLog(
+        t("gateways.commandLog.updateGatewayStatusSuccess", {
+          gatewayID: gateway.id,
+          status: statusLabel(status, t),
+        })
+      )
+      setPendingGatewayStatusChange(null)
+      await gatewaysPageQuery.refetch()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("gateways.error.updateGatewayStatusFailed")
+      setError(message)
+    } finally {
+      setCommandBusy(false)
+    }
+  }
+
+  async function onRevokeCertificateSerial(payload: {
+    tenantID?: string
+    gatewayID?: string
+    serialNumber: string
+    reason?: string
+  }): Promise<boolean> {
+    if (!payload.serialNumber.trim()) {
+      return false
+    }
+    setCommandBusy(true)
+    setError("")
+    try {
+      const item = await revokeGatewayCertificateSerial(token, {
+        tenant_id: payload.tenantID?.trim() || undefined,
+        gateway_id: payload.gatewayID?.trim() || undefined,
+        serial_number: payload.serialNumber.trim(),
+        reason: payload.reason?.trim() || undefined,
+      })
+      setCommandLog(
+        t("gateways.commandLog.revokeCertificateSerialSuccess", {
+          serial: item.serial_number,
+          gatewayID: item.gateway_id || "-",
+        })
+      )
+      await gatewaysPageQuery.refetch()
+      return true
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("gateways.error.revokeCertificateSerialFailed")
+      setError(message)
+      return false
+    } finally {
+      setCommandBusy(false)
+    }
+  }
+
+  async function onRestoreCertificateSerial(item: GatewayCertificateRevocation) {
+    setCommandBusy(true)
+    setError("")
+    try {
+      await restoreGatewayCertificateSerial(token, item.serial_number, item.tenant_id || tenantID.trim() || undefined)
+      setCommandLog(t("gateways.commandLog.restoreCertificateSerialSuccess", { serial: item.serial_number }))
+      await gatewaysPageQuery.refetch()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("gateways.error.restoreCertificateSerialFailed")
+      setError(message)
+    } finally {
+      setCommandBusy(false)
+    }
+  }
+
   const effectiveError = error || queryError
   const gatewayRegistrationFormError =
     gatewayRegistrationForm.formState.errors.serial_number?.message ||
@@ -1466,6 +1596,24 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
         />
       ) : null}
 
+      {gatewaySecurityVisible ? (
+        <GatewaySecurityCard
+          gatewayOpsEditable={gatewayOpsEditable}
+          readOnlyBoundaryHint={readOnlyBoundaryHint}
+          commandBusy={commandBusy}
+          tenantID={tenantID}
+          onTenantIDChange={setTenantID}
+          platformViewer={platformViewer}
+          tenants={tenants}
+          gateways={gateways}
+          selectedGateway={selectedGateway}
+          revocations={certificateRevocations}
+          revocationsLoading={loading}
+          onRevokeCertificateSerial={onRevokeCertificateSerial}
+          onRestoreCertificateSerial={(item) => void onRestoreCertificateSerial(item)}
+        />
+      ) : null}
+
       <GatewayListCard
         platformViewer={platformViewer}
         loading={loading}
@@ -1477,7 +1625,75 @@ export function GatewaysPage({ token, viewer }: GatewaysPageProps) {
         tenantByID={tenantByID}
         statusLabel={gatewayStatusLabel}
         statusVariant={statusVariant}
+        gatewayOpsEditable={gatewayOpsEditable}
+        commandBusy={commandBusy}
+        onUpdateGatewayStatus={(gateway, status) => void onUpdateGatewayStatus(gateway, status)}
       />
+
+      <Dialog
+        open={Boolean(pendingGatewayStatusChange)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingGatewayStatusChange(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("gateways.statusConfirm.title")}</DialogTitle>
+            <DialogDescription>
+              {pendingGatewayStatusChange
+                ? t("gateways.statusConfirm.description", {
+                    gatewayID: pendingGatewayStatusChange.gateway.id,
+                    status: statusLabel(pendingGatewayStatusChange.status, t),
+                  })
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-card-task-border bg-[#fafafa] px-3 py-2">
+            <p className="text-xs font-medium uppercase text-[#62636a]">
+              {t("gateways.statusConfirm.targetLabel")}
+            </p>
+            <p className="mt-1 text-sm font-medium text-content-heading">
+              {pendingGatewayStatusChange?.gateway.id ?? "-"}
+            </p>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="interaction">
+                {t("gateways.statusConfirm.cancel")}
+              </Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={commandBusy || !pendingGatewayStatusChange}
+              onClick={() => {
+                if (!pendingGatewayStatusChange) {
+                  return
+                }
+                const next = pendingGatewayStatusChange
+                void onUpdateGatewayStatus(next.gateway, next.status)
+              }}
+            >
+              {t("gateways.statusConfirm.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
+}
+
+function normalizeGatewayStatusFilter(status: GatewayStatus): GatewayRuntimeStatus {
+  switch (status) {
+    case "offline":
+      return "offline"
+    case "disabled":
+      return "disabled"
+    case "revoked":
+      return "revoked"
+    default:
+      return "online"
+  }
 }

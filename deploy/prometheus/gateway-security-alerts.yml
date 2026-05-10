@@ -1,0 +1,127 @@
+groups:
+  - name: mistypass-gateway-security
+    rules:
+      - alert: MistyPassGatewayNonceStoreErrors
+        expr: increase(mistypass_gateway_request_nonce_validation_total{result="store_error"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          domain: gateway-security
+        annotations:
+          summary: Gateway nonce store errors detected
+          description: Redis-backed gateway nonce replay protection is failing. Required nonce mode returns 503 while this persists.
+
+      - alert: MistyPassGatewayNonceMissingInRequiredRollout
+        expr: increase(mistypass_gateway_request_nonce_validation_total{result="missing"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway requests are missing nonce headers
+          description: Some gateway HTTP requests lack X-Request-Nonce/X-Request-Timestamp. Check agent rollout before requiring nonce globally.
+
+      - alert: MistyPassGatewayNonceTimestampWindow
+        expr: increase(mistypass_gateway_request_nonce_validation_total{result="timestamp_window"}[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway request timestamp drift detected
+          description: Multiple gateway requests are outside the nonce timestamp window. Check device clock sync/NTP.
+
+      - alert: MistyPassGatewayNonceDuplicateSpike
+        expr: increase(mistypass_gateway_request_nonce_validation_total{result="duplicate"}[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Duplicate gateway nonces detected
+          description: Duplicate gateway request nonces may indicate replay attempts or agent retry bugs.
+
+      - alert: MistyPassGatewayWebSocketQueryTokenAttempt
+        expr: increase(mistypass_gateway_websocket_auth_total{mode="query_token_rejected"}[10m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway WebSocket query-token attempts rejected
+          description: A gateway or client attempted deprecated ?token= WebSocket authentication. Upgrade or block the offending agent.
+
+      - alert: MistyPassGatewayTokenFallbackOnMTLSDeployment
+        expr: increase(mistypass_gateway_mtls_auth_total{result="token_fallback"}[30m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway token fallback observed
+          description: Device-token fallback is still being used. For mTLS-only deployments, route gateways through the mTLS listener and investigate clients without certs.
+
+      - alert: MistyPassGatewayCertificateRevocationHit
+        expr: increase(mistypass_gateway_mtls_auth_total{result=~"revoked_serial|gateway_revoked"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          domain: gateway-security
+        annotations:
+          summary: Revoked gateway credential attempted authentication
+          description: A revoked gateway certificate or gateway identity attempted to authenticate.
+
+      - alert: MistyPassGatewayRuntimeCertificateRevocationsPresent
+        expr: mistypass_gateway_mtls_cert_revocations_total{source="runtime"} > 0
+        for: 15m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Runtime gateway certificate revocations are active
+          description: One or more gateway mTLS certificate serials are blocked by the runtime denylist. Track incident ownership and rotate affected gateway certificates.
+
+      - alert: MistyPassGatewayAuthzCacheDrift
+        expr: increase(mistypass_gateway_authz_cache_reports_total{status="AUTHZ_CACHE_DRIFT"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway authorization cache drift detected
+          description: A gateway reported an authz cache version different from the expected cloud version.
+
+      - alert: MistyPassGatewayAuthzCacheStale
+        expr: increase(mistypass_gateway_authz_cache_reports_total{status="AUTHZ_CACHE_STALE"}[15m]) > 5
+        for: 10m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway authorization cache stale reports increased
+          description: Gateways are reporting stale authz cache state. Check WebSocket delivery, config push fanout, and gateway connectivity.
+
+      - alert: MistyPassGatewayWebSocketFanoutPublishErrors
+        expr: increase(mistypass_gateway_websocket_push_fanout_total{result="publish_error"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway WebSocket fanout publish errors
+          description: API replicas failed to publish gateway WebSocket push fanout messages to NATS.
+
+      - alert: MistyPassGatewayWebSocketFanoutNoDelivery
+        expr: |
+          increase(mistypass_gateway_websocket_push_fanout_total{result="published"}[15m]) > 0
+          and
+          increase(mistypass_gateway_websocket_push_fanout_total{result="delivered"}[15m]) == 0
+          and
+          increase(mistypass_gateway_websocket_push_fanout_total{result="origin_skipped"}[15m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          domain: gateway-security
+        annotations:
+          summary: Gateway WebSocket fanout has no deliveries
+          description: Gateway config pushes are being fanned out but no API replica reports local delivery. Check gateway connectivity and NATS subscriptions.

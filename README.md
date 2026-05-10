@@ -188,6 +188,10 @@ MVP endpoints (Chi Router):
 - `GET /api/v1/door-groups`
 - `POST /api/v1/door-groups`
 - `GET /api/v1/gateways`
+- `PATCH /api/v1/gateways/{gatewayID}/status`
+- `GET /api/v1/gateways/cert-revocations`
+- `POST /api/v1/gateways/cert-revocations`
+- `DELETE /api/v1/gateways/cert-revocations/{serialNumber}`
 - `GET /api/v1/gateways/serial-inventory`
 - `POST /api/v1/gateways/serial-inventory/import`
 - `POST /api/v1/gateways/serial-inventory/import-csv`
@@ -335,9 +339,12 @@ Auth/session env vars:
 - `EXTERNAL_AUTH_USERINFO_URL` (required when external auth enabled; userinfo/whoami endpoint)
 - `GATEWAY_BOOTSTRAP_TOKEN` (required in production; used by device-side `POST /api/v1/gateway/register` bootstrap authentication)
 - `GATEWAY_REQUIRE_REQUEST_NONCE` (default: `false`; set `true` after all gateway agents send `X-Request-Nonce` + `X-Request-Timestamp` on gateway HTTP device requests)
+- `GATEWAY_WS_MAX_SESSION_TTL` (duration, default: `6h`; server closes gateway WebSocket sessions at expiry and agents reconnect)
 - `GATEWAY_MTLS_ADDR` (optional; when set, starts a gateway-only HTTPS listener that requires verified client certificates, e.g. `:9443`)
 - `GATEWAY_MTLS_SERVER_CERT_PEM` / `GATEWAY_MTLS_SERVER_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; server certificate/key for the gateway mTLS listener)
 - `GATEWAY_CA_CERT_PEM` / `GATEWAY_CA_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; CA used to sign and verify gateway client certificates)
+- `GATEWAY_MTLS_CERT_LIFETIME` (duration, default: `24h`, allowed range: `1h` to `72h`; registration/renewal responses include `cert_expires_at` and `cert_renew_after`)
+- `GATEWAY_MTLS_REVOKED_SERIALS` (comma-separated certificate serial denylist for deployment-level emergency mTLS revocation; runtime serial blocks are managed by `POST /api/v1/gateways/cert-revocations`)
 - `EXTERNAL_AUTH_TIMEOUT` (duration, default: `8s`)
 - `EXTERNAL_AUTH_DEFAULT_ROLE` (default: `resident`; fallback role when provider payload has no role)
 - `REDIS_ADDR` (optional; when configured, auth refresh session, revoked access token blacklist, and API/login rate-limit counters migrate to Redis-compatible backend)
@@ -425,7 +432,11 @@ Gateway bootstrap auth:
 - Gateway HTTP device requests support replay protection with `X-Request-Nonce` + RFC3339 `X-Request-Timestamp`; when `GATEWAY_REQUIRE_REQUEST_NONCE=true`, missing nonce headers are rejected.
 - Gateway device requests should identify the device with `X-Gateway-ID` and `X-Tenant-ID`; `/credentials/sync` and `/audit/batch` also accept `gateway_id` / `tenant_id` query parameters for compatibility.
 - When `GATEWAY_MTLS_ADDR` is configured, `/api/v1/gateway/*` is also served on a dedicated TLS 1.3 listener that requires a gateway client certificate signed by `GATEWAY_CA_CERT_PEM`; the client certificate subject must bind `CN=<gateway_id>` and `O=<tenant_id>`.
-- `GET /api/v1/gateway/ws` authenticates new gateway agents with `Authorization: Bearer <device_token>` / `X-Device-Token`; legacy `?token=` remains accepted only for compatibility.
+- Admins can set `PATCH /api/v1/gateways/{gatewayID}/status` to `disabled` or `revoked` to block both mTLS and token fallback for that gateway identity.
+- Admins can use `GET/POST/DELETE /api/v1/gateways/cert-revocations` to list, add, and restore persisted runtime mTLS certificate serial revocations. Serial values are normalized, audited, and enforced during gateway mTLS authentication; serials configured in `GATEWAY_MTLS_REVOKED_SERIALS` remain deployment-managed and cannot be restored via API.
+- `GET /api/v1/gateway/ws` authenticates new gateway agents with mTLS or `Authorization: Bearer <device_token>` / `X-Device-Token`; `?token=` is rejected.
+- Gateway WebSocket sessions expire after `GATEWAY_WS_MAX_SESSION_TTL`; the server sends a close frame with `session expired; reconnect`, and current agents reconnect with exponential backoff.
+- When `NATS_ENABLED=true`, gateway WebSocket authz cache pushes are fanned out on `mistypass.gateway.ws.push` so multi-instance API deployments can deliver a push from the replica that owns the target gateway connection. Each push carries an origin instance id so the publisher does not duplicate its own local delivery.
 - `POST /api/v1/gateway/config/pull` returns desired config version + bound doors/devices, and now includes `authz_cache` (scoped by bound doors) with `version/generated_at/expires_at/ttl_seconds/scope/counts`, plus `policy` (`fallback_mode/no_cache_behavior/max_stale_seconds/stale_until/rollback_version`) and `status_codes` (`AUTHZ_CACHE_*`) for edge-side expiry/rollback handling. Request may carry optional `authz_cache_version`; response returns `authz_cache.status` (`AUTHZ_CACHE_FRESH|STALE|MISSING|DRIFT`).
 - `POST /api/v1/gateway/config/applied` accepts optional `authz_cache_version` and returns `authz_cache.version_match` + `authz_cache.status`; mismatch writes audit `gateway_config_authz_cache_version_drift` for drift tracing, match updates next pull `policy.rollback_version`.
 - `POST /api/v1/gateway/events/access` and `POST /api/v1/gateway/events/device` now persist into event module and support replay dedup by `idempotency_key` (or fallback `request_id`/`event_id`).
@@ -524,13 +535,15 @@ Audit webhook PoC behavior:
   - `mistypass.audit.log.appended`
   - `mistypass.audit.webhook.dispatched`
   - `mistypass.audit.webhook.dispatch.failed`
+- Gateway WebSocket push fanout also uses NATS subject `mistypass.gateway.ws.push` for cross-replica delivery.
+- Gateway security metrics include nonce validation, mTLS/token fallback auth results, current mTLS serial revocation gauges, WebSocket auth/session lifecycle, cross-replica fanout, and authz cache reports. Prometheus alert examples live in `deploy/prometheus/gateway-security-alerts.yml`.
 - Regression script: `docs/testing/curl-audit-webhook-fanout.zsh` covers disabled conflict, unreachable endpoint failure record, and action-filter conflict.
 
 ## 5. Notes
 
 - By default data is in-memory and resets when the API restarts.
 - If `DATABASE_URL` is configured, current phase persists `tenant`/`space`/`access`/`gateway`/`enterprise`/`event`/`alarm`/`audit`/`wallet` module state into PostgreSQL snapshot table `mistypass` and syncs it into `mistypass_*` projection tables.
-- If `REDIS_ADDR` is configured, auth refresh session state, revoked access token blacklist, and IP rate-limit counters use Redis/Dragonfly for multi-instance consistency.
+- If `REDIS_ADDR` is configured, auth refresh session state, revoked access token blacklist, IP rate-limit counters, and gateway request nonce replay guards use Redis/Dragonfly for multi-instance consistency.
 - This is a delivery-focused MVP scaffold intended for rapid extension.
 
 ## 6. Wallet planning

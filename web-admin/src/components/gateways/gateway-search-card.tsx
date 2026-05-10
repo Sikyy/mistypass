@@ -11,13 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import type { GatewayStatus } from "@/lib/api"
 
 type GatewaySearchCardProps = {
   platformViewer: boolean
   query: string
   onQueryChange: (value: string) => void
-  gatewayStatusFilter: "all" | "online" | "offline"
-  onGatewayStatusFilterChange: (value: "all" | "online" | "offline") => void
+  gatewayStatusFilter: "all" | GatewayStatus
+  onGatewayStatusFilterChange: (value: "all" | GatewayStatus) => void
   onResetFilters: () => void
 }
 
@@ -52,8 +53,8 @@ export function GatewaySearchCard({
           </div>
           <Select
             value={gatewayStatusFilter}
-            onValueChange={(value: "all" | "online" | "offline") => {
-              onGatewayStatusFilterChange(value)
+            onValueChange={(value) => {
+              onGatewayStatusFilterChange(value as "all" | GatewayStatus)
             }}
           >
             <SelectTrigger aria-label={t("gateways.search.statusAriaLabel")}>
@@ -63,6 +64,8 @@ export function GatewaySearchCard({
               <SelectItem value="all">{t("gateways.search.allStatuses")}</SelectItem>
               <SelectItem value="online">{t("gateways.status.online")}</SelectItem>
               <SelectItem value="offline">{t("gateways.status.offline")}</SelectItem>
+              <SelectItem value="disabled">{t("gateways.status.disabled")}</SelectItem>
+              <SelectItem value="revoked">{t("gateways.status.revoked")}</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" className="w-full lg:w-auto" onClick={onResetFilters}>

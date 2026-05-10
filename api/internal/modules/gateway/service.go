@@ -21,6 +21,7 @@ var ErrSerialNumberProductTypeMismatch = errors.New("serial_number product_type 
 var ErrTenantIDRequired = errors.New("tenant_id is required")
 var ErrGatewayNotFound = errors.New("gateway not found")
 var ErrGatewayIDRequired = errors.New("gateway_id is required")
+var ErrGatewayStatusInvalid = errors.New("invalid gateway status")
 var ErrDoorIDRequired = errors.New("door_id is required")
 var ErrConfigVersionRequired = errors.New("config version is required")
 var ErrInvalidDeviceCapacity = errors.New("device_capacity must be 4 or 8")
@@ -62,6 +63,10 @@ var ErrGatewayOTAFirmwareSHA256Invalid = errors.New("gateway ota firmware_sha256
 var ErrGatewayOTAFirmwareSignatureInvalid = errors.New("gateway ota firmware_signature is invalid (expected hex-encoded Ed25519 signature)")
 var ErrGatewayOTATaskStatusInvalid = errors.New("gateway ota task status is invalid")
 var ErrGatewayOTATaskNotFound = errors.New("gateway ota task not found")
+var ErrGatewayCertificateSerialRequired = errors.New("gateway certificate serial_number is required")
+var ErrGatewayCertificateSerialInvalid = errors.New("gateway certificate serial_number is invalid")
+var ErrGatewayCertificateSerialNotFound = errors.New("gateway certificate serial_number revocation not found")
+var ErrGatewayCertificateSerialConflict = errors.New("gateway certificate serial_number already revoked for another tenant")
 
 const defaultDeviceCapacity = 4
 
@@ -266,23 +271,25 @@ type StateStore interface {
 const stateKey = "module_gateway"
 
 type stateSnapshot struct {
-	Gateways          []Gateway                 `json:"gateways"`
-	SerialInventory   []SerialInventoryItem     `json:"serial_inventory,omitempty"`
-	ConfigStates      []GatewayConfigState      `json:"config_states,omitempty"`
-	EventCheckpoints  []GatewayEventCheckpoint  `json:"event_checkpoints,omitempty"`
-	QueueIngestTotals []GatewayQueueIngestTotal `json:"queue_ingest_totals,omitempty"`
-	OTATasks          []GatewayOTATask          `json:"ota_tasks,omitempty"`
+	Gateways               []Gateway                      `json:"gateways"`
+	SerialInventory        []SerialInventoryItem          `json:"serial_inventory,omitempty"`
+	CertificateRevocations []GatewayCertificateRevocation `json:"certificate_revocations,omitempty"`
+	ConfigStates           []GatewayConfigState           `json:"config_states,omitempty"`
+	EventCheckpoints       []GatewayEventCheckpoint       `json:"event_checkpoints,omitempty"`
+	QueueIngestTotals      []GatewayQueueIngestTotal      `json:"queue_ingest_totals,omitempty"`
+	OTATasks               []GatewayOTATask               `json:"ota_tasks,omitempty"`
 }
 
 type Service struct {
-	mu                sync.RWMutex
-	gateways          []Gateway
-	serialInventory   []SerialInventoryItem
-	configStates      []GatewayConfigState
-	eventCheckpoints  []GatewayEventCheckpoint
-	queueIngestTotals []GatewayQueueIngestTotal
-	otaTasks          []GatewayOTATask
-	stateStore        StateStore
+	mu                     sync.RWMutex
+	gateways               []Gateway
+	serialInventory        []SerialInventoryItem
+	certificateRevocations []GatewayCertificateRevocation
+	configStates           []GatewayConfigState
+	eventCheckpoints       []GatewayEventCheckpoint
+	queueIngestTotals      []GatewayQueueIngestTotal
+	otaTasks               []GatewayOTATask
+	stateStore             StateStore
 }
 
 func NewService() *Service {
@@ -344,12 +351,13 @@ func NewService() *Service {
 	}
 
 	return &Service{
-		gateways:          gateways,
-		serialInventory:   serialInventoryFromGateways(gateways),
-		configStates:      []GatewayConfigState{},
-		eventCheckpoints:  []GatewayEventCheckpoint{},
-		queueIngestTotals: []GatewayQueueIngestTotal{},
-		otaTasks:          []GatewayOTATask{},
+		gateways:               gateways,
+		serialInventory:        serialInventoryFromGateways(gateways),
+		certificateRevocations: []GatewayCertificateRevocation{},
+		configStates:           []GatewayConfigState{},
+		eventCheckpoints:       []GatewayEventCheckpoint{},
+		queueIngestTotals:      []GatewayQueueIngestTotal{},
+		otaTasks:               []GatewayOTATask{},
 	}
 }
 
@@ -420,6 +428,38 @@ func (s *Service) FindGatewayByDoorID(tenantID, doorID string) (Gateway, bool) {
 		}
 	}
 	return Gateway{}, false
+}
+
+func (s *Service) UpdateGatewayStatus(tenantID, gatewayID, status string) (Gateway, error) {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" {
+		return Gateway{}, ErrGatewayIDRequired
+	}
+	nextStatus, err := normalizeGatewayStatus(status)
+	if err != nil {
+		return Gateway{}, err
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if s.gateways[i].ID != nextGatewayID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return Gateway{}, ErrGatewayNotFound
+		}
+		s.gateways[i].Status = nextStatus
+		s.gateways[i].LastSeenAt = time.Now().UTC()
+		if err := s.persistLocked(); err != nil {
+			return Gateway{}, err
+		}
+		return cloneGateway(s.gateways[i]), nil
+	}
+
+	return Gateway{}, ErrGatewayNotFound
 }
 
 func (s *Service) ListSerialInventory(tenantID, productType, status string) ([]SerialInventoryItem, error) {
@@ -1858,12 +1898,13 @@ func (s *Service) restoreFromStateStore() error {
 	}
 	if !found {
 		return s.stateStore.Save(stateKey, stateSnapshot{
-			Gateways:          cloneGateways(s.gateways),
-			SerialInventory:   cloneSerialInventory(s.serialInventory),
-			ConfigStates:      cloneGatewayConfigStates(s.configStates),
-			EventCheckpoints:  cloneGatewayEventCheckpoints(s.eventCheckpoints),
-			QueueIngestTotals: cloneGatewayQueueIngestTotals(s.queueIngestTotals),
-			OTATasks:          cloneGatewayOTATasks(s.otaTasks),
+			Gateways:               cloneGateways(s.gateways),
+			SerialInventory:        cloneSerialInventory(s.serialInventory),
+			CertificateRevocations: cloneGatewayCertificateRevocations(s.certificateRevocations),
+			ConfigStates:           cloneGatewayConfigStates(s.configStates),
+			EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
+			QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
+			OTATasks:               cloneGatewayOTATasks(s.otaTasks),
 		})
 	}
 	shouldBackfillInventory := false
@@ -1875,6 +1916,7 @@ func (s *Service) restoreFromStateStore() error {
 	s.mu.Lock()
 	s.gateways = cloneGateways(snapshot.Gateways)
 	s.serialInventory = cloneSerialInventory(snapshot.SerialInventory)
+	s.certificateRevocations = cloneGatewayCertificateRevocations(snapshot.CertificateRevocations)
 	s.configStates = cloneGatewayConfigStates(snapshot.ConfigStates)
 	s.eventCheckpoints = cloneGatewayEventCheckpoints(snapshot.EventCheckpoints)
 	s.queueIngestTotals = cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals)
@@ -1883,12 +1925,13 @@ func (s *Service) restoreFromStateStore() error {
 
 	if shouldBackfillInventory {
 		return s.stateStore.Save(stateKey, stateSnapshot{
-			Gateways:          cloneGateways(snapshot.Gateways),
-			SerialInventory:   cloneSerialInventory(snapshot.SerialInventory),
-			ConfigStates:      cloneGatewayConfigStates(snapshot.ConfigStates),
-			EventCheckpoints:  cloneGatewayEventCheckpoints(snapshot.EventCheckpoints),
-			QueueIngestTotals: cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
-			OTATasks:          cloneGatewayOTATasks(snapshot.OTATasks),
+			Gateways:               cloneGateways(snapshot.Gateways),
+			SerialInventory:        cloneSerialInventory(snapshot.SerialInventory),
+			CertificateRevocations: cloneGatewayCertificateRevocations(snapshot.CertificateRevocations),
+			ConfigStates:           cloneGatewayConfigStates(snapshot.ConfigStates),
+			EventCheckpoints:       cloneGatewayEventCheckpoints(snapshot.EventCheckpoints),
+			QueueIngestTotals:      cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
+			OTATasks:               cloneGatewayOTATasks(snapshot.OTATasks),
 		})
 	}
 	return nil
@@ -1899,12 +1942,13 @@ func (s *Service) persistLocked() error {
 		return nil
 	}
 	return s.stateStore.Save(stateKey, stateSnapshot{
-		Gateways:          cloneGateways(s.gateways),
-		SerialInventory:   cloneSerialInventory(s.serialInventory),
-		ConfigStates:      cloneGatewayConfigStates(s.configStates),
-		EventCheckpoints:  cloneGatewayEventCheckpoints(s.eventCheckpoints),
-		QueueIngestTotals: cloneGatewayQueueIngestTotals(s.queueIngestTotals),
-		OTATasks:          cloneGatewayOTATasks(s.otaTasks),
+		Gateways:               cloneGateways(s.gateways),
+		SerialInventory:        cloneSerialInventory(s.serialInventory),
+		CertificateRevocations: cloneGatewayCertificateRevocations(s.certificateRevocations),
+		ConfigStates:           cloneGatewayConfigStates(s.configStates),
+		EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
+		QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
+		OTATasks:               cloneGatewayOTATasks(s.otaTasks),
 	})
 }
 
@@ -2190,6 +2234,21 @@ func normalizeSerialInventoryProductType(productType string) (string, error) {
 		return serialInventoryProductSensor, nil
 	default:
 		return "", ErrSerialInventoryProductTypeInvalid
+	}
+}
+
+func normalizeGatewayStatus(status string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "", "online":
+		return "online", nil
+	case "offline":
+		return "offline", nil
+	case "disabled":
+		return "disabled", nil
+	case "revoked":
+		return "revoked", nil
+	default:
+		return "", ErrGatewayStatusInvalid
 	}
 }
 

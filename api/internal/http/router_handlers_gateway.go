@@ -75,6 +75,7 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 		authzCache.Version,
 		authzCache.Policy.RollbackVersion,
 	)
+	recordGatewayAuthzCacheReport(authzCache.Status)
 
 	// Include pending OTA tasks so the gateway can discover firmware updates.
 	var pendingOTA []gateway.GatewayOTATask
@@ -147,6 +148,7 @@ func (s *server) gatewayBootstrapConfigApplied(w http.ResponseWriter, r *http.Re
 		expectedAuthzCache.Version,
 		expectedAuthzCache.Policy.RollbackVersion,
 	)
+	recordGatewayAuthzCacheReport(authzCacheStatus)
 	if reportedAuthzCacheVersion != "" && authzCacheVersionMatch {
 		s.setGatewayAuthzCacheAckVersion(snapshot.GatewayID, reportedAuthzCacheVersion)
 	}

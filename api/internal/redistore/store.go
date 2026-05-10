@@ -308,6 +308,21 @@ func (s *Store) AllowRateLimit(scope, key string, now time.Time, window time.Dur
 	return false, ttl, nil
 }
 
+func (s *Store) MarkGatewayRequestNonce(gatewayID, nonce string, ttl time.Duration) (bool, error) {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	nextNonce := strings.TrimSpace(nonce)
+	if nextGatewayID == "" || nextNonce == "" {
+		return false, errors.New("gateway id/nonce are required")
+	}
+	if ttl <= 0 {
+		return false, errors.New("nonce ttl must be positive")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return s.client.SetNX(ctx, s.gatewayRequestNonceKey(nextGatewayID, nextNonce), "1", ttl).Result()
+}
+
 func (s *Store) TryAcquireLease(key, token string, ttl time.Duration) (bool, error) {
 	nextKey := strings.TrimSpace(key)
 	nextToken := strings.TrimSpace(token)
@@ -763,6 +778,10 @@ func (s *Store) rateLimitCounterKey(scope, key string, bucket int64) string {
 		strconv.FormatInt(bucket, 10),
 		hashValue(key),
 	)
+}
+
+func (s *Store) gatewayRequestNonceKey(gatewayID, nonce string) string {
+	return s.key("gateway", "nonce", gatewayID, hashValue(nonce))
 }
 
 func (s *Store) workerLeaseKey(key string) string {

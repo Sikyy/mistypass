@@ -12,6 +12,7 @@ import {
   listBuildings,
   listDoorGroups,
   listDoors,
+  listGatewayCertificateRevocations,
   listGateways,
   listTemporaryAccess,
   listUserGroups,
@@ -20,7 +21,10 @@ import {
   parseAPIErrorDetails,
   publishGatewayConfig,
   rebootGateway,
+  restoreGatewayCertificateSerial,
+  revokeGatewayCertificateSerial,
   updateWalletPhysicalCardInventoryStatus,
+  updateGatewayStatus,
   updateUserGroup,
 } from "./api"
 
@@ -586,6 +590,119 @@ describe("legacy-named hardware helpers", () => {
     expect(calledURLs).not.toContain("/api/v1/gateways/controller_001/bind-door")
     expect(calledURLs).not.toContain("/api/v1/gateways/controller_001/config/publish")
     expect(calledURLs).not.toContain("/api/v1/gateways/controller_001/reboot")
+  })
+
+  it("routes gateway status and certificate revocation helpers through security endpoints", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/api/v1/gateways/controller_001/status")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "controller_001",
+              tenant_id: "tenant_demo",
+              serial_number: "MP-GW-001",
+              building_id: "place_001",
+              device_capacity: 4,
+              status: "revoked",
+              last_seen_at: "2026-05-11T10:00:00Z",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      }
+      if (url.includes("/api/v1/gateways/cert-revocations/abc123")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "gw_cert_rev_abc123",
+              tenant_id: "tenant_demo",
+              serial_number: "abc123",
+              source: "runtime",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      }
+      if (url.includes("/api/v1/gateways/cert-revocations") && init?.method === "POST") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: "gw_cert_rev_abc123",
+              tenant_id: "tenant_demo",
+              gateway_id: "controller_001",
+              serial_number: "abc123",
+              source: "runtime",
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      }
+      if (url.includes("/api/v1/gateways/cert-revocations")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: "gw_cert_rev_abc123",
+                  tenant_id: "tenant_demo",
+                  gateway_id: "controller_001",
+                  serial_number: "abc123",
+                  source: "runtime",
+                },
+              ],
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }
+          )
+        )
+      }
+      return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }))
+    })
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(updateGatewayStatus("token", "controller_001", { tenant_id: "tenant_demo", status: "revoked" })).resolves.toMatchObject({
+      id: "controller_001",
+      status: "revoked",
+    })
+    await expect(listGatewayCertificateRevocations("token", "tenant_demo")).resolves.toEqual([
+      expect.objectContaining({ serial_number: "abc123", source: "runtime" }),
+    ])
+    await expect(
+      revokeGatewayCertificateSerial("token", {
+        tenant_id: "tenant_demo",
+        gateway_id: "controller_001",
+        serial_number: "00:AB:C1:23",
+        reason: "incident",
+      })
+    ).resolves.toMatchObject({ serial_number: "abc123" })
+    await expect(restoreGatewayCertificateSerial("token", "abc123", "tenant_demo")).resolves.toMatchObject({
+      serial_number: "abc123",
+    })
+
+    expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/gateways/controller_001/status?tenant_id=tenant_demo"))
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("PATCH")
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toEqual({ status: "revoked" })
+    expect(fetchMock.mock.calls[2][0]).toEqual(expect.stringContaining("/api/v1/gateways/cert-revocations"))
+    expect(fetchMock.mock.calls[2][1]?.method).toBe("POST")
+    expect(JSON.parse(fetchMock.mock.calls[2][1]?.body as string)).toEqual({
+      tenant_id: "tenant_demo",
+      gateway_id: "controller_001",
+      serial_number: "00:AB:C1:23",
+      reason: "incident",
+    })
+    expect(fetchMock.mock.calls[3][0]).toEqual(expect.stringContaining("/api/v1/gateways/cert-revocations/abc123"))
+    expect(fetchMock.mock.calls[3][1]?.method).toBe("DELETE")
   })
 })
 

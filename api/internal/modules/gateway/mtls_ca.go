@@ -39,15 +39,19 @@ import (
 	"time"
 )
 
-// DeviceCACertLifetime is how long a device client certificate is valid.
-// Must be ≤ MaxOfflineDuration (72h) to bound revocation delay.
+// DeviceCACertLifetime is the maximum device client certificate lifetime.
+// Production defaults should stay shorter than this to bound revocation delay.
 const DeviceCACertLifetime = 72 * time.Hour
+
+// DefaultDeviceCACertLifetime is the default issued client certificate lifetime.
+const DefaultDeviceCACertLifetime = 24 * time.Hour
 
 // DeviceCA is a minimal certificate authority for signing gateway client certs.
 // In production, the CA private key should be backed by HSM/KMS.
 type DeviceCA struct {
-	caCert *x509.Certificate
-	caKey  *ecdsa.PrivateKey
+	caCert  *x509.Certificate
+	caKey   *ecdsa.PrivateKey
+	certTTL time.Duration
 
 	// PEM-encoded CA certificate for clients to verify server-side
 	CACertPEM []byte
@@ -95,6 +99,7 @@ func NewDeviceCA() (*DeviceCA, error) {
 	return &DeviceCA{
 		caCert:    caCert,
 		caKey:     caKey,
+		certTTL:   DefaultDeviceCACertLifetime,
 		CACertPEM: caCertPEM,
 	}, nil
 }
@@ -122,8 +127,32 @@ func LoadDeviceCA(certPEM, keyPEM []byte) (*DeviceCA, error) {
 	return &DeviceCA{
 		caCert:    caCert,
 		caKey:     caKey,
+		certTTL:   DefaultDeviceCACertLifetime,
 		CACertPEM: certPEM,
 	}, nil
+}
+
+// SetCertificateLifetime overrides the issued client certificate lifetime.
+func (ca *DeviceCA) SetCertificateLifetime(ttl time.Duration) error {
+	if ca == nil {
+		return fmt.Errorf("device CA is nil")
+	}
+	if ttl <= 0 {
+		return fmt.Errorf("certificate lifetime must be positive")
+	}
+	if ttl > DeviceCACertLifetime {
+		return fmt.Errorf("certificate lifetime must not exceed %s", DeviceCACertLifetime)
+	}
+	ca.certTTL = ttl
+	return nil
+}
+
+// CertificateLifetime returns the effective issued client certificate lifetime.
+func (ca *DeviceCA) CertificateLifetime() time.Duration {
+	if ca == nil || ca.certTTL <= 0 {
+		return DefaultDeviceCACertLifetime
+	}
+	return ca.certTTL
 }
 
 // SignCSR signs a gateway's Certificate Signing Request and returns the client cert PEM.
@@ -191,7 +220,7 @@ func (ca *DeviceCA) signParsedCSR(csr *x509.CertificateRequest) (certPEM []byte,
 		SerialNumber: serialNumber,
 		Subject:      csr.Subject, // CN = gateway_id, O = tenant_id
 		NotBefore:    now.Add(-1 * time.Minute),
-		NotAfter:     now.Add(DeviceCACertLifetime),
+		NotAfter:     now.Add(ca.CertificateLifetime()),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}

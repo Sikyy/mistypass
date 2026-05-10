@@ -1,5 +1,5 @@
 import { type ColumnDef, type SortingState, type VisibilityState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
-import { ArrowUpDownIcon, SlidersHorizontalIcon } from "lucide-react"
+import { ArrowUpDownIcon, BanIcon, CheckIcon, ShieldOffIcon, SlidersHorizontalIcon } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -15,6 +15,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { ListPagination } from "@/components/ui/list-pagination"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -23,7 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { type Gateway, type Tenant } from "@/lib/api"
+import { type Gateway, type GatewayStatus, type Tenant } from "@/lib/api"
+
+type GatewayRuntimeStatus = "online" | "offline" | "disabled" | "revoked"
 
 type GatewayListCardProps = {
   platformViewer: boolean
@@ -35,7 +44,10 @@ type GatewayListCardProps = {
   buildingAdmin: boolean
   tenantByID: Map<string, Tenant>
   statusLabel: (status: string) => string
-  statusVariant: (status: string) => "outline" | "destructive" | "secondary"
+  statusVariant: (status: string) => "outline" | "destructive" | "secondary" | "warning"
+  gatewayOpsEditable: boolean
+  commandBusy: boolean
+  onUpdateGatewayStatus: (gateway: Gateway, status: GatewayRuntimeStatus) => void
 }
 
 export function GatewayListCard({
@@ -49,8 +61,12 @@ export function GatewayListCard({
   tenantByID,
   statusLabel,
   statusVariant,
+  gatewayOpsEditable,
+  commandBusy,
+  onUpdateGatewayStatus,
 }: GatewayListCardProps) {
   const { t, i18n } = useTranslation()
+  const [pendingStatus, setPendingStatus] = useState<Record<string, GatewayRuntimeStatus>>({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState("")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() => ({
@@ -137,6 +153,71 @@ export function GatewayListCard({
           ),
         },
         {
+          id: "security_action",
+          accessorFn: (row) => row.status,
+          enableSorting: false,
+          header: t("gateways.list.table.securityAction"),
+          cell: ({ row }) => {
+            const currentStatus = normalizeGatewayRuntimeStatus(row.original.status)
+            const nextStatus = pendingStatus[row.original.id] ?? currentStatus
+            const statusDisabledReason = !gatewayOpsEditable
+              ? t("gateways.disabledReasons.readOnly")
+              : commandBusy
+                ? t("gateways.disabledReasons.commandBusy")
+                : nextStatus === currentStatus
+                  ? t("gateways.disabledReasons.gatewayAlreadyStatus", {
+                      status: statusLabel(currentStatus),
+                    })
+                  : ""
+            return (
+              <div className="flex min-w-[15rem] flex-col gap-1.5">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <Select
+                    value={nextStatus}
+                    disabled={!gatewayOpsEditable || commandBusy}
+                    onValueChange={(value) =>
+                      setPendingStatus((current) => ({
+                        ...current,
+                        [row.original.id]: normalizeGatewayRuntimeStatus(value as GatewayStatus),
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full" title={!gatewayOpsEditable ? t("gateways.disabledReasons.readOnly") : undefined}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online">{t("gateways.status.online")}</SelectItem>
+                      <SelectItem value="offline">{t("gateways.status.offline")}</SelectItem>
+                      <SelectItem value="disabled">{t("gateways.status.disabled")}</SelectItem>
+                      <SelectItem value="revoked">{t("gateways.status.revoked")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={nextStatus === "revoked" || nextStatus === "disabled" ? "destructive" : "outline"}
+                    disabled={Boolean(statusDisabledReason)}
+                    title={statusDisabledReason || undefined}
+                    onClick={() => {
+                      onUpdateGatewayStatus(row.original, nextStatus)
+                    }}
+                  >
+                    {nextStatus === "revoked" ? (
+                      <ShieldOffIcon className="mr-1.5 size-4" />
+                    ) : nextStatus === "disabled" ? (
+                      <BanIcon className="mr-1.5 size-4" />
+                    ) : (
+                      <CheckIcon className="mr-1.5 size-4" />
+                    )}
+                    {t("gateways.list.applyStatus")}
+                  </Button>
+                </div>
+                {statusDisabledReason ? <p className="text-xs text-muted-foreground">{statusDisabledReason}</p> : null}
+              </div>
+            )
+          },
+        },
+        {
           id: "last_seen",
           accessorKey: "last_seen_at",
           header: ({ column }) => (
@@ -176,7 +257,7 @@ export function GatewayListCard({
       }
       return definition
     },
-    [platformViewer, statusLabel, statusVariant, tenantByID, t, i18n.language]
+    [commandBusy, gatewayOpsEditable, onUpdateGatewayStatus, pendingStatus, platformViewer, statusLabel, statusVariant, tenantByID, t, i18n.language]
   )
   const table = useReactTable({
     columns,
@@ -221,6 +302,7 @@ export function GatewayListCard({
     last_seen: t("gateways.list.table.lastSeen"),
     serial_number: t("gateways.list.table.serialNumber"),
     status: t("gateways.list.table.status"),
+    security_action: t("gateways.list.table.securityAction"),
     tenant: t("gateways.list.table.tenant"),
   }
   const filteredRowCount = table.getFilteredRowModel().rows.length
@@ -351,4 +433,17 @@ export function GatewayListCard({
       </CardContent>
     </Card>
   )
+}
+
+function normalizeGatewayRuntimeStatus(status: GatewayStatus): GatewayRuntimeStatus {
+  switch (status) {
+    case "offline":
+      return "offline"
+    case "disabled":
+      return "disabled"
+    case "revoked":
+      return "revoked"
+    default:
+      return "online"
+  }
 }

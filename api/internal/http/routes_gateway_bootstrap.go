@@ -72,8 +72,11 @@ func (s *server) gatewayBootstrapRegister(w http.ResponseWriter, r *http.Request
 			writeError(w, http.StatusBadRequest, "CSR signing failed: "+err.Error())
 			return
 		} else {
+			issuedAt := time.Now().UTC()
 			response["cert_pem"] = string(certPEM)
 			response["ca_cert_pem"] = string(s.gatewayDeviceCA.CACertPEM)
+			response["cert_expires_at"] = issuedAt.Add(s.gatewayDeviceCA.CertificateLifetime())
+			response["cert_renew_after"] = issuedAt.Add(s.gatewayDeviceCA.CertificateLifetime() / 2)
 			s.loggerOrDefault().Info("mTLS: client cert issued during registration", "gateway_id", record.ID)
 		}
 	}
@@ -266,8 +269,11 @@ func (s *server) gatewayBootstrapCertRenew(w http.ResponseWriter, r *http.Reques
 	}
 
 	s.loggerOrDefault().Info("mTLS: client cert renewed", "gateway_id", record.ID)
+	issuedAt := time.Now().UTC()
 	writeJSON(w, http.StatusOK, map[string]any{
-		"cert_pem":    string(certPEM),
-		"ca_cert_pem": string(s.gatewayDeviceCA.CACertPEM),
+		"cert_pem":         string(certPEM),
+		"ca_cert_pem":      string(s.gatewayDeviceCA.CACertPEM),
+		"cert_expires_at":  issuedAt.Add(s.gatewayDeviceCA.CertificateLifetime()),
+		"cert_renew_after": issuedAt.Add(s.gatewayDeviceCA.CertificateLifetime() / 2),
 	})
 }

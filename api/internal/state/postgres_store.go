@@ -42,12 +42,12 @@ const (
 
 	changeTypeSnapshotSaved = "snapshot_saved"
 
-	stateKeyTenant     = "module_tenant"
-	stateKeySpace      = "module_space"
-	stateKeyAccess     = "module_access"
-	stateKeyGateway    = "module_gateway"
-	stateKeyEnterprise = "module_enterprise"
-	stateKeyEvent      = "module_event"
+	stateKeyTenant      = "module_tenant"
+	stateKeySpace       = "module_space"
+	stateKeyAccess      = "module_access"
+	stateKeyGateway     = "module_gateway"
+	stateKeyEnterprise  = "module_enterprise"
+	stateKeyEvent       = "module_event"
 	stateKeyAlarm       = "module_alarm"
 	stateKeyAudit       = "module_audit"
 	stateKeyWallet      = "module_wallet"
@@ -125,8 +125,9 @@ type accessStateSnapshot struct {
 }
 
 type gatewayStateSnapshot struct {
-	Gateways        []gateway.Gateway             `json:"gateways"`
-	SerialInventory []gateway.SerialInventoryItem `json:"serial_inventory,omitempty"`
+	Gateways               []gateway.Gateway                      `json:"gateways"`
+	SerialInventory        []gateway.SerialInventoryItem          `json:"serial_inventory,omitempty"`
+	CertificateRevocations []gateway.GatewayCertificateRevocation `json:"certificate_revocations,omitempty"`
 }
 
 type enterpriseStateSnapshot struct {

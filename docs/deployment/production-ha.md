@@ -219,11 +219,15 @@ The API exposes a Prometheus-compatible metrics endpoint at `GET /metrics`. Key 
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `http_requests_total` | Counter | Total HTTP requests by method, path, status |
-| `http_request_duration_seconds` | Histogram | Request latency distribution |
-| `gateway_online_total` | Gauge | Number of connected gateways |
-| `access_decisions_total` | Counter | Access grant/deny counts |
-| `pg_pool_active_connections` | Gauge | Active database connections |
+| `mistypass_http_requests_total` | Counter | Total HTTP requests by method, route, status |
+| `mistypass_http_request_duration_seconds` | Histogram | Request latency distribution |
+| `mistypass_gateway_request_nonce_validation_total` | Counter | Gateway nonce validation result classes |
+| `mistypass_gateway_mtls_auth_total` | Counter | Gateway mTLS, token fallback, and revocation auth results |
+| `mistypass_gateway_mtls_cert_revocations_total` | Gauge | Current gateway mTLS certificate serial revocations by `runtime` or `environment` source |
+| `mistypass_gateway_websocket_auth_total` | Counter | Gateway WebSocket auth mode and rejected query-token attempts |
+| `mistypass_gateway_websocket_sessions_total` | Counter | Gateway WebSocket connected, disconnected, and expired sessions |
+| `mistypass_gateway_websocket_push_fanout_total` | Counter | Cross-replica WebSocket push fanout publish/delivery results |
+| `mistypass_gateway_authz_cache_reports_total` | Counter | Gateway authz cache `FRESH/STALE/MISSING/DRIFT` reports |
 
 ### Grafana Dashboards
 
@@ -240,15 +244,17 @@ groups:
   - name: mistypass
     rules:
       - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        expr: rate(mistypass_http_requests_total{status=~"5.."}[5m]) > 0.05
         for: 5m
-      - alert: GatewayOffline
-        expr: time() - gateway_last_heartbeat_timestamp > 300
-        for: 5m
-      - alert: ReplicationLag
-        expr: pg_replication_lag_seconds > 10
+      - alert: GatewayNonceStoreErrors
+        expr: increase(mistypass_gateway_request_nonce_validation_total{result="store_error"}[5m]) > 0
         for: 2m
+      - alert: GatewayWebSocketQueryTokenAttempt
+        expr: increase(mistypass_gateway_websocket_auth_total{mode="query_token_rejected"}[10m]) > 0
+        for: 5m
 ```
+
+Gateway security alert rules are maintained in `deploy/prometheus/gateway-security-alerts.yml`.
 
 ---
 

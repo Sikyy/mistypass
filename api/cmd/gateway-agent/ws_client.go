@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -219,6 +220,10 @@ func (ws *WSClient) readLoop() {
 
 		_, message, err := ws.conn.ReadMessage()
 		if err != nil {
+			if closeErr, ok := err.(*websocket.CloseError); ok && strings.Contains(strings.ToLower(closeErr.Text), "session expired") {
+				ws.logger.Info("ws: session expired by server, reconnecting")
+				return
+			}
 			if websocket.IsUnexpectedCloseError(err,
 				websocket.CloseNormalClosure,
 				websocket.CloseGoingAway) {

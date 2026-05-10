@@ -35,9 +35,22 @@ export type Gateway = {
   building_id: string
   device_capacity: number
   devices?: GatewayDevice[]
-  status: string
+  status: GatewayStatus
   last_seen_at: string
   bound_door_ids?: string[]
+}
+
+export type GatewayStatus = "online" | "offline" | "disabled" | "revoked" | string
+
+export type GatewayCertificateRevocation = {
+  id: string
+  tenant_id?: string
+  gateway_id?: string
+  serial_number: string
+  reason?: string
+  revoked_by?: string
+  revoked_at?: string
+  source: "runtime" | "environment" | string
 }
 
 export type GatewaySerialInventoryProductType =
@@ -352,6 +365,78 @@ export async function registerGateway(
     {
       method: "POST",
       body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function updateGatewayStatus(
+  token: string | undefined,
+  gatewayID: string,
+  payload: {
+    tenant_id?: string
+    status: "online" | "offline" | "disabled" | "revoked"
+  }
+): Promise<Gateway> {
+  const query = new URLSearchParams()
+  if (payload.tenant_id?.trim()) {
+    query.set("tenant_id", payload.tenant_id.trim())
+  }
+  const suffix = query.toString()
+  return request<Gateway>(
+    `/api/v1/gateways/${encodePathSegment(gatewayID)}/status${suffix ? `?${suffix}` : ""}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status: payload.status }),
+    },
+    token
+  )
+}
+
+export async function listGatewayCertificateRevocations(
+  token: string | undefined,
+  tenantID?: string
+): Promise<GatewayCertificateRevocation[]> {
+  const query = new URLSearchParams()
+  if (tenantID?.trim()) {
+    query.set("tenant_id", tenantID.trim())
+  }
+  const suffix = query.toString()
+  return requestItems<GatewayCertificateRevocation>(
+    suffix ? `/api/v1/gateways/cert-revocations?${suffix}` : "/api/v1/gateways/cert-revocations",
+    token
+  )
+}
+
+export async function revokeGatewayCertificateSerial(
+  token: string | undefined,
+  payload: {
+    tenant_id?: string
+    gateway_id?: string
+    serial_number: string
+    reason?: string
+  }
+): Promise<GatewayCertificateRevocation> {
+  return request<GatewayCertificateRevocation>(
+    "/api/v1/gateways/cert-revocations",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    token
+  )
+}
+
+export async function restoreGatewayCertificateSerial(
+  token: string | undefined,
+  serialNumber: string,
+  tenantID?: string
+): Promise<GatewayCertificateRevocation> {
+  return request<GatewayCertificateRevocation>(
+    `/api/v1/gateways/cert-revocations/${encodePathSegment(serialNumber)}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({ tenant_id: tenantID?.trim() || undefined }),
     },
     token
   )

@@ -163,6 +163,8 @@ func TestFromEnvGatewayMTLSConfig(t *testing.T) {
 	t.Setenv("GATEWAY_MTLS_SERVER_KEY_PEM", "server-key")
 	t.Setenv("GATEWAY_CA_CERT_PEM", "ca-cert")
 	t.Setenv("GATEWAY_CA_KEY_PEM", "ca-key")
+	t.Setenv("GATEWAY_MTLS_CERT_LIFETIME", "12h")
+	t.Setenv("GATEWAY_MTLS_REVOKED_SERIALS", "01:02, 0A0B,01:02")
 
 	cfg := FromEnv()
 	if cfg.GatewayMTLSAddr != ":9443" {
@@ -177,19 +179,57 @@ func TestFromEnvGatewayMTLSConfig(t *testing.T) {
 	if cfg.GatewayCACertPEM != "ca-cert" || cfg.GatewayCAKeyPEM != "ca-key" {
 		t.Fatalf("unexpected gateway CA config")
 	}
+	if cfg.GatewayMTLSCertLifetime != 12*time.Hour {
+		t.Fatalf("unexpected gateway mTLS cert lifetime: %s", cfg.GatewayMTLSCertLifetime)
+	}
+	if len(cfg.GatewayMTLSRevokedSerials) != 2 || cfg.GatewayMTLSRevokedSerials[0] != "01:02" || cfg.GatewayMTLSRevokedSerials[1] != "0A0B" {
+		t.Fatalf("unexpected gateway mTLS revoked serials: %+v", cfg.GatewayMTLSRevokedSerials)
+	}
 }
 
 func TestFromEnvGatewayRequireRequestNonce(t *testing.T) {
 	t.Setenv("GATEWAY_REQUIRE_REQUEST_NONCE", "")
+	t.Setenv("GATEWAY_WS_MAX_SESSION_TTL", "")
+	t.Setenv("GATEWAY_MTLS_CERT_LIFETIME", "")
 	cfg := FromEnv()
 	if cfg.GatewayRequireRequestNonce {
 		t.Fatalf("expected gateway request nonce requirement disabled by default")
 	}
+	if cfg.GatewayWebSocketMaxSessionTTL != 6*time.Hour {
+		t.Fatalf("expected default gateway WS max session TTL 6h, got %s", cfg.GatewayWebSocketMaxSessionTTL)
+	}
+	if cfg.GatewayMTLSCertLifetime != 24*time.Hour {
+		t.Fatalf("expected default gateway mTLS cert lifetime 24h, got %s", cfg.GatewayMTLSCertLifetime)
+	}
 
 	t.Setenv("GATEWAY_REQUIRE_REQUEST_NONCE", "true")
+	t.Setenv("GATEWAY_WS_MAX_SESSION_TTL", "2h")
+	t.Setenv("GATEWAY_MTLS_CERT_LIFETIME", "48h")
 	cfg = FromEnv()
 	if !cfg.GatewayRequireRequestNonce {
 		t.Fatalf("expected gateway request nonce requirement to be enabled")
+	}
+	if cfg.GatewayWebSocketMaxSessionTTL != 2*time.Hour {
+		t.Fatalf("expected gateway WS max session TTL override, got %s", cfg.GatewayWebSocketMaxSessionTTL)
+	}
+	if cfg.GatewayMTLSCertLifetime != 48*time.Hour {
+		t.Fatalf("expected gateway mTLS cert lifetime override, got %s", cfg.GatewayMTLSCertLifetime)
+	}
+
+	t.Setenv("GATEWAY_WS_MAX_SESSION_TTL", "30s")
+	t.Setenv("GATEWAY_MTLS_CERT_LIFETIME", "30m")
+	cfg = FromEnv()
+	if cfg.GatewayWebSocketMaxSessionTTL != 6*time.Hour {
+		t.Fatalf("expected too-short gateway WS max session TTL to fallback, got %s", cfg.GatewayWebSocketMaxSessionTTL)
+	}
+	if cfg.GatewayMTLSCertLifetime != 24*time.Hour {
+		t.Fatalf("expected too-short gateway mTLS cert lifetime to fallback, got %s", cfg.GatewayMTLSCertLifetime)
+	}
+
+	t.Setenv("GATEWAY_MTLS_CERT_LIFETIME", "96h")
+	cfg = FromEnv()
+	if cfg.GatewayMTLSCertLifetime != 24*time.Hour {
+		t.Fatalf("expected too-long gateway mTLS cert lifetime to fallback, got %s", cfg.GatewayMTLSCertLifetime)
 	}
 }
 

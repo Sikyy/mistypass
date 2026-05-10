@@ -115,6 +115,9 @@ type Config struct {
 	GatewayEventsBatchForceRetryableError                        bool
 	GatewayEventsBatchForceRetryablePrefix                       string
 	GatewayRequireRequestNonce                                   bool
+	GatewayWebSocketMaxSessionTTL                                time.Duration
+	GatewayMTLSCertLifetime                                      time.Duration
+	GatewayMTLSRevokedSerials                                    []string
 	WalletJobProcessDefaultMaxRetry                              int
 	WalletDLQCleanupDefaultLimit                                 int
 	WalletDLQCleanupDefaultOlderThan                             time.Duration
@@ -643,6 +646,21 @@ func loadGatewayConfig(cfg *Config) {
 		envString("GATEWAY_REQUIRE_REQUEST_NONCE"),
 		false,
 	)
+	cfg.GatewayWebSocketMaxSessionTTL = parseDurationOrFallback(
+		envString("GATEWAY_WS_MAX_SESSION_TTL"),
+		6*time.Hour,
+	)
+	if cfg.GatewayWebSocketMaxSessionTTL < time.Minute {
+		cfg.GatewayWebSocketMaxSessionTTL = 6 * time.Hour
+	}
+	cfg.GatewayMTLSCertLifetime = parseDurationOrFallback(
+		envString("GATEWAY_MTLS_CERT_LIFETIME"),
+		24*time.Hour,
+	)
+	if cfg.GatewayMTLSCertLifetime < time.Hour || cfg.GatewayMTLSCertLifetime > 72*time.Hour {
+		cfg.GatewayMTLSCertLifetime = 24 * time.Hour
+	}
+	cfg.GatewayMTLSRevokedSerials = parseCSVList(envString("GATEWAY_MTLS_REVOKED_SERIALS"))
 	// mTLS CA for gateway device authentication.
 	// In production, set GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM.
 	// If not set, a new CA is auto-generated (dev mode — certs won't survive restart).
@@ -983,6 +1001,31 @@ func parseGroupEmailMap(raw string) map[string][]string {
 		return nil
 	}
 	return groups
+}
+
+func parseCSVList(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	items := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for i := range parts {
+		next := strings.TrimSpace(parts[i])
+		if next == "" {
+			continue
+		}
+		key := strings.ToLower(next)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		items = append(items, next)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return items
 }
 
 func loadReportEmailConfig(cfg *Config) {
