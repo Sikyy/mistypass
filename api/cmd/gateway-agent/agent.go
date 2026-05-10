@@ -35,6 +35,7 @@ type Agent struct {
 	osdpAddress        byte   // OSDP peripheral device address (0-126)
 	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
 	wsURL              string // WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws)
+	mtlsCertDir        string // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
 
 	mu              sync.RWMutex
 	deviceToken     string // device-specific token obtained from registration
@@ -55,6 +56,9 @@ type Agent struct {
 
 	// WebSocket persistent connection
 	wsClient *WSClient
+
+	// mTLS client authentication
+	mtls *DeviceMTLS
 }
 
 // AccessRule is a local credential → lock mapping for offline decision.
@@ -117,6 +121,21 @@ func (a *Agent) Start() error {
 		a.relay = &DryRunRelay{logger: a.logger}
 	}
 
+	// Initialize mTLS client certificate
+	if a.mtlsCertDir != "" {
+		a.mtls = NewDeviceMTLS(a.mtlsCertDir)
+		if a.mtls.Load() {
+			cn, notAfter, _ := a.mtls.CertInfo()
+			a.logger.Info("mTLS: loaded client certificate",
+				"cn", cn,
+				"expires", notAfter.Format(time.RFC3339),
+				"remaining", time.Until(notAfter).Round(time.Minute),
+			)
+		} else {
+			a.logger.Info("mTLS: no valid client certificate, will obtain during registration")
+		}
+	}
+
 	// Load persisted device token if available
 	if err := a.loadDeviceToken(); err != nil {
 		a.logger.Debug("no persisted device token found, will register", "error", err)
@@ -160,13 +179,27 @@ func (a *Agent) Start() error {
 }
 
 // registerDevice calls the bootstrap register endpoint and stores the returned device token.
+// If mTLS is configured, it includes a CSR in the request and stores the signed certificate.
 func (a *Agent) registerDevice() error {
-	body, _ := json.Marshal(map[string]any{
+	regPayload := map[string]any{
 		"serial_number":   a.gatewayID,
 		"tenant_id":       a.tenantID,
 		"building_id":     "",
 		"device_capacity": 4,
-	})
+	}
+
+	// Generate CSR for mTLS if configured and no valid cert exists
+	if a.mtls != nil && !a.mtls.HasValidCert() {
+		csrPEM, err := a.mtls.GenerateCSR(a.gatewayID, a.tenantID)
+		if err != nil {
+			a.logger.Warn("mTLS: CSR generation failed, registering without mTLS", "error", err)
+		} else {
+			regPayload["csr_pem"] = string(csrPEM)
+			a.logger.Info("mTLS: CSR generated, including in registration")
+		}
+	}
+
+	body, _ := json.Marshal(regPayload)
 
 	url := strings.TrimRight(a.apiURL, "/") + "/api/v1/gateway/register"
 	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
@@ -196,6 +229,8 @@ func (a *Agent) registerDevice() error {
 	var result struct {
 		GatewayID   string `json:"gateway_id"`
 		DeviceToken string `json:"device_token"`
+		CertPEM     string `json:"cert_pem,omitempty"`     // signed client certificate (if CSR was provided)
+		CACertPEM   string `json:"ca_cert_pem,omitempty"`  // CA certificate for verification
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("register decode: %w", err)
@@ -203,6 +238,19 @@ func (a *Agent) registerDevice() error {
 
 	if result.DeviceToken == "" {
 		return fmt.Errorf("register returned empty device token")
+	}
+
+	// Store mTLS certificate if returned
+	if a.mtls != nil && result.CertPEM != "" {
+		if err := a.mtls.StoreCert([]byte(result.CertPEM), []byte(result.CACertPEM)); err != nil {
+			a.logger.Warn("mTLS: failed to store certificate", "error", err)
+		} else {
+			cn, notAfter, _ := a.mtls.CertInfo()
+			a.logger.Info("mTLS: client certificate obtained",
+				"cn", cn,
+				"expires", notAfter.Format(time.RFC3339),
+			)
+		}
 	}
 
 	a.mu.Lock()
@@ -357,6 +405,11 @@ func (a *Agent) heartbeatLoop() {
 }
 
 func (a *Agent) sendHeartbeat() {
+	// Check mTLS cert renewal (renew when < 24h remaining, cert lifetime = 72h)
+	if a.mtls != nil && a.mtls.NeedsRenewal(24*time.Hour) {
+		a.renewMTLSCert()
+	}
+
 	body, _ := json.Marshal(map[string]string{
 		"gateway_id": a.gatewayID,
 		"tenant_id":  a.tenantID,
@@ -367,6 +420,53 @@ func (a *Agent) sendHeartbeat() {
 		return
 	}
 	resp.Body.Close()
+}
+
+// renewMTLSCert requests a new client certificate from the Cloud CA.
+// POST /api/v1/gateway/cert/renew with a fresh CSR.
+func (a *Agent) renewMTLSCert() {
+	csrPEM, err := a.mtls.GenerateCSR(a.gatewayID, a.tenantID)
+	if err != nil {
+		a.logger.Warn("mTLS: CSR generation for renewal failed", "error", err)
+		return
+	}
+
+	body, _ := json.Marshal(map[string]string{
+		"gateway_id": a.gatewayID,
+		"tenant_id":  a.tenantID,
+		"csr_pem":    string(csrPEM),
+	})
+	resp, err := a.apiRequest("POST", "/api/v1/gateway/cert/renew", body)
+	if err != nil {
+		a.logger.Warn("mTLS: cert renewal request failed", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		a.logger.Warn("mTLS: cert renewal rejected", "status", resp.StatusCode)
+		return
+	}
+
+	var result struct {
+		CertPEM   string `json:"cert_pem"`
+		CACertPEM string `json:"ca_cert_pem"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		a.logger.Warn("mTLS: cert renewal decode failed", "error", err)
+		return
+	}
+
+	if err := a.mtls.StoreCert([]byte(result.CertPEM), []byte(result.CACertPEM)); err != nil {
+		a.logger.Warn("mTLS: cert renewal store failed", "error", err)
+		return
+	}
+
+	cn, notAfter, _ := a.mtls.CertInfo()
+	a.logger.Info("mTLS: certificate renewed",
+		"cn", cn,
+		"expires", notAfter.Format(time.RFC3339),
+	)
 }
 
 // --- Event Push (Offline-Resilient Queue) ---
@@ -825,57 +925,71 @@ func (a *Agent) HandleCredentialPresented(credentialType, credentialData, lockID
 // --- HTTP Client ---
 
 func (a *Agent) httpClient() *http.Client {
-	if a.tlsPinSHA256 == "" {
-		// Use standard TLS verification (system CA bundle) when no pin is configured.
-		return &http.Client{Timeout: 30 * time.Second}
-	}
-	pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
-	if err != nil || len(pinBytes) != sha256.Size {
-		a.logger.Warn("invalid tls-pin-sha256, falling back to standard TLS verification", "error", err)
+	tlsCfg := a.buildTLSConfig()
+	if tlsCfg == nil {
 		return &http.Client{Timeout: 30 * time.Second}
 	}
 	return &http.Client{
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				VerifyConnection: func(cs tls.ConnectionState) error {
-					for _, cert := range cs.PeerCertificates {
-						spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-						if hex.EncodeToString(spkiHash[:]) == a.tlsPinSHA256 {
-							return nil
-						}
-					}
-					return fmt.Errorf("TLS certificate pinning failed: no certificate matched pin %s", a.tlsPinSHA256)
-				},
-			},
+			TLSClientConfig: tlsCfg,
 		},
 	}
 }
 
-// pinnedTLSConfig returns a TLS config with certificate pinning if configured.
-// Returns nil if no pin is set (use system CA bundle).
+// pinnedTLSConfig returns a TLS config for WebSocket connections.
+// Includes mTLS client cert + optional certificate pinning.
 func (a *Agent) pinnedTLSConfig() *tls.Config {
-	if a.tlsPinSHA256 == "" {
+	return a.buildTLSConfig()
+}
+
+// buildTLSConfig creates a unified TLS config with:
+//   - mTLS client certificate (if available) for mutual authentication
+//   - Certificate pinning (if configured) for server verification
+//   - TLS 1.3 preferred (1.2 minimum) for ECDHE forward secrecy
+//
+// Returns nil if neither mTLS nor pinning is configured.
+func (a *Agent) buildTLSConfig() *tls.Config {
+	hasMTLS := a.mtls != nil && a.mtls.HasValidCert()
+	hasPin := a.tlsPinSHA256 != ""
+
+	if !hasMTLS && !hasPin {
 		return nil
 	}
-	pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
-	if err != nil || len(pinBytes) != sha256.Size {
-		a.logger.Warn("invalid tls-pin-sha256 for WS, falling back to standard TLS", "error", err)
-		return nil
-	}
-	return &tls.Config{
+
+	cfg := &tls.Config{
 		MinVersion: tls.VersionTLS12,
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			for _, cert := range cs.PeerCertificates {
-				spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
-				if hex.EncodeToString(spkiHash[:]) == a.tlsPinSHA256 {
-					return nil
-				}
-			}
-			return fmt.Errorf("TLS certificate pinning failed: no certificate matched pin %s", a.tlsPinSHA256)
-		},
 	}
+
+	// mTLS: present client certificate for mutual authentication
+	if hasMTLS {
+		mtlsCfg := a.mtls.TLSConfig(a.tlsPinSHA256)
+		cfg.Certificates = mtlsCfg.Certificates
+		cfg.MinVersion = tls.VersionTLS13 // enforce TLS 1.3 when using mTLS
+		if mtlsCfg.RootCAs != nil {
+			cfg.RootCAs = mtlsCfg.RootCAs
+		}
+	}
+
+	// Certificate pinning: verify server's SPKI hash
+	if hasPin {
+		pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
+		if err != nil || len(pinBytes) != sha256.Size {
+			a.logger.Warn("invalid tls-pin-sha256, skipping pin verification", "error", err)
+		} else {
+			cfg.VerifyConnection = func(cs tls.ConnectionState) error {
+				for _, cert := range cs.PeerCertificates {
+					spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+					if hex.EncodeToString(spkiHash[:]) == a.tlsPinSHA256 {
+						return nil
+					}
+				}
+				return fmt.Errorf("TLS certificate pinning failed: no certificate matched pin %s", a.tlsPinSHA256)
+			}
+		}
+	}
+
+	return cfg
 }
 
 func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, error) {

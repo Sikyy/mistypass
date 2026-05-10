@@ -45,6 +45,7 @@ type server struct {
 	cfg                           config.Config
 	stateStore                    state.Store
 	gatewayTokenStore             gatewayTokenStore
+	gatewayDeviceCA               *gateway.DeviceCA // mTLS CA for signing gateway client certs
 	logger                        *slog.Logger
 	authService                   *auth.Service
 	webAuthnEngine                *auth.WebAuthnEngine
@@ -503,6 +504,27 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	if mlStore, ok := stateStore.(magicLinkStore); ok {
 		s.magicLinkStore = mlStore
 	}
+	// Initialize gateway mTLS CA.
+	// In production, load from GATEWAY_CA_CERT_PEM + GATEWAY_CA_KEY_PEM env vars.
+	// For dev, auto-generate a new CA (certs won't survive server restarts).
+	if cfg.GatewayCACertPEM != "" && cfg.GatewayCAKeyPEM != "" {
+		deviceCA, err := gateway.LoadDeviceCA([]byte(cfg.GatewayCACertPEM), []byte(cfg.GatewayCAKeyPEM))
+		if err != nil {
+			s.logger.Warn("failed to load gateway device CA, mTLS disabled", "error", err)
+		} else {
+			s.gatewayDeviceCA = deviceCA
+			s.logger.Info("gateway mTLS CA loaded from config")
+		}
+	} else {
+		deviceCA, err := gateway.NewDeviceCA()
+		if err != nil {
+			s.logger.Warn("failed to create gateway device CA, mTLS disabled", "error", err)
+		} else {
+			s.gatewayDeviceCA = deviceCA
+			s.logger.Info("gateway mTLS CA auto-generated (dev mode — certs won't survive restart)")
+		}
+	}
+
 	if err := s.restoreGatewayBootstrapState(); err != nil {
 		return nil, nil, err
 	}
@@ -782,7 +804,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
 			gatewayRouter.Get("/credentials/sync", s.gatewayCredentialSync)
 			gatewayRouter.Post("/audit/batch", s.gatewayAuditBatch)
-			gatewayRouter.Get("/ws", s.gatewayWebSocket) // persistent TLS WebSocket
+			gatewayRouter.Post("/cert/renew", s.gatewayBootstrapCertRenew) // mTLS cert renewal
+			gatewayRouter.Get("/ws", s.gatewayWebSocket)                   // persistent TLS WebSocket
 		})
 
 		// Lark integration endpoints

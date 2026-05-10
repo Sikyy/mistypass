@@ -46,6 +46,7 @@ func main() {
 	bleLockID := flag.String("ble-lock-id", "", "Lock ID for BLE reader (enables BLE auth, e.g. door_factory_001)")
 	bleListenAddr := flag.String("ble-listen", ":9900", "TCP address for BLE simulator (used until real BLE hardware is ready)")
 	wsURL := flag.String("ws-url", "", "WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws). Empty = disabled, use HTTP polling only.")
+	mtlsCertDir := flag.String("mtls-cert-dir", "", "Directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/). Empty = disabled, use bearer token auth.")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -67,6 +68,7 @@ func main() {
 		tlsPinSHA256:       *tlsPin,
 		rulesCacheTTL:      *rulesCacheTTL,
 		wsURL:              *wsURL,
+		mtlsCertDir:        *mtlsCertDir,
 	}
 
 	logger.Info("gateway agent starting",

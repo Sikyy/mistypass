@@ -149,6 +149,8 @@ type Config struct {
 	CameraSnapshotRetentionDays                                  int
 	CameraMaxSnapshotsPerEvent                                   int
 	OAuth2Enabled                                                bool
+	GatewayCACertPEM                                             string // PEM-encoded CA certificate for gateway mTLS
+	GatewayCAKeyPEM                                              string // PEM-encoded CA private key for gateway mTLS
 }
 
 func FromEnv() Config {
@@ -633,6 +635,11 @@ func loadGatewayConfig(cfg *Config) {
 		"GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_PREFIX",
 		"force-retry-",
 	)
+	// mTLS CA for gateway device authentication.
+	// In production, set GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM.
+	// If not set, a new CA is auto-generated (dev mode — certs won't survive restart).
+	cfg.GatewayCACertPEM = envString("GATEWAY_CA_CERT_PEM")
+	cfg.GatewayCAKeyPEM = envString("GATEWAY_CA_KEY_PEM")
 }
 
 func loadUploadConfig(cfg *Config) {
