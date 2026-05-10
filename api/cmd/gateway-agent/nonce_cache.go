@@ -37,11 +37,8 @@ func (c *NonceCache) Contains(nonce []byte) bool {
 
 	c.evictExpired()
 
-	expiresAt, ok := c.entries[key]
-	if !ok {
-		return false
-	}
-	return time.Now().Before(expiresAt)
+	_, ok := c.entries[key]
+	return ok // after eviction, any remaining entry is still valid
 }
 
 func (c *NonceCache) Add(nonce []byte) {
@@ -50,6 +47,11 @@ func (c *NonceCache) Add(nonce []byte) {
 	defer c.mu.Unlock()
 
 	c.evictExpired()
+
+	// Skip if nonce already in cache (prevents order slice growth on duplicates)
+	if _, exists := c.entries[key]; exists {
+		return
+	}
 
 	// Evict oldest if at capacity
 	for len(c.entries) >= c.maxSize && len(c.order) > 0 {
@@ -63,6 +65,8 @@ func (c *NonceCache) Add(nonce []byte) {
 	c.order = append(c.order, nonceCacheEntry{key: key, expiresAt: expiresAt})
 }
 
+// evictExpired removes all expired entries from the front of the order slice.
+// Must be called with c.mu held.
 func (c *NonceCache) evictExpired() {
 	now := time.Now()
 	cutoff := 0
