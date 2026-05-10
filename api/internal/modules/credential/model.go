@@ -63,7 +63,10 @@ type GatewayCredentialSync struct {
 	UserEmail    string   `json:"user_email"`
 	PublicKeyPEM string   `json:"public_key_pem"`
 	LockIDs      []string `json:"lock_ids"`
-	ExpiresAt    int64    `json:"expires_at"` // unix timestamp
+	ExpiresAt    int64    `json:"expires_at"`
+	RevokedAt    *int64   `json:"revoked_at,omitempty"`
+	SuspendedAt  *int64   `json:"suspended_at,omitempty"`
+	SyncVersion  int64    `json:"sync_version"`
 }
 
 // TTL constants based on keystore security level.

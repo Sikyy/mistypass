@@ -330,6 +330,61 @@ func (s *Service) VerifyBLESignature(tenantID, userID string, nonce, signature [
 	return activeCred, nil
 }
 
+// VerifyBLESignatureV2 verifies an ECDSA signature that is transport-tag-bound.
+// The signature is over SHA256(nonce || userID || transportTag).
+// transportTag must match what was committed at sign time (e.g. "BLE" or "NFC_HCE").
+// Returns the matched credential on success.
+func (s *Service) VerifyBLESignatureV2(tenantID, userID string, nonce []byte, transportTag string, signature []byte) (*MobileCredential, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	now := time.Now().UTC()
+
+	// Find active credential for this user
+	var activeCred *MobileCredential
+	for i := range s.credentials {
+		c := &s.credentials[i]
+		if c.TenantID == tenantID && c.UserID == userID && c.Status == "active" && c.ExpiresAt.After(now) {
+			activeCred = c
+			break
+		}
+	}
+
+	if activeCred == nil {
+		return nil, errors.New("no active credential found for user")
+	}
+
+	// Parse the public key
+	pubKey, err := ParseECPublicKey(activeCred.PublicKeyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("stored public key is invalid: %w", err)
+	}
+
+	// Construct transport-bound message: nonce || userID || transportTag
+	// Pre-allocate to avoid aliasing the caller's nonce slice.
+	msg := make([]byte, 0, len(nonce)+len(userID)+len(transportTag))
+	msg = append(msg, nonce...)
+	msg = append(msg, []byte(userID)...)
+	msg = append(msg, []byte(transportTag)...)
+	hash := sha256.Sum256(msg)
+
+	// Try ASN.1 DER signature first
+	if ecdsa.VerifyASN1(pubKey, hash[:], signature) {
+		return activeCred, nil
+	}
+
+	// Fall back to raw r||s (64 bytes) — Android may use this encoding
+	if len(signature) == 64 {
+		r := new(big.Int).SetBytes(signature[:32])
+		sigS := new(big.Int).SetBytes(signature[32:])
+		if ecdsa.Verify(pubKey, hash[:], r, sigS) {
+			return activeCred, nil
+		}
+	}
+
+	return nil, fmt.Errorf("v2 signature verification failed (transport=%s)", transportTag)
+}
+
 // --- Credential Refresh ---
 
 // RefreshCredential extends the expiry of an active credential.
@@ -406,6 +461,39 @@ func (s *Service) BuildGatewayCredentialSync(tenantID string, gatewayLockIDs []s
 		})
 	}
 	return result
+}
+
+// GetGatewayCredentialSyncSince returns all credentials with SyncVersion > sinceVersion.
+// Used by gateways for incremental credential cache updates.
+// SyncVersion is derived from the credential's IssuedAt unix timestamp when not explicitly set.
+func (s *Service) GetGatewayCredentialSyncSince(sinceVersion int64) ([]GatewayCredentialSync, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []GatewayCredentialSync
+	for i := range s.credentials {
+		c := &s.credentials[i]
+		// Derive sync version from IssuedAt if not explicitly set on the sync record
+		syncVersion := c.IssuedAt.Unix()
+		if syncVersion <= sinceVersion {
+			continue
+		}
+
+		entry := GatewayCredentialSync{
+			UserID:       c.UserID,
+			UserEmail:    c.UserEmail,
+			PublicKeyPEM: c.PublicKeyPEM,
+			ExpiresAt:    c.ExpiresAt.Unix(),
+			SyncVersion:  syncVersion,
+		}
+		if c.Status == "revoked" && c.RevokedAt != nil {
+			ts := c.RevokedAt.Unix()
+			entry.RevokedAt = &ts
+		}
+
+		result = append(result, entry)
+	}
+	return result, nil
 }
 
 // --- Helpers ---

@@ -10,6 +10,15 @@ import (
 	"github.com/ebfe/scard"
 )
 
+// ReaderAdapter is the common interface for all credential reader types.
+type ReaderAdapter interface {
+	Name() string
+	Type() string // "ble" | "nfc" | "tcp_simulator"
+	// Authenticate sends a challenge and waits for a signed response.
+	Authenticate(challenge []byte) (*BLEAuthResponse, error)
+	Close() error
+}
+
 // PCSCReader reads NFC UIDs from a PC/SC compatible reader (e.g. ACS WalletMate II).
 // It polls for card presence and calls the callback with the UID when a card is detected.
 type PCSCReader struct {
