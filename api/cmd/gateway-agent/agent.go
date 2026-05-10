@@ -34,27 +34,42 @@ type Agent struct {
 	relayOSDPDevice    string // RS485 serial device for OSDP v2 reader control
 	osdpAddress        byte   // OSDP peripheral device address (0-126)
 	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
+	wsURL              string // WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws)
 
 	mu              sync.RWMutex
 	deviceToken     string // device-specific token obtained from registration
 	accessRules     []AccessRule
 	ruleVersion     string
 	rulesUpdatedAt  time.Time     // when access rules were last successfully pulled
-	rulesCacheTTL   time.Duration // max age of cached rules before denying access (0 = no TTL)
+	rulesCacheTTL   time.Duration // MaxOfflineDuration: max age of cached rules before deny_all (0 = no TTL)
 	eventQueue      []AccessEvent
 	stopCh          chan struct{}
 	relay           RelayDriver
 	nonceCache      *NonceCache // replay-protection cache for v2 challenge nonces
 	gatewayIDUint32 uint32      // numeric gateway ID embedded in v2 challenges
+
+	// Offline state tracking
+	offlineSince      time.Time // when connectivity was lost (zero = online)
+	eventPushBackoff  time.Duration
+	eventQueueDropped int64 // count of events dropped due to queue overflow
+
+	// WebSocket persistent connection
+	wsClient *WSClient
 }
 
 // AccessRule is a local credential → lock mapping for offline decision.
+//
+// Security constraint: ValidUntil MUST be ≤ rulesCacheTTL (MaxOfflineDuration).
+// The Cloud issues credentials with ValidUntil ≤ 72h. When the Gateway is online,
+// WebSocket pushes refresh credentials continuously. When offline, both ValidUntil
+// and rulesCacheTTL bound the revocation delay window.
 type AccessRule struct {
 	CredentialType string   `json:"credential_type"`
 	CredentialData string   `json:"credential_data"`
 	UserID         string   `json:"user_id"`
 	UserEmail      string   `json:"user_email"`
 	LockIDs        []string `json:"lock_ids"`
+	ValidUntil     string   `json:"valid_until,omitempty"` // RFC3339; empty = valid until cache expires
 }
 
 // AccessEvent is queued for upload to Cloud.
@@ -129,6 +144,17 @@ func (a *Agent) Start() error {
 	go a.configPollLoop()
 	go a.heartbeatLoop()
 	go a.eventPushLoop()
+
+	// Start persistent WebSocket connection.
+	// Auto-derive WS URL from API URL if not explicitly set.
+	if a.wsURL == "" && a.apiURL != "" {
+		a.wsURL = deriveWSURL(a.apiURL)
+	}
+	if a.wsURL != "" {
+		a.wsClient = NewWSClient(a.logger, a, a.wsURL)
+		a.wsClient.Start()
+		a.logger.Info("ws: client started", "url", a.wsURL)
+	}
 
 	return nil
 }
@@ -241,6 +267,9 @@ func (a *Agent) saveDeviceToken() error {
 
 func (a *Agent) Stop() {
 	close(a.stopCh)
+	if a.wsClient != nil {
+		a.wsClient.Stop()
+	}
 	if a.relay != nil {
 		a.relay.Close()
 	}
@@ -296,6 +325,13 @@ func (a *Agent) configPollLoop() {
 	for {
 		select {
 		case <-ticker.C:
+			// When WebSocket is connected, configs are pushed in real-time.
+			// Reduce poll to 10x interval as a safety net (fallback only).
+			if a.wsClient != nil && a.wsClient.IsConnected() {
+				ticker.Reset(a.configPollInterval * 10)
+			} else {
+				ticker.Reset(a.configPollInterval)
+			}
 			if err := a.pullConfig(); err != nil {
 				a.logger.Warn("config poll failed", "error", err)
 			}
@@ -333,23 +369,36 @@ func (a *Agent) sendHeartbeat() {
 	resp.Body.Close()
 }
 
-// --- Event Push ---
+// --- Event Push (Offline-Resilient Queue) ---
+
+const (
+	eventQueueMaxSize     = 10000          // max events retained in memory during offline
+	eventPushInterval     = 5 * time.Second // base push interval
+	eventBackoffMax       = 5 * time.Minute // max backoff between retries
+	eventBatchMaxSize     = 200            // max events per HTTP batch
+)
 
 func (a *Agent) queueEvent(evt AccessEvent) {
 	a.mu.Lock()
+	if len(a.eventQueue) >= eventQueueMaxSize {
+		// Drop oldest events to make room (ring-buffer behavior)
+		drop := len(a.eventQueue) - eventQueueMaxSize + 1
+		a.eventQueue = a.eventQueue[drop:]
+		a.eventQueueDropped += int64(drop)
+	}
 	a.eventQueue = append(a.eventQueue, evt)
 	a.mu.Unlock()
 }
 
 func (a *Agent) eventPushLoop() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(eventPushInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			a.pushEvents()
 		case <-a.stopCh:
-			a.pushEvents() // flush on shutdown
+			a.pushEvents() // best-effort flush on shutdown
 			return
 		}
 	}
@@ -361,11 +410,61 @@ func (a *Agent) pushEvents() {
 		a.mu.Unlock()
 		return
 	}
-	batch := make([]AccessEvent, len(a.eventQueue))
-	copy(batch, a.eventQueue)
-	a.eventQueue = a.eventQueue[:0]
+
+	// Respect backoff
+	if a.eventPushBackoff > 0 {
+		a.eventPushBackoff -= eventPushInterval
+		if a.eventPushBackoff > 0 {
+			a.mu.Unlock()
+			return
+		}
+		a.eventPushBackoff = 0
+	}
+
+	// Take a batch (up to max batch size)
+	batchSize := len(a.eventQueue)
+	if batchSize > eventBatchMaxSize {
+		batchSize = eventBatchMaxSize
+	}
+	batch := make([]AccessEvent, batchSize)
+	copy(batch, a.eventQueue[:batchSize])
+	a.eventQueue = a.eventQueue[batchSize:]
+	remaining := len(a.eventQueue)
 	a.mu.Unlock()
 
+	// Try WebSocket first (lower latency, persistent connection)
+	if a.wsClient != nil && a.wsClient.IsConnected() {
+		if a.wsClient.SendEvents(batch) {
+			// Success via WebSocket — reset offline state
+			a.mu.Lock()
+			wasOffline := !a.offlineSince.IsZero()
+			offlineDuration := time.Duration(0)
+			if wasOffline {
+				offlineDuration = time.Since(a.offlineSince)
+				a.offlineSince = time.Time{}
+			}
+			a.eventPushBackoff = 0
+			dropped := a.eventQueueDropped
+			a.eventQueueDropped = 0
+			a.mu.Unlock()
+
+			if wasOffline {
+				a.logger.Info("connectivity restored via ws, events synced",
+					"batch", len(batch),
+					"remaining", remaining,
+					"offline_duration", offlineDuration.Round(time.Second),
+					"dropped_during_offline", dropped,
+				)
+			} else {
+				a.logger.Debug("events pushed via ws", "count", len(batch))
+			}
+			return
+		}
+		// WS send failed, fall through to HTTP
+		a.logger.Debug("ws event send failed, falling back to HTTP")
+	}
+
+	// Fallback: HTTP POST
 	body, _ := json.Marshal(map[string]any{
 		"gateway_id": a.gatewayID,
 		"tenant_id":  a.tenantID,
@@ -373,17 +472,73 @@ func (a *Agent) pushEvents() {
 	})
 	resp, err := a.apiRequest("POST", "/api/v1/gateway/events/batch", body)
 	if err != nil {
-		a.logger.Warn("event push failed, requeueing", "error", err, "count", len(batch))
+		// Push failed — requeue and apply exponential backoff
 		a.mu.Lock()
 		a.eventQueue = append(batch, a.eventQueue...)
+		if a.offlineSince.IsZero() {
+			a.offlineSince = time.Now()
+		}
+		// Exponential backoff: 10s → 20s → 40s → ... → 5min cap
+		if a.eventPushBackoff == 0 {
+			a.eventPushBackoff = 10 * time.Second
+		} else {
+			a.eventPushBackoff *= 2
+			if a.eventPushBackoff > eventBackoffMax {
+				a.eventPushBackoff = eventBackoffMax
+			}
+		}
+		queueLen := len(a.eventQueue)
 		a.mu.Unlock()
+		a.logger.Warn("event push failed, backoff",
+			"error", err,
+			"queued", queueLen,
+			"backoff", a.eventPushBackoff,
+			"offline_since", a.offlineSince.Format(time.RFC3339),
+		)
 		return
 	}
 	resp.Body.Close()
-	a.logger.Info("events pushed", "count", len(batch))
+
+	// Success — reset offline state and backoff
+	a.mu.Lock()
+	wasOffline := !a.offlineSince.IsZero()
+	offlineDuration := time.Duration(0)
+	if wasOffline {
+		offlineDuration = time.Since(a.offlineSince)
+		a.offlineSince = time.Time{}
+	}
+	a.eventPushBackoff = 0
+	dropped := a.eventQueueDropped
+	a.eventQueueDropped = 0
+	a.mu.Unlock()
+
+	if wasOffline {
+		a.logger.Info("connectivity restored, events synced",
+			"batch", len(batch),
+			"remaining", remaining,
+			"offline_duration", offlineDuration.Round(time.Second),
+			"dropped_during_offline", dropped,
+		)
+	} else {
+		a.logger.Info("events pushed", "count", len(batch))
+	}
 }
 
 // --- Local Access Decision ---
+//
+// Security invariant — MaxOfflineDuration (rulesCacheTTL):
+//
+//   When the Gateway loses connectivity, cached credentials remain usable for at
+//   most rulesCacheTTL (default 72h). After that, deny_all kicks in. This bounds
+//   the worst-case revocation delay: a user revoked while the Gateway is offline
+//   can still open doors for at most this window.
+//
+//   Corollary: any per-credential valid_until MUST be ≤ rulesCacheTTL. Setting
+//   valid_until=30d with rulesCacheTTL=72h would create a false sense of security
+//   — the cache TTL is the binding constraint, not individual credential expiry.
+//
+//   When online, revocations propagate instantly via WebSocket credential_push.
+//   The 72h window is the offline worst case, not the normal case.
 
 // VerifyCredential checks the local access rule cache and returns allow/deny.
 // If rulesCacheTTL is set and the cached rules are older than the TTL, all access is denied.
@@ -401,12 +556,19 @@ func (a *Agent) VerifyCredential(credentialType, credentialData, lockID string) 
 	normalizedData := strings.ToUpper(strings.TrimSpace(credentialData))
 	normalizedType := strings.ToLower(strings.TrimSpace(credentialType))
 
+	now := time.Now().UTC()
 	for _, rule := range a.accessRules {
 		if strings.ToLower(rule.CredentialType) != normalizedType {
 			continue
 		}
 		if strings.ToUpper(rule.CredentialData) != normalizedData {
 			continue
+		}
+		// Per-credential expiry check
+		if rule.ValidUntil != "" {
+			if expiry, err := time.Parse(time.RFC3339, rule.ValidUntil); err == nil && now.After(expiry) {
+				return "deny", rule.UserID, rule.UserEmail
+			}
 		}
 		for _, id := range rule.LockIDs {
 			if id == lockID {
@@ -476,13 +638,22 @@ func (a *Agent) VerifyBLEAuth(challenge *BLEChallenge, response *BLEAuthResponse
 }
 
 // VerifyAuthResponseV2 performs the full v2 verification chain in fast-to-slow order:
-// nonce cache -> gateway_id -> credential lookup -> ECDSA verify.
+// nonce cache -> cache freshness -> gateway_id -> credential lookup -> ECDSA verify.
 // transport is "BLE" or "NFC_HCE" (use TransportTagBLE / TransportTagNFCHCE).
 func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, transport string) BLEAuthResult {
 	if len(challenge) < 32 {
 		return BLEAuthResult{Code: BLEResultDenied, Reason: "challenge_too_short"}
 	}
 	nonce := challenge[:32]
+
+	// 0. Cache freshness check — deny all if offline beyond MaxOfflineDuration
+	a.mu.RLock()
+	cacheExpired := a.rulesCacheTTL > 0 && !a.rulesUpdatedAt.IsZero() &&
+		time.Since(a.rulesUpdatedAt) > a.rulesCacheTTL
+	a.mu.RUnlock()
+	if cacheExpired {
+		return BLEAuthResult{Code: BLEResultDenied, Reason: "cache_expired_offline_too_long"}
+	}
 
 	// 1. Nonce reuse check (fastest — in-memory LRU)
 	if a.nonceCache != nil && a.nonceCache.Contains(nonce) {
@@ -500,14 +671,22 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 	// 3. Credential lookup from cached access rules
 	// A user may have multiple active credentials (e.g. phone + tablet),
 	// so we collect all matching public keys and try each one.
+	// Skip expired credentials (ValidUntil check).
 	type candidateKey struct {
 		publicKeyPEM string
 		userEmail    string
 	}
+	now := time.Now().UTC()
 	a.mu.RLock()
 	var candidates []candidateKey
 	for _, rule := range a.accessRules {
 		if rule.CredentialType == "ble_signature" && rule.UserID == resp.UserID {
+			// Per-credential expiry: skip if valid_until has passed
+			if rule.ValidUntil != "" {
+				if expiry, err := time.Parse(time.RFC3339, rule.ValidUntil); err == nil && now.After(expiry) {
+					continue
+				}
+			}
 			candidates = append(candidates, candidateKey{
 				publicKeyPEM: rule.CredentialData,
 				userEmail:    rule.UserEmail,
@@ -674,6 +853,31 @@ func (a *Agent) httpClient() *http.Client {
 	}
 }
 
+// pinnedTLSConfig returns a TLS config with certificate pinning if configured.
+// Returns nil if no pin is set (use system CA bundle).
+func (a *Agent) pinnedTLSConfig() *tls.Config {
+	if a.tlsPinSHA256 == "" {
+		return nil
+	}
+	pinBytes, err := hex.DecodeString(a.tlsPinSHA256)
+	if err != nil || len(pinBytes) != sha256.Size {
+		a.logger.Warn("invalid tls-pin-sha256 for WS, falling back to standard TLS", "error", err)
+		return nil
+	}
+	return &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			for _, cert := range cs.PeerCertificates {
+				spkiHash := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+				if hex.EncodeToString(spkiHash[:]) == a.tlsPinSHA256 {
+					return nil
+				}
+			}
+			return fmt.Errorf("TLS certificate pinning failed: no certificate matched pin %s", a.tlsPinSHA256)
+		},
+	}
+}
+
 func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, error) {
 	url := strings.TrimRight(a.apiURL, "/") + path
 	var bodyReader io.Reader
@@ -697,4 +901,18 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 	req.Header.Set("X-Request-Nonce", hex.EncodeToString(nonceBytes))
 	req.Header.Set("X-Request-Timestamp", time.Now().UTC().Format(time.RFC3339))
 	return a.httpClient().Do(req)
+}
+
+// deriveWSURL converts an HTTP API base URL to a WebSocket URL.
+// e.g. "https://api.example.com" → "wss://api.example.com/api/v1/gateway/ws"
+//      "http://localhost:8081"    → "ws://localhost:8081/api/v1/gateway/ws"
+func deriveWSURL(apiURL string) string {
+	u := strings.TrimRight(apiURL, "/")
+	if strings.HasPrefix(u, "https://") {
+		return "wss://" + strings.TrimPrefix(u, "https://") + "/api/v1/gateway/ws"
+	}
+	if strings.HasPrefix(u, "http://") {
+		return "ws://" + strings.TrimPrefix(u, "http://") + "/api/v1/gateway/ws"
+	}
+	return "wss://" + u + "/api/v1/gateway/ws"
 }

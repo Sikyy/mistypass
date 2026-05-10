@@ -69,6 +69,7 @@ type server struct {
 	stateChangeCheckpointReader   stateChangeCheckpointReader
 	stateChangeCheckpointReplayer stateChangeCheckpointReplayer
 	trustedProxies                []*net.IPNet
+	gwWSRegistry                  *gwWSRegistry
 	gatewayTokenMu                sync.RWMutex
 	gatewayDeviceTokens           map[string]string
 	gatewayBatchFailureMu         sync.Mutex
@@ -395,6 +396,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		stateChangeCheckpointReader:   stateChangeCheckpointReaderSvc,
 		stateChangeCheckpointReplayer: stateChangeCheckpointReplayerSvc,
 		trustedProxies:                parseTrustedProxyCIDRs(cfg.TrustedProxyCIDRs),
+		gwWSRegistry:                  newGWWSRegistry(),
 		gatewayDeviceTokens:           map[string]string{},
 		gatewayBatchFailureSeen:       map[string]struct{}{},
 		gatewayAuthzAckVersion:        map[string]string{},
@@ -780,6 +782,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
 			gatewayRouter.Get("/credentials/sync", s.gatewayCredentialSync)
 			gatewayRouter.Post("/audit/batch", s.gatewayAuditBatch)
+			gatewayRouter.Get("/ws", s.gatewayWebSocket) // persistent TLS WebSocket
 		})
 
 		// Lark integration endpoints

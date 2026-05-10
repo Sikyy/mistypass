@@ -1593,7 +1593,12 @@ func (s *server) buildGatewayAccessRules(
 		}
 	}
 
-	// Map credentials → users → access rules
+	// Map credentials → users → access rules.
+	// All credentials expire in 72h (MaxOfflineDuration). When the gateway is
+	// online, it receives fresh rules via WebSocket/config-pull well before expiry.
+	// This bounds the revocation delay if the gateway goes offline: a revoked user's
+	// credential becomes invalid after at most 72h even without a push.
+	credentialValidUntil := time.Now().UTC().Add(72 * time.Hour).Format(time.RFC3339)
 	rules := make([]gatewayConfigAccessRule, 0)
 
 	// Physical card inventory → NFC UIDs
@@ -1616,6 +1621,7 @@ func (s *server) buildGatewayAccessRules(
 			UserID:         pass.TargetID,
 			UserEmail:      userEmail(user),
 			LockIDs:        lockIDs,
+			ValidUntil:     credentialValidUntil,
 		})
 		if item.CardNumber != "" {
 			rules = append(rules, gatewayConfigAccessRule{
@@ -1624,6 +1630,7 @@ func (s *server) buildGatewayAccessRules(
 				UserID:         pass.TargetID,
 				UserEmail:      userEmail(user),
 				LockIDs:        lockIDs,
+				ValidUntil:     credentialValidUntil,
 			})
 		}
 	}
@@ -1655,6 +1662,7 @@ func (s *server) buildGatewayAccessRules(
 			UserID:         pass.TargetID,
 			UserEmail:      userEmail(user),
 			LockIDs:        lockIDs,
+			ValidUntil:     credentialValidUntil,
 		})
 	}
 
@@ -1668,6 +1676,7 @@ func (s *server) buildGatewayAccessRules(
 				UserID:         mc.UserID,
 				UserEmail:      mc.UserEmail,
 				LockIDs:        mc.LockIDs,
+				ValidUntil:     credentialValidUntil,
 			})
 		}
 	}
