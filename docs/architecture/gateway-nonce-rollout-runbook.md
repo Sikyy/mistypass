@@ -1,5 +1,7 @@
 # Gateway Request Nonce Rollout Runbook
 
+<!-- PROD_READY -->
+
 Updated: 2026-05-11
 
 This runbook stages `GATEWAY_REQUIRE_REQUEST_NONCE=true` without breaking older gateway agents. It covers only software rollout. Hardware boot, OTA signing, and reader/controller physical controls are tracked separately.

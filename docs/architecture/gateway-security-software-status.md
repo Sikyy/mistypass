@@ -1,5 +1,7 @@
 # Gateway Security Software Status
 
+<!-- PROD_READY -->
+
 Updated: 2026-05-11
 
 This document is the current software-layer status for MistyPass gateway to cloud communication. Hardware root of trust, secure boot, enclosure tamper, and reader/controller physical separation are tracked separately in `docs/architecture/hardware-bsp-followups.md`.

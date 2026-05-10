@@ -1,5 +1,7 @@
 # Hardware and BSP Security Follow-Ups
 
+<!-- BLOCKED_EXTERNAL -->
+
 Updated: 2026-05-11
 
 This document holds follow-up work that is not pure backend or cloud software. Keep hardware root of trust, BSP, physical topology, reader wiring, and enclosure requirements here so the software security status stays accurate.

@@ -48,11 +48,11 @@ func (m *DeviceMTLS) Load() bool {
 	keyPath := filepath.Join(m.certDir, "device.key")
 	caPath := filepath.Join(m.certDir, "ca.crt")
 
-	certPEM, err := os.ReadFile(certPath)
+	certPEM, err := os.ReadFile(certPath) // #nosec G304 -- path from trusted certDir config
 	if err != nil {
 		return false
 	}
-	keyPEM, err := os.ReadFile(keyPath)
+	keyPEM, err := os.ReadFile(keyPath) // #nosec G304 -- path from trusted certDir config
 	if err != nil {
 		return false
 	}
@@ -85,7 +85,7 @@ func (m *DeviceMTLS) Load() bool {
 	}
 
 	// Load CA cert if available
-	if caPEM, err := os.ReadFile(caPath); err == nil {
+	if caPEM, err := os.ReadFile(caPath); err == nil { // #nosec G304 -- path from trusted certDir config
 		m.caCertPEM = caPEM
 	}
 
@@ -139,14 +139,14 @@ func (m *DeviceMTLS) StoreCert(certPEM, caCertPEM []byte) error {
 	keyPath := filepath.Join(m.certDir, "device.key")
 	caPath := filepath.Join(m.certDir, "ca.crt")
 
-	if err := os.WriteFile(certPath, certPEM, 0644); err != nil {
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
 		return fmt.Errorf("write cert: %w", err)
 	}
 	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
 		return fmt.Errorf("write key: %w", err)
 	}
 	if len(caCertPEM) > 0 {
-		if err := os.WriteFile(caPath, caCertPEM, 0644); err != nil {
+		if err := os.WriteFile(caPath, caCertPEM, 0600); err != nil { // #nosec G306
 			return fmt.Errorf("write CA cert: %w", err)
 		}
 		m.caCertPEM = caCertPEM
