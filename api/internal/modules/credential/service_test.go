@@ -577,5 +577,49 @@ func TestSecurityLevelToString(t *testing.T) {
 	}
 }
 
+func TestVerifyBLESignatureV2_TransportBinding(t *testing.T) {
+	svc := NewService()
+	priv, pubPEM := generateTestKeyPair(t)
+
+	svc.RegisterDevice(RegisterDeviceInput{
+		TenantID:      "tenant_001",
+		UserID:        "usr_001",
+		UserEmail:     "a@t.com",
+		PublicKeyPEM:  pubPEM,
+		Platform:      "android",
+		DeviceID:      "dev_001",
+		KeystoreLevel: "tee",
+	})
+
+	nonce := make([]byte, 32)
+	rand.Read(nonce)
+
+	const bleTag = "BLE"
+	const nfcTag = "NFC_HCE"
+
+	// Sign with BLE transport tag: SHA256(nonce || userID || "BLE")
+	message := append(append(nonce, []byte("usr_001")...), []byte(bleTag)...)
+	hash := sha256.Sum256(message)
+	signature, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	// Verify with correct BLE tag — should succeed
+	cred, err := svc.VerifyBLESignatureV2("tenant_001", "usr_001", nonce, bleTag, signature)
+	if err != nil {
+		t.Fatalf("VerifyBLESignatureV2 with BLE tag: %v", err)
+	}
+	if cred.UserID != "usr_001" {
+		t.Fatalf("expected usr_001, got %s", cred.UserID)
+	}
+
+	// Verify with wrong transport tag (NFC_HCE) — should fail
+	_, err = svc.VerifyBLESignatureV2("tenant_001", "usr_001", nonce, nfcTag, signature)
+	if err == nil {
+		t.Fatal("expected verification failure when transport tag is NFC_HCE but signature used BLE")
+	}
+}
+
 // Ensure unused import doesn't break
 var _ = big.NewInt
