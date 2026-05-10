@@ -114,6 +114,7 @@ type Config struct {
 	HRISVaultMasterKeyPrevious                                   string // for key rotation
 	GatewayEventsBatchForceRetryableError                        bool
 	GatewayEventsBatchForceRetryablePrefix                       string
+	GatewayRequireRequestNonce                                   bool
 	WalletJobProcessDefaultMaxRetry                              int
 	WalletDLQCleanupDefaultLimit                                 int
 	WalletDLQCleanupDefaultOlderThan                             time.Duration
@@ -637,6 +638,10 @@ func loadGatewayConfig(cfg *Config) {
 	cfg.GatewayEventsBatchForceRetryablePrefix = envStringOrDefault(
 		"GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_PREFIX",
 		"force-retry-",
+	)
+	cfg.GatewayRequireRequestNonce = parseBoolOrFallback(
+		envString("GATEWAY_REQUIRE_REQUEST_NONCE"),
+		false,
 	)
 	// mTLS CA for gateway device authentication.
 	// In production, set GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM.

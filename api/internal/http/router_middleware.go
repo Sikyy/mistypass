@@ -1157,18 +1157,20 @@ func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.R
 	return true
 }
 
-// validateGatewayRequestNonce checks the X-Request-Nonce and X-Request-Timestamp headers
-// for replay protection. Returns true if valid (or if headers are absent for backwards compat).
-func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Request) bool {
+// validateGatewayRequestNonce checks the X-Request-Nonce and X-Request-Timestamp
+// headers for gateway HTTP replay protection.
+func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
 	nonce := strings.TrimSpace(r.Header.Get("X-Request-Nonce"))
 	tsRaw := strings.TrimSpace(r.Header.Get("X-Request-Timestamp"))
 
-	// Backwards compatible: if no nonce headers, allow (old agents)
 	if nonce == "" && tsRaw == "" {
+		if s.cfg.GatewayRequireRequestNonce {
+			writeError(w, http.StatusUnauthorized, "gateway request nonce required")
+			return false
+		}
 		return true
 	}
 
-	// If one is present, both must be present
 	if nonce == "" || tsRaw == "" {
 		writeError(w, http.StatusBadRequest, "X-Request-Nonce and X-Request-Timestamp must both be present")
 		return false
@@ -1187,20 +1189,22 @@ func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Requ
 		return false
 	}
 
-	// Check nonce uniqueness
 	s.gatewayNonceMu.Lock()
-	// Clean expired nonces first
+	if s.gatewayNonces == nil {
+		s.gatewayNonces = map[string]time.Time{}
+	}
 	for k, exp := range s.gatewayNonces {
 		if now.After(exp) {
 			delete(s.gatewayNonces, k)
 		}
 	}
-	if _, exists := s.gatewayNonces[nonce]; exists {
+	nonceKey := strings.TrimSpace(gatewayID) + ":" + nonce
+	if _, exists := s.gatewayNonces[nonceKey]; exists {
 		s.gatewayNonceMu.Unlock()
 		writeError(w, http.StatusConflict, "duplicate request nonce")
 		return false
 	}
-	s.gatewayNonces[nonce] = now.Add(nonceWindow)
+	s.gatewayNonces[nonceKey] = now.Add(nonceWindow)
 	s.gatewayNonceMu.Unlock()
 
 	return true

@@ -340,7 +340,7 @@ docker compose up -d postgres pgbouncer redis nats emqx
 
 ## What's Next / 接下来
 
-- Read the [Gateway Cloud Protocol](architecture/gateway-cloud-protocol.md) to understand hardware communication
+- Read the [Gateway Security Software Status](architecture/gateway-security-software-status.md) for current cloud/gateway communication security
 - Browse the OpenAPI spec at `http://localhost:8080/api/v1/openapi.json`
 - See the [Roadmap](NEXT-ROADMAP.md) for upcoming features
 

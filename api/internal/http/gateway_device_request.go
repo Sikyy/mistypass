@@ -26,8 +26,15 @@ func (s *server) gatewayRecordFromDeviceRequest(w http.ResponseWriter, r *http.R
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return gateway.Gateway{}, false
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return gateway.Gateway{}, false
 	}
 	return record, true
+}
+
+func (s *server) authorizeGatewayHTTPDeviceRequest(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
+	if !s.authorizeGatewayDeviceToken(w, r, gatewayID) {
+		return false
+	}
+	return s.validateGatewayRequestNonce(w, r, gatewayID)
 }

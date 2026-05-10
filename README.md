@@ -334,6 +334,7 @@ Auth/session env vars:
 - `EXTERNAL_AUTH_PROVIDER` (default: `generic_oidc`; supports `generic_oidc|casdoor|ory_kratos`)
 - `EXTERNAL_AUTH_USERINFO_URL` (required when external auth enabled; userinfo/whoami endpoint)
 - `GATEWAY_BOOTSTRAP_TOKEN` (required in production; used by device-side `POST /api/v1/gateway/register` bootstrap authentication)
+- `GATEWAY_REQUIRE_REQUEST_NONCE` (default: `false`; set `true` after all gateway agents send `X-Request-Nonce` + `X-Request-Timestamp` on gateway HTTP device requests)
 - `GATEWAY_MTLS_ADDR` (optional; when set, starts a gateway-only HTTPS listener that requires verified client certificates, e.g. `:9443`)
 - `GATEWAY_MTLS_SERVER_CERT_PEM` / `GATEWAY_MTLS_SERVER_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; server certificate/key for the gateway mTLS listener)
 - `GATEWAY_CA_CERT_PEM` / `GATEWAY_CA_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; CA used to sign and verify gateway client certificates)
@@ -421,6 +422,7 @@ Gateway bootstrap auth:
 - `bootstrap_token` comes from server-side `GATEWAY_BOOTSTRAP_TOKEN`
 - Other `/api/v1/gateway/*` device endpoints require `X-Device-Token: <device_token>`
 - `Authorization: Bearer <device_token>` is also accepted
+- Gateway HTTP device requests support replay protection with `X-Request-Nonce` + RFC3339 `X-Request-Timestamp`; when `GATEWAY_REQUIRE_REQUEST_NONCE=true`, missing nonce headers are rejected.
 - Gateway device requests should identify the device with `X-Gateway-ID` and `X-Tenant-ID`; `/credentials/sync` and `/audit/batch` also accept `gateway_id` / `tenant_id` query parameters for compatibility.
 - When `GATEWAY_MTLS_ADDR` is configured, `/api/v1/gateway/*` is also served on a dedicated TLS 1.3 listener that requires a gateway client certificate signed by `GATEWAY_CA_CERT_PEM`; the client certificate subject must bind `CN=<gateway_id>` and `O=<tenant_id>`.
 - `GET /api/v1/gateway/ws` authenticates new gateway agents with `Authorization: Bearer <device_token>` / `X-Device-Token`; legacy `?token=` remains accepted only for compatibility.
@@ -543,6 +545,10 @@ Audit webhook PoC behavior:
   - `docs/enterprise/indonesia-enterprise-domain-idp-design.md`
 - Gateway serial/protocol + Misty Access plan:
   - `docs/architecture/gateway-serial-protocol-mobile-plan.md`
+- Gateway software security status:
+  - `docs/architecture/gateway-security-software-status.md`
+- Hardware/BSP security follow-ups:
+  - `docs/architecture/hardware-bsp-followups.md`
 - Completed features + tech stack map:
   - `docs/architecture/completed-features-tech-stack.md`
 - Enterprise design spec:

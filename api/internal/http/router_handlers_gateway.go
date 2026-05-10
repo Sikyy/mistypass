@@ -46,10 +46,7 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
-		return
-	}
-	if !s.validateGatewayRequestNonce(w, r) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -123,7 +120,7 @@ func (s *server) gatewayBootstrapConfigApplied(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -218,7 +215,7 @@ func (s *server) gatewayBootstrapAccessEvent(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -358,7 +355,7 @@ func (s *server) gatewayBootstrapDeviceEvent(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -520,10 +517,7 @@ func (s *server) gatewayBootstrapEventsBatch(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
-		return
-	}
-	if !s.validateGatewayRequestNonce(w, r) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 	queue := normalizeGatewayCheckpointQueue(request.Queue)
@@ -899,7 +893,7 @@ func (s *server) gatewayBootstrapEventsCheckpoint(w http.ResponseWriter, r *http
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 

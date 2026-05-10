@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mistypass/cloud/api/internal/config"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
 	"github.com/mistypass/cloud/api/internal/modules/credential"
@@ -145,6 +146,58 @@ func TestGatewayAuditBatchRequiresDeviceIdentityAndUsesGatewayContext(t *testing
 	}
 }
 
+func TestGatewayHTTPDeviceRequestNonceIsOptionalByDefault(t *testing.T) {
+	s := newGatewayDeviceRequestTestServer()
+	s.setGatewayDeviceToken("gw_demo_001", "dev-token-sync")
+
+	code, _ := callGatewayCredentialSync(t, s, "dev-token-sync", "", map[string]string{
+		"X-Gateway-ID": "gw_demo_001",
+		"X-Tenant-ID":  "tenant_demo_jakarta",
+	})
+	if code != http.StatusOK {
+		t.Fatalf("expected credential sync without nonce to remain compatible, got %d", code)
+	}
+}
+
+func TestGatewayHTTPDeviceRequestNonceRequiredMode(t *testing.T) {
+	s := newGatewayDeviceRequestTestServer()
+	s.cfg = config.Config{GatewayRequireRequestNonce: true}
+	s.setGatewayDeviceToken("gw_demo_001", "dev-token-sync")
+
+	baseHeaders := map[string]string{
+		"X-Gateway-ID": "gw_demo_001",
+		"X-Tenant-ID":  "tenant_demo_jakarta",
+	}
+	code, _ := callGatewayCredentialSync(t, s, "dev-token-sync", "", baseHeaders)
+	if code != http.StatusUnauthorized {
+		t.Fatalf("expected missing nonce to fail when required, got %d", code)
+	}
+
+	headers := gatewayRequestHeaders("gw-nonce-001")
+	for key, value := range baseHeaders {
+		headers[key] = value
+	}
+	code, _ = callGatewayCredentialSync(t, s, "dev-token-sync", "", headers)
+	if code != http.StatusOK {
+		t.Fatalf("expected valid nonce to pass, got %d", code)
+	}
+
+	code, _ = callGatewayCredentialSync(t, s, "dev-token-sync", "", headers)
+	if code != http.StatusConflict {
+		t.Fatalf("expected duplicate nonce to fail, got %d", code)
+	}
+
+	staleHeaders := gatewayRequestHeaders("gw-nonce-stale")
+	staleHeaders["X-Request-Timestamp"] = time.Now().UTC().Add(-10 * time.Minute).Format(time.RFC3339)
+	for key, value := range baseHeaders {
+		staleHeaders[key] = value
+	}
+	code, _ = callGatewayCredentialSync(t, s, "dev-token-sync", "", staleHeaders)
+	if code != http.StatusUnauthorized {
+		t.Fatalf("expected stale nonce timestamp to fail, got %d", code)
+	}
+}
+
 func newGatewayDeviceRequestTestServer() *server {
 	return &server{
 		gatewaySvc:          gateway.NewService(),
@@ -153,6 +206,14 @@ func newGatewayDeviceRequestTestServer() *server {
 		credentialSvc:       credential.NewService(),
 		auditSvc:            audit.NewService(),
 		gatewayDeviceTokens: map[string]string{},
+		gatewayNonces:       map[string]time.Time{},
+	}
+}
+
+func gatewayRequestHeaders(nonce string) map[string]string {
+	return map[string]string{
+		"X-Request-Nonce":     nonce,
+		"X-Request-Timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 }
 

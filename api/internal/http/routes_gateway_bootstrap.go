@@ -123,7 +123,7 @@ func (s *server) gatewayBootstrapHeartbeat(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -150,7 +150,7 @@ func (s *server) gatewayBootstrapStatus(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -181,7 +181,7 @@ func (s *server) gatewayBootstrapOTAReport(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 
@@ -249,7 +249,7 @@ func (s *server) gatewayBootstrapCertRenew(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusNotFound, "gateway not found")
 		return
 	}
-	if !s.authorizeGatewayDeviceToken(w, r, record.ID) {
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
 

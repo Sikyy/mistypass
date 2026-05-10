@@ -179,6 +179,20 @@ func TestFromEnvGatewayMTLSConfig(t *testing.T) {
 	}
 }
 
+func TestFromEnvGatewayRequireRequestNonce(t *testing.T) {
+	t.Setenv("GATEWAY_REQUIRE_REQUEST_NONCE", "")
+	cfg := FromEnv()
+	if cfg.GatewayRequireRequestNonce {
+		t.Fatalf("expected gateway request nonce requirement disabled by default")
+	}
+
+	t.Setenv("GATEWAY_REQUIRE_REQUEST_NONCE", "true")
+	cfg = FromEnv()
+	if !cfg.GatewayRequireRequestNonce {
+		t.Fatalf("expected gateway request nonce requirement to be enabled")
+	}
+}
+
 func TestConfigValidateGatewayMTLSRequiresCertificates(t *testing.T) {
 	cfg := Config{GatewayMTLSAddr: ":9443"}
 	if err := cfg.Validate(); err == nil {
