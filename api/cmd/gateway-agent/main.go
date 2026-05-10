@@ -40,8 +40,9 @@ func main() {
 	deviceTokenFile := flag.String("token-file", "/var/lib/mistypass/device-token", "File to persist device token across restarts")
 	tlsPin := flag.String("tls-pin-sha256", "", "SHA256 hash of Cloud API TLS certificate SPKI for certificate pinning (hex-encoded)")
 	rulesCacheTTL := flag.Duration("rules-cache-ttl", 24*time.Hour, "Max age of cached access rules before denying all access (0 = no TTL)")
-	readerLockID := flag.String("reader-lock-id", "", "Lock ID that this reader controls (enables PC/SC NFC reader, e.g. door_jkt_001)")
+	readerLockID := flag.String("reader-lock-id", "", "Lock ID that this reader controls (enables PC/SC NFC UID reader, e.g. door_jkt_001)")
 	readerPoll := flag.Duration("reader-poll", 300*time.Millisecond, "NFC reader polling interval")
+	nfcHCELockID := flag.String("nfc-hce-lock-id", "", "Lock ID for NFC HCE reader (enables APDU-based phone auth, e.g. door_lobby_001)")
 	bleLockID := flag.String("ble-lock-id", "", "Lock ID for BLE reader (enables BLE auth, e.g. door_factory_001)")
 	bleListenAddr := flag.String("ble-listen", ":9900", "TCP address for BLE simulator (used until real BLE hardware is ready)")
 	flag.Parse()
@@ -108,6 +109,19 @@ func main() {
 		}
 	}
 
+	// Start NFC HCE reader (APDU-based phone auth via PC/SC) if lock ID is configured
+	var nfcHCEReader *NFCHCEReader
+	if *nfcHCELockID != "" {
+		fmt.Println(formatPCSCReaderInfo())
+		driver := NewPCSCNFCDriver(logger)
+		nfcHCEReader = NewNFCHCEReader(logger, *nfcHCELockID, agent, driver)
+		if err := nfcHCEReader.Start(); err != nil {
+			logger.Warn("NFC HCE reader failed to start", "error", err)
+		} else {
+			fmt.Printf("NFC HCE: PC/SC APDU → %s (AID: F04D495354590100)\n", *nfcHCELockID)
+		}
+	}
+
 	// Start BLE reader (TCP simulator mode) if lock ID is configured
 	var bleReader *BLEReader
 	if *bleLockID != "" {
@@ -133,6 +147,9 @@ func main() {
 	logger.Info("shutting down gateway agent")
 	if nfcReader != nil {
 		nfcReader.Stop()
+	}
+	if nfcHCEReader != nil {
+		nfcHCEReader.Stop()
 	}
 	if bleReader != nil {
 		bleReader.Stop()

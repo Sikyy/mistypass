@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 )
 
@@ -31,28 +30,15 @@ func (r *NFCReader) Authenticate(challenge []byte) (*BLEAuthResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// 1. Wait for card/phone to be presented
+	// 1. Wait for card/phone to be presented (WaitForCard already sends SELECT AID
+	//    to probe for the correct interface, so we skip sending it again here to
+	//    minimize APDU round-trips and reduce the chance of the phone leaving the field)
 	if err := r.driver.WaitForCard(ctx); err != nil {
 		return nil, fmt.Errorf("wait for card: %w", err)
 	}
 	defer r.driver.Disconnect()
 
-	// 2. SELECT AID
-	selectCmd := BuildSelectAID()
-	selectResp, err := r.driver.Transmit(selectCmd)
-	if err != nil {
-		return nil, fmt.Errorf("SELECT AID transmit: %w", err)
-	}
-	_, sw, err := ParseAPDUResponse(selectResp)
-	if err != nil {
-		return nil, fmt.Errorf("parse SELECT response: %w", err)
-	}
-	if sw != SW_OK {
-		return nil, fmt.Errorf("SELECT AID failed: SW=%04X", sw)
-	}
-	slog.Debug("NFC: SELECT AID success")
-
-	// 3. AUTHENTICATE
+	// 2. AUTHENTICATE (SELECT AID already confirmed by WaitForCard)
 	authCmd := BuildAuthenticate(challenge)
 	authResp, err := r.driver.Transmit(authCmd)
 	if err != nil {

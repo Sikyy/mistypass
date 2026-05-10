@@ -487,28 +487,44 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 	}
 
 	// 3. Credential lookup from cached access rules
+	// A user may have multiple active credentials (e.g. phone + tablet),
+	// so we collect all matching public keys and try each one.
+	type candidateKey struct {
+		publicKeyPEM string
+		userEmail    string
+	}
 	a.mu.RLock()
-	var publicKeyPEM string
-	var userEmail string
+	var candidates []candidateKey
 	for _, rule := range a.accessRules {
 		if rule.CredentialType == "ble_signature" && rule.UserID == resp.UserID {
-			publicKeyPEM = rule.CredentialData
-			userEmail = rule.UserEmail
-			break
+			candidates = append(candidates, candidateKey{
+				publicKeyPEM: rule.CredentialData,
+				userEmail:    rule.UserEmail,
+			})
 		}
 	}
 	a.mu.RUnlock()
 
-	if publicKeyPEM == "" {
+	if len(candidates) == 0 {
 		return BLEAuthResult{Code: BLEResultUnknownUser, Reason: "unknown_user"}
 	}
 
-	// 4. ECDSA signature verification (most expensive — last)
+	// 4. ECDSA signature verification — try each registered key
 	var nonceArr [32]byte
 	copy(nonceArr[:], nonce)
-	err := VerifyBLESignatureV2(publicKeyPEM, nonceArr, resp.UserID, transport, resp.Signature)
-	if err != nil {
-		return BLEAuthResult{Code: BLEResultInvalidSignature, Reason: err.Error()}
+	var lastErr error
+	var matchedEmail string
+	for _, cand := range candidates {
+		err := VerifyBLESignatureV2(cand.publicKeyPEM, nonceArr, resp.UserID, transport, resp.Signature)
+		if err == nil {
+			matchedEmail = cand.userEmail
+			lastErr = nil
+			break
+		}
+		lastErr = err
+	}
+	if lastErr != nil {
+		return BLEAuthResult{Code: BLEResultInvalidSignature, Reason: lastErr.Error()}
 	}
 
 	// 5. Mark nonce as used (only after successful verification)
@@ -516,7 +532,7 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 		a.nonceCache.Add(nonce)
 	}
 
-	_ = userEmail // available for audit logging in caller
+	_ = matchedEmail // available for audit logging in caller
 	return BLEAuthResult{Code: BLEResultGranted, Reason: "access_granted"}
 }
 
