@@ -10,6 +10,7 @@ import (
 	"github.com/nats-io/nats.go"
 
 	"github.com/mistypass/cloud/api/internal/bus"
+	"github.com/mistypass/cloud/api/internal/modules/gateway"
 )
 
 const gatewayWebSocketPushSubject = "gateway.ws.push"
@@ -48,13 +49,50 @@ func (s *server) startGatewayWebSocketPushSubscriber(natsURL, subjectPrefix stri
 }
 
 func (s *server) publishGatewayWebSocketPush(tenantID, gatewayID, messageType string, data json.RawMessage) {
+	s.publishGatewayWebSocketPushEvent(bus.GatewayWebSocketPush{
+		TenantID:  strings.TrimSpace(tenantID),
+		GatewayID: strings.TrimSpace(gatewayID),
+		Type:      strings.TrimSpace(messageType),
+		Data:      append(json.RawMessage(nil), data...),
+	})
+}
+
+func (s *server) publishGatewayWebSocketDisconnect(tenantID, gatewayID, serialNumber string) {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	nextSerial := gateway.NormalizeCertificateSerial(serialNumber)
+	if nextGatewayID == "" && nextSerial == "" {
+		return
+	}
+	nextTenantID := strings.TrimSpace(tenantID)
+	if nextTenantID == "" {
+		nextTenantID = "_global"
+	}
+	s.publishGatewayWebSocketPushEvent(bus.GatewayWebSocketPush{
+		TenantID:     nextTenantID,
+		GatewayID:    nextGatewayID,
+		SerialNumber: nextSerial,
+		Type:         "disconnect",
+		Data:         json.RawMessage(`{"reason":"gateway revoked"}`),
+	})
+}
+
+func (s *server) publishGatewayWebSocketPushEvent(payload bus.GatewayWebSocketPush) {
 	if s == nil || s.messageBus == nil || !s.messageBus.Enabled() {
 		return
 	}
-	nextGatewayID := strings.TrimSpace(gatewayID)
-	nextTenantID := strings.TrimSpace(tenantID)
-	nextType := strings.TrimSpace(messageType)
-	if nextGatewayID == "" || nextTenantID == "" || nextType == "" || len(data) == 0 {
+	payload.GatewayID = strings.TrimSpace(payload.GatewayID)
+	payload.TenantID = strings.TrimSpace(payload.TenantID)
+	payload.Type = strings.TrimSpace(payload.Type)
+	if payload.TenantID == "" || payload.Type == "" {
+		return
+	}
+	if payload.Type == "disconnect" && payload.GatewayID == "" && gateway.NormalizeCertificateSerial(payload.SerialNumber) == "" {
+		return
+	}
+	if payload.Type != "disconnect" && payload.GatewayID == "" {
+		return
+	}
+	if payload.Type != "disconnect" && len(payload.Data) == 0 {
 		return
 	}
 
@@ -62,19 +100,13 @@ func (s *server) publishGatewayWebSocketPush(tenantID, gatewayID, messageType st
 	if err != nil {
 		requestID = fmt.Sprintf("gw-ws-%d", time.Now().UnixNano())
 	}
-	payload := bus.GatewayWebSocketPush{
-		RequestID:        requestID,
-		OriginInstanceID: strings.TrimSpace(s.instanceID),
-		TenantID:         nextTenantID,
-		GatewayID:        nextGatewayID,
-		Type:             nextType,
-		Data:             append(json.RawMessage(nil), data...),
-		IssuedAt:         time.Now().UTC().Format(time.RFC3339),
-	}
+	payload.RequestID = requestID
+	payload.OriginInstanceID = strings.TrimSpace(s.instanceID)
+	payload.IssuedAt = time.Now().UTC().Format(time.RFC3339)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := s.messageBus.PublishJSON(ctx, gatewayWebSocketPushSubject, payload, nil); err != nil {
-		s.loggerOrDefault().Warn("gateway websocket push fanout publish failed", "gateway_id", nextGatewayID, "type", nextType, "err", err)
+		s.loggerOrDefault().Warn("gateway websocket push fanout publish failed", "gateway_id", payload.GatewayID, "type", payload.Type, "err", err)
 		recordGatewayWebSocketPushFanout("publish_error")
 		return
 	}
@@ -88,7 +120,13 @@ func (s *server) handleGatewayWebSocketPush(raw []byte) {
 		recordGatewayWebSocketPushFanout("decode_error")
 		return
 	}
-	if strings.TrimSpace(payload.GatewayID) == "" || len(payload.Data) == 0 {
+	if strings.TrimSpace(payload.Type) != "disconnect" && (strings.TrimSpace(payload.GatewayID) == "" || len(payload.Data) == 0) {
+		recordGatewayWebSocketPushFanout("invalid")
+		return
+	}
+	if strings.TrimSpace(payload.Type) == "disconnect" &&
+		strings.TrimSpace(payload.GatewayID) == "" &&
+		gateway.NormalizeCertificateSerial(payload.SerialNumber) == "" {
 		recordGatewayWebSocketPushFanout("invalid")
 		return
 	}
@@ -108,12 +146,32 @@ func (s *server) handleGatewayWebSocketPush(raw []byte) {
 			recordGatewayWebSocketPushFanout("delivered")
 			return
 		}
+	case "disconnect":
+		if s.handleGatewayWebSocketDisconnect(payload) {
+			recordGatewayWebSocketPushFanout("disconnected")
+			return
+		}
 	default:
 		recordGatewayWebSocketPushFanout("unknown_type")
 		return
 	}
 
 	recordGatewayWebSocketPushFanout("not_local")
+}
+
+func (s *server) handleGatewayWebSocketDisconnect(payload bus.GatewayWebSocketPush) bool {
+	if s == nil || s.gwWSRegistry == nil {
+		return false
+	}
+	closed := 0
+	if serial := gateway.NormalizeCertificateSerial(payload.SerialNumber); serial != "" {
+		closed += s.closeGatewayWebSocketCertificateSerial(serial, "certificate serial revoked; reconnect denied")
+	}
+	gatewayID := strings.TrimSpace(payload.GatewayID)
+	if gatewayID != "" && s.closeGatewayWebSocketSessions(gatewayID, "gateway revoked; reconnect denied") {
+		closed++
+	}
+	return closed > 0
 }
 
 func qualifiedInternalSubject(subjectPrefix, subject string) string {

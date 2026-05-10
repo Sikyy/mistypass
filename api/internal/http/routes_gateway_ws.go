@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/mistypass/cloud/api/internal/modules/event"
+	"github.com/mistypass/cloud/api/internal/modules/gateway"
 )
 
 // --- Gateway WebSocket Handler ---
@@ -29,8 +30,10 @@ type gwWSConn struct {
 	conn        *websocket.Conn
 	gatewayID   string
 	tenantID    string
+	certSerial  string
 	ruleVer     string // last-known rule version on gateway
 	connectedAt time.Time
+	writeMu     sync.Mutex
 }
 
 // gwWSRegistry manages active gateway WebSocket connections.
@@ -49,15 +52,20 @@ func (reg *gwWSRegistry) add(gw *gwWSConn) {
 	reg.mu.Lock()
 	// Close existing connection for this gateway (replaced by new one)
 	if existing, ok := reg.conns[gw.gatewayID]; ok {
-		existing.conn.Close()
+		existing.closeWithPolicy("replaced by a newer connection")
 	}
 	reg.conns[gw.gatewayID] = gw
 	reg.mu.Unlock()
 }
 
-func (reg *gwWSRegistry) remove(gatewayID string) {
+func (reg *gwWSRegistry) remove(gw *gwWSConn) {
+	if gw == nil {
+		return
+	}
 	reg.mu.Lock()
-	delete(reg.conns, gatewayID)
+	if current, ok := reg.conns[gw.gatewayID]; ok && current == gw {
+		delete(reg.conns, gw.gatewayID)
+	}
 	reg.mu.Unlock()
 }
 
@@ -66,6 +74,38 @@ func (reg *gwWSRegistry) get(gatewayID string) (*gwWSConn, bool) {
 	defer reg.mu.RUnlock()
 	c, ok := reg.conns[gatewayID]
 	return c, ok
+}
+
+func (reg *gwWSRegistry) CloseGateway(gatewayID, reason string) bool {
+	reg.mu.RLock()
+	gw, ok := reg.conns[gatewayID]
+	reg.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	gw.closeWithPolicy(reason)
+	return true
+}
+
+func (reg *gwWSRegistry) CloseCertificateSerial(serialNumber, reason string) int {
+	serial := gateway.NormalizeCertificateSerial(serialNumber)
+	if serial == "" {
+		return 0
+	}
+
+	reg.mu.RLock()
+	targets := make([]*gwWSConn, 0)
+	for _, gw := range reg.conns {
+		if gateway.NormalizeCertificateSerial(gw.certSerial) == serial {
+			targets = append(targets, gw)
+		}
+	}
+	reg.mu.RUnlock()
+
+	for _, gw := range targets {
+		gw.closeWithPolicy(reason)
+	}
+	return len(targets)
 }
 
 // PushConfig sends a config update to a specific gateway via WebSocket.
@@ -79,11 +119,7 @@ func (reg *gwWSRegistry) PushConfig(gatewayID string, configData json.RawMessage
 	}
 
 	msg := gwWSMessage{Type: "config_push", Data: configData}
-	payload, _ := json.Marshal(msg)
-	if err := gw.conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-		return false
-	}
-	return true
+	return gw.writeJSON(msg)
 }
 
 // PushCredentials sends a credential update to a specific gateway via WebSocket.
@@ -96,11 +132,38 @@ func (reg *gwWSRegistry) PushCredentials(gatewayID string, credData json.RawMess
 	}
 
 	msg := gwWSMessage{Type: "credential_push", Data: credData}
-	payload, _ := json.Marshal(msg)
-	if err := gw.conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+	return gw.writeJSON(msg)
+}
+
+func (gw *gwWSConn) writeJSON(message gwWSMessage) bool {
+	if gw == nil || gw.conn == nil {
 		return false
 	}
-	return true
+	payload, err := json.Marshal(message)
+	if err != nil {
+		return false
+	}
+	gw.writeMu.Lock()
+	defer gw.writeMu.Unlock()
+	return gw.conn.WriteMessage(websocket.TextMessage, payload) == nil
+}
+
+func (gw *gwWSConn) closeWithPolicy(reason string) {
+	if gw == nil || gw.conn == nil {
+		return
+	}
+	nextReason := strings.TrimSpace(reason)
+	if nextReason == "" {
+		nextReason = "gateway session closed"
+	}
+	gw.writeMu.Lock()
+	defer gw.writeMu.Unlock()
+	_ = gw.conn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.ClosePolicyViolation, nextReason),
+		time.Now().Add(5*time.Second),
+	)
+	_ = gw.conn.Close()
 }
 
 // gwWSMessage is the framing protocol for gateway WebSocket messages.
@@ -182,6 +245,7 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn:        conn,
 		gatewayID:   gatewayID,
 		tenantID:    tenantID,
+		certSerial:  gatewayCertificateSerialFromRequest(r),
 		ruleVer:     authData.RuleVersion,
 		connectedAt: time.Now(),
 	}
@@ -190,7 +254,7 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		s.gwWSRegistry = newGWWSRegistry()
 	}
 	s.gwWSRegistry.add(gwConn)
-	defer s.gwWSRegistry.remove(gatewayID)
+	defer s.gwWSRegistry.remove(gwConn)
 	defer func() {
 		s.logger.Info("ws: gateway disconnected", "gateway_id", gatewayID,
 			"session_duration", time.Since(gwConn.connectedAt).Round(time.Second))
@@ -218,9 +282,7 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-pingTicker.C:
-				pingMsg := gwWSMessage{Type: "ping"}
-				payload, _ := json.Marshal(pingMsg)
-				if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+				if !gwConn.writeJSON(gwWSMessage{Type: "ping"}) {
 					return
 				}
 			case <-stopPing:
@@ -232,14 +294,14 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		if !time.Now().Before(sessionExpiresAt) {
-			s.closeExpiredGatewayWebSocket(conn, gatewayID, maxSessionTTL)
+			s.closeExpiredGatewayWebSocket(gwConn, maxSessionTTL)
 			return
 		}
 
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			if !time.Now().Before(sessionExpiresAt) {
-				s.closeExpiredGatewayWebSocket(conn, gatewayID, maxSessionTTL)
+				s.closeExpiredGatewayWebSocket(gwConn, maxSessionTTL)
 				return
 			}
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
@@ -261,13 +323,11 @@ func gatewayWebSocketReadDeadline(sessionExpiresAt time.Time) time.Time {
 	return sessionExpiresAt
 }
 
-func (s *server) closeExpiredGatewayWebSocket(conn *websocket.Conn, gatewayID string, maxSessionTTL time.Duration) {
-	if conn != nil {
-		_ = conn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "session expired; reconnect"),
-			time.Now().Add(5*time.Second),
-		)
+func (s *server) closeExpiredGatewayWebSocket(gw *gwWSConn, maxSessionTTL time.Duration) {
+	gatewayID := ""
+	if gw != nil {
+		gatewayID = gw.gatewayID
+		gw.closeWithPolicy("session expired; reconnect")
 	}
 	recordGatewayWebSocketSession("expired")
 	s.loggerOrDefault().Info("ws: gateway session expired", "gateway_id", gatewayID, "max_session_ttl", maxSessionTTL)
@@ -311,6 +371,14 @@ func (s *server) authorizeGatewayWebSocketDeviceToken(w http.ResponseWriter, r *
 }
 
 func (s *server) handleGWWSMessage(gw *gwWSConn, raw []byte) {
+	if s.gatewayConnectionRevoked(gw) {
+		if gw != nil {
+			gw.closeWithPolicy("gateway revoked; reconnect denied")
+		}
+		recordGatewayWebSocketSession("revoked_closed")
+		return
+	}
+
 	var msg gwWSMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -390,11 +458,12 @@ func (s *server) wsInitialConfigPush(gw *gwWSConn) {
 	})
 
 	if s.gwWSRegistry != nil {
-		s.gwWSRegistry.PushConfig(gw.gatewayID, configPayload)
-		s.logger.Info("ws: initial config pushed",
-			"gateway_id", gw.gatewayID,
-			"version", authzCache.Version,
-		)
+		if s.gwWSRegistry.PushConfig(gw.gatewayID, configPayload) {
+			s.logger.Info("ws: initial config pushed",
+				"gateway_id", gw.gatewayID,
+				"version", authzCache.Version,
+			)
+		}
 	}
 }
 
@@ -426,4 +495,35 @@ func (s *server) pushGatewayAuthzCache(tenantID, gatewayID string, boundDoorIDs 
 	}
 	s.publishGatewayWebSocketPush(tenantID, gatewayID, "config_push", configPayload)
 	return localPushed
+}
+
+func (s *server) closeGatewayWebSocketSessions(gatewayID, reason string) bool {
+	if s == nil || s.gwWSRegistry == nil {
+		return false
+	}
+	return s.gwWSRegistry.CloseGateway(gatewayID, reason)
+}
+
+func (s *server) closeGatewayWebSocketCertificateSerial(serialNumber, reason string) int {
+	if s == nil || s.gwWSRegistry == nil {
+		return 0
+	}
+	return s.gwWSRegistry.CloseCertificateSerial(serialNumber, reason)
+}
+
+func (s *server) gatewayConnectionRevoked(gw *gwWSConn) bool {
+	if s == nil || gw == nil {
+		return false
+	}
+	if s.gatewayIdentityStatusRevoked(gw.gatewayID) {
+		return true
+	}
+	if s.gatewayClientSerialRevoked(gw.certSerial) {
+		return true
+	}
+	if s.gatewaySvc == nil {
+		return false
+	}
+	record, ok := s.gatewaySvc.FindGatewayByID(gw.tenantID, gw.gatewayID)
+	return ok && gatewayCertificateStatusRevoked(record.Status)
 }

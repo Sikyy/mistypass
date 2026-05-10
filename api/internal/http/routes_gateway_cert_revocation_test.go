@@ -80,6 +80,42 @@ func TestGatewayCertificateRevocationRestoreRejectsEnvironmentSerial(t *testing.
 	}
 }
 
+func TestGatewayCertificateRevocationRejectsTenantScopedSerialOnlyRevoke(t *testing.T) {
+	s := &server{
+		gatewaySvc: gateway.NewService(),
+		auditSvc:   audit.NewService(),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gateways/cert-revocations", bytes.NewReader([]byte(`{"tenant_id":"tenant_demo_jakarta","serial_number":"00:AB:C1:23"}`)))
+	req = withAuthUser(req, auth.User{Role: "tenant_admin", TenantID: "tenant_demo_jakarta"})
+	rec := httptest.NewRecorder()
+	s.revokeGatewayCertificateSerial(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for tenant scoped serial-only revoke, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if s.gatewaySvc.IsCertificateSerialRevoked("abc123") {
+		t.Fatalf("tenant-scoped serial-only revoke should not create a revocation")
+	}
+}
+
+func TestGatewayCertificateRevocationAllowsSuperAdminSerialOnlyRevoke(t *testing.T) {
+	s := &server{
+		gatewaySvc: gateway.NewService(),
+		auditSvc:   audit.NewService(),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gateways/cert-revocations", bytes.NewReader([]byte(`{"serial_number":"00:AB:C1:23"}`)))
+	req = withAuthUser(req, auth.User{Role: "super_admin"})
+	rec := httptest.NewRecorder()
+	s.revokeGatewayCertificateSerial(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for super admin serial-only revoke, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	if !s.gatewaySvc.IsCertificateSerialRevoked("abc123") {
+		t.Fatalf("expected super admin serial-only revoke to create a revocation")
+	}
+}
+
 func configWithRevokedGatewaySerial(serial string) config.Config {
 	return config.Config{GatewayMTLSRevokedSerials: []string{serial}}
 }

@@ -1,4 +1,4 @@
-import { request, requestItems, requestText, withTenantQuery, encodePathSegment } from "./core"
+import { request, requestItems, requestText, encodePathSegment } from "./core"
 import type { Controller, Reader, Terminal, GatewayCommandAck } from "./locks"
 import { listControllers, listReaders, listTerminals, bindControllerLock, unbindControllerLock, publishControllerConfig, rebootController } from "./locks"
 

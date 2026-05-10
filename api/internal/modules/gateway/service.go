@@ -21,6 +21,7 @@ var ErrSerialNumberProductTypeMismatch = errors.New("serial_number product_type 
 var ErrTenantIDRequired = errors.New("tenant_id is required")
 var ErrGatewayNotFound = errors.New("gateway not found")
 var ErrGatewayIDRequired = errors.New("gateway_id is required")
+var ErrGatewayStatusRequired = errors.New("gateway status is required")
 var ErrGatewayStatusInvalid = errors.New("invalid gateway status")
 var ErrDoorIDRequired = errors.New("door_id is required")
 var ErrConfigVersionRequired = errors.New("config version is required")
@@ -2239,7 +2240,9 @@ func normalizeSerialInventoryProductType(productType string) (string, error) {
 
 func normalizeGatewayStatus(status string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "", "online":
+	case "":
+		return "", ErrGatewayStatusRequired
+	case "online":
 		return "online", nil
 	case "offline":
 		return "offline", nil

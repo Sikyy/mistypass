@@ -64,7 +64,8 @@ type GatewayWebSocketPush struct {
 	OriginInstanceID string          `json:"origin_instance_id,omitempty"`
 	TenantID         string          `json:"tenant_id"`
 	GatewayID        string          `json:"gateway_id"`
-	Type             string          `json:"type"` // "config_push" or "credential_push"
+	SerialNumber     string          `json:"serial_number,omitempty"`
+	Type             string          `json:"type"` // "config_push", "credential_push", or "disconnect"
 	Data             json.RawMessage `json:"data"`
 	IssuedAt         string          `json:"issued_at"`
 }

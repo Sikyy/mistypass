@@ -361,6 +361,9 @@ func TestUpdateGatewayStatus(t *testing.T) {
 	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "gw_demo_001", "bad-status"); !errors.Is(err, ErrGatewayStatusInvalid) {
 		t.Fatalf("expected invalid status error, got %v", err)
 	}
+	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "gw_demo_001", ""); !errors.Is(err, ErrGatewayStatusRequired) {
+		t.Fatalf("expected required status error, got %v", err)
+	}
 	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "missing", "revoked"); !errors.Is(err, ErrGatewayNotFound) {
 		t.Fatalf("expected not found error, got %v", err)
 	}

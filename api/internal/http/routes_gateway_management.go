@@ -63,7 +63,9 @@ func (s *server) updateGatewayStatus(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, gateway.ErrGatewayNotFound):
 			writeError(w, http.StatusNotFound, err.Error())
-		case errors.Is(err, gateway.ErrGatewayIDRequired), errors.Is(err, gateway.ErrGatewayStatusInvalid):
+		case errors.Is(err, gateway.ErrGatewayIDRequired),
+			errors.Is(err, gateway.ErrGatewayStatusRequired),
+			errors.Is(err, gateway.ErrGatewayStatusInvalid):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, err.Error())
@@ -72,6 +74,10 @@ func (s *server) updateGatewayStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.appendAuditLog(r, tenantID, "gateway_status_updated", item.ID+":"+item.Status, "gateway")
+	if gatewayCertificateStatusRevoked(item.Status) {
+		s.closeGatewayWebSocketSessions(item.ID, "gateway disabled; reconnect denied")
+		s.publishGatewayWebSocketDisconnect(item.TenantID, item.ID, "")
+	}
 	writeJSON(w, http.StatusOK, item)
 }
 
@@ -160,6 +166,10 @@ func (s *server) revokeGatewayCertificateSerial(w http.ResponseWriter, r *http.R
 			return
 		}
 	}
+	if strings.TrimSpace(request.GatewayID) == "" && !requestCanRevokeGlobalGatewayCertificateSerial(r) {
+		writeError(w, http.StatusBadRequest, "gateway_id is required for tenant-scoped certificate revocation")
+		return
+	}
 
 	item, err := s.gatewaySvc.RevokeCertificateSerial(tenantID, request.GatewayID, request.SerialNumber, request.Reason, gatewayCertificateRevocationActor(r))
 	if err != nil {
@@ -167,6 +177,11 @@ func (s *server) revokeGatewayCertificateSerial(w http.ResponseWriter, r *http.R
 		return
 	}
 	s.syncGatewayCertificateRevocationMetrics()
+	if strings.TrimSpace(item.GatewayID) != "" {
+		s.closeGatewayWebSocketSessions(item.GatewayID, "certificate serial revoked; reconnect denied")
+	}
+	s.closeGatewayWebSocketCertificateSerial(item.SerialNumber, "certificate serial revoked; reconnect denied")
+	s.publishGatewayWebSocketDisconnect(item.TenantID, item.GatewayID, item.SerialNumber)
 
 	auditTenantID := item.TenantID
 	if auditTenantID == "" {
@@ -258,6 +273,14 @@ func gatewayCertificateRevocationActor(r *http.Request) string {
 		return strings.TrimSpace(user.Email)
 	}
 	return strings.TrimSpace(user.ID)
+}
+
+func requestCanRevokeGlobalGatewayCertificateSerial(r *http.Request) bool {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(user.Role), "super_admin")
 }
 
 func handleGatewayCertificateRevocationError(w http.ResponseWriter, err error) {

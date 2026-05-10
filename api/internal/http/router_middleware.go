@@ -1151,7 +1151,14 @@ func (s *server) gatewayClientCertificateRevoked(cert *x509.Certificate) bool {
 	if s == nil || cert == nil || cert.SerialNumber == nil {
 		return false
 	}
-	serial := gateway.NormalizeCertificateSerial(cert.SerialNumber.Text(16))
+	return s.gatewayClientSerialRevoked(cert.SerialNumber.Text(16))
+}
+
+func (s *server) gatewayClientSerialRevoked(serialNumber string) bool {
+	if s == nil {
+		return false
+	}
+	serial := gateway.NormalizeCertificateSerial(serialNumber)
 	if serial == "" {
 		return false
 	}
@@ -1164,6 +1171,14 @@ func (s *server) gatewayClientCertificateRevoked(cert *x509.Certificate) bool {
 		return true
 	}
 	return false
+}
+
+func gatewayCertificateSerialFromRequest(r *http.Request) string {
+	cert := verifiedGatewayClientCertificate(r)
+	if cert == nil || cert.SerialNumber == nil {
+		return ""
+	}
+	return gateway.NormalizeCertificateSerial(cert.SerialNumber.Text(16))
 }
 
 func (s *server) gatewayIdentityStatusRevoked(gatewayID string) bool {
