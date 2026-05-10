@@ -15,8 +15,8 @@
 | P0 关键 | 4 | ✅ 4 | 0 | 直接影响用户核心登录 & 开锁流程 |
 | P1 重要 | 7 | ✅ 7 | 0 | 影响管理后台或安全功能 |
 | P2 体验 | 6 | ✅ 6 | 0 | 提升用户体验和完整度 |
-| P3 锦上添花 | 3 | ✅ 2 | 1 | #18 Lock Screen Widget 待实现 |
-| **合计** | **20** | **19** | **1** | |
+| P3 锦上添花 | 3 | ✅ 3 | 0 | 全部完成 |
+| **合计** | **20** | **✅ 20** | **0** | 🎉 全部完成 |
 
 ---
 
@@ -280,16 +280,16 @@
 
 ## P3 — 锦上添花
 
-### 18. Lock Screen Widget
+### 18. Lock Screen Widget ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ Lock Screen Widget (circular, rectangular, inline) | ⚠️ 只有 Home Screen Widget |
+| 状态 | ✅ Lock Screen Widget (circular, rectangular, inline) | ✅ Quick Settings Tile + Compact 2×2 Widget |
 
-**需要做：**
-- Android 14+ 支持 Lock Screen Widgets（Glance 已支持）
-- 扩展现有 `UnlockWidget` 支持 `androidx.glance.appwidget.GlanceLockScreenWidget`
-- 提供快速开锁操作
+**已完成（PR [#7](https://github.com/Sikyy/Android-mistypass/pull/7)）：**
+- Quick Settings Tile (`QuickUnlockTileService`) — 从通知栏下拉快速开锁，显示门名称+在线状态
+- Compact 2×2 Glance Widget (`QuickUnlockWidget`) — 小尺寸主屏组件，单门快速开锁
+- 注：Android 已在 API 21 移除 Lock Screen Widget，Quick Settings Tile 是现代替代方案
 
 ---
 
@@ -345,30 +345,13 @@
 
 ---
 
-## 实施建议
+## 实施记录
 
-### 第一批（P0，预计 3-4 天）
-1. Magic Link 登录 — 影响新用户首次登录体验
-2. Deep Linking — Magic Link 回调依赖此功能
-3. 组织 SSO 查询 — 企业客户必需
-4. 地理围栏 — 开关已有，补实现
+全部 20/20 项已完成 🎉
 
-### 第二批（P1，预计 3-4 天）
-5. 门禁限制条件 UI + 时间表 UI — 数据层已就绪，只需 UI
-6. 门禁重命名 — API 已有，加 UI 入口
-7. 组更新 PATCH — 一个接口 + 一个表单
-8. Wallet Pass 挂起/激活 — 两个接口 + 菜单项
-9. 访客组清理 — 一个按钮
-10. SSE 告警流（或确认 FCM 方案可接受）
-
-### 第三批（P2，预计 2-3 天）
-11. 触觉反馈 — 工具类 + 几个调用点
-12. 屏幕亮度 — 一个 Activity 属性
-13. QR 倒计时 + 分享
-14. 告警日历时区 + Space 状态
-15. Bookable Space 实时状态
-
-### 第四批（P3，预计 1-2 天）
-16. Lock Screen Widget
-17. 搜索增强
-18. 主设备标记
+| 批次 | 范围 | PR |
+|------|------|----|
+| 第一批 P0 | Magic Link, Deep Linking, SSO, Geofence | [#1](https://github.com/Sikyy/Android-mistypass/pull/1), [#2](https://github.com/Sikyy/Android-mistypass/pull/2), [#3](https://github.com/Sikyy/Android-mistypass/pull/3) |
+| 第二批 P1 | 门禁限制/时间表/重命名, 组PATCH, Wallet Pass挂起/激活, 访客清理, SSE告警 | [#4](https://github.com/Sikyy/Android-mistypass/pull/4) |
+| 第三批 P2 | 触觉反馈, 屏幕亮度, QR倒计时, 告警日历时区, Space状态 | [#5](https://github.com/Sikyy/Android-mistypass/pull/5) |
+| 第四批 P3 | Lock Screen Widget, 搜索增强, 主设备标记, 凭证挂起/激活 | [#6](https://github.com/Sikyy/Android-mistypass/pull/6), [#7](https://github.com/Sikyy/Android-mistypass/pull/7) |
