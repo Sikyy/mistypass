@@ -157,6 +157,51 @@ func TestConfigValidateRequiresGatewayBootstrapTokenInProduction(t *testing.T) {
 	}
 }
 
+func TestFromEnvGatewayMTLSConfig(t *testing.T) {
+	t.Setenv("GATEWAY_MTLS_ADDR", "9443")
+	t.Setenv("GATEWAY_MTLS_SERVER_CERT_PEM", "server-cert")
+	t.Setenv("GATEWAY_MTLS_SERVER_KEY_PEM", "server-key")
+	t.Setenv("GATEWAY_CA_CERT_PEM", "ca-cert")
+	t.Setenv("GATEWAY_CA_KEY_PEM", "ca-key")
+
+	cfg := FromEnv()
+	if cfg.GatewayMTLSAddr != ":9443" {
+		t.Fatalf("expected normalized gateway mTLS addr, got %q", cfg.GatewayMTLSAddr)
+	}
+	if cfg.GatewayMTLSServerCertPEM != "server-cert" {
+		t.Fatalf("unexpected gateway mTLS server cert")
+	}
+	if cfg.GatewayMTLSServerKeyPEM != "server-key" {
+		t.Fatalf("unexpected gateway mTLS server key")
+	}
+	if cfg.GatewayCACertPEM != "ca-cert" || cfg.GatewayCAKeyPEM != "ca-key" {
+		t.Fatalf("unexpected gateway CA config")
+	}
+}
+
+func TestConfigValidateGatewayMTLSRequiresCertificates(t *testing.T) {
+	cfg := Config{GatewayMTLSAddr: ":9443"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail without gateway mTLS server cert")
+	}
+
+	cfg.GatewayMTLSServerCertPEM = "server-cert"
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail without gateway mTLS server key")
+	}
+
+	cfg.GatewayMTLSServerKeyPEM = "server-key"
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected validate to fail without gateway CA cert/key")
+	}
+
+	cfg.GatewayCACertPEM = "ca-cert"
+	cfg.GatewayCAKeyPEM = "ca-key"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected validate to pass with gateway mTLS certs: %v", err)
+	}
+}
+
 func TestConfigValidateRejectsDemoUsersInProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "test-secret")

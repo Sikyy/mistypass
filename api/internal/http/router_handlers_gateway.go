@@ -1459,8 +1459,8 @@ type gatewayConfigAuthzCache struct {
 	VisitorPasses   []access.VisitorPass          `json:"visitor_passes,omitempty"`
 	Users           []access.AccessUser           `json:"users,omitempty"`
 	UserGroups      []access.UserGroup            `json:"user_groups,omitempty"`
-	AccessRules     []gatewayConfigAccessRule      `json:"access_rules,omitempty"`
-	LockdownLocks   []string                       `json:"lockdown_locks,omitempty"`
+	AccessRules     []gatewayConfigAccessRule     `json:"access_rules,omitempty"`
+	LockdownLocks   []string                      `json:"lockdown_locks,omitempty"`
 }
 
 func (s *server) buildGatewayConfigAuthzCache(tenantID, gatewayID string, boundDoorIDs []string, generatedAt time.Time) gatewayConfigAuthzCache {
@@ -1531,67 +1531,7 @@ func (s *server) buildGatewayAccessRules(
 		return nil
 	}
 
-	boundDoorSet := make(map[string]struct{}, len(boundDoorIDs))
-	for _, id := range boundDoorIDs {
-		boundDoorSet[id] = struct{}{}
-	}
-
-	// Build user → accessible lock IDs (within this gateway's bound doors)
-	userLockAccess := make(map[string][]string) // userID → []lockID
-	doorGroups := s.spaceSvc.ListDoorGroups(tenantID)
-	allDoors := s.spaceSvc.ListDoors(tenantID)
-
-	for _, user := range users {
-		lockIDs := make(map[string]struct{})
-
-		// Via user groups → door groups
-		for _, ug := range userGroups {
-			if !containsString(user.GroupIDs, ug.ID) {
-				continue
-			}
-			// Door groups in same building
-			for _, dg := range doorGroups {
-				for _, doorID := range dg.DoorIDs {
-					if _, bound := boundDoorSet[doorID]; bound {
-						lockIDs[doorID] = struct{}{}
-					}
-				}
-			}
-			// All doors in the building where this group applies
-			for _, door := range allDoors {
-				if _, bound := boundDoorSet[door.ID]; !bound {
-					continue
-				}
-				if door.BuildingID == ug.BuildingID || door.BuildingID == ug.PlaceID {
-					lockIDs[door.ID] = struct{}{}
-				}
-			}
-		}
-
-		// Via role assignments
-		for _, ra := range s.accessSvc.ListRoleAssignments(tenantID) {
-			if ra.AssigneeType != "User" || ra.AssigneeID != user.ID {
-				continue
-			}
-			for _, door := range allDoors {
-				if _, bound := boundDoorSet[door.ID]; !bound {
-					continue
-				}
-				if ra.AppliesToType == "Organization" || (ra.AppliesToType == "Place" && ra.AppliesToID == door.BuildingID) {
-					lockIDs[door.ID] = struct{}{}
-				}
-			}
-		}
-
-		if len(lockIDs) > 0 {
-			ids := make([]string, 0, len(lockIDs))
-			for id := range lockIDs {
-				ids = append(ids, id)
-			}
-			sort.Strings(ids)
-			userLockAccess[user.ID] = ids
-		}
-	}
+	userLockAccess := s.buildGatewayUserLockAccessForUsers(tenantID, boundDoorIDs, users, userGroups)
 
 	// Map credentials → users → access rules.
 	// All credentials expire in 72h (MaxOfflineDuration). When the gateway is
@@ -1682,6 +1622,93 @@ func (s *server) buildGatewayAccessRules(
 	}
 
 	return rules
+}
+
+func (s *server) buildGatewayUserLockAccess(tenantID string, boundDoorIDs []string) map[string][]string {
+	if s.accessSvc == nil || s.spaceSvc == nil || len(boundDoorIDs) == 0 {
+		return nil
+	}
+	scope, _, buildingIDSet, _, _ := s.gatewayConfigAuthzScopeFromBoundDoors(tenantID, boundDoorIDs)
+	if len(scope.DoorIDs) == 0 {
+		return nil
+	}
+	userGroups := s.gatewayConfigAuthzUserGroups(tenantID, true, buildingIDSet)
+	allowedUserGroupIDs := make(map[string]struct{}, len(userGroups))
+	for i := range userGroups {
+		allowedUserGroupIDs[userGroups[i].ID] = struct{}{}
+	}
+	users := s.gatewayConfigAuthzUsers(tenantID, true, buildingIDSet, allowedUserGroupIDs)
+	return s.buildGatewayUserLockAccessForUsers(tenantID, boundDoorIDs, users, userGroups)
+}
+
+func (s *server) buildGatewayUserLockAccessForUsers(
+	tenantID string,
+	boundDoorIDs []string,
+	users []access.AccessUser,
+	userGroups []access.UserGroup,
+) map[string][]string {
+	if s.accessSvc == nil || s.spaceSvc == nil || len(boundDoorIDs) == 0 || len(users) == 0 {
+		return nil
+	}
+
+	boundDoorSet := make(map[string]struct{}, len(boundDoorIDs))
+	for _, id := range boundDoorIDs {
+		if nextID := strings.TrimSpace(id); nextID != "" {
+			boundDoorSet[nextID] = struct{}{}
+		}
+	}
+	if len(boundDoorSet) == 0 {
+		return nil
+	}
+
+	userLockAccess := make(map[string][]string)
+	doorGroups := s.spaceSvc.ListDoorGroups(tenantID)
+	allDoors := s.spaceSvc.ListDoors(tenantID)
+	roleAssignments := s.accessSvc.ListRoleAssignments(tenantID)
+
+	for _, user := range users {
+		lockIDs := make(map[string]struct{})
+
+		for _, ug := range userGroups {
+			if !containsString(user.GroupIDs, ug.ID) {
+				continue
+			}
+			for _, dg := range doorGroups {
+				for _, doorID := range dg.DoorIDs {
+					if _, bound := boundDoorSet[doorID]; bound {
+						lockIDs[doorID] = struct{}{}
+					}
+				}
+			}
+			for _, door := range allDoors {
+				if _, bound := boundDoorSet[door.ID]; !bound {
+					continue
+				}
+				if door.BuildingID == ug.BuildingID || door.BuildingID == ug.PlaceID {
+					lockIDs[door.ID] = struct{}{}
+				}
+			}
+		}
+
+		for _, ra := range roleAssignments {
+			if ra.AssigneeType != "User" || ra.AssigneeID != user.ID {
+				continue
+			}
+			for _, door := range allDoors {
+				if _, bound := boundDoorSet[door.ID]; !bound {
+					continue
+				}
+				if ra.AppliesToType == "Organization" || (ra.AppliesToType == "Place" && ra.AppliesToID == door.BuildingID) {
+					lockIDs[door.ID] = struct{}{}
+				}
+			}
+		}
+
+		if len(lockIDs) > 0 {
+			userLockAccess[user.ID] = sortedSetKeys(lockIDs)
+		}
+	}
+	return userLockAccess
 }
 
 func findUserByID(users []access.AccessUser, id string) *access.AccessUser {

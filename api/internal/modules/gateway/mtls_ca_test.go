@@ -89,6 +89,35 @@ func TestSignCSR(t *testing.T) {
 	}
 }
 
+func TestSignGatewayCSRRejectsSubjectMismatch(t *testing.T) {
+	ca, err := NewDeviceCA()
+	if err != nil {
+		t.Fatalf("NewDeviceCA: %v", err)
+	}
+
+	gwKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   "gw_attacker",
+			Organization: []string{"tenant_demo_jakarta"},
+		},
+	}, gwKey)
+	if err != nil {
+		t.Fatalf("create CSR: %v", err)
+	}
+	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
+
+	if _, err := ca.SignGatewayCSR(csrPEM, "gw_demo_001", "tenant_demo_jakarta"); err == nil {
+		t.Fatal("expected gateway_id mismatch to be rejected")
+	}
+	if _, err := ca.SignGatewayCSR(csrPEM, "gw_attacker", "tenant_other"); err == nil {
+		t.Fatal("expected tenant_id mismatch to be rejected")
+	}
+}
+
 func TestSignCSR_InvalidCSR(t *testing.T) {
 	ca, _ := NewDeviceCA()
 

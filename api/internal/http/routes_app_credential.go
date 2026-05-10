@@ -116,10 +116,12 @@ func (s *server) appRevokeMobileCredential(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	pushedGateways := s.pushAuthzCacheToConnectedGateways(user.TenantID)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":  "revoked",
-		"id":      credentialID,
-		"message": "credential revoked successfully",
+		"status":                 "revoked",
+		"id":                     credentialID,
+		"message":                "credential revoked successfully",
+		"pushed_gateway_configs": pushedGateways,
 	})
 }
 

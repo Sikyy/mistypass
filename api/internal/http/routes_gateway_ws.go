@@ -26,10 +26,10 @@ var wsUpgrader = websocket.Upgrader{
 
 // gwWSConn tracks a single connected gateway WebSocket.
 type gwWSConn struct {
-	conn       *websocket.Conn
-	gatewayID  string
-	tenantID   string
-	ruleVer    string // last-known rule version on gateway
+	conn        *websocket.Conn
+	gatewayID   string
+	tenantID    string
+	ruleVer     string // last-known rule version on gateway
 	connectedAt time.Time
 }
 
@@ -110,15 +110,13 @@ type gwWSMessage struct {
 }
 
 // gatewayWebSocket handles the WebSocket upgrade and ongoing communication.
-// GET /api/v1/gateway/ws?token=<device_token>
+// GET /api/v1/gateway/ws
 func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Authenticate via query param token
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
 	gatewayID := strings.TrimSpace(r.Header.Get("X-Gateway-ID"))
 	tenantID := strings.TrimSpace(r.Header.Get("X-Tenant-ID"))
 
-	if token == "" || gatewayID == "" || tenantID == "" {
-		http.Error(w, "missing token, gateway_id, or tenant_id", http.StatusUnauthorized)
+	if gatewayID == "" || tenantID == "" {
+		http.Error(w, "missing gateway_id or tenant_id", http.StatusUnauthorized)
 		return
 	}
 
@@ -129,13 +127,8 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify device token using the same logic as HTTP endpoints
-	if s.gatewayTokenStore != nil {
-		exists, matched, err := s.gatewayTokenStore.VerifyGatewayDeviceToken(record.ID, token)
-		if err != nil || !exists || !matched {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
+	if !s.authorizeGatewayWebSocketDeviceToken(w, r, record.ID) {
+		return
 	}
 
 	// Upgrade to WebSocket
@@ -166,10 +159,17 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 	var authData struct {
 		GatewayID   string `json:"gateway_id"`
 		TenantID    string `json:"tenant_id"`
-		DeviceToken string `json:"device_token"`
 		RuleVersion string `json:"rule_version"`
 	}
 	if err := json.Unmarshal(authMsg.Data, &authData); err != nil {
+		conn.Close()
+		return
+	}
+	if authData.GatewayID != "" && authData.GatewayID != gatewayID {
+		conn.Close()
+		return
+	}
+	if authData.TenantID != "" && authData.TenantID != tenantID {
 		conn.Close()
 		return
 	}
@@ -235,6 +235,28 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Info("ws: gateway disconnected", "gateway_id", gatewayID,
 		"session_duration", time.Since(gwConn.connectedAt).Round(time.Second))
+}
+
+func (s *server) authorizeGatewayWebSocketDeviceToken(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
+	if strings.TrimSpace(r.Header.Get("X-Device-Token")) != "" {
+		return s.authorizeGatewayDeviceToken(w, r, gatewayID)
+	}
+	if token, err := bearerToken(r.Header.Get("Authorization")); err == nil && strings.TrimSpace(token) != "" {
+		return s.authorizeGatewayDeviceToken(w, r, gatewayID)
+	}
+
+	queryToken := strings.TrimSpace(r.URL.Query().Get("token"))
+	if queryToken == "" {
+		return s.authorizeGatewayDeviceToken(w, r, gatewayID)
+	}
+
+	// Backwards compatibility for older gateway-agent builds. New agents send
+	// Authorization/X-Device-Token headers so device tokens do not appear in URLs.
+
+	clone := r.Clone(r.Context())
+	clone.Header = r.Header.Clone()
+	clone.Header.Set("X-Device-Token", queryToken)
+	return s.authorizeGatewayDeviceToken(w, clone, gatewayID)
 }
 
 func (s *server) handleGWWSMessage(gw *gwWSConn, raw []byte) {
@@ -323,4 +345,34 @@ func (s *server) wsInitialConfigPush(gw *gwWSConn) {
 			"version", authzCache.Version,
 		)
 	}
+}
+
+func (s *server) pushAuthzCacheToConnectedGateways(tenantID string) int {
+	if s.gwWSRegistry == nil || s.gatewaySvc == nil {
+		return 0
+	}
+
+	gateways := s.gatewaySvc.List(tenantID)
+	pushed := 0
+	for _, gw := range gateways {
+		if s.pushGatewayAuthzCache(gw.TenantID, gw.ID, gw.BoundDoorIDs) {
+			pushed++
+		}
+	}
+	return pushed
+}
+
+func (s *server) pushGatewayAuthzCache(tenantID, gatewayID string, boundDoorIDs []string) bool {
+	if s.gwWSRegistry == nil {
+		return false
+	}
+	if _, ok := s.gwWSRegistry.get(gatewayID); !ok {
+		return false
+	}
+
+	authzCache := s.buildGatewayConfigAuthzCache(tenantID, gatewayID, boundDoorIDs, time.Now().UTC())
+	configPayload, _ := json.Marshal(map[string]any{
+		"authz_cache": authzCache,
+	})
+	return s.gwWSRegistry.PushConfig(gatewayID, configPayload)
 }

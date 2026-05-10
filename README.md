@@ -334,6 +334,9 @@ Auth/session env vars:
 - `EXTERNAL_AUTH_PROVIDER` (default: `generic_oidc`; supports `generic_oidc|casdoor|ory_kratos`)
 - `EXTERNAL_AUTH_USERINFO_URL` (required when external auth enabled; userinfo/whoami endpoint)
 - `GATEWAY_BOOTSTRAP_TOKEN` (required in production; used by device-side `POST /api/v1/gateway/register` bootstrap authentication)
+- `GATEWAY_MTLS_ADDR` (optional; when set, starts a gateway-only HTTPS listener that requires verified client certificates, e.g. `:9443`)
+- `GATEWAY_MTLS_SERVER_CERT_PEM` / `GATEWAY_MTLS_SERVER_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; server certificate/key for the gateway mTLS listener)
+- `GATEWAY_CA_CERT_PEM` / `GATEWAY_CA_KEY_PEM` (required when `GATEWAY_MTLS_ADDR` is set; CA used to sign and verify gateway client certificates)
 - `EXTERNAL_AUTH_TIMEOUT` (duration, default: `8s`)
 - `EXTERNAL_AUTH_DEFAULT_ROLE` (default: `resident`; fallback role when provider payload has no role)
 - `REDIS_ADDR` (optional; when configured, auth refresh session, revoked access token blacklist, and API/login rate-limit counters migrate to Redis-compatible backend)
@@ -416,8 +419,11 @@ Gateway bootstrap auth:
 
 - `POST /api/v1/gateway/register` requires `X-Bootstrap-Token: <bootstrap_token>` (or `Authorization: Bearer <bootstrap_token>`) and then returns `device_token`
 - `bootstrap_token` comes from server-side `GATEWAY_BOOTSTRAP_TOKEN`
-- Other `/api/v1/gateway/*` bootstrap endpoints require `X-Device-Token: <device_token>`
+- Other `/api/v1/gateway/*` device endpoints require `X-Device-Token: <device_token>`
 - `Authorization: Bearer <device_token>` is also accepted
+- Gateway device requests should identify the device with `X-Gateway-ID` and `X-Tenant-ID`; `/credentials/sync` and `/audit/batch` also accept `gateway_id` / `tenant_id` query parameters for compatibility.
+- When `GATEWAY_MTLS_ADDR` is configured, `/api/v1/gateway/*` is also served on a dedicated TLS 1.3 listener that requires a gateway client certificate signed by `GATEWAY_CA_CERT_PEM`; the client certificate subject must bind `CN=<gateway_id>` and `O=<tenant_id>`.
+- `GET /api/v1/gateway/ws` authenticates new gateway agents with `Authorization: Bearer <device_token>` / `X-Device-Token`; legacy `?token=` remains accepted only for compatibility.
 - `POST /api/v1/gateway/config/pull` returns desired config version + bound doors/devices, and now includes `authz_cache` (scoped by bound doors) with `version/generated_at/expires_at/ttl_seconds/scope/counts`, plus `policy` (`fallback_mode/no_cache_behavior/max_stale_seconds/stale_until/rollback_version`) and `status_codes` (`AUTHZ_CACHE_*`) for edge-side expiry/rollback handling. Request may carry optional `authz_cache_version`; response returns `authz_cache.status` (`AUTHZ_CACHE_FRESH|STALE|MISSING|DRIFT`).
 - `POST /api/v1/gateway/config/applied` accepts optional `authz_cache_version` and returns `authz_cache.version_match` + `authz_cache.status`; mismatch writes audit `gateway_config_authz_cache_version_drift` for drift tracing, match updates next pull `policy.rollback_version`.
 - `POST /api/v1/gateway/events/access` and `POST /api/v1/gateway/events/device` now persist into event module and support replay dedup by `idempotency_key` (or fallback `request_id`/`event_id`).

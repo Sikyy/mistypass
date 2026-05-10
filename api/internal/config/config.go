@@ -141,7 +141,7 @@ type Config struct {
 	UploadMaxSizeBytes                                           int64
 	UploadURLTTL                                                 time.Duration
 	SelfRegistrationEnabled                                      bool
-	DefaultTimezone                                               string
+	DefaultTimezone                                              string
 	ReportEmailEnabled                                           bool
 	CameraEnabled                                                bool
 	CameraVaultMasterKey                                         string
@@ -151,6 +151,9 @@ type Config struct {
 	OAuth2Enabled                                                bool
 	GatewayCACertPEM                                             string // PEM-encoded CA certificate for gateway mTLS
 	GatewayCAKeyPEM                                              string // PEM-encoded CA private key for gateway mTLS
+	GatewayMTLSAddr                                              string // optional HTTPS listener address for gateway mTLS traffic
+	GatewayMTLSServerCertPEM                                     string // PEM-encoded server certificate for gateway mTLS listener
+	GatewayMTLSServerKeyPEM                                      string // PEM-encoded server private key for gateway mTLS listener
 }
 
 func FromEnv() Config {
@@ -640,6 +643,11 @@ func loadGatewayConfig(cfg *Config) {
 	// If not set, a new CA is auto-generated (dev mode — certs won't survive restart).
 	cfg.GatewayCACertPEM = envString("GATEWAY_CA_CERT_PEM")
 	cfg.GatewayCAKeyPEM = envString("GATEWAY_CA_KEY_PEM")
+	if raw := envString("GATEWAY_MTLS_ADDR"); raw != "" {
+		cfg.GatewayMTLSAddr = normalizeHTTPAddr(raw)
+	}
+	cfg.GatewayMTLSServerCertPEM = envString("GATEWAY_MTLS_SERVER_CERT_PEM")
+	cfg.GatewayMTLSServerKeyPEM = envString("GATEWAY_MTLS_SERVER_KEY_PEM")
 }
 
 func loadUploadConfig(cfg *Config) {
@@ -834,6 +842,17 @@ func (cfg Config) Validate() error {
 		case "super_admin", "tenant_admin", "operator", "building_admin", "resident":
 		default:
 			return errors.New("EXTERNAL_AUTH_DEFAULT_ROLE must be one of super_admin|tenant_admin|operator|building_admin|resident when EXTERNAL_AUTH_ENABLED is true")
+		}
+	}
+	if strings.TrimSpace(cfg.GatewayMTLSAddr) != "" {
+		if strings.TrimSpace(cfg.GatewayMTLSServerCertPEM) == "" {
+			return errors.New("GATEWAY_MTLS_SERVER_CERT_PEM is required when GATEWAY_MTLS_ADDR is set")
+		}
+		if strings.TrimSpace(cfg.GatewayMTLSServerKeyPEM) == "" {
+			return errors.New("GATEWAY_MTLS_SERVER_KEY_PEM is required when GATEWAY_MTLS_ADDR is set")
+		}
+		if strings.TrimSpace(cfg.GatewayCACertPEM) == "" || strings.TrimSpace(cfg.GatewayCAKeyPEM) == "" {
+			return errors.New("GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM are required when GATEWAY_MTLS_ADDR is set")
 		}
 	}
 	return nil

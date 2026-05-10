@@ -463,6 +463,106 @@ func (s *Service) BuildGatewayCredentialSync(tenantID string, gatewayLockIDs []s
 	return result
 }
 
+// BuildGatewayCredentialSyncSince returns credential changes relevant to a
+// gateway's bound doors since the caller's last sync version. SyncVersion is an
+// opaque, nanosecond-resolution version so same-second changes are not missed.
+func (s *Service) BuildGatewayCredentialSyncSince(tenantID string, gatewayLockIDs []string, userLockAccess map[string][]string, sinceVersion int64) []GatewayCredentialSync {
+	if strings.TrimSpace(tenantID) == "" || len(gatewayLockIDs) == 0 || len(userLockAccess) == 0 {
+		return nil
+	}
+
+	gatewayLockSet := make(map[string]struct{}, len(gatewayLockIDs))
+	for _, id := range gatewayLockIDs {
+		if nextID := strings.TrimSpace(id); nextID != "" {
+			gatewayLockSet[nextID] = struct{}{}
+		}
+	}
+	if len(gatewayLockSet) == 0 {
+		return nil
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	now := time.Now().UTC()
+	result := make([]GatewayCredentialSync, 0)
+	for i := range s.credentials {
+		c := &s.credentials[i]
+		if c.TenantID != tenantID {
+			continue
+		}
+
+		syncVersion := gatewayCredentialSyncVersion(c)
+		if syncVersion <= sinceVersion {
+			continue
+		}
+		if c.Status != "active" && c.Status != "revoked" {
+			continue
+		}
+		if c.Status == "active" && !c.ExpiresAt.After(now) {
+			continue
+		}
+
+		lockIDs := intersectGatewayLocks(gatewayLockSet, userLockAccess[c.UserID])
+		if len(lockIDs) == 0 {
+			continue
+		}
+
+		entry := GatewayCredentialSync{
+			UserID:       c.UserID,
+			UserEmail:    c.UserEmail,
+			PublicKeyPEM: c.PublicKeyPEM,
+			LockIDs:      lockIDs,
+			ExpiresAt:    c.ExpiresAt.Unix(),
+			SyncVersion:  syncVersion,
+		}
+		if c.Status == "revoked" && c.RevokedAt != nil {
+			ts := c.RevokedAt.Unix()
+			entry.RevokedAt = &ts
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
+func gatewayCredentialSyncVersion(c *MobileCredential) int64 {
+	if c == nil {
+		return 0
+	}
+	syncVersion := c.IssuedAt.UnixNano()
+	if c.RevokedAt != nil {
+		revokedVersion := c.RevokedAt.UnixNano()
+		if revokedVersion > syncVersion {
+			return revokedVersion
+		}
+		return syncVersion + 1
+	}
+	return syncVersion
+}
+
+func intersectGatewayLocks(gatewayLockSet map[string]struct{}, userLocks []string) []string {
+	if len(gatewayLockSet) == 0 || len(userLocks) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(userLocks))
+	var result []string
+	for _, id := range userLocks {
+		nextID := strings.TrimSpace(id)
+		if nextID == "" {
+			continue
+		}
+		if _, ok := gatewayLockSet[nextID]; !ok {
+			continue
+		}
+		if _, duplicate := seen[nextID]; duplicate {
+			continue
+		}
+		seen[nextID] = struct{}{}
+		result = append(result, nextID)
+	}
+	return result
+}
+
 // GetGatewayCredentialSyncSince returns all credentials with SyncVersion > sinceVersion.
 // Used by gateways for incremental credential cache updates.
 // SyncVersion is derived from the credential's IssuedAt unix timestamp when not explicitly set.

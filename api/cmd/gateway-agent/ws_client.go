@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -161,18 +160,16 @@ func (ws *WSClient) connect() error {
 		TLSClientConfig:  ws.tlsConfig(),
 	}
 
-	// Add device token as query param for auth
 	token := ws.agent.activeToken()
 	url := ws.url
-	if strings.Contains(url, "?") {
-		url += "&token=" + token
-	} else {
-		url += "?token=" + token
-	}
 
 	header := http.Header{}
 	header.Set("X-Gateway-ID", ws.agent.gatewayID)
 	header.Set("X-Tenant-ID", ws.agent.tenantID)
+	if token != "" {
+		header.Set("Authorization", "Bearer "+token)
+		header.Set("X-Device-Token", token)
+	}
 
 	conn, resp, err := dialer.Dial(url, header)
 	if err != nil {
@@ -187,7 +184,6 @@ func (ws *WSClient) connect() error {
 	authData, _ := json.Marshal(map[string]string{
 		"gateway_id":   ws.agent.gatewayID,
 		"tenant_id":    ws.agent.tenantID,
-		"device_token": token,
 		"rule_version": ws.agent.ruleVersion,
 	})
 	authMsg.Data = authData

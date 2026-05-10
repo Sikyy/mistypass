@@ -229,8 +229,8 @@ func (a *Agent) registerDevice() error {
 	var result struct {
 		GatewayID   string `json:"gateway_id"`
 		DeviceToken string `json:"device_token"`
-		CertPEM     string `json:"cert_pem,omitempty"`     // signed client certificate (if CSR was provided)
-		CACertPEM   string `json:"ca_cert_pem,omitempty"`  // CA certificate for verification
+		CertPEM     string `json:"cert_pem,omitempty"`    // signed client certificate (if CSR was provided)
+		CACertPEM   string `json:"ca_cert_pem,omitempty"` // CA certificate for verification
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("register decode: %w", err)
@@ -327,9 +327,9 @@ func (a *Agent) Stop() {
 
 func (a *Agent) pullConfig() error {
 	body, _ := json.Marshal(map[string]string{
-		"gateway_id":         a.gatewayID,
-		"tenant_id":          a.tenantID,
-		"current_version":    "",
+		"gateway_id":          a.gatewayID,
+		"tenant_id":           a.tenantID,
+		"current_version":     "",
 		"authz_cache_version": a.ruleVersion,
 	})
 
@@ -472,10 +472,10 @@ func (a *Agent) renewMTLSCert() {
 // --- Event Push (Offline-Resilient Queue) ---
 
 const (
-	eventQueueMaxSize     = 10000          // max events retained in memory during offline
-	eventPushInterval     = 5 * time.Second // base push interval
-	eventBackoffMax       = 5 * time.Minute // max backoff between retries
-	eventBatchMaxSize     = 200            // max events per HTTP batch
+	eventQueueMaxSize = 10000           // max events retained in memory during offline
+	eventPushInterval = 5 * time.Second // base push interval
+	eventBackoffMax   = 5 * time.Minute // max backoff between retries
+	eventBatchMaxSize = 200             // max events per HTTP batch
 )
 
 func (a *Agent) queueEvent(evt AccessEvent) {
@@ -637,7 +637,7 @@ func (a *Agent) pushEvents() {
 //   valid_until=30d with rulesCacheTTL=72h would create a false sense of security
 //   — the cache TTL is the binding constraint, not individual credential expiry.
 //
-//   When online, revocations propagate instantly via WebSocket credential_push.
+//   When online, revocations propagate via WebSocket config_push.
 //   The 72h window is the offline worst case, not the normal case.
 
 // VerifyCredential checks the local access rule cache and returns allow/deny.
@@ -1004,6 +1004,12 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	if a.gatewayID != "" {
+		req.Header.Set("X-Gateway-ID", a.gatewayID)
+	}
+	if a.tenantID != "" {
+		req.Header.Set("X-Tenant-ID", a.tenantID)
+	}
 	token := a.activeToken()
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
@@ -1019,7 +1025,8 @@ func (a *Agent) apiRequest(method, path string, body []byte) (*http.Response, er
 
 // deriveWSURL converts an HTTP API base URL to a WebSocket URL.
 // e.g. "https://api.example.com" → "wss://api.example.com/api/v1/gateway/ws"
-//      "http://localhost:8081"    → "ws://localhost:8081/api/v1/gateway/ws"
+//
+//	"http://localhost:8081"    → "ws://localhost:8081/api/v1/gateway/ws"
 func deriveWSURL(apiURL string) string {
 	u := strings.TrimRight(apiURL, "/")
 	if strings.HasPrefix(u, "https://") {

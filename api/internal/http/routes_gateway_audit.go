@@ -10,7 +10,8 @@ import (
 // POST /gateway/audit/batch
 // Receives a batch of offline audit entries from the gateway.
 func (s *server) gatewayAuditBatch(w http.ResponseWriter, r *http.Request) {
-	if !s.authorizeGatewayBootstrapToken(w, r) {
+	record, ok := s.gatewayRecordFromDeviceRequest(w, r)
+	if !ok {
 		return
 	}
 
@@ -23,7 +24,11 @@ func (s *server) gatewayAuditBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(req.Entries) == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{"accepted": 0})
+		writeJSON(w, http.StatusOK, map[string]any{
+			"gateway_id": record.ID,
+			"tenant_id":  record.TenantID,
+			"accepted":   0,
+		})
 		return
 	}
 
@@ -32,7 +37,10 @@ func (s *server) gatewayAuditBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accepted, err := s.auditSvc.IngestOfflineBatch(r.Context(), req.Entries)
+	accepted, err := s.auditSvc.IngestOfflineBatchForGateway(r.Context(), audit.OfflineBatchContext{
+		TenantID:  record.TenantID,
+		GatewayID: record.ID,
+	}, req.Entries)
 	if err != nil {
 		slog.Error("audit batch ingestion failed", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -40,6 +48,8 @@ func (s *server) gatewayAuditBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"accepted": accepted,
+		"gateway_id": record.ID,
+		"tenant_id":  record.TenantID,
+		"accepted":   accepted,
 	})
 }

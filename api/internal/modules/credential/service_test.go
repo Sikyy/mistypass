@@ -418,6 +418,89 @@ func TestBuildGatewayCredentialSync(t *testing.T) {
 	}
 }
 
+func TestBuildGatewayCredentialSyncSinceScopesByTenantLocksAndVersion(t *testing.T) {
+	svc := NewService()
+	_, pubPEM := generateTestKeyPair(t)
+
+	cred, err := svc.RegisterDevice(RegisterDeviceInput{
+		TenantID: "tenant_001", UserID: "usr_sync_001", UserEmail: "sync@example.test",
+		PublicKeyPEM: pubPEM, Platform: "android", DeviceID: "dev_sync_001", KeystoreLevel: "tee",
+	})
+	if err != nil {
+		t.Fatalf("register scoped credential: %v", err)
+	}
+
+	_, pubPEM2 := generateTestKeyPair(t)
+	if _, err := svc.RegisterDevice(RegisterDeviceInput{
+		TenantID: "tenant_002", UserID: "usr_sync_002", UserEmail: "other@example.test",
+		PublicKeyPEM: pubPEM2, Platform: "android", DeviceID: "dev_sync_002", KeystoreLevel: "tee",
+	}); err != nil {
+		t.Fatalf("register other tenant credential: %v", err)
+	}
+
+	gatewayLocks := []string{"door_001", "door_002"}
+	userAccess := map[string][]string{
+		"usr_sync_001": {"door_001", "door_003"},
+		"usr_sync_002": {"door_001"},
+	}
+
+	result := svc.BuildGatewayCredentialSyncSince("tenant_001", gatewayLocks, userAccess, 0)
+	entry, ok := findGatewayCredentialSyncEntry(result, "usr_sync_001")
+	if !ok {
+		t.Fatalf("expected scoped credential in sync result, got %+v", result)
+	}
+	if len(entry.LockIDs) != 1 || entry.LockIDs[0] != "door_001" {
+		t.Fatalf("expected only intersected lock door_001, got %v", entry.LockIDs)
+	}
+	if entry.SyncVersion != cred.IssuedAt.UnixNano() {
+		t.Fatalf("expected issued_at sync version %d, got %d", cred.IssuedAt.UnixNano(), entry.SyncVersion)
+	}
+	if _, ok := findGatewayCredentialSyncEntry(result, "usr_sync_002"); ok {
+		t.Fatalf("expected other tenant credential to be excluded: %+v", result)
+	}
+
+	result = svc.BuildGatewayCredentialSyncSince("tenant_001", gatewayLocks, userAccess, cred.IssuedAt.UnixNano())
+	if _, ok := findGatewayCredentialSyncEntry(result, "usr_sync_001"); ok {
+		t.Fatalf("expected since_version to exclude already-seen credential, got %+v", result)
+	}
+}
+
+func TestBuildGatewayCredentialSyncSinceIncludesRelevantRevocations(t *testing.T) {
+	svc := NewService()
+	_, pubPEM := generateTestKeyPair(t)
+
+	cred, err := svc.RegisterDevice(RegisterDeviceInput{
+		TenantID: "tenant_001", UserID: "usr_revoke_001", UserEmail: "revoked@example.test",
+		PublicKeyPEM: pubPEM, Platform: "ios", DeviceID: "dev_revoke_001", KeystoreLevel: "strongbox",
+	})
+	if err != nil {
+		t.Fatalf("register credential: %v", err)
+	}
+	if err := svc.RevokeCredential("tenant_001", cred.ID); err != nil {
+		t.Fatalf("revoke credential: %v", err)
+	}
+
+	result := svc.BuildGatewayCredentialSyncSince(
+		"tenant_001",
+		[]string{"door_001"},
+		map[string][]string{"usr_revoke_001": {"door_001"}},
+		cred.IssuedAt.UnixNano(),
+	)
+	entry, ok := findGatewayCredentialSyncEntry(result, "usr_revoke_001")
+	if !ok {
+		t.Fatalf("expected revoked credential delta, got %+v", result)
+	}
+	if entry.RevokedAt == nil {
+		t.Fatalf("expected revoked_at to be set, got %+v", entry)
+	}
+	if entry.SyncVersion <= cred.IssuedAt.UnixNano() {
+		t.Fatalf("expected revocation sync version to advance past issue version %d, got %d", cred.IssuedAt.UnixNano(), entry.SyncVersion)
+	}
+	if *entry.RevokedAt == 0 {
+		t.Fatalf("expected revoked_at unix timestamp, got %+v", entry)
+	}
+}
+
 func TestGetGatewayCredentialSyncSince(t *testing.T) {
 	svc := NewService()
 	_, pubPEM := generateTestKeyPair(t)
@@ -485,6 +568,15 @@ func TestGetGatewayCredentialSyncSince(t *testing.T) {
 
 	// suppress unused variable warning
 	_ = cred2
+}
+
+func findGatewayCredentialSyncEntry(items []GatewayCredentialSync, userID string) (GatewayCredentialSync, bool) {
+	for _, item := range items {
+		if item.UserID == userID {
+			return item, true
+		}
+	}
+	return GatewayCredentialSync{}, false
 }
 
 // buildAttestationExtensionValue builds a DER-encoded KeyDescription ASN.1

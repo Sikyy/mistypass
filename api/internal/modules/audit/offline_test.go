@@ -49,6 +49,51 @@ func TestIngestOfflineBatch_AcceptsValidEntries(t *testing.T) {
 	}
 }
 
+func TestIngestOfflineBatchForGatewayUsesContextAndDeduplicatesEventID(t *testing.T) {
+	svc := NewService()
+	entries := []OfflineAuditEntry{
+		{
+			EventID:   "evt_context_001",
+			UserID:    "usr_1001",
+			LockID:    "door_jkt_001",
+			Method:    "ble",
+			Result:    "granted",
+			GatewayID: 1,
+			Timestamp: time.Now().Unix(),
+			IsOffline: true,
+		},
+		{
+			EventID:   "evt_context_001",
+			UserID:    "usr_1001",
+			LockID:    "door_jkt_001",
+			Method:    "ble",
+			Result:    "granted",
+			GatewayID: 1,
+			Timestamp: time.Now().Unix(),
+			IsOffline: true,
+		},
+	}
+
+	accepted, err := svc.IngestOfflineBatchForGateway(context.Background(), OfflineBatchContext{
+		TenantID:  "tenant_demo_jakarta",
+		GatewayID: "gw_demo_001",
+	}, entries)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if accepted != 1 {
+		t.Fatalf("expected duplicate event_id to be accepted once, got %d", accepted)
+	}
+
+	logs := svc.List("tenant_demo_jakarta")
+	if len(logs) == 0 {
+		t.Fatalf("expected tenant-scoped offline audit log")
+	}
+	if logs[0].Target != "door_jkt_001 event_id=evt_context_001 gateway_id=gw_demo_001" {
+		t.Fatalf("expected event and gateway context in target, got %q", logs[0].Target)
+	}
+}
+
 func TestIngestOfflineBatch_SkipsInvalidEntries(t *testing.T) {
 	svc := NewService()
 

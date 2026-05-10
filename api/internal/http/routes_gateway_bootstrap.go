@@ -66,13 +66,15 @@ func (s *server) gatewayBootstrapRegister(w http.ResponseWriter, r *http.Request
 
 	// If CSR was provided and mTLS CA is available, sign it
 	if csrPEM := request.CSRPEM; csrPEM != "" && s.gatewayDeviceCA != nil {
-		certPEM, err := s.gatewayDeviceCA.SignCSR([]byte(csrPEM))
+		certPEM, err := s.gatewayDeviceCA.SignGatewayCSR([]byte(csrPEM), record.ID, record.TenantID)
 		if err != nil {
-			s.logger.Warn("mTLS: CSR signing failed during registration", "error", err, "gateway_id", record.ID)
+			s.loggerOrDefault().Warn("mTLS: CSR signing failed during registration", "error", err, "gateway_id", record.ID)
+			writeError(w, http.StatusBadRequest, "CSR signing failed: "+err.Error())
+			return
 		} else {
 			response["cert_pem"] = string(certPEM)
 			response["ca_cert_pem"] = string(s.gatewayDeviceCA.CACertPEM)
-			s.logger.Info("mTLS: client cert issued during registration", "gateway_id", record.ID)
+			s.loggerOrDefault().Info("mTLS: client cert issued during registration", "gateway_id", record.ID)
 		}
 	}
 
@@ -256,14 +258,14 @@ func (s *server) gatewayBootstrapCertRenew(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	certPEM, err := s.gatewayDeviceCA.SignCSR([]byte(request.CSRPEM))
+	certPEM, err := s.gatewayDeviceCA.SignGatewayCSR([]byte(request.CSRPEM), record.ID, record.TenantID)
 	if err != nil {
-		s.logger.Warn("mTLS: CSR signing failed during renewal", "error", err, "gateway_id", record.ID)
+		s.loggerOrDefault().Warn("mTLS: CSR signing failed during renewal", "error", err, "gateway_id", record.ID)
 		writeError(w, http.StatusBadRequest, "CSR signing failed: "+err.Error())
 		return
 	}
 
-	s.logger.Info("mTLS: client cert renewed", "gateway_id", record.ID)
+	s.loggerOrDefault().Info("mTLS: client cert renewed", "gateway_id", record.ID)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"cert_pem":    string(certPEM),
 		"ca_cert_pem": string(s.gatewayDeviceCA.CACertPEM),

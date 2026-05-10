@@ -31,8 +31,14 @@ services:
       NATS_ENABLED: "${NATS_ENABLED:-true}"
       NATS_SERVER_URL: "nats://nats:4222"
       NATS_SUBJECT_PREFIX: mistypass
+      GATEWAY_MTLS_ADDR: "${GATEWAY_MTLS_ADDR:-}"
+      GATEWAY_MTLS_SERVER_CERT_PEM: "${GATEWAY_MTLS_SERVER_CERT_PEM:-}"
+      GATEWAY_MTLS_SERVER_KEY_PEM: "${GATEWAY_MTLS_SERVER_KEY_PEM:-}"
+      GATEWAY_CA_CERT_PEM: "${GATEWAY_CA_CERT_PEM:-}"
+      GATEWAY_CA_KEY_PEM: "${GATEWAY_CA_KEY_PEM:-}"
     ports:
       - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9443:9443"
     restart: unless-stopped
 
   postgres:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"crypto/x509"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -1038,6 +1039,14 @@ func (s *server) gatewayAuthzCacheAckVersion(gatewayID string) string {
 }
 
 func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
+	if s.authorizeGatewayClientCertificate(r, gatewayID) {
+		return true
+	}
+	if gatewayMTLSRequired(r) {
+		writeError(w, http.StatusUnauthorized, "valid gateway client certificate required")
+		return false
+	}
+
 	provided := strings.TrimSpace(r.Header.Get("X-Device-Token"))
 	if provided == "" {
 		if token, err := bearerToken(r.Header.Get("Authorization")); err == nil {
@@ -1081,6 +1090,46 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 		writeError(w, http.StatusUnauthorized, "invalid device token")
 	}
 	return false
+}
+
+func (s *server) authorizeGatewayClientCertificate(r *http.Request, gatewayID string) bool {
+	cert := verifiedGatewayClientCertificate(r)
+	if cert == nil {
+		return false
+	}
+
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" || strings.TrimSpace(cert.Subject.CommonName) != nextGatewayID {
+		return false
+	}
+
+	if s.gatewaySvc == nil {
+		return true
+	}
+	record, ok := s.gatewaySvc.FindGatewayByID("", nextGatewayID)
+	if !ok {
+		return false
+	}
+	if len(cert.Subject.Organization) == 0 {
+		return false
+	}
+	return strings.TrimSpace(cert.Subject.Organization[0]) == strings.TrimSpace(record.TenantID)
+}
+
+func verifiedGatewayClientCertificate(r *http.Request) *x509.Certificate {
+	if r == nil || r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return nil
+	}
+	if len(r.TLS.VerifiedChains) == 0 {
+		return nil
+	}
+	leaf := r.TLS.PeerCertificates[0]
+	for _, chain := range r.TLS.VerifiedChains {
+		if len(chain) > 0 && chain[0].Equal(leaf) {
+			return leaf
+		}
+	}
+	return nil
 }
 
 func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.Request) bool {
