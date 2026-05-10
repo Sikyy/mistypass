@@ -89,14 +89,6 @@ func (ws *WSClient) IsConnected() bool {
 
 // SendEvents sends an event batch over the WebSocket. Returns false if not connected.
 func (ws *WSClient) SendEvents(events []AccessEvent) bool {
-	ws.mu.Lock()
-	if !ws.connected || ws.conn == nil {
-		ws.mu.Unlock()
-		return false
-	}
-	conn := ws.conn
-	ws.mu.Unlock()
-
 	data, _ := json.Marshal(map[string]any{
 		"gateway_id": ws.agent.gatewayID,
 		"tenant_id":  ws.agent.tenantID,
@@ -105,8 +97,20 @@ func (ws *WSClient) SendEvents(events []AccessEvent) bool {
 	msg := WSMessage{Type: WSTypeEventBatch, Data: data}
 	payload, _ := json.Marshal(msg)
 
-	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-		ws.logger.Debug("ws: send events failed", "error", err)
+	return ws.writeMessage(payload)
+}
+
+// writeMessage sends a text frame while holding the write lock.
+// gorilla/websocket does not support concurrent writers, so all writes
+// (SendEvents, pong replies, auth frame) must go through this method.
+func (ws *WSClient) writeMessage(payload []byte) bool {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	if !ws.connected || ws.conn == nil {
+		return false
+	}
+	if err := ws.conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+		ws.logger.Debug("ws: write failed", "error", err)
 		return false
 	}
 	return true
@@ -250,14 +254,9 @@ func (ws *WSClient) handleMessage(raw []byte) {
 	case WSTypeConfigPush:
 		ws.handleConfigPush(msg.Data)
 	case WSTypePing:
-		// Respond with pong
 		pong := WSMessage{Type: WSTypePong}
 		payload, _ := json.Marshal(pong)
-		ws.mu.Lock()
-		if ws.conn != nil {
-			ws.conn.WriteMessage(websocket.TextMessage, payload)
-		}
-		ws.mu.Unlock()
+		ws.writeMessage(payload)
 	default:
 		ws.logger.Debug("ws: unknown message type", "type", msg.Type)
 	}
@@ -271,7 +270,26 @@ func (ws *WSClient) handleCredentialPush(data json.RawMessage) {
 	}
 
 	ws.agent.mu.Lock()
-	ws.agent.accessRules = push.AccessRules
+	if push.Incremental {
+		// Merge: update or append rules from the push, keyed by (CredentialType, CredentialData, UserID)
+		for _, incoming := range push.AccessRules {
+			found := false
+			for i, existing := range ws.agent.accessRules {
+				if existing.CredentialType == incoming.CredentialType &&
+					existing.CredentialData == incoming.CredentialData &&
+					existing.UserID == incoming.UserID {
+					ws.agent.accessRules[i] = incoming
+					found = true
+					break
+				}
+			}
+			if !found {
+				ws.agent.accessRules = append(ws.agent.accessRules, incoming)
+			}
+		}
+	} else {
+		ws.agent.accessRules = push.AccessRules
+	}
 	ws.agent.ruleVersion = push.Version
 	ws.agent.rulesUpdatedAt = time.Now().UTC()
 	ws.agent.mu.Unlock()
