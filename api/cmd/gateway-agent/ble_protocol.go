@@ -261,9 +261,11 @@ func VerifyBLESignatureV2(publicKeyPEM string, nonce [32]byte, userID string, tr
 	}
 
 	// Message: SHA256(nonce || userID || transportTag)
-	message := append(nonce[:], []byte(userID)...)
-	message = append(message, []byte(transportTag)...)
-	hash := sha256.Sum256(message)
+	msg := make([]byte, 0, 32+len(userID)+len(transportTag))
+	msg = append(msg, nonce[:]...)
+	msg = append(msg, userID...)
+	msg = append(msg, transportTag...)
+	hash := sha256.Sum256(msg)
 
 	// Try ASN.1 DER format first (standard ECDSA encoding)
 	if ecdsa.VerifyASN1(pubKey, hash[:], signature) {
