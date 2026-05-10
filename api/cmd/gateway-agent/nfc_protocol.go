@@ -63,5 +63,9 @@ func ParseNFCAuthResponse(data []byte) (*BLEAuthResponse, error) {
 	}
 	userID := string(data[1 : 1+userIDLen])
 	signature := data[1+userIDLen:]
+	// ECDSA P-256 signatures are 64 bytes (raw r||s) or ~70-72 bytes (ASN.1 DER)
+	if len(signature) < 64 {
+		return nil, fmt.Errorf("signature too short: %d bytes, minimum 64", len(signature))
+	}
 	return &BLEAuthResponse{UserID: userID, Signature: signature}, nil
 }

@@ -108,7 +108,10 @@ func TestParseAPDUResponse_TooShort(t *testing.T) {
 
 func TestParseNFCAuthResponse_Valid(t *testing.T) {
 	userID := "usr_nfc_001"
-	sig := []byte{0x30, 0x44, 0x02, 0x20, 0xAA, 0xBB}
+	sig := make([]byte, 64) // realistic P-256 raw r||s signature length
+	for i := range sig {
+		sig[i] = byte(i)
+	}
 
 	// Build: [1B len][userId][signature]
 	data := make([]byte, 1+len(userID)+len(sig))
@@ -163,7 +166,10 @@ func TestParseNFCAuthResponse_CompatibleWithBLEDecode(t *testing.T) {
 	// Both ParseNFCAuthResponse and DecodeBLEAuthResponse use the same wire format.
 	// Verify they produce equivalent results.
 	userID := "usr_compat_001"
-	sig := []byte{0x30, 0x46, 0x02, 0x21, 0x00, 0xCC}
+	sig := make([]byte, 72) // realistic ASN.1 DER ECDSA signature length
+	for i := range sig {
+		sig[i] = byte(i + 0x30)
+	}
 
 	encoded := EncodeBLEAuthResponse(userID, sig)
 
