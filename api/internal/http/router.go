@@ -751,8 +751,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 					placeRouter.Post("/guests", s.appAdminCreateGuest)
 					placeRouter.Patch("/guests/{guestId}", s.appAdminUpdateGuestStatus)
 					placeRouter.Delete("/guests/{guestId}", s.appAdminDeleteGuest)
-					// Credential revoke (admin)
+					// Credential lifecycle (admin)
 					placeRouter.Post("/credentials/{credentialId}/revoke", s.appAdminRevokeCredential)
+					placeRouter.Post("/credentials/{credentialId}/suspend", s.appAdminSuspendCredential)
+					placeRouter.Post("/credentials/{credentialId}/activate", s.appAdminActivateCredential)
 				})
 
 				// Mobile BLE credential management

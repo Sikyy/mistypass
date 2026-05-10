@@ -3,28 +3,30 @@
 > 基于 2026-05-09 双端全量代码扫描生成
 > iOS 源码：`/ios-MistyisletPass/`
 > Android 源码：`/android-MistyisletPass/`
+>
+> **最后更新：** 2026-05-10 — 19/20 已完成
 
 ---
 
 ## 汇总
 
-| 优先级 | 缺口数 | 说明 |
-|--------|--------|------|
-| P0 关键 | 4 | 直接影响用户核心登录 & 开锁流程 |
-| P1 重要 | 7 | 影响管理后台或安全功能 |
-| P2 体验 | 6 | 提升用户体验和完整度 |
-| P3 锦上添花 | 3 | 未来迭代可做 |
-| **合计** | **20** | |
+| 优先级 | 缺口数 | 已完成 | 剩余 | 说明 |
+|--------|--------|--------|------|------|
+| P0 关键 | 4 | ✅ 4 | 0 | 直接影响用户核心登录 & 开锁流程 |
+| P1 重要 | 7 | ✅ 7 | 0 | 影响管理后台或安全功能 |
+| P2 体验 | 6 | ✅ 6 | 0 | 提升用户体验和完整度 |
+| P3 锦上添花 | 3 | ✅ 2 | 1 | #18 Lock Screen Widget 待实现 |
+| **合计** | **20** | **19** | **1** | |
 
 ---
 
 ## P0 — 关键缺口
 
-### 1. Magic Link 登录
+### 1. Magic Link 登录 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ 完整 | ❌ 未实现 |
+| 状态 | ✅ 完整 | ✅ 已实现 (PR #3 P0) |
 | API | `POST /app/auth/magic-link` + `POST /app/auth/magic-link/verify` | AuthApi 只有 login / refresh / restore-password |
 | UI | AuthViewModel 有 emailEntry → magicLinkSent 状态机 | LoginViewModel 只有邮箱+密码 |
 
@@ -36,11 +38,11 @@
 
 ---
 
-### 2. 组织 SSO / 域名查询
+### 2. 组织 SSO / 域名查询 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ 完整 | ❌ 未实现 |
+| 状态 | ✅ 完整 | ✅ 已实现 (PR #3 P0) |
 | API | `GET /app/auth/org-lookup?domain={email_domain}` → OrgAuthConfig | AuthApi 无此方法 |
 | UI | AuthViewModel.lookupOrganization() → 根据结果走 SSO/SAML 或密码登录 | 无 |
 
@@ -52,11 +54,11 @@
 
 ---
 
-### 3. 地理围栏实际实现
+### 3. 地理围栏实际实现 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ GeofenceService 完整实现 | ⚠️ 仅有 UI 开关，无实际功能 |
+| 状态 | ✅ GeofenceService 完整实现 | ✅ GeofenceManager + BroadcastReceiver (PR #3 P0) |
 | 功能 | 50m 圆形围栏、进入/退出通知、最多 20 个、syncGeofences 自动同步 | ProfileViewModel 有 `KEY_GEOFENCE_ENABLED` toggle，但无 GeofencingClient 调用 |
 
 **需要做：**
@@ -70,11 +72,11 @@
 
 ---
 
-### 4. Deep Linking
+### 4. Deep Linking ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ Custom Scheme + Universal Links | ❌ Intent Filter 存在但未配置 |
+| 状态 | ✅ Custom Scheme + Universal Links | ✅ DeepLinkHandler + App Links (PR #3 P0) |
 | iOS 路由 | `mistyislet://unlock/{doorId}` → 门禁页<br>`mistyislet://pass` → 钱包页<br>`mistyislet://dashboard` → 历史页<br>`mistyislet://profile` → 个人页<br>`https://app.mistyislet.com/visitor/{token}` → 访客认证 | 无 |
 
 **需要做：**
@@ -88,11 +90,11 @@
 
 ## P1 — 重要缺口
 
-### 5. SSE 告警实时流
+### 5. SSE 告警实时流 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `GET /app/alarms/stream` SSE | ❌ 依赖 FCM 推送 |
+| 状态 | ✅ `GET /app/alarms/stream` SSE | ✅ AlarmStreamManager + OkHttp EventSource (PR #4 P1) |
 | 实现 | AlarmsViewModel.startStreaming() + 指数退避重连 | AdminApi 无 stream 方法 |
 | 延迟 | ~0ms（实时） | ~2-5s（FCM 延迟） |
 
@@ -107,25 +109,26 @@
 
 ---
 
-### 6. Wallet Pass 挂起 / 激活
+### 6. Wallet Pass 挂起 / 激活 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ suspend / activate / revoke 三个操作 | ⚠️ 只有 revoke |
-| API | `PATCH /wallet/passes/{passId}/suspend`<br>`PATCH /wallet/passes/{passId}/activate`<br>`PATCH /wallet/passes/{passId}/revoke` | AdminApi 只有 revokeCredential |
+| 状态 | ✅ suspend / activate / revoke 三个操作 | ✅ suspend / activate / revoke 三个操作 |
+| API | `PATCH /wallet/passes/{passId}/suspend`<br>`PATCH /wallet/passes/{passId}/activate`<br>`PATCH /wallet/passes/{passId}/revoke` | AdminApi: `suspendCredential()`, `activateCredential()`, `revokeCredential()` |
 
-**需要做：**
+**已完成：** PR #6
 - AdminApi 新增 `suspendCredential()` 和 `activateCredential()` 方法
-- AdminDigitalCredentialsScreen 的凭证操作菜单增加"挂起"和"激活"选项
-- 状态联动：挂起的凭证不可用但可恢复，吊销不可恢复
+- AdminRepository 新增对应 repository 方法
+- AdminDigitalCredentialsScreen 凭证详情增加"暂停"和"激活"按钮
+- 后端新增 `POST /app/places/{placeId}/credentials/{credentialId}/suspend|activate` 路由
 
 ---
 
-### 7. 门禁限制条件 UI
+### 7. 门禁限制条件 UI ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ 展示 DoorRestriction 列表 | ⚠️ API 已调用但无 UI |
+| 状态 | ✅ 展示 DoorRestriction 列表 | ✅ DoorRestrictionsSheet (Admin Parity PR #2) |
 | 数据 | type, latitude, longitude, radiusMeters, isEnabled | PlaceApi 有 `getDoorRestrictions()` |
 
 **需要做：**
@@ -136,11 +139,11 @@
 
 ---
 
-### 8. 门禁时间表查看/编辑 UI
+### 8. 门禁时间表查看/编辑 UI ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ DoorSchedules 列表展示 | ⚠️ API 已调用但无 UI |
+| 状态 | ✅ DoorSchedules 列表展示 | ✅ DoorSchedulesSheet (Admin Parity PR #2) |
 | 数据 | schedule name, type, startTime, endTime, daysOfWeek | PlaceApi 有 `getDoorSchedules()` |
 
 **需要做：**
@@ -151,11 +154,11 @@
 
 ---
 
-### 9. 门禁重命名
+### 9. 门禁重命名 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `renameDoor(placeId:doorId:name:)` | ❌ AdminApi 有 PATCH 方法但无 UI 入口 |
+| 状态 | ✅ `renameDoor(placeId:doorId:name:)` | ✅ AdminApi.renameDoor + UI (Admin Parity PR #2) |
 
 **需要做：**
 - 门禁详情页/长按菜单增加"重命名"选项
@@ -165,11 +168,11 @@
 
 ---
 
-### 10. 组更新（PATCH）
+### 10. 组更新（PATCH）✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `updateGroup(placeId:groupId:name:description:)` PATCH | ❌ 只有 create / delete |
+| 状态 | ✅ `updateGroup(placeId:groupId:name:description:)` PATCH | ✅ AdminApi.updateGroup + EditDialog (PR #4 P1) |
 | API | iOS 调用 `PATCH /app/places/{placeId}/groups/{groupId}` | AdminApi 无此方法 |
 
 **需要做：**
@@ -179,11 +182,11 @@
 
 ---
 
-### 11. 访客组清理过期成员
+### 11. 访客组清理过期成员 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `cleanupExpiredVisitors(placeId:groupId:)` | ❌ PlaceApi 有 cleanup-expired 但 VisitorsViewModel 未调用 |
+| 状态 | ✅ `cleanupExpiredVisitors(placeId:groupId:)` | ✅ VisitorsViewModel.cleanupExpired() (Admin Parity PR #2) |
 
 **需要做：**
 - VisitorsViewModel 增加 `cleanupExpired()` 方法
@@ -195,11 +198,11 @@
 
 ## P2 — 体验提升
 
-### 12. 触觉反馈
+### 12. 触觉反馈 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ HapticService（holdStart / unlockGranted / unlockDenied / buttonTap） | ❌ 无 |
+| 状态 | ✅ HapticService | ✅ HapticHelper + VibrationEffect (P2) |
 
 **需要做：**
 - 新增 `HapticHelper` 工具类，使用 `HapticFeedbackConstants` 或 `VibrationEffect`
@@ -211,11 +214,11 @@
 
 ---
 
-### 13. 屏幕亮度控制
+### 13. 屏幕亮度控制 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ 展示通行证时自动提高到 100% 亮度 | ❌ 无 |
+| 状态 | ✅ 展示通行证时自动提高到 100% 亮度 | ✅ screenBrightness 1.0f (P2) |
 
 **需要做：**
 - 在 QR 码 / PIN 码展示页，将 `WindowManager.LayoutParams.screenBrightness` 设为 1.0f
@@ -224,11 +227,11 @@
 
 ---
 
-### 14. 通行证动态 QR 自动刷新优化
+### 14. 通行证动态 QR 自动刷新优化 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ WalletView 有完整的自动刷新 + 倒计时 + 过期提示 | ⚠️ 有 30s 刷新但无倒计时 UI |
+| 状态 | ✅ WalletView 有完整的自动刷新 + 倒计时 + 过期提示 | ✅ CircularProgressIndicator 倒计时环 (PR #5 P2) |
 
 **需要做：**
 - QR 码展示页增加倒计时进度条（环形或线性）
@@ -237,11 +240,11 @@
 
 ---
 
-### 15. 访客 QR 码分享
+### 15. 访客 QR 码分享 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ 生成 QR + 可分享 | ⚠️ 生成 QR 但无分享入口 |
+| 状态 | ✅ 生成 QR + 可分享 | ✅ Intent.ACTION_SEND 分享 (P2) |
 
 **需要做：**
 - 访客 QR 码页增加分享按钮
@@ -249,11 +252,11 @@
 
 ---
 
-### 16. 告警日历时区参数
+### 16. 告警日历时区参数 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `fetchAlarmCalendar(timezone: "Asia/Jakarta")` | ⚠️ 只传 from/to 不传 timezone |
+| 状态 | ✅ `fetchAlarmCalendar(timezone: "Asia/Jakarta")` | ✅ 默认 TimeZone.getDefault().id (PR #5 P2) |
 | API | `GET /app/alarm-schedules/calendar?timezone=Asia/Jakarta` | `@Query("from")` + `@Query("to")` |
 
 **需要做：**
@@ -262,11 +265,11 @@
 
 ---
 
-### 17. Bookable Space 状态查询
+### 17. Bookable Space 状态查询 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `GET /app/bookable-spaces/{spaceId}/status` | ❌ 未调用 |
+| 状态 | ✅ `GET /app/bookable-spaces/{spaceId}/status` | ✅ SpaceRow 状态圆点 (PR #5 P2) |
 
 **需要做：**
 - AdminApi 新增 `getBookableSpaceStatus(spaceId)` 方法
@@ -290,11 +293,11 @@
 
 ---
 
-### 19. 管理后台搜索增强
+### 19. 管理后台搜索增强 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ AdminUsersListView 有搜索 | ⚠️ 部分屏幕有搜索，部分没有 |
+| 状态 | ✅ AdminUsersListView 有搜索 | ✅ AdminListScreen 内置搜索 (Admin Parity PR #2) |
 
 **iOS 有搜索但 Android 缺失的屏幕：**
 - 用户列表搜索
@@ -307,16 +310,16 @@
 
 ---
 
-### 20. 主设备标记
+### 20. 主设备标记 ✅
 
 | | iOS | Android |
 |---|-----|---------|
-| 状态 | ✅ `POST /app/me/primary-device` | ❌ UserApi 无此方法 |
+| 状态 | ✅ `POST /app/me/primary-device` | ✅ UserApi.setPrimaryDevice() + ProfileScreen 按钮 |
 
-**需要做：**
-- UserApi 新增 `@POST("app/me/primary-device")`
-- ProfileScreen 增加"设为主设备"按钮
-- 主设备在多设备场景下优先接收推送
+**已完成：** PR #6
+- UserApi 新增 `@POST("app/me/primary-device")` → `SetPrimaryDeviceResponse`
+- ProfileViewModel 新增 `setPrimaryDevice()` 方法
+- ProfileScreen 设备设置卡片中增加"设为主设备"按钮，设置成功后显示 ✅
 
 ---
 
@@ -324,20 +327,20 @@
 
 | 端点 | iOS | Android |
 |------|-----|---------|
-| `POST /app/auth/magic-link` | ✅ | ❌ |
-| `POST /app/auth/magic-link/verify` | ✅ | ❌ |
-| `GET /app/auth/org-lookup` | ✅ | ❌ |
+| `POST /app/auth/magic-link` | ✅ | ✅ |
+| `POST /app/auth/magic-link/verify` | ✅ | ✅ |
+| `GET /app/auth/org-lookup` | ✅ | ✅ |
 | `POST /app/orgs/{orgId}/switch` | ✅ | ❌ |
 | `PATCH /app/me` (更新资料) | ✅ | ❌ |
-| `POST /app/me/primary-device` | ✅ | ❌ |
+| `POST /app/me/primary-device` | ✅ | ✅ |
 | `POST /app/credentials/nfc` | ✅ | ✅ (BindCardScreen) |
 | `GET /app/credentials/nfc` | ✅ | ❌ |
 | `DELETE /app/credentials/nfc/{id}` | ✅ | ❌ |
-| `GET /app/alarms/stream` (SSE) | ✅ | ❌ |
-| `PATCH .../groups/{groupId}` | ✅ | ❌ |
-| `PATCH /wallet/passes/{id}/suspend` | ✅ | ❌ |
-| `PATCH /wallet/passes/{id}/activate` | ✅ | ❌ |
-| `GET /app/bookable-spaces/{id}/status` | ✅ | ❌ |
+| `GET /app/alarms/stream` (SSE) | ✅ | ✅ |
+| `PATCH .../groups/{groupId}` | ✅ | ✅ |
+| `PATCH /wallet/passes/{id}/suspend` | ✅ | ✅ |
+| `PATCH /wallet/passes/{id}/activate` | ✅ | ✅ |
+| `GET /app/bookable-spaces/{id}/status` | ✅ | ✅ |
 | `GET /app/orgs/{orgId}/places/search` | ✅ | ❌ |
 
 ---
