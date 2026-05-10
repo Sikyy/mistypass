@@ -1,0 +1,3628 @@
+openapi: 3.0.3
+info:
+  title: MistyPass Cloud API
+  description: |
+    MistyPass 云端 API 内部文档。涵盖移动端（iOS/Android）、网关设备、企业集成等全部接口。
+
+    ## 认证方式
+
+    | 方式 | Header | 适用场景 |
+    |------|--------|----------|
+    | Bearer Token (JWT) | `Authorization: Bearer <access_token>` | 移动端 & Web 管理后台 |
+    | Gateway Token | `Authorization: Bearer <gateway_token>` | 网关设备上报 |
+    | SCIM Bearer | `Authorization: Bearer <scim_token>` | 企业用户同步 |
+
+    ## 环境
+
+    | 环境 | Base URL |
+    |------|----------|
+    | 本地开发 | `http://localhost:8080/api/v1` |
+    | Mock (Prism) | `http://localhost:4010/api/v1` |
+    | Staging | `https://staging-api.mistyislet.com/api/v1` |
+    | 生产 | `https://api.mistyislet.com/api/v1` |
+
+    ## 通用约定
+
+    - 所有时间字段均为 UTC ISO 8601 格式
+    - 分页列表返回 `{ "items": [...], "total": N }`
+    - 错误返回 `{ "error": "message" }`
+    - 401 表示 token 过期，客户端应自动 refresh
+    - 多租户隔离：tenant_id 从 JWT claims 中提取
+
+  version: 1.0.0
+  contact:
+    name: MistyPass 后端团队
+
+servers:
+  - url: https://staging-api.mistyislet.com/api/v1
+    description: Staging
+  - url: http://localhost:8080/api/v1
+    description: 本地开发
+
+tags:
+  - name: Auth
+    description: 认证 & 会话管理
+  - name: Profile
+    description: 用户个人信息 & 设备
+  - name: Organization
+    description: 组织 & 场所（多租户）
+  - name: Doors
+    description: 门禁操作（开锁、收藏、搜索）
+  - name: Credentials
+    description: 移动凭证 & NFC 卡
+  - name: Visitors
+    description: 访客通行证 & 访客组
+  - name: Admin-Users
+    description: "[管理] 用户管理"
+  - name: Admin-Groups
+    description: "[管理] 门禁组"
+  - name: Admin-Teams
+    description: "[管理] 团队 & 权限"
+  - name: Admin-Schedules
+    description: "[管理] 时间表"
+  - name: Admin-Events
+    description: "[管理] 事件 & 事故"
+  - name: Admin-Alarms
+    description: "[管理] 告警 & 告警计划"
+  - name: Admin-Guests
+    description: "[管理] 访客登记"
+  - name: Admin-Bookings
+    description: "[管理] 空间预订"
+  - name: Admin-Cards
+    description: "[管理] 卡片 & 数字凭证"
+  - name: Admin-Cameras
+    description: "[管理] 摄像头 & 视频"
+  - name: Admin-Analytics
+    description: "[管理] 数据分析 & 导出"
+  - name: Admin-Hardware
+    description: "[管理] 硬件重命名（门/网关/摄像头）"
+  - name: Admin-Settings
+    description: "[管理] 组织 & 场所设置"
+  - name: Gateway
+    description: 网关设备接口（设备→云端）
+  - name: Lockdown
+    description: 紧急封锁
+
+paths:
+  # ─────────────────────────────────────────────
+  # AUTH
+  # ─────────────────────────────────────────────
+  /app/auth/login:
+    post:
+      tags: [Auth]
+      summary: 用户登录
+      description: 支持邮箱密码登录，可选 MFA 验证码。返回 access_token + refresh_token。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: 邮箱或密码错误
+        '403':
+          description: 需要 MFA 验证码 / 账号被禁用
+        '429':
+          description: 登录频率限制
+
+  /app/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: 刷新 Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: 新 Token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Refresh token 无效或已过期
+
+  /app/auth/restore-password:
+    post:
+      tags: [Auth]
+      summary: 重置密码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: 重置邮件已发送（不泄露用户是否存在）
+
+  /app/auth/magic-link:
+    post:
+      tags: [Auth]
+      summary: 发送 Magic Link 登录链接
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Magic link 已发送
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: sent
+
+  /app/auth/magic-link/verify:
+    post:
+      tags: [Auth]
+      summary: 验证 Magic Link Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: 验证成功，返回登录态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /app/auth/org-lookup:
+    get:
+      tags: [Auth]
+      summary: 查询组织认证配置
+      description: 根据邮箱域名查询组织的 SSO/认证方式
+      parameters:
+        - name: domain
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 组织认证配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgAuthConfig'
+
+  # ─────────────────────────────────────────────
+  # PROFILE
+  # ─────────────────────────────────────────────
+  /app/me:
+    get:
+      tags: [Profile]
+      summary: 获取当前用户信息
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    patch:
+      tags: [Profile]
+      summary: 更新用户信息
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /app/me/avatar:
+    post:
+      tags: [Profile]
+      summary: 上传头像
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /app/me/change-password:
+    post:
+      tags: [Profile]
+      summary: 修改密码
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: 密码已修改
+
+  /app/me/logins:
+    get:
+      tags: [Profile]
+      summary: 获取活跃会话列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserLogin'
+
+  /app/me/logins/{loginId}:
+    delete:
+      tags: [Profile]
+      summary: 远程登出指定会话
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: loginId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已登出
+
+  /app/me/primary-device:
+    post:
+      tags: [Profile]
+      summary: 设置当前设备为主设备
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 已设置
+
+  /app/devices/apns:
+    post:
+      tags: [Profile]
+      summary: 注册 APNs 推送 Token (iOS)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_token, platform]
+              properties:
+                device_token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [ios, android]
+      responses:
+        '200':
+          description: Token 已注册
+
+  /app/devices/fcm:
+    post:
+      tags: [Profile]
+      summary: 注册 FCM 推送 Token (Android)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_token, platform]
+              properties:
+                device_token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android]
+      responses:
+        '200':
+          description: Token 已注册
+
+  # ─────────────────────────────────────────────
+  # ORGANIZATION & PLACES
+  # ─────────────────────────────────────────────
+  /app/orgs:
+    get:
+      tags: [Organization]
+      summary: 获取用户所属的组织列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+
+  /app/orgs/{orgId}/switch:
+    post:
+      tags: [Organization]
+      summary: 切换当前组织
+      description: 返回新的 token，切换到指定组织的上下文
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/orgId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+
+  /app/orgs/{orgId}/places:
+    get:
+      tags: [Organization]
+      summary: 获取组织下的场所列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/orgId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+
+  /app/orgs/{orgId}/places/search:
+    get:
+      tags: [Organization]
+      summary: 搜索场所
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/orgId'
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Place'
+
+  # ─────────────────────────────────────────────
+  # DOORS
+  # ─────────────────────────────────────────────
+  /app/access/my-doors:
+    get:
+      tags: [Doors]
+      summary: 获取我有权限的门列表（旧版平铺）
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoors'
+
+  /app/access/unlock:
+    post:
+      tags: [Doors]
+      summary: 远程开锁（旧版）
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lock_id]
+              properties:
+                lock_id:
+                  type: string
+                ble_token:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnlockResponse'
+
+  /app/access/logs:
+    get:
+      tags: [Doors]
+      summary: 获取开锁日志
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAccessLogs'
+
+  /app/access/pin-code:
+    get:
+      tags: [Doors]
+      summary: 获取 TOTP 开门 PIN 码
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pin:
+                    type: string
+                    example: "482917"
+                  expires_in:
+                    type: integer
+                    example: 30
+
+  /app/access/ble-token:
+    get:
+      tags: [Doors]
+      summary: 获取 BLE 开锁 Token
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+
+  /app/places/{placeId}/doors:
+    get:
+      tags: [Doors]
+      summary: 获取场所下的门列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoors'
+
+  /app/places/{placeId}/doors/search:
+    get:
+      tags: [Doors]
+      summary: 搜索场所内的门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDoors'
+
+  /app/places/{placeId}/doors/{doorId}/unlock:
+    post:
+      tags: [Doors]
+      summary: 远程开锁（场所维度）
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lock_id]
+              properties:
+                lock_id:
+                  type: string
+                ble_token:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnlockResponse'
+
+  /app/places/{placeId}/doors/{doorId}/favorite:
+    put:
+      tags: [Doors]
+      summary: 收藏门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          description: 已收藏
+    delete:
+      tags: [Doors]
+      summary: 取消收藏门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          description: 已取消
+
+  # ─────────────────────────────────────────────
+  # LOCKDOWN
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/lockdown:
+    post:
+      tags: [Lockdown]
+      summary: 启用场所紧急封锁
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          description: 封锁已启用
+    delete:
+      tags: [Lockdown]
+      summary: 解除场所封锁
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          description: 封锁已解除
+
+  /app/places/{placeId}/doors/{doorId}/lockdown:
+    post:
+      tags: [Lockdown]
+      summary: 启用单门封锁
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          description: 封锁已启用
+    delete:
+      tags: [Lockdown]
+      summary: 解除单门封锁
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          description: 封锁已解除
+
+  # ─────────────────────────────────────────────
+  # CREDENTIALS
+  # ─────────────────────────────────────────────
+  /app/credentials/register:
+    post:
+      tags: [Credentials]
+      summary: 注册移动凭证（BLE 公钥）
+      description: |
+        客户端生成 EC P-256 密钥对后，将公钥提交到云端注册。
+        Android 提交 Keystore attestation chain 用于安全等级验证。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterMobileCredentialRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileCredential'
+
+  /app/credentials/mobile:
+    get:
+      tags: [Credentials]
+      summary: 获取移动凭证列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMobileCredentials'
+
+  /app/credentials/mobile/{credentialId}:
+    delete:
+      tags: [Credentials]
+      summary: 吊销移动凭证
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已吊销
+
+  /app/credentials/mobile/{credentialId}/refresh:
+    post:
+      tags: [Credentials]
+      summary: 刷新移动凭证有效期
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileCredential'
+
+  /app/credentials/nfc:
+    post:
+      tags: [Credentials]
+      summary: 绑定 NFC 卡
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [card_uid]
+              properties:
+                card_uid:
+                  type: string
+                  description: NFC 卡 UID（支持冒号、短横线、空格分隔，自动标准化）
+                card_type:
+                  type: string
+                  default: desfire_ev3
+                label:
+                  type: string
+                  default: NFC Card
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NFCCard'
+        '409':
+          description: 卡已绑定其他用户
+    get:
+      tags: [Credentials]
+      summary: 获取我的 NFC 卡列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NFCCard'
+
+  /app/credentials/nfc/{credentialId}:
+    delete:
+      tags: [Credentials]
+      summary: 解绑 NFC 卡
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已解绑
+
+  /app/qr-token:
+    post:
+      tags: [Credentials]
+      summary: 生成 QR 开门 Token
+      description: 生成一次性 QR 码 Token，有效期 5 分钟
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                door_id:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+
+  # ─────────────────────────────────────────────
+  # VISITORS
+  # ─────────────────────────────────────────────
+  /app/visitor-passes:
+    get:
+      tags: [Visitors]
+      summary: 获取访客通行证列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: offset
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedVisitorPasses'
+    post:
+      tags: [Visitors]
+      summary: 创建访客通行证
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVisitorPassRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorPass'
+
+  /app/places/{placeId}/visitor-groups:
+    get:
+      tags: [Visitors]
+      summary: 获取访客组列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VisitorGroup'
+    post:
+      tags: [Visitors]
+      summary: 创建访客组
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                auto_remove_expired:
+                  type: boolean
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisitorGroup'
+
+  /app/places/{placeId}/visitor-groups/{groupId}/members:
+    get:
+      tags: [Visitors]
+      summary: 获取访客组成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VisitorGroupMember'
+
+  /app/places/{placeId}/visitor-groups/{groupId}/cleanup-expired:
+    post:
+      tags: [Visitors]
+      summary: 清理过期访客
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: integer
+
+  # ─────────────────────────────────────────────
+  # ADMIN: USERS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/users:
+    get:
+      tags: [Admin-Users]
+      summary: 获取场所用户列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminUsers'
+
+  /app/places/{placeId}/users/invite:
+    post:
+      tags: [Admin-Users]
+      summary: 邀请用户
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [member, operator, building_admin, tenant_admin]
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+
+  /app/places/{placeId}/users/{userId}/role:
+    patch:
+      tags: [Admin-Users]
+      summary: 修改用户角色
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/userId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [member, operator, building_admin, tenant_admin]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+
+  /app/places/{placeId}/users/{userId}/sign-out:
+    post:
+      tags: [Admin-Users]
+      summary: 强制登出用户
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: 已强制登出
+
+  /app/places/{placeId}/users/{userId}:
+    delete:
+      tags: [Admin-Users]
+      summary: 移除用户
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/userId'
+      responses:
+        '200':
+          description: 已移除
+
+  # ─────────────────────────────────────────────
+  # ADMIN: GROUPS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/groups:
+    get:
+      tags: [Admin-Groups]
+      summary: 获取门禁组列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminGroups'
+    post:
+      tags: [Admin-Groups]
+      summary: 创建门禁组
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGroup'
+
+  /app/places/{placeId}/groups/{groupId}:
+    patch:
+      tags: [Admin-Groups]
+      summary: 更新门禁组
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGroup'
+    delete:
+      tags: [Admin-Groups]
+      summary: 删除门禁组
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      responses:
+        '200':
+          description: 已删除
+
+  /app/places/{placeId}/groups/{groupId}/members:
+    get:
+      tags: [Admin-Groups]
+      summary: 获取组成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGroupMembers'
+    post:
+      tags: [Admin-Groups]
+      summary: 添加组成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupMember'
+
+  /app/places/{placeId}/groups/{groupId}/members/{memberId}:
+    delete:
+      tags: [Admin-Groups]
+      summary: 移除组成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已移除
+
+  /app/places/{placeId}/groups/{groupId}/doors:
+    get:
+      tags: [Admin-Groups]
+      summary: 获取组关联的门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGroupDoors'
+    post:
+      tags: [Admin-Groups]
+      summary: 添加门到组
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [door_id]
+              properties:
+                door_id:
+                  type: string
+      responses:
+        '201':
+          description: 已添加
+
+  /app/places/{placeId}/groups/{groupId}/doors/{doorId}:
+    delete:
+      tags: [Admin-Groups]
+      summary: 从组中移除门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          description: 已移除
+
+  # ─────────────────────────────────────────────
+  # ADMIN: TEAMS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/teams:
+    get:
+      tags: [Admin-Teams]
+      summary: 获取团队列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAdminTeams'
+    post:
+      tags: [Admin-Teams]
+      summary: 创建团队
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTeam'
+
+  /app/places/{placeId}/teams/{teamId}:
+    delete:
+      tags: [Admin-Teams]
+      summary: 删除团队
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已删除
+
+  /app/places/{placeId}/teams/{teamId}/members:
+    get:
+      tags: [Admin-Teams]
+      summary: 获取团队成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTeamMembers'
+    post:
+      tags: [Admin-Teams]
+      summary: 添加团队成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+
+  /app/places/{placeId}/teams/{teamId}/members/{memberId}:
+    delete:
+      tags: [Admin-Teams]
+      summary: 移除团队成员
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已移除
+
+  /app/places/{placeId}/teams/{teamId}/access-rights:
+    get:
+      tags: [Admin-Teams]
+      summary: 获取团队权限
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAccessRights'
+    post:
+      tags: [Admin-Teams]
+      summary: 分配团队权限
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, scope]
+              properties:
+                role:
+                  type: string
+                scope:
+                  type: string
+                  enum: [all, org, place, group]
+                scope_id:
+                  type: string
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamAccessRight'
+
+  /app/places/{placeId}/teams/{teamId}/access-rights/{rightId}:
+    delete:
+      tags: [Admin-Teams]
+      summary: 移除团队权限
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: teamId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: rightId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已移除
+
+  # ─────────────────────────────────────────────
+  # ADMIN: SCHEDULES
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/schedules:
+    get:
+      tags: [Admin-Schedules]
+      summary: 获取时间表列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSchedules'
+    post:
+      tags: [Admin-Schedules]
+      summary: 创建时间表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleWriteRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSchedule'
+
+  /app/places/{placeId}/schedules/{scheduleId}:
+    put:
+      tags: [Admin-Schedules]
+      summary: 更新时间表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleWriteRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSchedule'
+    delete:
+      tags: [Admin-Schedules]
+      summary: 删除时间表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已删除
+
+  # ─────────────────────────────────────────────
+  # ADMIN: EVENTS & INCIDENTS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/events:
+    get:
+      tags: [Admin-Events]
+      summary: 获取事件列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEvents'
+
+  /app/places/{placeId}/incidents:
+    get:
+      tags: [Admin-Events]
+      summary: 获取事故列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIncidents'
+
+  /app/places/{placeId}/activity:
+    get:
+      tags: [Admin-Events]
+      summary: 获取实时活动
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLiveActivity'
+
+  /app/places/{placeId}/events/{eventId}/media:
+    get:
+      tags: [Admin-Events]
+      summary: 获取事件关联的媒体文件
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventMedia'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: ALARMS
+  # ─────────────────────────────────────────────
+  /app/alarms:
+    get:
+      tags: [Admin-Alarms]
+      summary: 获取告警列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAlarms'
+
+  /app/alarms/{alarmId}/status:
+    patch:
+      tags: [Admin-Alarms]
+      summary: 更新告警状态
+      description: 支持 acknowledged / resolved / false_positive
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: alarmId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [acknowledged, resolved, false_positive]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alarm'
+
+  /app/alarms/stream:
+    get:
+      tags: [Admin-Alarms]
+      summary: 告警实时推送（SSE）
+      description: Server-Sent Events 流，实时推送新告警
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: SSE 事件流
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /app/alarm-schedules:
+    get:
+      tags: [Admin-Alarms]
+      summary: 获取告警计划
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAlarmSchedules'
+
+  /app/alarm-schedules/calendar:
+    get:
+      tags: [Admin-Alarms]
+      summary: 获取告警日历视图
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: timezone
+          in: query
+          schema:
+            type: string
+            example: Asia/Jakarta
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAlarmCalendar'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: GUESTS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/guests:
+    get:
+      tags: [Admin-Guests]
+      summary: 获取访客登记列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGuests'
+    post:
+      tags: [Admin-Guests]
+      summary: 创建访客登记
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGuestRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestVisit'
+
+  /app/places/{placeId}/guests/{guestId}:
+    patch:
+      tags: [Admin-Guests]
+      summary: 更新访客状态（签到/签退）
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [checked_in, checked_out]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestVisit'
+    delete:
+      tags: [Admin-Guests]
+      summary: 删除访客登记
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已删除
+
+  # ─────────────────────────────────────────────
+  # ADMIN: BOOKINGS
+  # ─────────────────────────────────────────────
+  /app/bookable-spaces:
+    get:
+      tags: [Admin-Bookings]
+      summary: 获取可预订空间
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookingSpaces'
+
+  /app/bookings:
+    get:
+      tags: [Admin-Bookings]
+      summary: 获取预订列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: space_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookings'
+    post:
+      tags: [Admin-Bookings]
+      summary: 创建预订
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /app/bookings/{bookingId}/cancel:
+    post:
+      tags: [Admin-Bookings]
+      summary: 取消预订
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /app/bookings/{bookingId}/check-in:
+    post:
+      tags: [Admin-Bookings]
+      summary: 预订签到
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  /app/bookings/{bookingId}/check-out:
+    post:
+      tags: [Admin-Bookings]
+      summary: 预订签退
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: CARDS & CREDENTIALS
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/cards:
+    get:
+      tags: [Admin-Cards]
+      summary: 获取卡片分配列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCards'
+
+  /app/places/{placeId}/cards/{cardId}:
+    delete:
+      tags: [Admin-Cards]
+      summary: 解绑卡片
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: cardId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已解绑
+
+  /app/places/{placeId}/credentials:
+    get:
+      tags: [Admin-Cards]
+      summary: 获取数字凭证列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDigitalCredentials'
+
+  /app/places/{placeId}/credentials/{credentialId}/revoke:
+    post:
+      tags: [Admin-Cards]
+      summary: 吊销数字凭证
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: credentialId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 已吊销
+
+  /app/places/{placeId}/zones:
+    get:
+      tags: [Admin-Cards]
+      summary: 获取区域列表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedZones'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: CAMERAS
+  # ─────────────────────────────────────────────
+  /app/cameras:
+    get:
+      tags: [Admin-Cameras]
+      summary: 获取摄像头列表
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCameras'
+
+  /app/cameras/{cameraId}/video-link:
+    get:
+      tags: [Admin-Cameras]
+      summary: 获取摄像头视频流链接
+      description: 返回 HLS 流地址，有效期有限
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  expires_at:
+                    type: string
+                    format: date-time
+
+  /app/cameras/{cameraId}/snapshot:
+    post:
+      tags: [Admin-Cameras]
+      summary: 拍摄快照
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  taken_at:
+                    type: string
+                    format: date-time
+
+  # ─────────────────────────────────────────────
+  # ADMIN: ANALYTICS & EXPORT
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/analytics/summary:
+    get:
+      tags: [Admin-Analytics]
+      summary: 获取分析概要
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+            enum: [7, 14, 30]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSummary'
+
+  /app/places/{placeId}/analytics/presence:
+    get:
+      tags: [Admin-Analytics]
+      summary: 获取用户出勤数据
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPresenceRecord'
+
+  /app/places/{placeId}/analytics/failed-attempts:
+    get:
+      tags: [Admin-Analytics]
+      summary: 获取失败尝试记录
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedFailedAttempts'
+
+  /app/places/{placeId}/reports/export:
+    post:
+      tags: [Admin-Analytics]
+      summary: 导出报告
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportExportRequest'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportExportResponse'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: HARDWARE RENAME
+  # ─────────────────────────────────────────────
+  /app/places/{placeId}/doors/{doorId}:
+    patch:
+      tags: [Admin-Hardware]
+      summary: 重命名门
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+
+  /app/gateways/{gatewayId}:
+    patch:
+      tags: [Admin-Hardware]
+      summary: 重命名网关
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: gatewayId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+
+  /app/cameras/{cameraId}:
+    patch:
+      tags: [Admin-Cameras]
+      summary: 重命名摄像头
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Camera'
+
+  # ─────────────────────────────────────────────
+  # ADMIN: SETTINGS
+  # ─────────────────────────────────────────────
+  /app/orgs/{orgId}/settings:
+    get:
+      tags: [Admin-Settings]
+      summary: 获取组织设置
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/orgId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgSettings'
+    put:
+      tags: [Admin-Settings]
+      summary: 更新组织设置
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/orgId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrgSettings'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgSettings'
+
+  /app/places/{placeId}/settings:
+    get:
+      tags: [Admin-Settings]
+      summary: 获取场所设置
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+    put:
+      tags: [Admin-Settings]
+      summary: 更新场所设置
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                address:
+                  type: string
+                timezone:
+                  type: string
+                capacity:
+                  type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+
+  /app/places/{placeId}/doors/{doorId}/restrictions:
+    get:
+      tags: [Admin-Events]
+      summary: 获取门禁限制
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+
+  /app/places/{placeId}/doors/{doorId}/schedules:
+    get:
+      tags: [Admin-Schedules]
+      summary: 获取门关联的时间表
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/placeId'
+        - $ref: '#/components/parameters/doorId'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminSchedule'
+
+  # ─────────────────────────────────────────────
+  # GATEWAY (设备→云端)
+  # ─────────────────────────────────────────────
+  /gateway/register:
+    post:
+      tags: [Gateway]
+      summary: 网关设备注册
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serial_number, model, firmware_version]
+              properties:
+                serial_number:
+                  type: string
+                model:
+                  type: string
+                firmware_version:
+                  type: string
+      responses:
+        '201':
+          description: 注册成功，返回 gateway_token
+
+  /gateway/activate:
+    post:
+      tags: [Gateway]
+      summary: 网关激活
+      security:
+        - gatewayAuth: []
+      responses:
+        '200':
+          description: 激活成功
+
+  /gateway/heartbeat:
+    post:
+      tags: [Gateway]
+      summary: 网关心跳
+      security:
+        - gatewayAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uptime_seconds:
+                  type: integer
+                firmware_version:
+                  type: string
+                connected_readers:
+                  type: integer
+      responses:
+        '200':
+          description: 心跳确认
+
+  /gateway/events:
+    post:
+      tags: [Gateway]
+      summary: 上报门禁事件
+      security:
+        - gatewayAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: 事件已接收
+
+  /gateway/config:
+    get:
+      tags: [Gateway]
+      summary: 拉取配置
+      description: 返回网关管辖的门、用户公钥、时间表等配置
+      security:
+        - gatewayAuth: []
+      responses:
+        '200':
+          description: 网关配置
+
+  /gateway/verify:
+    post:
+      tags: [Gateway]
+      summary: 在线验证 BLE 凭证
+      security:
+        - gatewayAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, nonce, signature]
+              properties:
+                user_id:
+                  type: string
+                nonce:
+                  type: string
+                  format: byte
+                signature:
+                  type: string
+                  format: byte
+      responses:
+        '200':
+          description: 验证结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verified:
+                    type: boolean
+                  credential_id:
+                    type: string
+
+# ═══════════════════════════════════════════════
+# COMPONENTS
+# ═══════════════════════════════════════════════
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    gatewayAuth:
+      type: http
+      scheme: bearer
+      description: 网关设备 Token
+
+  parameters:
+    orgId:
+      name: orgId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 组织 ID (tenant_id)
+    placeId:
+      name: placeId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 场所 ID (building_id)
+    doorId:
+      name: doorId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 门 ID
+    userId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 用户 ID
+    groupId:
+      name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 门禁组 ID
+
+  schemas:
+    # ── Auth ──
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        mfa_code:
+          type: string
+          description: 可选 TOTP 验证码
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          description: Token 有效期（秒）
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+
+    OrgAuthConfig:
+      type: object
+      properties:
+        domain:
+          type: string
+        name:
+          type: string
+        logo:
+          type: string
+          format: uri
+        methods:
+          type: array
+          items:
+            type: string
+            enum: [password, magic_link, saml, google, microsoft]
+
+    # ── User ──
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [super_admin, tenant_admin, building_admin, operator, member]
+        tenant_id:
+          type: string
+        building_ids:
+          type: array
+          items:
+            type: string
+        language:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        password_auth_enabled:
+          type: boolean
+
+    UserLogin:
+      type: object
+      properties:
+        id:
+          type: string
+        device_name:
+          type: string
+        ip_address:
+          type: string
+        last_active_at:
+          type: string
+          format: date-time
+        is_current:
+          type: boolean
+
+    # ── Organization ──
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        logo:
+          type: string
+          format: uri
+        role:
+          type: string
+        is_current:
+          type: boolean
+
+    Place:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        region:
+          type: string
+        timezone:
+          type: string
+        capacity:
+          type: integer
+
+    # ── Door ──
+    AccessibleDoor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        building_id:
+          type: string
+        floor:
+          type: string
+        area:
+          type: string
+        gateway_id:
+          type: string
+        kind:
+          type: string
+          enum: [standard, turnstile, elevator, parking_gate]
+        status:
+          type: string
+          enum: [online, offline, locked_down]
+        is_favorite:
+          type: boolean
+        lock_id:
+          type: string
+
+    UnlockResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, failed, timeout]
+        message:
+          type: string
+
+    # ── Credential ──
+    RegisterMobileCredentialRequest:
+      type: object
+      required: [public_key_pem, platform, device_id, device_model, keystore_level]
+      properties:
+        public_key_pem:
+          type: string
+          description: PEM 编码的 EC P-256 公钥
+        platform:
+          type: string
+          enum: [android, ios]
+        device_id:
+          type: string
+        device_model:
+          type: string
+        keystore_level:
+          type: string
+          enum: [strongbox, tee, software]
+          description: |
+            Android: strongbox (Titan M) > tee (TEE) > software
+            iOS: 始终为 strongbox (Secure Enclave)
+        attestation_cert_chain:
+          type: array
+          items:
+            type: string
+          description: Android Key Attestation 证书链（可选）
+
+    MobileCredential:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        device_id:
+          type: string
+        platform:
+          type: string
+        device_model:
+          type: string
+        keystore_level:
+          type: string
+        status:
+          type: string
+          enum: [active, revoked, expired]
+        issued_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    NFCCard:
+      type: object
+      properties:
+        id:
+          type: string
+        device_name:
+          type: string
+        public_key_fingerprint:
+          type: string
+          description: 标准化后的 NFC UID
+        card_type:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+
+    # ── Visitor ──
+    CreateVisitorPassRequest:
+      type: object
+      required: [visitor_name, visitor_email]
+      properties:
+        visitor_name:
+          type: string
+        visitor_email:
+          type: string
+          format: email
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        door_ids:
+          type: array
+          items:
+            type: string
+
+    VisitorPass:
+      type: object
+      properties:
+        id:
+          type: string
+        visitor_name:
+          type: string
+        visitor_email:
+          type: string
+        status:
+          type: string
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+
+    VisitorGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        member_count:
+          type: integer
+        auto_remove_expired:
+          type: boolean
+
+    VisitorGroupMember:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        status:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    # ── Admin Models ──
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        avatar_url:
+          type: string
+        last_active_at:
+          type: string
+          format: date-time
+
+    AdminGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        member_count:
+          type: integer
+        door_count:
+          type: integer
+
+    GroupMember:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+
+    GroupDoor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        floor:
+          type: string
+
+    AdminTeam:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        member_count:
+          type: integer
+
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+
+    TeamAccessRight:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+        scope:
+          type: string
+        scope_id:
+          type: string
+
+    AdminSchedule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [unlock, auto_lock, visitor_access]
+        days_of_week:
+          type: array
+          items:
+            type: integer
+        start_time:
+          type: string
+          example: "08:00"
+        end_time:
+          type: string
+          example: "18:00"
+        door_id:
+          type: string
+
+    ScheduleWriteRequest:
+      type: object
+      required: [name, type, days_of_week, start_time, end_time]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        days_of_week:
+          type: array
+          items:
+            type: integer
+        start_time:
+          type: string
+        end_time:
+          type: string
+        door_id:
+          type: string
+
+    AdminEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        actor:
+          type: string
+        door_id:
+          type: string
+        result:
+          type: string
+          enum: [granted, denied, error]
+        at:
+          type: string
+          format: date-time
+
+    AdminIncident:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        status:
+          type: string
+          enum: [open, investigating, resolved]
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Alarm:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low]
+        location:
+          type: string
+        status:
+          type: string
+          enum: [open, acknowledged, resolved, false_positive]
+        created_at:
+          type: string
+          format: date-time
+
+    AlarmSchedule:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        days_of_week:
+          type: array
+          items:
+            type: integer
+        start_time:
+          type: string
+        end_time:
+          type: string
+        alarm_types:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+
+    GuestVisit:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        company:
+          type: string
+        host_name:
+          type: string
+        status:
+          type: string
+          enum: [expected, checked_in, checked_out]
+        expected_at:
+          type: string
+          format: date-time
+        checked_in_at:
+          type: string
+          format: date-time
+        checked_out_at:
+          type: string
+          format: date-time
+
+    CreateGuestRequest:
+      type: object
+      required: [name, email, expected_at]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        company:
+          type: string
+        host_name:
+          type: string
+        expected_at:
+          type: string
+          format: date-time
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        space_id:
+          type: string
+        space_name:
+          type: string
+        user_id:
+          type: string
+        user_name:
+          type: string
+        status:
+          type: string
+          enum: [active, checked_in, completed, cancelled]
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    CreateBookingRequest:
+      type: object
+      required: [space_id, start_time, end_time]
+      properties:
+        space_id:
+          type: string
+        title:
+          type: string
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+
+    Camera:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        model:
+          type: string
+        status:
+          type: string
+          enum: [online, offline]
+        building_id:
+          type: string
+        location:
+          type: string
+
+    AnalyticsSummary:
+      type: object
+      properties:
+        total_unlocks:
+          type: integer
+        unique_users:
+          type: integer
+        peak_hour:
+          type: integer
+        top_doors:
+          type: array
+          items:
+            type: object
+            properties:
+              door_id:
+                type: string
+              door_name:
+                type: string
+              count:
+                type: integer
+        daily_trend:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              count:
+                type: integer
+        method_breakdown:
+          type: object
+          properties:
+            ble:
+              type: integer
+            nfc:
+              type: integer
+            pin:
+              type: integer
+            qr:
+              type: integer
+            remote:
+              type: integer
+        hourly_heatmap:
+          type: array
+          items:
+            type: array
+            items:
+              type: integer
+          description: 7x24 矩阵 [weekday][hour]
+
+    UserPresenceRecord:
+      type: object
+      properties:
+        user_id:
+          type: string
+        user_name:
+          type: string
+        user_email:
+          type: string
+        days_present:
+          type: integer
+        total_unlocks:
+          type: integer
+        hourly_heatmap:
+          type: array
+          items:
+            type: integer
+          description: 24 元素数组，每小时活动次数
+
+    ReportExportRequest:
+      type: object
+      required: [type, from, to, format]
+      properties:
+        type:
+          type: string
+          enum: [access_events, incidents, user_presence, door_usage, alarm_history, credential_audit]
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        format:
+          type: string
+          enum: [csv, xlsx, pdf]
+
+    ReportExportResponse:
+      type: object
+      properties:
+        download_url:
+          type: string
+          format: uri
+        file_name:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    OrgSettings:
+      type: object
+      properties:
+        name:
+          type: string
+        timezone:
+          type: string
+        send_emails:
+          type: boolean
+        email_access_assignment:
+          type: boolean
+        email_credential_assignment:
+          type: boolean
+        email_incident_alerts:
+          type: boolean
+        email_reports:
+          type: boolean
+        whatsapp_enabled:
+          type: boolean
+        whatsapp_access_assignment:
+          type: boolean
+        whatsapp_credential_assignment:
+          type: boolean
+        whatsapp_incident_alerts:
+          type: boolean
+        webauthn_enabled:
+          type: boolean
+
+    EventMedia:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [snapshot, clip]
+        url:
+          type: string
+          format: uri
+        thumbnail_url:
+          type: string
+          format: uri
+        captured_at:
+          type: string
+          format: date-time
+
+    # ── Paginated Wrappers ──
+    PaginatedDoors:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccessibleDoor'
+        total:
+          type: integer
+
+    PaginatedAccessLogs:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              door_name:
+                type: string
+              result:
+                type: string
+              method:
+                type: string
+              at:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    PaginatedMobileCredentials:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MobileCredential'
+        total:
+          type: integer
+
+    PaginatedVisitorPasses:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VisitorPass'
+        total:
+          type: integer
+
+    PaginatedAdminUsers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        total:
+          type: integer
+
+    PaginatedAdminGroups:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGroup'
+        total:
+          type: integer
+
+    PaginatedGroupMembers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMember'
+        total:
+          type: integer
+
+    PaginatedGroupDoors:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupDoor'
+        total:
+          type: integer
+
+    PaginatedAdminTeams:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminTeam'
+        total:
+          type: integer
+
+    PaginatedTeamMembers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamMember'
+        total:
+          type: integer
+
+    PaginatedAccessRights:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeamAccessRight'
+        total:
+          type: integer
+
+    PaginatedSchedules:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSchedule'
+        total:
+          type: integer
+
+    PaginatedEvents:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminEvent'
+        total:
+          type: integer
+
+    PaginatedIncidents:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminIncident'
+        total:
+          type: integer
+
+    PaginatedLiveActivity:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: string
+              user_name:
+                type: string
+              door_name:
+                type: string
+              action:
+                type: string
+              at:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    PaginatedAlarms:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alarm'
+        total:
+          type: integer
+
+    PaginatedAlarmSchedules:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlarmSchedule'
+        total:
+          type: integer
+
+    PaginatedAlarmCalendar:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              schedules:
+                type: array
+                items:
+                  type: string
+        total:
+          type: integer
+
+    PaginatedGuests:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuestVisit'
+        total:
+          type: integer
+
+    PaginatedBookingSpaces:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              capacity:
+                type: integer
+              available:
+                type: boolean
+        total:
+          type: integer
+
+    PaginatedBookings:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        total:
+          type: integer
+
+    PaginatedCards:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              card_uid:
+                type: string
+              user_id:
+                type: string
+              user_name:
+                type: string
+              user_email:
+                type: string
+              status:
+                type: string
+              assigned_at:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    PaginatedDigitalCredentials:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              user_id:
+                type: string
+              user_name:
+                type: string
+              user_email:
+                type: string
+              platform:
+                type: string
+              device_model:
+                type: string
+              status:
+                type: string
+              issued_at:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    PaginatedZones:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              door_count:
+                type: integer
+        total:
+          type: integer
+
+    PaginatedCameras:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Camera'
+        total:
+          type: integer
+
+    PaginatedFailedAttempts:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              user_name:
+                type: string
+              door_name:
+                type: string
+              method:
+                type: string
+              reason:
+                type: string
+              at:
+                type: string
+                format: date-time
+        total:
+          type: integer

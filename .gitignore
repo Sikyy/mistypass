@@ -33,3 +33,6 @@ api/openapi-extract
 
 # Screenshots / images not part of docs
 *.png
+
+# Compiled binary
+api/api
