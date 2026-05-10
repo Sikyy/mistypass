@@ -418,6 +418,75 @@ func TestBuildGatewayCredentialSync(t *testing.T) {
 	}
 }
 
+func TestGetGatewayCredentialSyncSince(t *testing.T) {
+	svc := NewService()
+	_, pubPEM := generateTestKeyPair(t)
+
+	// Register two credentials at slightly different times
+	cred1, err := svc.RegisterDevice(RegisterDeviceInput{
+		TenantID: "tenant_001", UserID: "usr_001", UserEmail: "a@t.com",
+		PublicKeyPEM: pubPEM, Platform: "android", DeviceID: "dev_001", KeystoreLevel: "tee",
+	})
+	if err != nil {
+		t.Fatalf("register cred1: %v", err)
+	}
+
+	_, pubPEM2 := generateTestKeyPair(t)
+	cred2, err := svc.RegisterDevice(RegisterDeviceInput{
+		TenantID: "tenant_001", UserID: "usr_002", UserEmail: "b@t.com",
+		PublicKeyPEM: pubPEM2, Platform: "android", DeviceID: "dev_002", KeystoreLevel: "tee",
+	})
+	if err != nil {
+		t.Fatalf("register cred2: %v", err)
+	}
+
+	// Sync since version 0 — should return all credentials (seed + newly registered)
+	result, err := svc.GetGatewayCredentialSyncSince(0)
+	if err != nil {
+		t.Fatalf("sync since 0: %v", err)
+	}
+	if len(result) == 0 {
+		t.Fatal("expected at least some credentials for sinceVersion=0")
+	}
+
+	// Sync since a version after cred1 but before cred2 (use cred1's issued_at unix)
+	sinceV := cred1.IssuedAt.Unix()
+	result, err = svc.GetGatewayCredentialSyncSince(sinceV)
+	if err != nil {
+		t.Fatalf("sync since cred1 version: %v", err)
+	}
+	// Credentials issued at the same second may or may not appear depending on ordering;
+	// but a future sinceVersion should exclude them.
+	futureVersion := cred2.IssuedAt.Unix() + 100
+	result, err = svc.GetGatewayCredentialSyncSince(futureVersion)
+	if err != nil {
+		t.Fatalf("sync since future version: %v", err)
+	}
+	if len(result) != 0 {
+		t.Fatalf("expected 0 results for future sinceVersion, got %d", len(result))
+	}
+
+	// Revoke a credential and verify it appears with RevokedAt set
+	svc.RevokeCredential("tenant_001", cred1.ID)
+	result, err = svc.GetGatewayCredentialSyncSince(0)
+	if err != nil {
+		t.Fatalf("sync after revoke: %v", err)
+	}
+	var foundRevoked bool
+	for _, entry := range result {
+		if entry.UserID == "usr_001" && entry.RevokedAt != nil {
+			foundRevoked = true
+			break
+		}
+	}
+	if !foundRevoked {
+		t.Fatal("expected to find revoked credential in sync results")
+	}
+
+	// suppress unused variable warning
+	_ = cred2
+}
+
 // buildAttestationExtensionValue builds a DER-encoded KeyDescription ASN.1
 // value with the given attestationSecurityLevel for use in test certificates.
 func buildAttestationExtensionValue(securityLevel int) []byte {

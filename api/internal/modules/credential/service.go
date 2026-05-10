@@ -463,6 +463,39 @@ func (s *Service) BuildGatewayCredentialSync(tenantID string, gatewayLockIDs []s
 	return result
 }
 
+// GetGatewayCredentialSyncSince returns all credentials with SyncVersion > sinceVersion.
+// Used by gateways for incremental credential cache updates.
+// SyncVersion is derived from the credential's IssuedAt unix timestamp when not explicitly set.
+func (s *Service) GetGatewayCredentialSyncSince(sinceVersion int64) ([]GatewayCredentialSync, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []GatewayCredentialSync
+	for i := range s.credentials {
+		c := &s.credentials[i]
+		// Derive sync version from IssuedAt if not explicitly set on the sync record
+		syncVersion := c.IssuedAt.Unix()
+		if syncVersion <= sinceVersion {
+			continue
+		}
+
+		entry := GatewayCredentialSync{
+			UserID:       c.UserID,
+			UserEmail:    c.UserEmail,
+			PublicKeyPEM: c.PublicKeyPEM,
+			ExpiresAt:    c.ExpiresAt.Unix(),
+			SyncVersion:  syncVersion,
+		}
+		if c.Status == "revoked" && c.RevokedAt != nil {
+			ts := c.RevokedAt.Unix()
+			entry.RevokedAt = &ts
+		}
+
+		result = append(result, entry)
+	}
+	return result, nil
+}
+
 // --- Helpers ---
 
 func (s *Service) validateRegisterInput(input RegisterDeviceInput) error {
