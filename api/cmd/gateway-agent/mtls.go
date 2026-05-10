@@ -85,7 +85,8 @@ func (m *DeviceMTLS) Load() bool {
 	}
 
 	// Load CA cert if available
-	if caPEM, err := os.ReadFile(caPath); err == nil { // #nosec G304 -- path from trusted certDir config
+	caPEM, caErr := os.ReadFile(caPath) // #nosec G304 -- path from trusted certDir config
+	if caErr == nil {
 		m.caCertPEM = caPEM
 	}
 

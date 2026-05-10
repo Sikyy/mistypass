@@ -1427,6 +1427,65 @@
         ],
         "type": "object"
       },
+      "GatewayCertificateRevocation": {
+        "properties": {
+          "gateway_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "revoked_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "revoked_by": {
+            "type": "string"
+          },
+          "serial_number": {
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "runtime",
+              "environment"
+            ],
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "serial_number",
+          "source"
+        ],
+        "type": "object"
+      },
+      "GatewayCertificateRevocationCreate": {
+        "properties": {
+          "gateway_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "serial_number": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "serial_number"
+        ],
+        "type": "object"
+      },
       "Group": {
         "properties": {
           "created_at": {
