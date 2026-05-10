@@ -361,8 +361,12 @@ func (s *Service) VerifyBLESignatureV2(tenantID, userID string, nonce []byte, tr
 	}
 
 	// Construct transport-bound message: nonce || userID || transportTag
-	message := append(append(nonce, []byte(userID)...), []byte(transportTag)...)
-	hash := sha256.Sum256(message)
+	// Pre-allocate to avoid aliasing the caller's nonce slice.
+	msg := make([]byte, 0, len(nonce)+len(userID)+len(transportTag))
+	msg = append(msg, nonce...)
+	msg = append(msg, []byte(userID)...)
+	msg = append(msg, []byte(transportTag)...)
+	hash := sha256.Sum256(msg)
 
 	// Try ASN.1 DER signature first
 	if ecdsa.VerifyASN1(pubKey, hash[:], signature) {
@@ -378,7 +382,7 @@ func (s *Service) VerifyBLESignatureV2(tenantID, userID string, nonce []byte, tr
 		}
 	}
 
-	return nil, errors.New("signature verification failed")
+	return nil, fmt.Errorf("v2 signature verification failed (transport=%s)", transportTag)
 }
 
 // --- Credential Refresh ---

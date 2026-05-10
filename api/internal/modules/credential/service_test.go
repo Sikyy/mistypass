@@ -598,8 +598,11 @@ func TestVerifyBLESignatureV2_TransportBinding(t *testing.T) {
 	const nfcTag = "NFC_HCE"
 
 	// Sign with BLE transport tag: SHA256(nonce || userID || "BLE")
-	message := append(append(nonce, []byte("usr_001")...), []byte(bleTag)...)
-	hash := sha256.Sum256(message)
+	msg := make([]byte, 0, len(nonce)+len("usr_001")+len(bleTag))
+	msg = append(msg, nonce...)
+	msg = append(msg, []byte("usr_001")...)
+	msg = append(msg, []byte(bleTag)...)
+	hash := sha256.Sum256(msg)
 	signature, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
 	if err != nil {
 		t.Fatalf("sign: %v", err)
