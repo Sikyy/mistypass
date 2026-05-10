@@ -16,15 +16,21 @@ type NFCHCEReader struct {
 	reader  *NFCReader
 	stopCh  chan struct{}
 	running bool
+
+	// Debounce: prevent repeated grants for the same user within cooldown period.
+	lastGrantedUser string
+	lastGrantedAt   time.Time
+	cooldown        time.Duration
 }
 
 func NewNFCHCEReader(logger *slog.Logger, lockID string, agent *Agent, driver NFCDriver) *NFCHCEReader {
 	return &NFCHCEReader{
-		logger: logger,
-		lockID: lockID,
-		agent:  agent,
-		reader: NewNFCReader(driver, "NFC-HCE"),
-		stopCh: make(chan struct{}),
+		logger:   logger,
+		lockID:   lockID,
+		agent:    agent,
+		reader:   NewNFCReader(driver, "NFC-HCE"),
+		stopCh:   make(chan struct{}),
+		cooldown: 5 * time.Second,
 	}
 }
 
@@ -86,6 +92,18 @@ func (r *NFCHCEReader) handleOnce() {
 	result := r.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagNFCHCE)
 
 	if result.Code == BLEResultGranted {
+		// Debounce: skip if same user was just granted within cooldown
+		now := time.Now()
+		if response.UserID == r.lastGrantedUser && now.Sub(r.lastGrantedAt) < r.cooldown {
+			r.logger.Debug("NFC HCE: debounce skip",
+				"user_id", response.UserID,
+				"since_last", now.Sub(r.lastGrantedAt).String(),
+			)
+			return
+		}
+		r.lastGrantedUser = response.UserID
+		r.lastGrantedAt = now
+
 		r.logger.Info("NFC HCE ACCESS GRANTED",
 			"user_id", response.UserID,
 			"lock_id", r.lockID,

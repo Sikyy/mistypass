@@ -70,6 +70,12 @@ type AccessEvent struct {
 func (a *Agent) Start() error {
 	a.stopCh = make(chan struct{})
 
+	// Derive numeric gateway ID from string ID (used in v2 challenges for binding)
+	if a.gatewayID != "" {
+		h := sha256.Sum256([]byte(a.gatewayID))
+		a.gatewayIDUint32 = binary.BigEndian.Uint32(h[:4])
+	}
+
 	// Initialize nonce replay-protection cache for v2 challenge verification
 	a.nonceCache = NewNonceCache(10000, 30*time.Second)
 
@@ -101,8 +107,13 @@ func (a *Agent) Start() error {
 		a.logger.Debug("no persisted device token found, will register", "error", err)
 	}
 
-	// If no device token, register with bootstrap token
-	if a.activeToken() == a.bootstrapToken {
+	// If no device token persisted, attempt registration with bootstrap token.
+	// Check deviceToken directly (not activeToken) to avoid false triggers when
+	// the device token file contains the same value as the bootstrap token.
+	a.mu.RLock()
+	hasDeviceToken := a.deviceToken != ""
+	a.mu.RUnlock()
+	if !hasDeviceToken && a.bootstrapToken != "" {
 		a.logger.Info("no device token, attempting registration with bootstrap token")
 		if err := a.registerDevice(); err != nil {
 			a.logger.Warn("device registration failed, falling back to bootstrap token", "error", err)
