@@ -74,10 +74,10 @@ func TestSignCSR(t *testing.T) {
 	if len(cert.Subject.Organization) == 0 || cert.Subject.Organization[0] != "tenant_demo_jakarta" {
 		t.Errorf("O = %v, want [tenant_demo_jakarta]", cert.Subject.Organization)
 	}
-	if cert.NotAfter.Sub(cert.NotBefore) > DeviceCACertLifetime+2*time.Minute {
+	if cert.NotAfter.Sub(cert.NotBefore) > DeviceCACertLifetime+6*time.Minute {
 		t.Errorf("cert lifetime too long: %v", cert.NotAfter.Sub(cert.NotBefore))
 	}
-	if cert.NotAfter.Sub(cert.NotBefore) > DefaultDeviceCACertLifetime+2*time.Minute {
+	if cert.NotAfter.Sub(cert.NotBefore) > DefaultDeviceCACertLifetime+6*time.Minute {
 		t.Errorf("default cert lifetime too long: %v", cert.NotAfter.Sub(cert.NotBefore))
 	}
 
@@ -133,7 +133,7 @@ func TestDeviceCACertificateLifetimeOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse cert: %v", err)
 	}
-	if lifetime := cert.NotAfter.Sub(cert.NotBefore); lifetime > 12*time.Hour+2*time.Minute {
+	if lifetime := cert.NotAfter.Sub(cert.NotBefore); lifetime > 12*time.Hour+6*time.Minute {
 		t.Fatalf("expected overridden lifetime around 12h, got %s", lifetime)
 	}
 

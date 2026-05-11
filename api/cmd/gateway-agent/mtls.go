@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,7 @@ import (
 type DeviceMTLS struct {
 	certDir string // directory to store cert + key (e.g. /var/lib/mistypass/mtls/)
 
+	mu         sync.RWMutex
 	privateKey *ecdsa.PrivateKey
 	certPEM    []byte
 	caCertPEM  []byte // CA cert for server verification
@@ -57,7 +59,6 @@ func (m *DeviceMTLS) Load() bool {
 		return false
 	}
 
-	// Parse to check validity
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
 		return false
@@ -68,15 +69,16 @@ func (m *DeviceMTLS) Load() bool {
 		return false
 	}
 
-	// Check if cert is expired or near expiry (< 1h remaining)
 	if time.Until(leaf.NotAfter) < 1*time.Hour {
 		return false
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.certPEM = certPEM
 	m.cert = &tlsCert
 
-	// Parse private key for renewal CSR generation
 	block, _ := pem.Decode(keyPEM)
 	if block != nil {
 		if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
@@ -84,7 +86,6 @@ func (m *DeviceMTLS) Load() bool {
 		}
 	}
 
-	// Load CA cert if available
 	caPEM, caErr := os.ReadFile(caPath) // #nosec G304 -- path from trusted certDir config
 	if caErr == nil {
 		m.caCertPEM = caPEM
@@ -118,59 +119,75 @@ func (m *DeviceMTLS) GenerateCSR(gatewayID, tenantID string) (csrPEM []byte, err
 }
 
 // StoreCert saves the signed certificate and private key to disk.
+// Uses atomic write-to-temp + rename to avoid partial files on crash.
 func (m *DeviceMTLS) StoreCert(certPEM, caCertPEM []byte) error {
 	if m.privateKey == nil {
 		return fmt.Errorf("no private key (call GenerateCSR first)")
 	}
 
-	// Ensure directory exists
 	if err := os.MkdirAll(m.certDir, 0700); err != nil {
 		return fmt.Errorf("mkdir %s: %w", m.certDir, err)
 	}
 
-	// Marshal private key
 	keyDER, err := x509.MarshalECPrivateKey(m.privateKey)
 	if err != nil {
 		return fmt.Errorf("marshal key: %w", err)
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 
-	// Write files with restrictive permissions
-	certPath := filepath.Join(m.certDir, "device.crt")
-	keyPath := filepath.Join(m.certDir, "device.key")
-	caPath := filepath.Join(m.certDir, "ca.crt")
-
-	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
-		return fmt.Errorf("write cert: %w", err)
-	}
-	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
-		return fmt.Errorf("write key: %w", err)
-	}
-	if len(caCertPEM) > 0 {
-		if err := os.WriteFile(caPath, caCertPEM, 0600); err != nil { // #nosec G306
-			return fmt.Errorf("write CA cert: %w", err)
-		}
-		m.caCertPEM = caCertPEM
-	}
-
-	m.certPEM = certPEM
-
-	// Build tls.Certificate
+	// Validate the keypair before writing anything to disk
 	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
 	if err != nil {
 		return fmt.Errorf("build tls cert: %w", err)
 	}
+
+	certPath := filepath.Join(m.certDir, "device.crt")
+	keyPath := filepath.Join(m.certDir, "device.key")
+	caPath := filepath.Join(m.certDir, "ca.crt")
+
+	if err := atomicWriteFile(certPath, certPEM, 0600); err != nil {
+		return fmt.Errorf("write cert: %w", err)
+	}
+	if err := atomicWriteFile(keyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("write key: %w", err)
+	}
+	if len(caCertPEM) > 0 {
+		if err := atomicWriteFile(caPath, caCertPEM, 0600); err != nil {
+			return fmt.Errorf("write CA cert: %w", err)
+		}
+	}
+
+	m.mu.Lock()
+	m.certPEM = certPEM
+	if len(caCertPEM) > 0 {
+		m.caCertPEM = caCertPEM
+	}
 	m.cert = &tlsCert
+	m.mu.Unlock()
 
 	return nil
 }
 
+// atomicWriteFile writes data to a temp file then renames it to path,
+// ensuring the target is never a partial write after a crash.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 // HasValidCert returns true if a valid, non-expired client cert is loaded.
 func (m *DeviceMTLS) HasValidCert() bool {
-	if m.cert == nil || len(m.cert.Certificate) == 0 {
+	m.mu.RLock()
+	cert := m.cert
+	m.mu.RUnlock()
+
+	if cert == nil || len(cert.Certificate) == 0 {
 		return false
 	}
-	leaf, err := x509.ParseCertificate(m.cert.Certificate[0])
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return false
 	}
@@ -179,10 +196,14 @@ func (m *DeviceMTLS) HasValidCert() bool {
 
 // NeedsRenewal returns true if the cert expires within the given window.
 func (m *DeviceMTLS) NeedsRenewal(window time.Duration) bool {
-	if m.cert == nil || len(m.cert.Certificate) == 0 {
+	m.mu.RLock()
+	cert := m.cert
+	m.mu.RUnlock()
+
+	if cert == nil || len(cert.Certificate) == 0 {
 		return true
 	}
-	leaf, err := x509.ParseCertificate(m.cert.Certificate[0])
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return true
 	}
@@ -190,22 +211,24 @@ func (m *DeviceMTLS) NeedsRenewal(window time.Duration) bool {
 }
 
 // TLSConfig returns a tls.Config with the client certificate for mTLS.
-// If pinSHA256 is set, it also performs certificate pinning on the server cert.
 // Falls back to standard TLS if no client cert is loaded.
 func (m *DeviceMTLS) TLSConfig(pinSHA256 string) *tls.Config {
+	m.mu.RLock()
+	cert := m.cert
+	caCertPEM := m.caCertPEM
+	m.mu.RUnlock()
+
 	cfg := &tls.Config{
-		MinVersion: tls.VersionTLS13, // enforce TLS 1.3 for ECDHE forward secrecy
+		MinVersion: tls.VersionTLS13,
 	}
 
-	// Client certificate for mutual authentication
-	if m.cert != nil {
-		cfg.Certificates = []tls.Certificate{*m.cert}
+	if cert != nil {
+		cfg.Certificates = []tls.Certificate{*cert}
 	}
 
-	// CA cert for server verification (optional, supplements system CAs)
-	if len(m.caCertPEM) > 0 {
+	if len(caCertPEM) > 0 {
 		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM(m.caCertPEM)
+		pool.AppendCertsFromPEM(caCertPEM)
 		cfg.RootCAs = pool
 	}
 
@@ -214,10 +237,14 @@ func (m *DeviceMTLS) TLSConfig(pinSHA256 string) *tls.Config {
 
 // CertInfo returns human-readable info about the loaded cert.
 func (m *DeviceMTLS) CertInfo() (cn string, notAfter time.Time, ok bool) {
-	if m.cert == nil || len(m.cert.Certificate) == 0 {
+	m.mu.RLock()
+	cert := m.cert
+	m.mu.RUnlock()
+
+	if cert == nil || len(cert.Certificate) == 0 {
 		return "", time.Time{}, false
 	}
-	leaf, err := x509.ParseCertificate(m.cert.Certificate[0])
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
 		return "", time.Time{}, false
 	}
