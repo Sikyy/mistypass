@@ -219,7 +219,7 @@ func (ca *DeviceCA) signParsedCSR(csr *x509.CertificateRequest) (certPEM []byte,
 	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject:      csr.Subject, // CN = gateway_id, O = tenant_id
-		NotBefore:    now.Add(-1 * time.Minute),
+		NotBefore:    now.Add(-5 * time.Minute),
 		NotAfter:     now.Add(ca.CertificateLifetime()),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
