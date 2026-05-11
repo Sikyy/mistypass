@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -63,6 +66,10 @@ func main() {
 	if err != nil {
 		failFast(logger, "router init failed", err)
 	}
+	gatewayMTLSServer, err := newGatewayMTLSServer(cfg, router)
+	if err != nil {
+		failFast(logger, "gateway mTLS server init failed", err)
+	}
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -82,6 +89,14 @@ func main() {
 			failFast(logger, "server stopped with error", err)
 		}
 	}()
+	if gatewayMTLSServer != nil {
+		go func() {
+			logger.Info("mistypass gateway mTLS api listening", "addr", cfg.GatewayMTLSAddr)
+			if err := gatewayMTLSServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				failFast(logger, "gateway mTLS server stopped with error", err)
+			}
+		}()
+	}
 
 	<-stopSignals
 	logger.Info("received shutdown signal, stopping workers...")
@@ -93,7 +108,42 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		failFast(logger, "graceful shutdown failed", err)
 	}
+	if gatewayMTLSServer != nil {
+		if err := gatewayMTLSServer.Shutdown(ctx); err != nil {
+			failFast(logger, "gateway mTLS graceful shutdown failed", err)
+		}
+	}
 	logger.Info("server shut down gracefully")
+}
+
+func newGatewayMTLSServer(cfg config.Config, router http.Handler) (*http.Server, error) {
+	if cfg.GatewayMTLSAddr == "" {
+		return nil, nil
+	}
+	cert, err := tls.X509KeyPair([]byte(cfg.GatewayMTLSServerCertPEM), []byte(cfg.GatewayMTLSServerKeyPEM))
+	if err != nil {
+		return nil, fmt.Errorf("load server certificate: %w", err)
+	}
+	clientCAs := x509.NewCertPool()
+	if ok := clientCAs.AppendCertsFromPEM([]byte(cfg.GatewayCACertPEM)); !ok {
+		return nil, errors.New("load gateway client CA: no valid certificates found")
+	}
+
+	return &http.Server{
+		Addr:              cfg.GatewayMTLSAddr,
+		Handler:           httpx.GatewayMTLSOnlyHandler(router),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		TLSConfig: &tls.Config{
+			MinVersion:   tls.VersionTLS13,
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   tls.VerifyClientCertIfGiven,
+			ClientCAs:    clientCAs,
+			NextProtos:   []string{"h2", "http/1.1"},
+		},
+	}, nil
 }
 
 func initLogger() *slog.Logger {

@@ -1,16 +1,16 @@
 package httpx
 
 import (
-	"log/slog"
 	"net/http"
 	"strconv"
 )
 
-// GET /gateway/credentials/sync?since_version={version}
-// Returns credentials changed since the given sync version.
+// GET /gateway/credentials/sync?tenant_id={tenant}&gateway_id={gateway}&since_version={version}
+// Returns scoped credential changes since the given sync version.
 // Used by gateways for incremental credential cache updates.
 func (s *server) gatewayCredentialSync(w http.ResponseWriter, r *http.Request) {
-	if !s.authorizeGatewayBootstrapToken(w, r) {
+	record, ok := s.gatewayRecordFromDeviceRequest(w, r)
+	if !ok {
 		return
 	}
 
@@ -24,14 +24,14 @@ func (s *server) gatewayCredentialSync(w http.ResponseWriter, r *http.Request) {
 		sinceVersion = parsed
 	}
 
-	creds, err := s.credentialSvc.GetGatewayCredentialSyncSince(sinceVersion)
-	if err != nil {
-		slog.Error("credential sync failed", "err", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
+	userLockAccess := s.buildGatewayUserLockAccess(record.TenantID, record.BoundDoorIDs)
+	creds := s.credentialSvc.BuildGatewayCredentialSyncSince(record.TenantID, record.BoundDoorIDs, userLockAccess, sinceVersion)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"credentials": creds,
+		"gateway_id":       record.ID,
+		"tenant_id":        record.TenantID,
+		"bound_door_ids":   record.BoundDoorIDs,
+		"credentials":      creds,
+		"credential_count": len(creds),
 	})
 }

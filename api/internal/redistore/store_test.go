@@ -434,6 +434,72 @@ func TestAllowRateLimit_InvalidMaxAttempts(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Gateway Request Nonces
+// ---------------------------------------------------------------------------
+
+func TestMarkGatewayRequestNonce_FirstUseAndDuplicate(t *testing.T) {
+	store, _ := newTestStore(t)
+
+	inserted, err := store.MarkGatewayRequestNonce("gw_1", "nonce-1", time.Minute)
+	if err != nil {
+		t.Fatalf("mark nonce: %v", err)
+	}
+	if !inserted {
+		t.Fatal("first nonce use should be inserted")
+	}
+
+	inserted, err = store.MarkGatewayRequestNonce("gw_1", "nonce-1", time.Minute)
+	if err != nil {
+		t.Fatalf("mark duplicate nonce: %v", err)
+	}
+	if inserted {
+		t.Fatal("duplicate nonce use should not be inserted")
+	}
+
+	inserted, err = store.MarkGatewayRequestNonce("gw_2", "nonce-1", time.Minute)
+	if err != nil {
+		t.Fatalf("mark same nonce for another gateway: %v", err)
+	}
+	if !inserted {
+		t.Fatal("nonce scope should be per gateway")
+	}
+}
+
+func TestMarkGatewayRequestNonce_ReusableAfterTTL(t *testing.T) {
+	store, mr := newTestStore(t)
+	inserted, err := store.MarkGatewayRequestNonce("gw_1", "nonce-ttl", 2*time.Second)
+	if err != nil {
+		t.Fatalf("mark nonce: %v", err)
+	}
+	if !inserted {
+		t.Fatal("first nonce use should be inserted")
+	}
+
+	mr.FastForward(5 * time.Second)
+
+	inserted, err = store.MarkGatewayRequestNonce("gw_1", "nonce-ttl", 2*time.Second)
+	if err != nil {
+		t.Fatalf("mark nonce after ttl: %v", err)
+	}
+	if !inserted {
+		t.Fatal("nonce should be reusable after ttl")
+	}
+}
+
+func TestMarkGatewayRequestNonce_InvalidInput(t *testing.T) {
+	store, _ := newTestStore(t)
+	if _, err := store.MarkGatewayRequestNonce("", "nonce", time.Minute); err == nil {
+		t.Fatal("expected empty gateway id to fail")
+	}
+	if _, err := store.MarkGatewayRequestNonce("gw_1", "", time.Minute); err == nil {
+		t.Fatal("expected empty nonce to fail")
+	}
+	if _, err := store.MarkGatewayRequestNonce("gw_1", "nonce", 0); err == nil {
+		t.Fatal("expected invalid ttl to fail")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Leasing — TryAcquire
 // ---------------------------------------------------------------------------
 

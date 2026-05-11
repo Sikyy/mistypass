@@ -13,19 +13,32 @@ type OfflineAuditEntry struct {
 	EventID   string `json:"event_id"`
 	UserID    string `json:"user_id"`
 	LockID    string `json:"lock_id"`
-	Method    string `json:"method"`     // "ble" | "nfc_hce"
-	Result    string `json:"result"`     // "granted" | "denied"
+	Method    string `json:"method"` // "ble" | "nfc_hce"
+	Result    string `json:"result"` // "granted" | "denied"
 	Reason    string `json:"reason"`
 	GatewayID uint32 `json:"gateway_id"`
-	Timestamp int64  `json:"timestamp"`  // unix seconds
+	Timestamp int64  `json:"timestamp"` // unix seconds
 	IsOffline bool   `json:"is_offline"`
+}
+
+type OfflineBatchContext struct {
+	TenantID  string
+	GatewayID string
 }
 
 // IngestOfflineBatch processes a batch of offline audit entries from a gateway.
 // It converts them to audit Log records and appends them to the audit log.
 // Returns the number of entries accepted (duplicates or invalid entries are skipped).
 func (s *Service) IngestOfflineBatch(ctx context.Context, entries []OfflineAuditEntry) (int, error) {
+	return s.IngestOfflineBatchForGateway(ctx, OfflineBatchContext{}, entries)
+}
+
+// IngestOfflineBatchForGateway processes a batch using the authenticated gateway
+// request context instead of trusting gateway identity fields from the payload.
+func (s *Service) IngestOfflineBatchForGateway(ctx context.Context, batch OfflineBatchContext, entries []OfflineAuditEntry) (int, error) {
 	accepted := 0
+	tenantID := strings.TrimSpace(batch.TenantID)
+	gatewayID := strings.TrimSpace(batch.GatewayID)
 	for _, entry := range entries {
 		if err := ctx.Err(); err != nil {
 			return accepted, fmt.Errorf("context cancelled: %w", err)
@@ -46,13 +59,19 @@ func (s *Service) IngestOfflineBatch(ctx context.Context, entries []OfflineAudit
 
 		action := "offline_access_" + entry.Result
 		target := entry.LockID
+		if entry.EventID != "" {
+			target = strings.TrimSpace(target + " event_id=" + entry.EventID)
+		}
+		if gatewayID != "" {
+			target = strings.TrimSpace(target + " gateway_id=" + gatewayID)
+		}
 		source := "gateway_offline"
 		if entry.Method != "" {
 			source = "gateway_offline_" + entry.Method
 		}
 
 		_, err := s.AppendWithTimestamp(
-			"", // tenant_id resolved by gateway context
+			tenantID,
 			entry.UserID,
 			"system",
 			action,
@@ -128,7 +147,20 @@ func (s *Service) hasEventID(eventID string) bool {
 	// Check the target field for the event_id pattern used in offline entries.
 	// For a production implementation this would use an index or bloom filter.
 	for i := range s.logs {
-		if s.logs[i].ID == eventID {
+		if s.logs[i].ID == eventID || auditTargetHasField(s.logs[i].Target, "event_id", eventID) {
+			return true
+		}
+	}
+	return false
+}
+
+func auditTargetHasField(target, key, value string) bool {
+	expected := strings.TrimSpace(key) + "=" + strings.TrimSpace(value)
+	if expected == "=" {
+		return false
+	}
+	for _, field := range strings.Fields(target) {
+		if field == expected {
 			return true
 		}
 	}

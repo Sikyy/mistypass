@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"crypto/x509"
 	"encoding/csv"
 	"encoding/hex"
 	"errors"
@@ -1038,6 +1039,20 @@ func (s *server) gatewayAuthzCacheAckVersion(gatewayID string) string {
 }
 
 func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
+	if s.gatewayIdentityStatusRevoked(gatewayID) {
+		recordGatewayMTLSAuth("gateway_revoked")
+		writeError(w, http.StatusUnauthorized, "gateway revoked")
+		return false
+	}
+	if s.authorizeGatewayClientCertificate(r, gatewayID) {
+		return true
+	}
+	if gatewayMTLSRequired(r) {
+		recordGatewayMTLSAuth("required_missing")
+		writeError(w, http.StatusUnauthorized, "valid gateway client certificate required")
+		return false
+	}
+
 	provided := strings.TrimSpace(r.Header.Get("X-Device-Token"))
 	if provided == "" {
 		if token, err := bearerToken(r.Header.Get("Authorization")); err == nil {
@@ -1045,21 +1060,26 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	if provided == "" {
+		recordGatewayMTLSAuth("token_missing")
 		writeError(w, http.StatusUnauthorized, "missing device token")
 		return false
 	}
 	if s.gatewayTokenStore != nil {
 		exists, matched, err := s.gatewayTokenStore.VerifyGatewayDeviceToken(strings.TrimSpace(gatewayID), provided)
 		if err != nil {
+			recordGatewayMTLSAuth("token_store_error")
 			writeError(w, http.StatusInternalServerError, "device token verification failed")
 			return false
 		}
 		if exists && matched {
+			recordGatewayMTLSAuth("token_fallback")
 			return true
 		}
 		if !exists {
+			recordGatewayMTLSAuth("token_unregistered")
 			writeError(w, http.StatusUnauthorized, "device not registered")
 		} else {
+			recordGatewayMTLSAuth("token_invalid")
 			writeError(w, http.StatusUnauthorized, "invalid device token")
 		}
 		return false
@@ -1071,16 +1091,128 @@ func (s *server) authorizeGatewayDeviceToken(w http.ResponseWriter, r *http.Requ
 	s.gatewayTokenMu.RUnlock()
 	if exists && strings.TrimSpace(expected) != "" {
 		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1 {
+			recordGatewayMTLSAuth("token_fallback")
 			return true
 		}
 	}
 
 	if !exists || strings.TrimSpace(expected) == "" {
+		recordGatewayMTLSAuth("token_unregistered")
 		writeError(w, http.StatusUnauthorized, "device not registered")
 	} else {
+		recordGatewayMTLSAuth("token_invalid")
 		writeError(w, http.StatusUnauthorized, "invalid device token")
 	}
 	return false
+}
+
+func (s *server) authorizeGatewayClientCertificate(r *http.Request, gatewayID string) bool {
+	cert := verifiedGatewayClientCertificate(r)
+	if cert == nil {
+		return false
+	}
+	if s.gatewayClientCertificateRevoked(cert) {
+		recordGatewayMTLSAuth("revoked_serial")
+		return false
+	}
+
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" || strings.TrimSpace(cert.Subject.CommonName) != nextGatewayID {
+		recordGatewayMTLSAuth("subject_mismatch")
+		return false
+	}
+
+	if s.gatewaySvc == nil {
+		recordGatewayMTLSAuth("accepted")
+		return true
+	}
+	record, ok := s.gatewaySvc.FindGatewayByID("", nextGatewayID)
+	if !ok {
+		recordGatewayMTLSAuth("gateway_missing")
+		return false
+	}
+	if gatewayCertificateStatusRevoked(record.Status) {
+		recordGatewayMTLSAuth("gateway_revoked")
+		return false
+	}
+	if len(cert.Subject.Organization) == 0 {
+		recordGatewayMTLSAuth("tenant_missing")
+		return false
+	}
+	if strings.TrimSpace(cert.Subject.Organization[0]) != strings.TrimSpace(record.TenantID) {
+		recordGatewayMTLSAuth("tenant_mismatch")
+		return false
+	}
+	recordGatewayMTLSAuth("accepted")
+	return true
+}
+
+func (s *server) gatewayClientCertificateRevoked(cert *x509.Certificate) bool {
+	if s == nil || cert == nil || cert.SerialNumber == nil {
+		return false
+	}
+	return s.gatewayClientSerialRevoked(cert.SerialNumber.Text(16))
+}
+
+func (s *server) gatewayClientSerialRevoked(serialNumber string) bool {
+	if s == nil {
+		return false
+	}
+	serial := gateway.NormalizeCertificateSerial(serialNumber)
+	if serial == "" {
+		return false
+	}
+	for i := range s.cfg.GatewayMTLSRevokedSerials {
+		if gateway.NormalizeCertificateSerial(s.cfg.GatewayMTLSRevokedSerials[i]) == serial {
+			return true
+		}
+	}
+	if s.gatewaySvc != nil && s.gatewaySvc.IsCertificateSerialRevoked(serial) {
+		return true
+	}
+	return false
+}
+
+func gatewayCertificateSerialFromRequest(r *http.Request) string {
+	cert := verifiedGatewayClientCertificate(r)
+	if cert == nil || cert.SerialNumber == nil {
+		return ""
+	}
+	return gateway.NormalizeCertificateSerial(cert.SerialNumber.Text(16))
+}
+
+func (s *server) gatewayIdentityStatusRevoked(gatewayID string) bool {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if s == nil || s.gatewaySvc == nil || nextGatewayID == "" {
+		return false
+	}
+	record, ok := s.gatewaySvc.FindGatewayByID("", nextGatewayID)
+	return ok && gatewayCertificateStatusRevoked(record.Status)
+}
+
+func gatewayCertificateStatusRevoked(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "disabled", "revoked":
+		return true
+	default:
+		return false
+	}
+}
+
+func verifiedGatewayClientCertificate(r *http.Request) *x509.Certificate {
+	if r == nil || r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return nil
+	}
+	if len(r.TLS.VerifiedChains) == 0 {
+		return nil
+	}
+	leaf := r.TLS.PeerCertificates[0]
+	for _, chain := range r.TLS.VerifiedChains {
+		if len(chain) > 0 && chain[0].Equal(leaf) {
+			return leaf
+		}
+	}
+	return nil
 }
 
 func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.Request) bool {
@@ -1108,19 +1240,23 @@ func (s *server) authorizeGatewayBootstrapToken(w http.ResponseWriter, r *http.R
 	return true
 }
 
-// validateGatewayRequestNonce checks the X-Request-Nonce and X-Request-Timestamp headers
-// for replay protection. Returns true if valid (or if headers are absent for backwards compat).
-func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Request) bool {
+// validateGatewayRequestNonce checks the X-Request-Nonce and X-Request-Timestamp
+// headers for gateway HTTP replay protection.
+func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
 	nonce := strings.TrimSpace(r.Header.Get("X-Request-Nonce"))
 	tsRaw := strings.TrimSpace(r.Header.Get("X-Request-Timestamp"))
 
-	// Backwards compatible: if no nonce headers, allow (old agents)
 	if nonce == "" && tsRaw == "" {
+		if s.cfg.GatewayRequireRequestNonce {
+			recordGatewayNonceValidation("missing")
+			writeError(w, http.StatusUnauthorized, "gateway request nonce required")
+			return false
+		}
 		return true
 	}
 
-	// If one is present, both must be present
 	if nonce == "" || tsRaw == "" {
+		recordGatewayNonceValidation("partial")
 		writeError(w, http.StatusBadRequest, "X-Request-Nonce and X-Request-Timestamp must both be present")
 		return false
 	}
@@ -1128,32 +1264,55 @@ func (s *server) validateGatewayRequestNonce(w http.ResponseWriter, r *http.Requ
 	// Validate timestamp within 5-minute window
 	ts, err := time.Parse(time.RFC3339, tsRaw)
 	if err != nil {
+		recordGatewayNonceValidation("invalid_timestamp")
 		writeError(w, http.StatusBadRequest, "invalid X-Request-Timestamp format")
 		return false
 	}
 	const nonceWindow = 5 * time.Minute
 	now := time.Now().UTC()
 	if now.Sub(ts) > nonceWindow || ts.Sub(now) > nonceWindow {
+		recordGatewayNonceValidation("timestamp_window")
 		writeError(w, http.StatusUnauthorized, "request timestamp outside acceptable window")
 		return false
 	}
 
-	// Check nonce uniqueness
+	if s.gatewayNonceStore != nil {
+		inserted, err := s.gatewayNonceStore.MarkGatewayRequestNonce(gatewayID, nonce, nonceWindow)
+		if err != nil {
+			s.loggerOrDefault().Warn("gateway request nonce store failed", "gateway_id", gatewayID, "err", err)
+			recordGatewayNonceValidation("store_error")
+			writeError(w, http.StatusServiceUnavailable, "gateway request nonce store unavailable")
+			return false
+		}
+		if !inserted {
+			recordGatewayNonceValidation("duplicate")
+			writeError(w, http.StatusConflict, "duplicate request nonce")
+			return false
+		}
+		recordGatewayNonceValidation("accepted_redis")
+		return true
+	}
+
 	s.gatewayNonceMu.Lock()
-	// Clean expired nonces first
+	if s.gatewayNonces == nil {
+		s.gatewayNonces = map[string]time.Time{}
+	}
 	for k, exp := range s.gatewayNonces {
 		if now.After(exp) {
 			delete(s.gatewayNonces, k)
 		}
 	}
-	if _, exists := s.gatewayNonces[nonce]; exists {
+	nonceKey := strings.TrimSpace(gatewayID) + ":" + nonce
+	if _, exists := s.gatewayNonces[nonceKey]; exists {
 		s.gatewayNonceMu.Unlock()
+		recordGatewayNonceValidation("duplicate")
 		writeError(w, http.StatusConflict, "duplicate request nonce")
 		return false
 	}
-	s.gatewayNonces[nonce] = now.Add(nonceWindow)
+	s.gatewayNonces[nonceKey] = now.Add(nonceWindow)
 	s.gatewayNonceMu.Unlock()
 
+	recordGatewayNonceValidation("accepted_memory")
 	return true
 }
 

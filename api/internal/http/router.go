@@ -46,6 +46,7 @@ type server struct {
 	stateStore                    state.Store
 	gatewayTokenStore             gatewayTokenStore
 	gatewayDeviceCA               *gateway.DeviceCA // mTLS CA for signing gateway client certs
+	instanceID                    string
 	logger                        *slog.Logger
 	authService                   *auth.Service
 	webAuthnEngine                *auth.WebAuthnEngine
@@ -86,6 +87,7 @@ type server struct {
 	enterpriseWebhookRateLimitMu  sync.Mutex
 	enterpriseWebhookRateBuckets  map[string]loginRateLimitBucket
 	rateLimitStore                rateLimitStore
+	gatewayNonceStore             gatewayNonceStore
 	volatileStore                 *redistore.Store
 	workerLeaseStore              workerLeaseStore
 	workerQueueStore              workerQueueStore
@@ -170,6 +172,10 @@ type stateChangeCheckpointReplayer interface {
 
 type rateLimitStore interface {
 	AllowRateLimit(scope, key string, now time.Time, window time.Duration, maxAttempts int) (bool, time.Duration, error)
+}
+
+type gatewayNonceStore interface {
+	MarkGatewayRequestNonce(gatewayID, nonce string, ttl time.Duration) (bool, error)
 }
 
 type workerLeaseStore interface {
@@ -374,6 +380,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	s := &server{
 		cfg:                           cfg,
 		stateStore:                    stateStore,
+		instanceID:                    newAPIInstanceID(),
 		logger:                        slog.Default(),
 		authService:                   auth.NewService(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.EnableDemoUsers),
 		tenantSvc:                     tenantSvc,
@@ -443,6 +450,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if err := s.startGatewayEventSubscriber(cfg.NATSServerURL, cfg.NATSSubjectPrefix); err != nil {
 			s.loggerOrDefault().Warn("gateway event subscriber failed to start", "error", err)
 		}
+		if err := s.startGatewayWebSocketPushSubscriber(cfg.NATSServerURL, cfg.NATSSubjectPrefix); err != nil {
+			s.loggerOrDefault().Warn("gateway websocket push subscriber failed to start", "error", err)
+		}
 	}
 	if authPersistence, ok := stateStore.(auth.Persistence); ok {
 		if err := s.authService.SetPersistence(authPersistence); err != nil {
@@ -490,6 +500,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			return nil, nil, err
 		}
 		s.rateLimitStore = redisStore
+		s.gatewayNonceStore = redisStore
 		s.volatileStore = redisStore
 		s.workerLeaseStore = redisStore
 		s.workerQueueStore = redisStore
@@ -512,16 +523,22 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		if err != nil {
 			s.logger.Warn("failed to load gateway device CA, mTLS disabled", "error", err)
 		} else {
+			if err := deviceCA.SetCertificateLifetime(effectiveGatewayMTLSCertLifetime(cfg)); err != nil {
+				return nil, nil, fmt.Errorf("gateway mTLS cert lifetime: %w", err)
+			}
 			s.gatewayDeviceCA = deviceCA
-			s.logger.Info("gateway mTLS CA loaded from config")
+			s.logger.Info("gateway mTLS CA loaded from config", "cert_lifetime", deviceCA.CertificateLifetime())
 		}
 	} else {
 		deviceCA, err := gateway.NewDeviceCA()
 		if err != nil {
 			s.logger.Warn("failed to create gateway device CA, mTLS disabled", "error", err)
 		} else {
+			if err := deviceCA.SetCertificateLifetime(effectiveGatewayMTLSCertLifetime(cfg)); err != nil {
+				return nil, nil, fmt.Errorf("gateway mTLS cert lifetime: %w", err)
+			}
 			s.gatewayDeviceCA = deviceCA
-			s.logger.Info("gateway mTLS CA auto-generated (dev mode — certs won't survive restart)")
+			s.logger.Info("gateway mTLS CA auto-generated (dev mode — certs won't survive restart)", "cert_lifetime", deviceCA.CertificateLifetime())
 		}
 	}
 
@@ -922,6 +939,10 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/locks/{lockID}/last_to_leave", s.lastToLeaveReferenceLock)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin"), withDeprecatedEndpoint("/api/v1/controllers", "/api/v1/readers", "/api/v1/terminals")).Get("/gateways", s.listGateways)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/status", s.updateGatewayStatus)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/gateways/cert-revocations", s.listGatewayCertificateRevocations)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/gateways/cert-revocations", s.revokeGatewayCertificateSerial)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/gateways/cert-revocations/{serialNumber}", s.restoreGatewayCertificateSerial)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/gateways/serial-inventory", s.listGatewaySerialInventory)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/gateways/serial-inventory/import", s.importGatewaySerialInventory)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/gateways/serial-inventory/import-csv", s.importGatewaySerialInventoryCSV)
@@ -1349,6 +1370,21 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	s.startAlertPolicyEventScheduler()
 
 	return router, s, nil
+}
+
+func effectiveGatewayMTLSCertLifetime(cfg config.Config) time.Duration {
+	if cfg.GatewayMTLSCertLifetime <= 0 {
+		return gateway.DefaultDeviceCACertLifetime
+	}
+	return cfg.GatewayMTLSCertLifetime
+}
+
+func newAPIInstanceID() string {
+	id, err := randomHexID(8)
+	if err != nil {
+		return fmt.Sprintf("api-%d", time.Now().UnixNano())
+	}
+	return "api-" + id
 }
 
 type gatewayBootstrapStateSnapshot struct {

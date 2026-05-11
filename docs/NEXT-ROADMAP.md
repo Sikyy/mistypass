@@ -6,7 +6,8 @@
 > ⚠️ Apple/Google Wallet 功能因印尼��策原因暂停推进（Apple Pay/Google Pay 在印尼暂不可用）
 > 🚀 替代方案：BLE + Android Keystore 自主认证链路（绕过 Apple/Google 生态限制）
 > MVP 聚焦路线图见 `docs/MVP-ROADMAP.md`
-> Gateway 通信协议见 `docs/architecture/gateway-cloud-protocol.md`
+> Gateway 软件通信安全状态见 `docs/architecture/gateway-security-software-status.md`
+> 硬件/BSP 安全后续项见 `docs/architecture/hardware-bsp-followups.md`
 > 代码审查报告见 `docs/CODE-REVIEW-2026-05-01.md`
 
 ---
@@ -1457,9 +1458,10 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | MVP 路线图 | `docs/MVP-ROADMAP.md` | M1-M4 已完成，M5 部分完成 |
 | 后续路线图 | `docs/NEXT-ROADMAP.md` | 本文件 |
 | Kisi 差距分析 | `docs/kisi-gap-analysis.md` | 基于 Bundled References 227 operations 逐项对比 |
-| Kisi 架构对照 | `docs/architecture/kisi-comparison.md` | 系统/硬件/协议/API 架构对照 |
+| Kisi 架构对照（已归档） | `docs/archive/kisi-comparison.md` | 历史系统/硬件/协议/API 架构对照 |
 | API 汇总 | `MISTYISLET-KISI-API-SUMMARY.md` | 资源 API 总索引 + 对齐进度 |
-| Gateway 通信协议 | `docs/architecture/gateway-cloud-protocol.md` | HTTPS + NATS 协议参考 |
+| Gateway 软件安全状态 | `docs/architecture/gateway-security-software-status.md` | 当前 mTLS、WS、nonce、离线补传状态 |
+| 硬件/BSP 安全后续项 | `docs/architecture/hardware-bsp-followups.md` | Secure Boot、签名 OTA、物理拓扑等非纯软件事项 |
 | 凭证安全架构 | `docs/credential-security-architecture.md` | 全链路安全规范 |
 | 凭证操作流程 | `docs/CREDENTIAL-FLOWS.md` | Apple/Google/物理/数字凭证流程 |
 | 硬件集成指南 | `docs/hardware-integration-guide.md` | 当前 + 下一代硬件链路 |

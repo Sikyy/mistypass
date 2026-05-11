@@ -77,6 +77,9 @@ func TestSignCSR(t *testing.T) {
 	if cert.NotAfter.Sub(cert.NotBefore) > DeviceCACertLifetime+2*time.Minute {
 		t.Errorf("cert lifetime too long: %v", cert.NotAfter.Sub(cert.NotBefore))
 	}
+	if cert.NotAfter.Sub(cert.NotBefore) > DefaultDeviceCACertLifetime+2*time.Minute {
+		t.Errorf("default cert lifetime too long: %v", cert.NotAfter.Sub(cert.NotBefore))
+	}
 
 	// Verify cert against CA pool
 	pool := ca.CACertPool()
@@ -86,6 +89,88 @@ func TestSignCSR(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("cert verification failed: %v", err)
+	}
+}
+
+func TestDeviceCACertificateLifetimeOverride(t *testing.T) {
+	ca, err := NewDeviceCA()
+	if err != nil {
+		t.Fatalf("NewDeviceCA: %v", err)
+	}
+	if err := ca.SetCertificateLifetime(12 * time.Hour); err != nil {
+		t.Fatalf("set lifetime: %v", err)
+	}
+	if ca.CertificateLifetime() != 12*time.Hour {
+		t.Fatalf("unexpected certificate lifetime: %s", ca.CertificateLifetime())
+	}
+
+	gwKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   "gw_demo_001",
+			Organization: []string{"tenant_demo_jakarta"},
+		},
+	}, gwKey)
+	if err != nil {
+		t.Fatalf("create CSR: %v", err)
+	}
+	certPEM, err := ca.SignGatewayCSR(
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}),
+		"gw_demo_001",
+		"tenant_demo_jakarta",
+	)
+	if err != nil {
+		t.Fatalf("sign CSR: %v", err)
+	}
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		t.Fatal("no cert PEM returned")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse cert: %v", err)
+	}
+	if lifetime := cert.NotAfter.Sub(cert.NotBefore); lifetime > 12*time.Hour+2*time.Minute {
+		t.Fatalf("expected overridden lifetime around 12h, got %s", lifetime)
+	}
+
+	if err := ca.SetCertificateLifetime(0); err == nil {
+		t.Fatal("expected zero lifetime to fail")
+	}
+	if err := ca.SetCertificateLifetime(DeviceCACertLifetime + time.Second); err == nil {
+		t.Fatal("expected overlong lifetime to fail")
+	}
+}
+
+func TestSignGatewayCSRRejectsSubjectMismatch(t *testing.T) {
+	ca, err := NewDeviceCA()
+	if err != nil {
+		t.Fatalf("NewDeviceCA: %v", err)
+	}
+
+	gwKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+		Subject: pkix.Name{
+			CommonName:   "gw_attacker",
+			Organization: []string{"tenant_demo_jakarta"},
+		},
+	}, gwKey)
+	if err != nil {
+		t.Fatalf("create CSR: %v", err)
+	}
+	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
+
+	if _, err := ca.SignGatewayCSR(csrPEM, "gw_demo_001", "tenant_demo_jakarta"); err == nil {
+		t.Fatal("expected gateway_id mismatch to be rejected")
+	}
+	if _, err := ca.SignGatewayCSR(csrPEM, "gw_attacker", "tenant_other"); err == nil {
+		t.Fatal("expected tenant_id mismatch to be rejected")
 	}
 }
 

@@ -93,11 +93,13 @@ func (s *server) adminRevokeMobileCredential(w http.ResponseWriter, r *http.Requ
 	}
 
 	s.auditSvc.Append(user.TenantID, user.Email, user.Role, "mobile_credential_revoked", credentialID, "admin_console")
+	pushedGateways := s.pushAuthzCacheToConnectedGateways(user.TenantID)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":  "revoked",
-		"id":      credentialID,
-		"message": "credential revoked by admin",
+		"status":                 "revoked",
+		"id":                     credentialID,
+		"message":                "credential revoked by admin",
+		"pushed_gateway_configs": pushedGateways,
 	})
 }
 
@@ -125,9 +127,14 @@ func (s *server) adminRevokeAllUserCredentials(w http.ResponseWriter, r *http.Re
 	count := s.credentialSvc.RevokeAllUserCredentials(user.TenantID, req.UserID)
 
 	s.auditSvc.Append(user.TenantID, user.Email, user.Role, "mobile_credentials_revoked_all", req.UserID, "admin_console")
+	pushedGateways := 0
+	if count > 0 {
+		pushedGateways = s.pushAuthzCacheToConnectedGateways(user.TenantID)
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"revoked_count": count,
-		"user_id":       req.UserID,
+		"revoked_count":          count,
+		"user_id":                req.UserID,
+		"pushed_gateway_configs": pushedGateways,
 	})
 }

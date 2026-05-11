@@ -1218,6 +1218,7 @@ func (s *server) appAdminRevokeCredential(w http.ResponseWriter, r *http.Request
 	}
 
 	s.auditSvc.Append(tenantID, user.Email, user.Role, "mobile_credential_revoked", credentialID, "mobile_admin")
+	s.pushAuthzCacheToConnectedGateways(tenantID)
 	w.WriteHeader(http.StatusNoContent)
 }
 

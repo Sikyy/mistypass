@@ -85,9 +85,9 @@ func (b *BLEReader) acceptLoop() {
 }
 
 // handleSession implements the full BLE authentication handshake over a single connection.
-// Protocol (same as BLE GATT, but over TCP for testability):
+// Protocol v2 (same as BLE GATT, but over TCP for testability):
 //
-//  1. Reader sends CHALLENGE: [48 bytes] (32 nonce + 8 issued + 8 expires)
+//  1. Reader sends CHALLENGE: [52 bytes] (32 nonce + 8 issued + 8 expires + 4 gateway_id)
 //  2. Phone sends AUTH_RESPONSE: [1 byte userID_len][userID][signature]
 //  3. Reader sends AUTH_RESULT: [1 byte code][reason string]
 //  4. Connection closes
@@ -98,16 +98,12 @@ func (b *BLEReader) handleSession(conn net.Conn) {
 	remoteAddr := conn.RemoteAddr().String()
 	b.logger.Info("BLE session started", "remote", remoteAddr, "lock_id", b.lockID)
 
-	// Step 1: Generate and send challenge
-	challenge, err := NewBLEChallenge()
+	// Step 1: Generate and send v2 challenge (52 bytes)
+	challenge, err := NewBLEChallengeV2(b.agent.gatewayIDUint32)
 	if err != nil {
 		b.logger.Error("BLE generate challenge failed", "error", err)
 		return
 	}
-
-	b.mu.Lock()
-	b.currentChallenge = challenge
-	b.mu.Unlock()
 
 	challengeBytes := challenge.Encode()
 	if _, err := conn.Write(challengeBytes); err != nil {
@@ -138,9 +134,34 @@ func (b *BLEReader) handleSession(conn net.Conn) {
 		"lock_id", b.lockID,
 	)
 
-	// Step 3: Verify and send result
-	result := b.agent.HandleBLEAuth(challenge, response, b.lockID)
+	// Step 3: Verify with v2 (transport tag + nonce replay + gateway_id check)
+	result := b.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagBLE)
 	conn.Write(result.Encode())
+
+	if result.Code == BLEResultGranted {
+		b.logger.Info("BLE ACCESS GRANTED — unlocking door", "user_id", response.UserID, "lock_id", b.lockID)
+		if err := b.agent.relay.Unlock(b.agent.unlockDuration); err != nil {
+			b.logger.Error("relay unlock failed", "error", err)
+		}
+		b.agent.queueEvent(AccessEvent{
+			GatewayID:  b.agent.gatewayID,
+			EventType:  "access_granted",
+			LockID:     b.lockID,
+			Actor:      response.UserID,
+			Result:     "allow",
+			OccurredAt: time.Now().UTC().Format(time.RFC3339),
+		})
+	} else {
+		b.logger.Warn("BLE ACCESS DENIED", "user_id", response.UserID, "lock_id", b.lockID, "reason", result.Reason)
+		b.agent.queueEvent(AccessEvent{
+			GatewayID:  b.agent.gatewayID,
+			EventType:  "access_denied",
+			LockID:     b.lockID,
+			Actor:      response.UserID,
+			Result:     result.Reason,
+			OccurredAt: time.Now().UTC().Format(time.RFC3339),
+		})
+	}
 
 	b.logger.Info("BLE session completed",
 		"remote", remoteAddr,
@@ -170,7 +191,7 @@ func (b *BLEReader) CurrentChallenge() *BLEChallenge {
 
 // formatBLEReaderInfo returns diagnostic info about the BLE reader.
 func formatBLEReaderInfo(lockID, listenAddr string) string {
-	return fmt.Sprintf("BLE Reader (TCP Simulator):\n  Lock ID: %s\n  Listen:  %s\n  Protocol: MistyPass BLE Auth v1\n  Service UUID: %s\n", lockID, listenAddr, BLEServiceUUID)
+	return fmt.Sprintf("BLE Reader (TCP Simulator):\n  Lock ID: %s\n  Listen:  %s\n  Protocol: MistyPass BLE Auth v2\n  Service UUID: %s\n", lockID, listenAddr, BLEServiceUUID)
 }
 
 // --- stdin BLE simulation command ---

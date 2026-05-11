@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,272 @@ func (s *server) listGateways(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
 	})
+}
+
+func (s *server) updateGatewayStatus(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	gatewayID := chi.URLParam(r, "gatewayID")
+	var request struct {
+		Status string `json:"status"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	record, found := s.findGatewayByTenant(tenantID, gatewayID)
+	if !found {
+		writeError(w, http.StatusNotFound, "gateway not found")
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	if !s.requireBuildingScope(w, buildingScope, record.BuildingID) {
+		return
+	}
+
+	item, err := s.gatewaySvc.UpdateGatewayStatus(tenantID, gatewayID, request.Status)
+	if err != nil {
+		switch {
+		case errors.Is(err, gateway.ErrGatewayNotFound):
+			writeError(w, http.StatusNotFound, err.Error())
+		case errors.Is(err, gateway.ErrGatewayIDRequired),
+			errors.Is(err, gateway.ErrGatewayStatusRequired),
+			errors.Is(err, gateway.ErrGatewayStatusInvalid):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeError(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+
+	s.appendAuditLog(r, tenantID, "gateway_status_updated", item.ID+":"+item.Status, "gateway")
+	if gatewayCertificateStatusRevoked(item.Status) {
+		s.closeGatewayWebSocketSessions(item.ID, "gateway disabled; reconnect denied")
+		s.publishGatewayWebSocketDisconnect(item.TenantID, item.ID, "")
+	}
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (s *server) listGatewayCertificateRevocations(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+
+	items := []gateway.GatewayCertificateRevocation{}
+	if s.gatewaySvc != nil {
+		runtimeItems := s.gatewaySvc.ListCertificateRevocations(tenantID)
+		items = append(items, runtimeItems...)
+	}
+	s.syncGatewayCertificateRevocationMetrics()
+
+	user, _ := authenticatedUser(r)
+	if strings.EqualFold(strings.TrimSpace(user.Role), "super_admin") {
+		seen := make(map[string]struct{}, len(items))
+		for i := range items {
+			seen[items[i].SerialNumber] = struct{}{}
+		}
+		for i := range s.cfg.GatewayMTLSRevokedSerials {
+			serial := gateway.NormalizeCertificateSerial(s.cfg.GatewayMTLSRevokedSerials[i])
+			if serial == "" {
+				continue
+			}
+			if _, exists := seen[serial]; exists {
+				continue
+			}
+			items = append(items, gateway.GatewayCertificateRevocation{
+				ID:           "gw_cert_env_" + serial,
+				SerialNumber: serial,
+				Source:       "environment",
+			})
+			seen[serial] = struct{}{}
+		}
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		leftTime := items[i].RevokedAt
+		rightTime := items[j].RevokedAt
+		if leftTime != nil && rightTime != nil && !leftTime.Equal(*rightTime) {
+			return leftTime.After(*rightTime)
+		}
+		if leftTime != nil && rightTime == nil {
+			return true
+		}
+		if leftTime == nil && rightTime != nil {
+			return false
+		}
+		return items[i].SerialNumber < items[j].SerialNumber
+	})
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+	})
+}
+
+func (s *server) revokeGatewayCertificateSerial(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID     string `json:"tenant_id"`
+		GatewayID    string `json:"gateway_id"`
+		SerialNumber string `json:"serial_number"`
+		Reason       string `json:"reason"`
+	}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	tenantID, ok := s.resolveTenantID(w, r, firstNonEmptyString(request.TenantID, r.URL.Query().Get("tenant_id")))
+	if !ok {
+		return
+	}
+	if strings.TrimSpace(request.GatewayID) != "" {
+		record, found := s.findGatewayByTenant(tenantID, request.GatewayID)
+		if !found {
+			writeError(w, http.StatusNotFound, "gateway not found")
+			return
+		}
+		buildingScope, ok := s.buildingScopeForRequest(w, r)
+		if !ok {
+			return
+		}
+		if !s.requireBuildingScope(w, buildingScope, record.BuildingID) {
+			return
+		}
+	}
+	if strings.TrimSpace(request.GatewayID) == "" && !requestCanRevokeGlobalGatewayCertificateSerial(r) {
+		writeError(w, http.StatusBadRequest, "gateway_id is required for tenant-scoped certificate revocation")
+		return
+	}
+
+	item, err := s.gatewaySvc.RevokeCertificateSerial(tenantID, request.GatewayID, request.SerialNumber, request.Reason, gatewayCertificateRevocationActor(r))
+	if err != nil {
+		handleGatewayCertificateRevocationError(w, err)
+		return
+	}
+	s.syncGatewayCertificateRevocationMetrics()
+	if strings.TrimSpace(item.GatewayID) != "" {
+		s.closeGatewayWebSocketSessions(item.GatewayID, "certificate serial revoked; reconnect denied")
+	}
+	s.closeGatewayWebSocketCertificateSerial(item.SerialNumber, "certificate serial revoked; reconnect denied")
+	s.publishGatewayWebSocketDisconnect(item.TenantID, item.GatewayID, item.SerialNumber)
+
+	auditTenantID := item.TenantID
+	if auditTenantID == "" {
+		auditTenantID = tenantID
+	}
+	s.appendAuditLog(r, auditTenantID, "gateway_mtls_cert_serial_revoked", fmt.Sprintf("serial=%s,gateway=%s,source=%s", item.SerialNumber, item.GatewayID, item.Source), "gateway")
+	writeJSON(w, http.StatusOK, item)
+}
+
+func (s *server) restoreGatewayCertificateSerial(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		TenantID string `json:"tenant_id"`
+	}
+	_ = decodeJSON(r, &request)
+
+	tenantID, ok := s.resolveTenantID(w, r, firstNonEmptyString(request.TenantID, r.URL.Query().Get("tenant_id")))
+	if !ok {
+		return
+	}
+
+	serial := chi.URLParam(r, "serialNumber")
+	if gatewaySerialConfiguredInEnvironment(s.cfg.GatewayMTLSRevokedSerials, serial) {
+		writeError(w, http.StatusConflict, "certificate serial is configured in GATEWAY_MTLS_REVOKED_SERIALS")
+		return
+	}
+
+	item, err := s.gatewaySvc.RestoreCertificateSerial(tenantID, serial)
+	if err != nil {
+		handleGatewayCertificateRevocationError(w, err)
+		return
+	}
+	s.syncGatewayCertificateRevocationMetrics()
+
+	auditTenantID := item.TenantID
+	if auditTenantID == "" {
+		auditTenantID = tenantID
+	}
+	s.appendAuditLog(r, auditTenantID, "gateway_mtls_cert_serial_restored", fmt.Sprintf("serial=%s,gateway=%s", item.SerialNumber, item.GatewayID), "gateway")
+	writeJSON(w, http.StatusOK, item)
+}
+
+func gatewaySerialConfiguredInEnvironment(items []string, serialNumber string) bool {
+	serial := gateway.NormalizeCertificateSerial(serialNumber)
+	if serial == "" {
+		return false
+	}
+	for i := range items {
+		if gateway.NormalizeCertificateSerial(items[i]) == serial {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *server) syncGatewayCertificateRevocationMetrics() {
+	runtimeCount := 0
+	envSerials := []string(nil)
+	if s != nil && s.gatewaySvc != nil {
+		runtimeCount = len(s.gatewaySvc.ListCertificateRevocations(""))
+	}
+	if s != nil {
+		envSerials = s.cfg.GatewayMTLSRevokedSerials
+	}
+	setGatewayCertificateRevocationMetric("runtime", runtimeCount)
+	setGatewayCertificateRevocationMetric("environment", countConfiguredGatewayCertificateSerials(envSerials))
+}
+
+func countConfiguredGatewayCertificateSerials(items []string) int {
+	seen := map[string]struct{}{}
+	for i := range items {
+		serial := gateway.NormalizeCertificateSerial(items[i])
+		if serial == "" {
+			continue
+		}
+		seen[serial] = struct{}{}
+	}
+	return len(seen)
+}
+
+func gatewayCertificateRevocationActor(r *http.Request) string {
+	if r == nil {
+		return "system"
+	}
+	user, ok := authenticatedUser(r)
+	if !ok {
+		return "system"
+	}
+	if strings.TrimSpace(user.Email) != "" {
+		return strings.TrimSpace(user.Email)
+	}
+	return strings.TrimSpace(user.ID)
+}
+
+func requestCanRevokeGlobalGatewayCertificateSerial(r *http.Request) bool {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(user.Role), "super_admin")
+}
+
+func handleGatewayCertificateRevocationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, gateway.ErrGatewayNotFound),
+		errors.Is(err, gateway.ErrGatewayCertificateSerialNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	case errors.Is(err, gateway.ErrGatewayCertificateSerialConflict):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, gateway.ErrGatewayCertificateSerialRequired),
+		errors.Is(err, gateway.ErrGatewayCertificateSerialInvalid):
+		writeError(w, http.StatusBadRequest, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, err.Error())
+	}
 }
 
 func (s *server) listGatewaySerialInventory(w http.ResponseWriter, r *http.Request) {

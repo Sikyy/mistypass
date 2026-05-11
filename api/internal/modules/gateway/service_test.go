@@ -1,10 +1,38 @@
 package gateway
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 )
+
+type gatewayMemoryStateStore struct {
+	items map[string][]byte
+}
+
+func (s *gatewayMemoryStateStore) Load(key string, dst any) (bool, error) {
+	payload, ok := s.items[key]
+	if !ok {
+		return false, nil
+	}
+	if err := json.Unmarshal(payload, dst); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *gatewayMemoryStateStore) Save(key string, value any) error {
+	if s.items == nil {
+		s.items = map[string][]byte{}
+	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	s.items[key] = payload
+	return nil
+}
 
 func TestNormalizeDeviceProtocolDefault(t *testing.T) {
 	got, err := normalizeDeviceProtocol("legacy_reader", "legacy_integration", "")
@@ -309,6 +337,95 @@ func TestPublishPullAndApplyConfig(t *testing.T) {
 	}
 	if pulled.DesiredVersion != "cfg-20260413-a" || pulled.AppliedVersion != "cfg-20260413-a" {
 		t.Fatalf("expected desired/applied to match after ack, got desired=%s applied=%s", pulled.DesiredVersion, pulled.AppliedVersion)
+	}
+}
+
+func TestUpdateGatewayStatus(t *testing.T) {
+	svc := NewService()
+	item, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "gw_demo_001", "revoked")
+	if err != nil {
+		t.Fatalf("update gateway status: %v", err)
+	}
+	if item.Status != "revoked" {
+		t.Fatalf("expected revoked status, got %s", item.Status)
+	}
+
+	found, ok := svc.FindGatewayByID("tenant_demo_jakarta", "gw_demo_001")
+	if !ok {
+		t.Fatalf("expected gateway lookup success")
+	}
+	if found.Status != "revoked" {
+		t.Fatalf("expected stored revoked status, got %s", found.Status)
+	}
+
+	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "gw_demo_001", "bad-status"); !errors.Is(err, ErrGatewayStatusInvalid) {
+		t.Fatalf("expected invalid status error, got %v", err)
+	}
+	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "gw_demo_001", ""); !errors.Is(err, ErrGatewayStatusRequired) {
+		t.Fatalf("expected required status error, got %v", err)
+	}
+	if _, err := svc.UpdateGatewayStatus("tenant_demo_jakarta", "missing", "revoked"); !errors.Is(err, ErrGatewayNotFound) {
+		t.Fatalf("expected not found error, got %v", err)
+	}
+}
+
+func TestCertificateSerialRevocationLifecycle(t *testing.T) {
+	svc := NewService()
+
+	item, err := svc.RevokeCertificateSerial("tenant_demo_jakarta", "gw_demo_001", "00:AB:C1:23", "key exposed", "security@example.com")
+	if err != nil {
+		t.Fatalf("revoke cert serial: %v", err)
+	}
+	if item.SerialNumber != "abc123" {
+		t.Fatalf("unexpected normalized serial: %s", item.SerialNumber)
+	}
+	if item.TenantID != "tenant_demo_jakarta" || item.GatewayID != "gw_demo_001" {
+		t.Fatalf("unexpected revocation scope: %+v", item)
+	}
+	if item.Source != certificateRevocationSourceRuntime {
+		t.Fatalf("unexpected revocation source: %s", item.Source)
+	}
+	if !svc.IsCertificateSerialRevoked("ab:c1:23") {
+		t.Fatalf("expected certificate serial to be revoked")
+	}
+
+	items := svc.ListCertificateRevocations("tenant_demo_jakarta")
+	if len(items) != 1 {
+		t.Fatalf("expected one revocation, got %d", len(items))
+	}
+
+	removed, err := svc.RestoreCertificateSerial("tenant_demo_jakarta", "ABC123")
+	if err != nil {
+		t.Fatalf("restore cert serial: %v", err)
+	}
+	if removed.SerialNumber != "abc123" {
+		t.Fatalf("unexpected restored serial: %s", removed.SerialNumber)
+	}
+	if svc.IsCertificateSerialRevoked("abc123") {
+		t.Fatalf("expected certificate serial to be restored")
+	}
+}
+
+func TestCertificateSerialRevocationPersistsToStateStore(t *testing.T) {
+	store := &gatewayMemoryStateStore{}
+	first, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new first service: %v", err)
+	}
+	if _, err := first.RevokeCertificateSerial("tenant_demo_jakarta", "gw_demo_001", "0A:0B", "rotation", "ops@example.com"); err != nil {
+		t.Fatalf("revoke serial: %v", err)
+	}
+
+	restored, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new restored service: %v", err)
+	}
+	if !restored.IsCertificateSerialRevoked("0a0b") {
+		t.Fatalf("expected restored service to load certificate revocation")
+	}
+	items := restored.ListCertificateRevocations("tenant_demo_jakarta")
+	if len(items) != 1 || items[0].SerialNumber != "a0b" {
+		t.Fatalf("unexpected restored revocations: %+v", items)
 	}
 }
 

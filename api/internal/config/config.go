@@ -114,6 +114,10 @@ type Config struct {
 	HRISVaultMasterKeyPrevious                                   string // for key rotation
 	GatewayEventsBatchForceRetryableError                        bool
 	GatewayEventsBatchForceRetryablePrefix                       string
+	GatewayRequireRequestNonce                                   bool
+	GatewayWebSocketMaxSessionTTL                                time.Duration
+	GatewayMTLSCertLifetime                                      time.Duration
+	GatewayMTLSRevokedSerials                                    []string
 	WalletJobProcessDefaultMaxRetry                              int
 	WalletDLQCleanupDefaultLimit                                 int
 	WalletDLQCleanupDefaultOlderThan                             time.Duration
@@ -141,7 +145,7 @@ type Config struct {
 	UploadMaxSizeBytes                                           int64
 	UploadURLTTL                                                 time.Duration
 	SelfRegistrationEnabled                                      bool
-	DefaultTimezone                                               string
+	DefaultTimezone                                              string
 	ReportEmailEnabled                                           bool
 	CameraEnabled                                                bool
 	CameraVaultMasterKey                                         string
@@ -151,6 +155,9 @@ type Config struct {
 	OAuth2Enabled                                                bool
 	GatewayCACertPEM                                             string // PEM-encoded CA certificate for gateway mTLS
 	GatewayCAKeyPEM                                              string // PEM-encoded CA private key for gateway mTLS
+	GatewayMTLSAddr                                              string // optional HTTPS listener address for gateway mTLS traffic
+	GatewayMTLSServerCertPEM                                     string // PEM-encoded server certificate for gateway mTLS listener
+	GatewayMTLSServerKeyPEM                                      string // PEM-encoded server private key for gateway mTLS listener
 }
 
 func FromEnv() Config {
@@ -635,11 +642,35 @@ func loadGatewayConfig(cfg *Config) {
 		"GATEWAY_EVENTS_BATCH_FORCE_RETRYABLE_PREFIX",
 		"force-retry-",
 	)
+	cfg.GatewayRequireRequestNonce = parseBoolOrFallback(
+		envString("GATEWAY_REQUIRE_REQUEST_NONCE"),
+		false,
+	)
+	cfg.GatewayWebSocketMaxSessionTTL = parseDurationOrFallback(
+		envString("GATEWAY_WS_MAX_SESSION_TTL"),
+		6*time.Hour,
+	)
+	if cfg.GatewayWebSocketMaxSessionTTL < time.Minute {
+		cfg.GatewayWebSocketMaxSessionTTL = 6 * time.Hour
+	}
+	cfg.GatewayMTLSCertLifetime = parseDurationOrFallback(
+		envString("GATEWAY_MTLS_CERT_LIFETIME"),
+		24*time.Hour,
+	)
+	if cfg.GatewayMTLSCertLifetime < time.Hour || cfg.GatewayMTLSCertLifetime > 72*time.Hour {
+		cfg.GatewayMTLSCertLifetime = 24 * time.Hour
+	}
+	cfg.GatewayMTLSRevokedSerials = parseCSVList(envString("GATEWAY_MTLS_REVOKED_SERIALS"))
 	// mTLS CA for gateway device authentication.
 	// In production, set GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM.
 	// If not set, a new CA is auto-generated (dev mode — certs won't survive restart).
 	cfg.GatewayCACertPEM = envString("GATEWAY_CA_CERT_PEM")
 	cfg.GatewayCAKeyPEM = envString("GATEWAY_CA_KEY_PEM")
+	if raw := envString("GATEWAY_MTLS_ADDR"); raw != "" {
+		cfg.GatewayMTLSAddr = normalizeHTTPAddr(raw)
+	}
+	cfg.GatewayMTLSServerCertPEM = envString("GATEWAY_MTLS_SERVER_CERT_PEM")
+	cfg.GatewayMTLSServerKeyPEM = envString("GATEWAY_MTLS_SERVER_KEY_PEM")
 }
 
 func loadUploadConfig(cfg *Config) {
@@ -836,6 +867,17 @@ func (cfg Config) Validate() error {
 			return errors.New("EXTERNAL_AUTH_DEFAULT_ROLE must be one of super_admin|tenant_admin|operator|building_admin|resident when EXTERNAL_AUTH_ENABLED is true")
 		}
 	}
+	if strings.TrimSpace(cfg.GatewayMTLSAddr) != "" {
+		if strings.TrimSpace(cfg.GatewayMTLSServerCertPEM) == "" {
+			return errors.New("GATEWAY_MTLS_SERVER_CERT_PEM is required when GATEWAY_MTLS_ADDR is set")
+		}
+		if strings.TrimSpace(cfg.GatewayMTLSServerKeyPEM) == "" {
+			return errors.New("GATEWAY_MTLS_SERVER_KEY_PEM is required when GATEWAY_MTLS_ADDR is set")
+		}
+		if strings.TrimSpace(cfg.GatewayCACertPEM) == "" || strings.TrimSpace(cfg.GatewayCAKeyPEM) == "" {
+			return errors.New("GATEWAY_CA_CERT_PEM and GATEWAY_CA_KEY_PEM are required when GATEWAY_MTLS_ADDR is set")
+		}
+	}
 	return nil
 }
 
@@ -959,6 +1001,31 @@ func parseGroupEmailMap(raw string) map[string][]string {
 		return nil
 	}
 	return groups
+}
+
+func parseCSVList(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	items := make([]string, 0, len(parts))
+	seen := map[string]struct{}{}
+	for i := range parts {
+		next := strings.TrimSpace(parts[i])
+		if next == "" {
+			continue
+		}
+		key := strings.ToLower(next)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		items = append(items, next)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return items
 }
 
 func loadReportEmailConfig(cfg *Config) {

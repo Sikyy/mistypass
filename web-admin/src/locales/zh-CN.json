@@ -1265,7 +1265,9 @@
     },
     "status": {
       "online": "在线",
-      "offline": "离线"
+      "offline": "离线",
+      "disabled": "已停用",
+      "revoked": "已吊销"
     },
     "commandStatus": {
       "queued": "已入队",
@@ -1311,7 +1313,10 @@
       "registerDeviceFailed": "挂载设备失败",
       "probeLegacyFailed": "探测 legacy 设备失败",
       "publishConfigFailed": "发布配置失败",
-      "rebootFailed": "下发重启失败"
+      "rebootFailed": "下发重启失败",
+      "updateGatewayStatusFailed": "更新网关状态失败",
+      "revokeCertificateSerialFailed": "吊销证书序列号失败",
+      "restoreCertificateSerialFailed": "恢复证书序列号失败"
     },
     "commandLog": {
       "empty": "暂无下发命令。",
@@ -1325,14 +1330,20 @@
       "registerDeviceSuccess": "设备 {{serial}} 已挂载到 {{gatewayID}}",
       "probeLegacySuccess": "已探测到 {{count}} 个 legacy 设备序列号候选",
       "publishConfigQueued": "配置发布任务已入队（{{taskID}}），目标 {{gatewayID}}",
-      "rebootQueued": "重启任务已入队（{{taskID}}），目标 {{gatewayID}}"
+      "rebootQueued": "重启任务已入队（{{taskID}}），目标 {{gatewayID}}",
+      "updateGatewayStatusSuccess": "网关 {{gatewayID}} 状态已更新为 {{status}}",
+      "revokeCertificateSerialSuccess": "证书序列号 {{serial}} 已对 {{gatewayID}} 吊销",
+      "restoreCertificateSerialSuccess": "证书序列号 {{serial}} 已恢复"
     },
     "readOnlyBoundaryHint": "按钮禁用或缺失属于权限边界，不是系统异常。",
     "disabledReasons": {
       "commandBusy": "网关命令或库存更新仍在执行，请等待完成。",
       "enterBatchTargets": "先选择表格行或粘贴序列号，再批量更新状态。",
+      "enterCertificateSerial": "先输入证书序列号，再执行吊销。",
       "enterConfigVersion": "先输入配置版本号，再发布配置。",
       "enterDeviceSerial": "先输入或探测设备序列号，再挂载设备。",
+      "environmentRevocation": "此序列号来自 GATEWAY_MTLS_REVOKED_SERIALS，需要从部署密钥中移除。",
+      "gatewayAlreadyStatus": "网关已经是 {{status}} 状态。",
       "inventoryAlreadyStatus": "此序列号已经是 {{status}} 状态。",
       "inventoryScrappedCannotFreeze": "已报废序列号不能直接冻结；如需重新入库，请先回库。",
       "noDeviceSlots": "此网关没有剩余下挂设备槽位（{{remaining}}）。",
@@ -1459,6 +1470,7 @@
         "deviceCapacity": "设备容量",
         "deviceOnline": "设备在线",
         "status": "状态",
+        "securityAction": "安全操作",
         "lastSeen": "最近在线",
         "boundDoors": "已绑门点",
         "tenant": "租户",
@@ -1469,7 +1481,49 @@
         "filtered": "当前筛选条件下没有匹配的网关。",
         "buildingScope": "当前楼宇范围内暂无网关。",
         "default": "当前范围内暂无网关。"
+      },
+      "applyStatus": "应用"
+    },
+    "security": {
+      "title": "网关安全",
+      "descriptionEditable": "吊销 mTLS 证书序列号并查看运行期拒绝列表。",
+      "descriptionReadonly": "查看 mTLS 证书吊销和运行期拒绝列表。",
+      "readonlyNotice": "当前角色无证书吊销权限。{{hint}}",
+      "runtimeTotal": "运行期 {{count}}",
+      "environmentTotal": "环境 {{count}}",
+      "loading": "正在加载证书吊销记录...",
+      "empty": "当前范围内暂无证书序列号吊销记录。",
+      "restore": "恢复",
+      "source": {
+        "runtime": "运行期",
+        "environment": "环境"
+      },
+      "form": {
+        "serialLabel": "证书序列号",
+        "serialPlaceholder": "十六进制序列号，例如 01:AB:7F",
+        "gatewayLabel": "网关",
+        "gatewayPlaceholder": "可选网关绑定",
+        "tenantLabel": "租户",
+        "tenantPlaceholder": "选择租户",
+        "reasonLabel": "原因",
+        "reasonPlaceholder": "事件、轮换或操作备注",
+        "submit": "吊销序列号"
+      },
+      "table": {
+        "serial": "序列号",
+        "gateway": "网关",
+        "source": "来源",
+        "revokedAt": "吊销时间",
+        "reason": "原因",
+        "action": "操作"
       }
+    },
+    "statusConfirm": {
+      "title": "确认更新网关状态",
+      "description": "将 {{gatewayID}} 改为 {{status}} 后，如果目标状态是已停用或已吊销，会立即阻断该网关鉴权。",
+      "targetLabel": "目标网关",
+      "cancel": "取消",
+      "confirm": "确认"
     },
     "commandCenter": {
       "title": "网关命令中心",

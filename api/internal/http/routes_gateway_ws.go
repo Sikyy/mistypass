@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/mistypass/cloud/api/internal/modules/event"
+	"github.com/mistypass/cloud/api/internal/modules/gateway"
 )
 
 // --- Gateway WebSocket Handler ---
@@ -26,11 +27,13 @@ var wsUpgrader = websocket.Upgrader{
 
 // gwWSConn tracks a single connected gateway WebSocket.
 type gwWSConn struct {
-	conn       *websocket.Conn
-	gatewayID  string
-	tenantID   string
-	ruleVer    string // last-known rule version on gateway
+	conn        *websocket.Conn
+	gatewayID   string
+	tenantID    string
+	certSerial  string
+	ruleVer     string // last-known rule version on gateway
 	connectedAt time.Time
+	writeMu     sync.Mutex
 }
 
 // gwWSRegistry manages active gateway WebSocket connections.
@@ -49,15 +52,20 @@ func (reg *gwWSRegistry) add(gw *gwWSConn) {
 	reg.mu.Lock()
 	// Close existing connection for this gateway (replaced by new one)
 	if existing, ok := reg.conns[gw.gatewayID]; ok {
-		existing.conn.Close()
+		existing.closeWithPolicy("replaced by a newer connection")
 	}
 	reg.conns[gw.gatewayID] = gw
 	reg.mu.Unlock()
 }
 
-func (reg *gwWSRegistry) remove(gatewayID string) {
+func (reg *gwWSRegistry) remove(gw *gwWSConn) {
+	if gw == nil {
+		return
+	}
 	reg.mu.Lock()
-	delete(reg.conns, gatewayID)
+	if current, ok := reg.conns[gw.gatewayID]; ok && current == gw {
+		delete(reg.conns, gw.gatewayID)
+	}
 	reg.mu.Unlock()
 }
 
@@ -66,6 +74,38 @@ func (reg *gwWSRegistry) get(gatewayID string) (*gwWSConn, bool) {
 	defer reg.mu.RUnlock()
 	c, ok := reg.conns[gatewayID]
 	return c, ok
+}
+
+func (reg *gwWSRegistry) CloseGateway(gatewayID, reason string) bool {
+	reg.mu.RLock()
+	gw, ok := reg.conns[gatewayID]
+	reg.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	gw.closeWithPolicy(reason)
+	return true
+}
+
+func (reg *gwWSRegistry) CloseCertificateSerial(serialNumber, reason string) int {
+	serial := gateway.NormalizeCertificateSerial(serialNumber)
+	if serial == "" {
+		return 0
+	}
+
+	reg.mu.RLock()
+	targets := make([]*gwWSConn, 0)
+	for _, gw := range reg.conns {
+		if gateway.NormalizeCertificateSerial(gw.certSerial) == serial {
+			targets = append(targets, gw)
+		}
+	}
+	reg.mu.RUnlock()
+
+	for _, gw := range targets {
+		gw.closeWithPolicy(reason)
+	}
+	return len(targets)
 }
 
 // PushConfig sends a config update to a specific gateway via WebSocket.
@@ -79,11 +119,7 @@ func (reg *gwWSRegistry) PushConfig(gatewayID string, configData json.RawMessage
 	}
 
 	msg := gwWSMessage{Type: "config_push", Data: configData}
-	payload, _ := json.Marshal(msg)
-	if err := gw.conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-		return false
-	}
-	return true
+	return gw.writeJSON(msg)
 }
 
 // PushCredentials sends a credential update to a specific gateway via WebSocket.
@@ -96,11 +132,38 @@ func (reg *gwWSRegistry) PushCredentials(gatewayID string, credData json.RawMess
 	}
 
 	msg := gwWSMessage{Type: "credential_push", Data: credData}
-	payload, _ := json.Marshal(msg)
-	if err := gw.conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+	return gw.writeJSON(msg)
+}
+
+func (gw *gwWSConn) writeJSON(message gwWSMessage) bool {
+	if gw == nil || gw.conn == nil {
 		return false
 	}
-	return true
+	payload, err := json.Marshal(message)
+	if err != nil {
+		return false
+	}
+	gw.writeMu.Lock()
+	defer gw.writeMu.Unlock()
+	return gw.conn.WriteMessage(websocket.TextMessage, payload) == nil
+}
+
+func (gw *gwWSConn) closeWithPolicy(reason string) {
+	if gw == nil || gw.conn == nil {
+		return
+	}
+	nextReason := strings.TrimSpace(reason)
+	if nextReason == "" {
+		nextReason = "gateway session closed"
+	}
+	gw.writeMu.Lock()
+	defer gw.writeMu.Unlock()
+	_ = gw.conn.WriteControl(
+		websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.ClosePolicyViolation, nextReason),
+		time.Now().Add(5*time.Second),
+	)
+	_ = gw.conn.Close()
 }
 
 // gwWSMessage is the framing protocol for gateway WebSocket messages.
@@ -110,15 +173,13 @@ type gwWSMessage struct {
 }
 
 // gatewayWebSocket handles the WebSocket upgrade and ongoing communication.
-// GET /api/v1/gateway/ws?token=<device_token>
+// GET /api/v1/gateway/ws
 func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Authenticate via query param token
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
 	gatewayID := strings.TrimSpace(r.Header.Get("X-Gateway-ID"))
 	tenantID := strings.TrimSpace(r.Header.Get("X-Tenant-ID"))
 
-	if token == "" || gatewayID == "" || tenantID == "" {
-		http.Error(w, "missing token, gateway_id, or tenant_id", http.StatusUnauthorized)
+	if gatewayID == "" || tenantID == "" {
+		http.Error(w, "missing gateway_id or tenant_id", http.StatusUnauthorized)
 		return
 	}
 
@@ -129,14 +190,10 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify device token using the same logic as HTTP endpoints
-	if s.gatewayTokenStore != nil {
-		exists, matched, err := s.gatewayTokenStore.VerifyGatewayDeviceToken(record.ID, token)
-		if err != nil || !exists || !matched {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
+	if !s.authorizeGatewayWebSocketDeviceToken(w, r, record.ID) {
+		return
 	}
+	maxSessionTTL := s.gatewayWebSocketMaxSessionTTL()
 
 	// Upgrade to WebSocket
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
@@ -144,8 +201,10 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		s.logger.Warn("ws: upgrade failed", "error", err, "gateway_id", gatewayID)
 		return
 	}
+	defer conn.Close()
 
 	s.logger.Info("ws: gateway connected", "gateway_id", gatewayID, "tenant_id", tenantID)
+	recordGatewayWebSocketSession("connected")
 
 	// Wait for auth message (first frame)
 	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
@@ -166,10 +225,17 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 	var authData struct {
 		GatewayID   string `json:"gateway_id"`
 		TenantID    string `json:"tenant_id"`
-		DeviceToken string `json:"device_token"`
 		RuleVersion string `json:"rule_version"`
 	}
 	if err := json.Unmarshal(authMsg.Data, &authData); err != nil {
+		conn.Close()
+		return
+	}
+	if authData.GatewayID != "" && authData.GatewayID != gatewayID {
+		conn.Close()
+		return
+	}
+	if authData.TenantID != "" && authData.TenantID != tenantID {
 		conn.Close()
 		return
 	}
@@ -179,6 +245,7 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn:        conn,
 		gatewayID:   gatewayID,
 		tenantID:    tenantID,
+		certSerial:  gatewayCertificateSerialFromRequest(r),
 		ruleVer:     authData.RuleVersion,
 		connectedAt: time.Now(),
 	}
@@ -187,7 +254,12 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		s.gwWSRegistry = newGWWSRegistry()
 	}
 	s.gwWSRegistry.add(gwConn)
-	defer s.gwWSRegistry.remove(gatewayID)
+	defer s.gwWSRegistry.remove(gwConn)
+	defer func() {
+		s.logger.Info("ws: gateway disconnected", "gateway_id", gatewayID,
+			"session_duration", time.Since(gwConn.connectedAt).Round(time.Second))
+		recordGatewayWebSocketSession("disconnected")
+	}()
 
 	// Send initial config push if gateway's rule version is outdated
 	go s.wsInitialConfigPush(gwConn)
@@ -195,11 +267,12 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Start ping ticker (server → gateway keepalive)
 	pingTicker := time.NewTicker(30 * time.Second)
 	defer pingTicker.Stop()
+	sessionExpiresAt := time.Now().Add(maxSessionTTL)
 
 	// Read loop
-	conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	conn.SetReadDeadline(gatewayWebSocketReadDeadline(sessionExpiresAt))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		conn.SetReadDeadline(gatewayWebSocketReadDeadline(sessionExpiresAt))
 		return nil
 	})
 
@@ -209,9 +282,7 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 		for {
 			select {
 			case <-pingTicker.C:
-				pingMsg := gwWSMessage{Type: "ping"}
-				payload, _ := json.Marshal(pingMsg)
-				if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+				if !gwConn.writeJSON(gwWSMessage{Type: "ping"}) {
 					return
 				}
 			case <-stopPing:
@@ -222,22 +293,92 @@ func (s *server) gatewayWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer close(stopPing)
 
 	for {
+		if !time.Now().Before(sessionExpiresAt) {
+			s.closeExpiredGatewayWebSocket(gwConn, maxSessionTTL)
+			return
+		}
+
 		_, message, err := conn.ReadMessage()
 		if err != nil {
+			if !time.Now().Before(sessionExpiresAt) {
+				s.closeExpiredGatewayWebSocket(gwConn, maxSessionTTL)
+				return
+			}
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				s.logger.Warn("ws: read error", "error", err, "gateway_id", gatewayID)
 			}
 			break
 		}
-		conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		conn.SetReadDeadline(gatewayWebSocketReadDeadline(sessionExpiresAt))
 		s.handleGWWSMessage(gwConn, message)
 	}
 
-	s.logger.Info("ws: gateway disconnected", "gateway_id", gatewayID,
-		"session_duration", time.Since(gwConn.connectedAt).Round(time.Second))
+}
+
+func gatewayWebSocketReadDeadline(sessionExpiresAt time.Time) time.Time {
+	keepaliveDeadline := time.Now().Add(90 * time.Second)
+	if sessionExpiresAt.IsZero() || keepaliveDeadline.Before(sessionExpiresAt) {
+		return keepaliveDeadline
+	}
+	return sessionExpiresAt
+}
+
+func (s *server) closeExpiredGatewayWebSocket(gw *gwWSConn, maxSessionTTL time.Duration) {
+	gatewayID := ""
+	if gw != nil {
+		gatewayID = gw.gatewayID
+		gw.closeWithPolicy("session expired; reconnect")
+	}
+	recordGatewayWebSocketSession("expired")
+	s.loggerOrDefault().Info("ws: gateway session expired", "gateway_id", gatewayID, "max_session_ttl", maxSessionTTL)
+}
+
+func (s *server) gatewayWebSocketMaxSessionTTL() time.Duration {
+	if s == nil || s.cfg.GatewayWebSocketMaxSessionTTL < time.Minute {
+		return 6 * time.Hour
+	}
+	return s.cfg.GatewayWebSocketMaxSessionTTL
+}
+
+func (s *server) authorizeGatewayWebSocketDeviceToken(w http.ResponseWriter, r *http.Request, gatewayID string) bool {
+	if s.authorizeGatewayClientCertificate(r, gatewayID) {
+		recordGatewayWebSocketAuth("mtls")
+		return true
+	}
+	if gatewayMTLSRequired(r) {
+		recordGatewayWebSocketAuth("mtls_required_missing")
+		writeError(w, http.StatusUnauthorized, "valid gateway client certificate required")
+		return false
+	}
+
+	if strings.TrimSpace(r.URL.Query().Get("token")) != "" {
+		recordGatewayWebSocketAuth("query_token_rejected")
+		writeError(w, http.StatusUnauthorized, "WebSocket token query parameter is no longer supported")
+		return false
+	}
+
+	if strings.TrimSpace(r.Header.Get("X-Device-Token")) != "" {
+		recordGatewayWebSocketAuth("x_device_token")
+		return s.authorizeGatewayDeviceToken(w, r, gatewayID)
+	}
+	if token, err := bearerToken(r.Header.Get("Authorization")); err == nil && strings.TrimSpace(token) != "" {
+		recordGatewayWebSocketAuth("authorization_bearer")
+		return s.authorizeGatewayDeviceToken(w, r, gatewayID)
+	}
+
+	recordGatewayWebSocketAuth("missing")
+	return s.authorizeGatewayDeviceToken(w, r, gatewayID)
 }
 
 func (s *server) handleGWWSMessage(gw *gwWSConn, raw []byte) {
+	if s.gatewayConnectionRevoked(gw) {
+		if gw != nil {
+			gw.closeWithPolicy("gateway revoked; reconnect denied")
+		}
+		recordGatewayWebSocketSession("revoked_closed")
+		return
+	}
+
 	var msg gwWSMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return
@@ -317,10 +458,72 @@ func (s *server) wsInitialConfigPush(gw *gwWSConn) {
 	})
 
 	if s.gwWSRegistry != nil {
-		s.gwWSRegistry.PushConfig(gw.gatewayID, configPayload)
-		s.logger.Info("ws: initial config pushed",
-			"gateway_id", gw.gatewayID,
-			"version", authzCache.Version,
-		)
+		if s.gwWSRegistry.PushConfig(gw.gatewayID, configPayload) {
+			s.logger.Info("ws: initial config pushed",
+				"gateway_id", gw.gatewayID,
+				"version", authzCache.Version,
+			)
+		}
 	}
+}
+
+func (s *server) pushAuthzCacheToConnectedGateways(tenantID string) int {
+	if s.gwWSRegistry == nil || s.gatewaySvc == nil {
+		return 0
+	}
+
+	gateways := s.gatewaySvc.List(tenantID)
+	pushed := 0
+	for _, gw := range gateways {
+		if s.pushGatewayAuthzCache(gw.TenantID, gw.ID, gw.BoundDoorIDs) {
+			pushed++
+		}
+	}
+	return pushed
+}
+
+func (s *server) pushGatewayAuthzCache(tenantID, gatewayID string, boundDoorIDs []string) bool {
+	authzCache := s.buildGatewayConfigAuthzCache(tenantID, gatewayID, boundDoorIDs, time.Now().UTC())
+	configPayload, _ := json.Marshal(map[string]any{
+		"authz_cache": authzCache,
+	})
+	localPushed := false
+	if s.gwWSRegistry != nil {
+		if _, ok := s.gwWSRegistry.get(gatewayID); ok {
+			localPushed = s.gwWSRegistry.PushConfig(gatewayID, configPayload)
+		}
+	}
+	s.publishGatewayWebSocketPush(tenantID, gatewayID, "config_push", configPayload)
+	return localPushed
+}
+
+func (s *server) closeGatewayWebSocketSessions(gatewayID, reason string) bool {
+	if s == nil || s.gwWSRegistry == nil {
+		return false
+	}
+	return s.gwWSRegistry.CloseGateway(gatewayID, reason)
+}
+
+func (s *server) closeGatewayWebSocketCertificateSerial(serialNumber, reason string) int {
+	if s == nil || s.gwWSRegistry == nil {
+		return 0
+	}
+	return s.gwWSRegistry.CloseCertificateSerial(serialNumber, reason)
+}
+
+func (s *server) gatewayConnectionRevoked(gw *gwWSConn) bool {
+	if s == nil || gw == nil {
+		return false
+	}
+	if s.gatewayIdentityStatusRevoked(gw.gatewayID) {
+		return true
+	}
+	if s.gatewayClientSerialRevoked(gw.certSerial) {
+		return true
+	}
+	if s.gatewaySvc == nil {
+		return false
+	}
+	record, ok := s.gatewaySvc.FindGatewayByID(gw.tenantID, gw.gatewayID)
+	return ok && gatewayCertificateStatusRevoked(record.Status)
 }

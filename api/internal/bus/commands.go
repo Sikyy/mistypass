@@ -1,5 +1,7 @@
 package bus
 
+import "encoding/json"
+
 // GatewayCommand is published to NATS for a gateway to execute.
 // Subject: mistypass.gateway.{gateway_id}.command
 type GatewayCommand struct {
@@ -52,4 +54,18 @@ type CredentialVerifyResponse struct {
 	UserID     string `json:"user_id,omitempty"`
 	UserEmail  string `json:"user_email,omitempty"`
 	OccurredAt string `json:"occurred_at"`
+}
+
+// GatewayWebSocketPush is published between API replicas so the instance that
+// owns a gateway WebSocket can deliver the push locally.
+// Subject: mistypass.gateway.ws.push
+type GatewayWebSocketPush struct {
+	RequestID        string          `json:"request_id"`
+	OriginInstanceID string          `json:"origin_instance_id,omitempty"`
+	TenantID         string          `json:"tenant_id"`
+	GatewayID        string          `json:"gateway_id"`
+	SerialNumber     string          `json:"serial_number,omitempty"`
+	Type             string          `json:"type"` // "config_push", "credential_push", or "disconnect"
+	Data             json.RawMessage `json:"data"`
+	IssuedAt         string          `json:"issued_at"`
 }

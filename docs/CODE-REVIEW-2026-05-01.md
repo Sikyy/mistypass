@@ -320,8 +320,8 @@ MistyPass 是一个生产级身份与门禁管理平台，采用前后端分离�
 | MVP 路线图 | `docs/MVP-ROADMAP.md` | M1-M4 完成，M5 部分完成 |
 | 后续路线图 | `docs/NEXT-ROADMAP.md` | 待推进事项 + 本次审查行动项 |
 | Kisi 差距分析 | `docs/kisi-gap-analysis.md` | 基于 Bundled References 逐项对比 |
-| Kisi 架构对照 | `docs/architecture/kisi-comparison.md` | 系统架构 / 硬件 / 协议 / API 对照 |
+| Kisi 架构对照（已归档） | `docs/archive/kisi-comparison.md` | 历史系统架构 / 硬件 / 协议 / API 对照 |
 | API 汇总 | `MISTYISLET-KISI-API-SUMMARY.md` | 资源 API 总索引 + 对齐进度 |
 | 凭证安全架构 | `docs/credential-security-architecture.md` | 全链路安全规范 |
-| Gateway 协议 | `docs/architecture/gateway-cloud-protocol.md` | HTTPS + NATS 通信协议 |
+| Gateway 软件安全状态 | `docs/architecture/gateway-security-software-status.md` | 当前网关通信安全、mTLS、WS、nonce、离线补传状态 |
 | 快速开始 | `docs/QUICK-START.md` | 10 分钟上手 |
