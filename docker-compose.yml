@@ -24,6 +24,8 @@ services:
       DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD:-mistypass-dev}@pgbouncer:5432/mistypass?sslmode=disable"
       DATABASE_AUTO_MIGRATE: "true"
       GATEWAY_BOOTSTRAP_TOKEN: "${GATEWAY_BOOTSTRAP_TOKEN:-mistypass-dev}"
+      GATEWAY_REQUIRE_REQUEST_NONCE: "${GATEWAY_REQUIRE_REQUEST_NONCE:-false}"
+      GATEWAY_WS_MAX_SESSION_TTL: "${GATEWAY_WS_MAX_SESSION_TTL:-6h}"
       REDIS_ADDR: redis:6379
       REDIS_PASSWORD: "${REDIS_PASSWORD:-mistypass-dev}"
       REDIS_DB: "0"
