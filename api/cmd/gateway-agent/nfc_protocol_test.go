@@ -35,7 +35,10 @@ func TestBuildAuthenticate(t *testing.T) {
 		challenge[i] = byte(i)
 	}
 
-	cmd := BuildAuthenticate(challenge)
+	cmd, err := BuildAuthenticate(challenge)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	// Expected: 80 88 00 00 34 [52-byte challenge] 00
 	expectedLen := 5 + ChallengeV2Size + 1
 	if len(cmd) != expectedLen {
@@ -56,12 +59,10 @@ func TestBuildAuthenticate(t *testing.T) {
 }
 
 func TestBuildAuthenticate_WrongSize(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic for wrong challenge size")
-		}
-	}()
-	BuildAuthenticate([]byte{1, 2, 3})
+	_, err := BuildAuthenticate([]byte{1, 2, 3})
+	if err == nil {
+		t.Fatal("expected error for wrong challenge size")
+	}
 }
 
 func TestParseAPDUResponse_OK(t *testing.T) {
