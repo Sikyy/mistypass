@@ -39,7 +39,10 @@ func (r *NFCReader) Authenticate(challenge []byte) (*BLEAuthResponse, error) {
 	defer r.driver.Disconnect()
 
 	// 2. AUTHENTICATE (SELECT AID already confirmed by WaitForCard)
-	authCmd := BuildAuthenticate(challenge)
+	authCmd, err := BuildAuthenticate(challenge)
+	if err != nil {
+		return nil, fmt.Errorf("build AUTHENTICATE APDU: %w", err)
+	}
 	authResp, err := r.driver.Transmit(authCmd)
 	if err != nil {
 		return nil, fmt.Errorf("AUTHENTICATE transmit: %w", err)

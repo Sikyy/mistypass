@@ -22,10 +22,9 @@ type BLEReader struct {
 	agent    *Agent
 	listener net.Listener // TCP listener for simulator mode
 
-	mu              sync.Mutex
-	currentChallenge *BLEChallenge
-	running         bool
-	stopCh          chan struct{}
+	mu      sync.Mutex
+	running bool
+	stopCh  chan struct{}
 }
 
 // NewBLEReader creates a BLE reader bound to a specific lock/door.
@@ -170,23 +169,9 @@ func (b *BLEReader) handleSession(conn net.Conn) {
 	)
 }
 
-// GenerateChallenge creates a new challenge (used by real BLE GATT read handler).
-func (b *BLEReader) GenerateChallenge() (*BLEChallenge, error) {
-	challenge, err := NewBLEChallenge()
-	if err != nil {
-		return nil, err
-	}
-	b.mu.Lock()
-	b.currentChallenge = challenge
-	b.mu.Unlock()
-	return challenge, nil
-}
-
-// CurrentChallenge returns the most recent challenge (for verification).
-func (b *BLEReader) CurrentChallenge() *BLEChallenge {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.currentChallenge
+// GenerateChallengeV2 creates a v2 challenge (used by real BLE GATT read handler).
+func (b *BLEReader) GenerateChallengeV2() (*BLEChallengeV2, error) {
+	return NewBLEChallengeV2(b.agent.gatewayIDUint32)
 }
 
 // formatBLEReaderInfo returns diagnostic info about the BLE reader.

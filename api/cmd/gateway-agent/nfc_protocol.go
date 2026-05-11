@@ -19,14 +19,14 @@ func BuildSelectAID() []byte {
 }
 
 // BuildAuthenticate constructs: 80 88 00 00 34 [52-byte challenge] 00
-func BuildAuthenticate(challenge []byte) []byte {
+func BuildAuthenticate(challenge []byte) ([]byte, error) {
 	if len(challenge) != ChallengeV2Size {
-		panic(fmt.Sprintf("challenge must be %d bytes, got %d", ChallengeV2Size, len(challenge)))
+		return nil, fmt.Errorf("challenge must be %d bytes, got %d", ChallengeV2Size, len(challenge))
 	}
 	cmd := []byte{0x80, 0x88, 0x00, 0x00, byte(ChallengeV2Size)}
 	cmd = append(cmd, challenge...)
 	cmd = append(cmd, 0x00) // Le
-	return cmd
+	return cmd, nil
 }
 
 // APDU response status words

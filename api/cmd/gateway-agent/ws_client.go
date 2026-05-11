@@ -208,10 +208,18 @@ func (ws *WSClient) connect() error {
 }
 
 func (ws *WSClient) readLoop() {
+	// Snapshot conn under lock so Stop() closing ws.conn can't race with reads.
+	ws.mu.Lock()
+	conn := ws.conn
+	ws.mu.Unlock()
+	if conn == nil {
+		return
+	}
+
 	// Set read deadline for keepalive (server should ping every 30s)
-	ws.conn.SetReadDeadline(time.Now().Add(90 * time.Second))
-	ws.conn.SetPongHandler(func(string) error {
-		ws.conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(90 * time.Second))
 		return nil
 	})
 
@@ -222,7 +230,7 @@ func (ws *WSClient) readLoop() {
 		default:
 		}
 
-		_, message, err := ws.conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
 			if closeErr, ok := err.(*websocket.CloseError); ok && strings.Contains(strings.ToLower(closeErr.Text), "session expired") {
 				ws.logger.Info("ws: session expired by server, reconnecting")
@@ -236,7 +244,7 @@ func (ws *WSClient) readLoop() {
 			return
 		}
 
-		ws.conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(90 * time.Second))
 		ws.handleMessage(message)
 	}
 }
