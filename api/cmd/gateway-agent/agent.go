@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -33,6 +34,13 @@ type Agent struct {
 	relayRS485Device   string
 	relayOSDPDevice    string // RS485 serial device for OSDP v2 reader control
 	osdpAddress        byte   // OSDP peripheral device address (0-126)
+	// Matter relay configuration
+	relayMatterNodeID  uint64 // Matter node ID for target lock (0 = disabled)
+	matterEndpoint     int    // Door Lock cluster endpoint (default: 1)
+	matterStorageDir   string // chip-tool fabric credential storage
+	matterSetupCode    string // setup code for commissioning
+	matterChipToolPath string // path to chip-tool binary
+	matterTimedTimeout int    // --timedInteractionTimeoutMs value
 	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
 	wsURL              string // WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws)
 	mtlsCertDir        string // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
@@ -117,8 +125,41 @@ func (a *Agent) Start() error {
 			return fmt.Errorf("rs485 relay init: %w", err)
 		}
 		a.relay = driver
+	} else if a.relayMatterNodeID > 0 {
+		ctrl, err := NewMatterController(a.matterChipToolPath, a.matterStorageDir, a.matterTimedTimeout, a.logger)
+		if err != nil {
+			return fmt.Errorf("matter controller init: %w", err)
+		}
+		mr, err := NewMatterRelay(ctrl, a.relayMatterNodeID, a.matterEndpoint, a.logger)
+		if err != nil {
+			return fmt.Errorf("matter relay init: %w", err)
+		}
+		// Auto-commission if no existing fabric
+		if !mr.HasFabric() {
+			if a.matterSetupCode == "" {
+				return fmt.Errorf("matter: no fabric data and no -matter-setup-code provided")
+			}
+			if err := mr.Commission(a.matterSetupCode); err != nil {
+				return fmt.Errorf("matter commission failed: %w", err)
+			}
+		}
+		a.relay = mr
 	} else {
 		a.relay = &DryRunRelay{logger: a.logger}
+	}
+
+	// Start Matter lock state subscription if applicable
+	if mr, ok := a.relay.(*MatterRelay); ok {
+		go mr.SubscribeLockState(context.Background(), func(state DoorLockState) {
+			a.mu.Lock()
+			a.eventQueue = append(a.eventQueue, AccessEvent{
+				GatewayID:  a.gatewayID,
+				EventType:  "lock_state_changed",
+				Result:     state.String(),
+				OccurredAt: time.Now().UTC().Format(time.RFC3339),
+			})
+			a.mu.Unlock()
+		})
 	}
 
 	// Initialize mTLS client certificate
