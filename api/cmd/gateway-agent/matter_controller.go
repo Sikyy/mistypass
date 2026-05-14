@@ -231,7 +231,7 @@ func (c *MatterController) StopSubscription() error {
 		c.session.Process.Kill()
 	}
 	// Wait to avoid zombie process
-	c.session.Wait()
+	_ = c.session.Wait() // expected error from Kill()
 
 	c.session = nil
 	c.stdin = nil

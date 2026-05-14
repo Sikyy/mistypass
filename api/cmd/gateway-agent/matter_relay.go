@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
+
+var _ RelayDriver = (*MatterRelay)(nil)
 
 // MatterRelay controls a Matter Door Lock via chip-tool subprocess.
 // Implements RelayDriver for integration with the gateway agent.
@@ -18,8 +21,8 @@ type MatterRelay struct {
 	endpoint int
 	logger   *slog.Logger
 
-	// Re-lock scheduling: prevents goroutine races on rapid Unlock() calls.
-	relockMu    sync.Mutex
+	// mu guards relockTimer, cancelSub, and onStateChange across goroutines.
+	mu          sync.Mutex
 	relockTimer *time.Timer
 
 	onStateChange func(state DoorLockState)
@@ -58,7 +61,7 @@ func (m *MatterRelay) Unlock(duration time.Duration) error {
 	m.logger.Info(">>> Matter unlock", "duration", duration)
 
 	// Schedule re-lock (race-safe)
-	m.relockMu.Lock()
+	m.mu.Lock()
 	if m.relockTimer != nil {
 		m.relockTimer.Stop()
 	}
@@ -67,7 +70,7 @@ func (m *MatterRelay) Unlock(duration time.Duration) error {
 			m.logger.Error("matter auto-relock failed", "error", err)
 		}
 	})
-	m.relockMu.Unlock()
+	m.mu.Unlock()
 
 	return nil
 }
@@ -96,15 +99,16 @@ func (m *MatterRelay) Lock() error {
 
 // Close cancels the re-lock timer and stops any subscription session.
 func (m *MatterRelay) Close() error {
-	m.relockMu.Lock()
+	m.mu.Lock()
 	if m.relockTimer != nil {
 		m.relockTimer.Stop()
 		m.relockTimer = nil
 	}
-	m.relockMu.Unlock()
+	cancel := m.cancelSub
+	m.mu.Unlock()
 
-	if m.cancelSub != nil {
-		m.cancelSub()
+	if cancel != nil {
+		cancel()
 	}
 	return m.ctrl.StopSubscription()
 }
@@ -117,7 +121,7 @@ func (m *MatterRelay) HasFabric() bool {
 		return false
 	}
 	for _, e := range entries {
-		if !e.IsDir() && len(e.Name()) > 5 && e.Name()[len(e.Name())-5:] == ".json" {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
 			return true
 		}
 	}
@@ -130,7 +134,7 @@ func (m *MatterRelay) Commission(setupCode string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
-	m.logger.Info("commissioning Matter device", "node_id", m.nodeID, "setup_code", setupCode)
+	m.logger.Info("commissioning Matter device", "setup_code", setupCode)
 
 	out, err := m.ctrl.Exec(ctx,
 		"pairing", "onnetwork",
@@ -141,7 +145,7 @@ func (m *MatterRelay) Commission(setupCode string) error {
 		return fmt.Errorf("matter commission: %w\noutput: %s", err, out)
 	}
 
-	m.logger.Info("Matter device commissioned successfully", "node_id", m.nodeID)
+	m.logger.Info("Matter device commissioned successfully")
 	return nil
 }
 
@@ -165,8 +169,11 @@ func (m *MatterRelay) GetLockState() (DoorLockState, error) {
 // The callback is invoked on each state change. Uses the subscribe-only interactive session.
 func (m *MatterRelay) SubscribeLockState(ctx context.Context, callback func(DoorLockState)) error {
 	subCtx, cancel := context.WithCancel(ctx)
+
+	m.mu.Lock()
 	m.cancelSub = cancel
 	m.onStateChange = callback
+	m.mu.Unlock()
 
 	subscribeCmd := fmt.Sprintf("doorlock subscribe lock-state 1 60 %d %d", m.nodeID, m.endpoint)
 	scanner, err := m.ctrl.StartSubscription(subCtx, subscribeCmd)
@@ -189,8 +196,11 @@ func (m *MatterRelay) subscriptionLoop(scanner *bufio.Scanner) {
 			continue // not a lock state line, skip
 		}
 		m.logger.Info("matter lock state changed", "state", state.String())
-		if m.onStateChange != nil {
-			m.onStateChange(state)
+		m.mu.Lock()
+		cb := m.onStateChange
+		m.mu.Unlock()
+		if cb != nil {
+			cb(state)
 		}
 	}
 	m.logger.Info("matter subscription loop ended")

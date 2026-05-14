@@ -281,9 +281,9 @@ func TestMatterRelayUnlock(t *testing.T) {
 		t.Fatalf("Unlock() error: %v", err)
 	}
 
-	relay.relockMu.Lock()
+	relay.mu.Lock()
 	hasTimer := relay.relockTimer != nil
-	relay.relockMu.Unlock()
+	relay.mu.Unlock()
 	if !hasTimer {
 		t.Fatal("expected re-lock timer to be scheduled")
 	}
@@ -297,9 +297,9 @@ func TestMatterRelayUnlockCancelsExistingTimer(t *testing.T) {
 	relay.Unlock(10 * time.Second)
 	relay.Unlock(10 * time.Second)
 
-	relay.relockMu.Lock()
+	relay.mu.Lock()
 	hasTimer := relay.relockTimer != nil
-	relay.relockMu.Unlock()
+	relay.mu.Unlock()
 	if !hasTimer {
 		t.Fatal("expected re-lock timer after second Unlock()")
 	}
@@ -324,9 +324,9 @@ func TestMatterRelayClose(t *testing.T) {
 		t.Fatalf("Close() error: %v", err)
 	}
 
-	relay.relockMu.Lock()
+	relay.mu.Lock()
 	hasTimer := relay.relockTimer != nil
-	relay.relockMu.Unlock()
+	relay.mu.Unlock()
 	if hasTimer {
 		t.Fatal("expected timer to be nil after Close()")
 	}
