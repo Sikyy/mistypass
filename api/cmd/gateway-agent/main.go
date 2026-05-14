@@ -36,6 +36,13 @@ func main() {
 	relayRS485 := flag.String("relay-rs485", "", "RS485 serial device for Modbus relay (e.g. /dev/ttyUSB0). Empty disables RS485.")
 	relayOSDP := flag.String("relay-osdp", "", "RS485 serial device for OSDP v2 reader (e.g. /dev/ttyUSB0). Empty disables OSDP.")
 	osdpAddress := flag.Int("osdp-address", 0, "OSDP peripheral device address (0-126)")
+	// Matter relay flags
+	relayMatter := flag.Uint64("relay-matter", 0, "Matter node ID for target lock (enables Matter relay). 0 = disabled.")
+	matterEndpoint := flag.Int("matter-endpoint", 1, "Matter Door Lock cluster endpoint")
+	matterStorage := flag.String("matter-storage", "/var/lib/mistypass/matter/", "chip-tool fabric credential storage directory")
+	matterSetupCode := flag.String("matter-setup-code", "", "Matter setup code for commissioning (e.g. MT:Y3.13OTB00KA0648G00). Used on first start only.")
+	matterChipTool := flag.String("matter-chip-tool", "chip-tool", "Path to chip-tool binary")
+	matterTimedTimeout := flag.Int("matter-timed-timeout", 10000, "timedInteractionTimeoutMs for Door Lock cluster commands")
 	unlockDuration := flag.Duration("unlock-duration", 5*time.Second, "How long to hold relay open for unlock")
 	deviceTokenFile := flag.String("token-file", "/var/lib/mistypass/device-token", "File to persist device token across restarts")
 	tlsPin := flag.String("tls-pin-sha256", "", "SHA256 hash of Cloud API TLS certificate SPKI for certificate pinning (hex-encoded)")
@@ -65,6 +72,12 @@ func main() {
 		relayRS485Device:   *relayRS485,
 		relayOSDPDevice:    *relayOSDP,
 		osdpAddress:        byte(*osdpAddress),
+		relayMatterNodeID:  *relayMatter,
+		matterEndpoint:     *matterEndpoint,
+		matterStorageDir:   *matterStorage,
+		matterSetupCode:    *matterSetupCode,
+		matterChipToolPath: *matterChipTool,
+		matterTimedTimeout: *matterTimedTimeout,
 		tlsPinSHA256:       *tlsPin,
 		rulesCacheTTL:      *rulesCacheTTL,
 		wsURL:              *wsURL,
@@ -97,6 +110,8 @@ func main() {
 		fmt.Printf("Relay:    OSDP v2 %s addr=%d\n", *relayOSDP, *osdpAddress)
 	} else if *relayRS485 != "" {
 		fmt.Printf("Relay:    RS485 Modbus %s\n", *relayRS485)
+	} else if *relayMatter > 0 {
+		fmt.Printf("Relay:    Matter node=%d endpoint=%d\n", *relayMatter, *matterEndpoint)
 	} else {
 		fmt.Println("Relay:    disabled (dry-run mode)")
 	}

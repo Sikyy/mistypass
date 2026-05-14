@@ -45,3 +45,6 @@ docs/app-redesign-plan.md
 docs/api/INTEGRATION-ANDROID.md
 docs/api/INTEGRATION-IOS.md
 docs/ANDROID-GAP-ANALYSIS.md
+
+# Superpowers design specs and implementation plans (agent-generated, not capability docs).
+docs/superpowers/**
