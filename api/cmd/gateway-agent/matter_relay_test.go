@@ -412,25 +412,31 @@ sleep 60
 
 	var mu sync.Mutex
 	var states []DoorLockState
+	got2 := make(chan struct{}) // signals when 2 events received
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := relay.SubscribeLockState(ctx, func(state DoorLockState) {
 		mu.Lock()
 		states = append(states, state)
+		n := len(states)
 		mu.Unlock()
+		if n == 2 {
+			close(got2)
+		}
 	})
 	if err != nil {
 		t.Fatalf("SubscribeLockState() error: %v", err)
 	}
 
-	time.Sleep(500 * time.Millisecond)
-
-	mu.Lock()
-	got := len(states)
-	mu.Unlock()
-	if got < 2 {
-		t.Fatalf("expected at least 2 events, got %d", got)
+	select {
+	case <-got2:
+		// success
+	case <-time.After(3 * time.Second):
+		mu.Lock()
+		got := len(states)
+		mu.Unlock()
+		t.Fatalf("timed out waiting for 2 events, got %d", got)
 	}
 
 	relay.Close()
