@@ -152,7 +152,7 @@ func NewMatterController(binary, storageDir string, timedTimeout int, logger *sl
 // Exec runs a one-shot chip-tool command and returns its stdout.
 func (c *MatterController) Exec(ctx context.Context, args ...string) (string, error) {
 	fullArgs := append(args, "--storage-directory", c.storageDir)
-	cmd := exec.CommandContext(ctx, c.binary, fullArgs...)
+	cmd := exec.CommandContext(ctx, c.binary, fullArgs...) // #nosec G204 -- binary path from trusted operator config (-matter-chip-tool flag)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -179,7 +179,7 @@ func (c *MatterController) StartSubscription(ctx context.Context, subscribeCmd s
 	}
 
 	args := []string{"interactive", "start", "--storage-directory", c.storageDir}
-	cmd := exec.CommandContext(ctx, c.binary, args...)
+	cmd := exec.CommandContext(ctx, c.binary, args...) // #nosec G204 -- binary path from trusted operator config (-matter-chip-tool flag)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
