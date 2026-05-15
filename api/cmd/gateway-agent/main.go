@@ -52,6 +52,9 @@ func main() {
 	nfcHCELockID := flag.String("nfc-hce-lock-id", "", "Lock ID for NFC HCE reader (enables APDU-based phone auth, e.g. door_lobby_001)")
 	bleLockID := flag.String("ble-lock-id", "", "Lock ID for BLE reader (enables BLE auth, e.g. door_factory_001)")
 	bleListenAddr := flag.String("ble-listen", ":9900", "TCP address for BLE simulator (used until real BLE hardware is ready)")
+	wiegandLockID := flag.String("wiegand-lock-id", "", "Lock ID for Wiegand reader (e.g. door_factory_001). Empty = disabled.")
+	wiegandD0 := flag.Int("wiegand-d0-gpio", -1, "GPIO pin number for Wiegand D0 signal")
+	wiegandD1 := flag.Int("wiegand-d1-gpio", -1, "GPIO pin number for Wiegand D1 signal")
 	wsURL := flag.String("ws-url", "", "WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws). Empty = disabled, use HTTP polling only.")
 	mtlsCertDir := flag.String("mtls-cert-dir", "", "Directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/). Empty = disabled, use bearer token auth.")
 	flag.Parse()
@@ -158,6 +161,22 @@ func main() {
 		}
 	}
 
+	// Start Wiegand reader if lock ID and GPIO pins are configured
+	var wiegandReader *WiegandReader
+	if *wiegandLockID != "" {
+		if *wiegandD0 < 0 || *wiegandD1 < 0 {
+			logger.Warn("wiegand-lock-id set but D0/D1 GPIO pins not configured, skipping")
+		} else {
+			wiegandReader = NewWiegandReader(*wiegandD0, *wiegandD1, *wiegandLockID,
+				agent.HandleCredentialPresented, logger)
+			if err := wiegandReader.Start(); err != nil {
+				logger.Warn("Wiegand reader failed to start", "error", err)
+			} else {
+				fmt.Printf("Wiegand: D0=gpio%d D1=gpio%d → %s\n", *wiegandD0, *wiegandD1, *wiegandLockID)
+			}
+		}
+	}
+
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println()
 
@@ -177,6 +196,9 @@ func main() {
 	}
 	if bleReader != nil {
 		bleReader.Stop()
+	}
+	if wiegandReader != nil {
+		wiegandReader.Stop()
 	}
 	agent.Stop()
 }
