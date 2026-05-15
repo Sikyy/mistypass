@@ -197,15 +197,15 @@ if wiegandReader != nil {
 
 Startup banner adds:
 ```
-Wiegand: GPIO D0=73 D1=74 → door_factory_001
+Wiegand: D0=gpio73 D1=gpio74 → door_factory_001
 ```
 
 ## Error Handling
 
 | Error | Behavior |
 |-------|----------|
-| GPIO export fails | Log error, skip Wiegand reader (non-fatal) |
-| Edge set fails | Log error, skip Wiegand reader (non-fatal) |
+| GPIO export fails | Log error, unexport any already-exported pins (rollback), skip Wiegand reader (non-fatal) |
+| GPIO edge/direction set fails | Log error, unexport all pins (rollback), skip Wiegand reader (non-fatal) |
 | Unexpected bit count (not 26 or 34) | Log warning with raw bit count, discard frame |
 | Parity check fails | Log warning with raw bits, discard frame |
 | epoll error | Log error, attempt re-init after 1s backoff |
@@ -221,15 +221,15 @@ Unit tests cover decoding logic only (no real GPIO needed):
 - `TestCheckEvenParity` / `TestCheckOddParity` — parity helpers
 - `TestFrameDetection` — 26 bits → wiegand_26, 34 bits → wiegand_34, other → error
 
-Integration testing requires real hardware (ProID10 + Orange Pi + DESFire EV3 card).
+Integration testing requires real hardware (ProID10 + Orange Pi + DESFire EV2/EV3 or Mifare Classic card).
 
 ## Hardware Wiring (Orange Pi Zero3)
 
 ```
 ProID10          Orange Pi Zero3
 ───────          ──────────────
-D0  (green)  →   PC9  (GPIO 73) or chosen pin
-D1  (white)  →   PC10 (GPIO 74) or chosen pin
+D0  (green)  →   10kΩ pull-up to 3.3V  →  PC9  (GPIO 73)
+D1  (white)  →   10kΩ pull-up to 3.3V  →  PC10 (GPIO 74)
 GND (black)  →   GND
 +12V (red)   ←   External 12V DC power supply
 
@@ -240,4 +240,14 @@ VCC          ←   3.3V or 5V (match relay module spec)
 GND          →   GND
 ```
 
-**Important:** ProID10 requires 12V power. Do NOT attempt to power it from Orange Pi's 5V/3.3V pins.
+### Voltage and Pull-up Notes
+
+**D0/D1 pull-up resistors are required.** sysfs GPIO cannot configure internal pull-ups. Add external 10kΩ resistors from each D0/D1 line to the Orange Pi's 3.3V pin. This ensures idle-HIGH state and prevents noise-triggered false edges.
+
+**Voltage safety:** Standard Wiegand D0/D1 are open-collector outputs — the reader only pulls LOW, it does not drive HIGH. With 3.3V external pull-ups, signal levels are 0–3.3V, safe for the H618 GPIO. **Before first power-on, verify with a multimeter** that D0/D1 idle voltage is ≤3.3V. If the ProID10 has internal 5V pull-ups (non-standard), add a voltage divider (10kΩ series + 20kΩ to GND) or a bidirectional level shifter.
+
+**12V power:** ProID10 requires 12V DC. Do NOT power it from Orange Pi's 5V/3.3V pins.
+
+### sysfs GPIO Compatibility Note
+
+This implementation uses Linux sysfs GPIO (`/sys/class/gpio/`), which is supported on Orange Pi Zero3 (H618, kernel 6.1). If a future kernel removes sysfs GPIO support, the implementation should migrate to the character device API (`/dev/gpiochipN` + `ioctl`) or a Go library like `periph.io`.
