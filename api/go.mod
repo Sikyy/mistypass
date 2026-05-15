@@ -10,6 +10,7 @@ require (
 	github.com/ebfe/scard v0.0.0-20241214075232-7af069cabc25
 	github.com/go-webauthn/webauthn v0.17.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/lib/pq v1.12.3
 	github.com/nats-io/nats.go v1.51.0
 	github.com/prometheus/client_golang v1.23.2
@@ -22,6 +23,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0
 	golang.org/x/crypto v0.50.0
 	golang.org/x/oauth2 v0.36.0
+	periph.io/x/conn/v3 v3.7.3
+	periph.io/x/host/v3 v3.8.5
 )
 
 require (
@@ -37,7 +40,6 @@ require (
 	github.com/go-webauthn/x v0.2.3 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
