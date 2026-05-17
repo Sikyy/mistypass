@@ -1010,6 +1010,74 @@ func TestDescribeWorkerQueue_NoItemIDs(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Hik-Connect Token Cache
+// ---------------------------------------------------------------------------
+
+func TestHikConnectTokenCache(t *testing.T) {
+	store, _ := newTestStore(t)
+
+	// Set and get access token
+	err := store.SetHikConnectAccessToken("test-access-token-123", 2*time.Hour)
+	if err != nil {
+		t.Fatalf("SetHikConnectAccessToken: %v", err)
+	}
+
+	token, found, err := store.GetHikConnectAccessToken()
+	if err != nil {
+		t.Fatalf("GetHikConnectAccessToken: %v", err)
+	}
+	if !found {
+		t.Fatal("expected access token to be found")
+	}
+	if token != "test-access-token-123" {
+		t.Fatalf("expected token test-access-token-123, got %q", token)
+	}
+
+	// Delete
+	err = store.DeleteHikConnectAccessToken()
+	if err != nil {
+		t.Fatalf("DeleteHikConnectAccessToken: %v", err)
+	}
+	_, found, err = store.GetHikConnectAccessToken()
+	if err != nil {
+		t.Fatalf("GetHikConnectAccessToken after delete: %v", err)
+	}
+	if found {
+		t.Fatal("expected access token to not be found after delete")
+	}
+}
+
+func TestHikConnectDeviceTokenCache(t *testing.T) {
+	store, _ := newTestStore(t)
+
+	// Set and get device token
+	err := store.SetHikConnectDeviceToken("SERIAL123", "device-token-abc", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("SetHikConnectDeviceToken: %v", err)
+	}
+
+	token, found, err := store.GetHikConnectDeviceToken("SERIAL123")
+	if err != nil {
+		t.Fatalf("GetHikConnectDeviceToken: %v", err)
+	}
+	if !found {
+		t.Fatal("expected device token to be found")
+	}
+	if token != "device-token-abc" {
+		t.Fatalf("expected token device-token-abc, got %q", token)
+	}
+
+	// Different serial returns not found
+	_, found, err = store.GetHikConnectDeviceToken("OTHER_SERIAL")
+	if err != nil {
+		t.Fatalf("GetHikConnectDeviceToken other: %v", err)
+	}
+	if found {
+		t.Fatal("expected other serial to not be found")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Close
 // ---------------------------------------------------------------------------
 
