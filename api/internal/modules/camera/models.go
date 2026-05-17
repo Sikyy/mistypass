@@ -17,6 +17,10 @@ type Camera struct {
 	Status               string    `json:"status"`
 	EncryptedCredentials string    `json:"-"`
 	LastSnapshotAt       string    `json:"last_snapshot_at,omitempty"`
+	CloudProvider        string    `json:"cloud_provider,omitempty"`
+	CloudSerial          string    `json:"cloud_serial,omitempty"`
+	CloudVerified        bool      `json:"cloud_verified,omitempty"`
+	CloudChannels        int       `json:"cloud_channels,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
@@ -44,9 +48,13 @@ type CameraUpdateRequest struct {
 	Port     *int    `json:"port,omitempty"`
 	Channel  *int    `json:"channel,omitempty"`
 	UseTLS   *bool   `json:"use_tls,omitempty"`
-	Username *string `json:"username,omitempty"`
-	Password *string `json:"password,omitempty"`
-	Status   *string `json:"status,omitempty"`
+	Username      *string `json:"username,omitempty"`
+	Password      *string `json:"password,omitempty"`
+	Status        *string `json:"status,omitempty"`
+	CloudProvider *string `json:"cloud_provider,omitempty"`
+	CloudSerial   *string `json:"cloud_serial,omitempty"`
+	CloudVerified *bool   `json:"cloud_verified,omitempty"`
+	CloudChannels *int    `json:"cloud_channels,omitempty"`
 }
 
 // Snapshot represents a captured camera frame linked to an access event.
