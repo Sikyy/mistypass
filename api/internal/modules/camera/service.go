@@ -194,6 +194,18 @@ func (s *Service) Update(tenantID, cameraID string, req CameraUpdateRequest) (Ca
 	if req.Status != nil {
 		cam.Status = strings.TrimSpace(*req.Status)
 	}
+	if req.CloudProvider != nil {
+		cam.CloudProvider = strings.TrimSpace(*req.CloudProvider)
+	}
+	if req.CloudSerial != nil {
+		cam.CloudSerial = strings.TrimSpace(*req.CloudSerial)
+	}
+	if req.CloudVerified != nil {
+		cam.CloudVerified = *req.CloudVerified
+	}
+	if req.CloudChannels != nil {
+		cam.CloudChannels = *req.CloudChannels
+	}
 	if req.Username != nil || req.Password != nil {
 		oldCreds := s.decryptCredentials(cam.EncryptedCredentials)
 		username := oldCreds["username"]
