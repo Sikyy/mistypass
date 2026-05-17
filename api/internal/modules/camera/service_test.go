@@ -145,3 +145,46 @@ func TestServiceVideoLinkFormat(t *testing.T) {
 		t.Fatal("expected non-empty video link")
 	}
 }
+
+func TestCameraCloudFields(t *testing.T) {
+	svc := NewService(nil)
+	cam, err := svc.Create(CameraCreateRequest{
+		TenantID: "t1",
+		PlaceID:  "p1",
+		Name:     "Cloud Camera",
+		Provider: "hikvision",
+		Host:     "192.168.1.100",
+		Username: "admin",
+		Password: "pass123",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Update cloud fields
+	cloudProvider := "hikconnect"
+	cloudSerial := "DS-2CD1023G2-LIU1234567"
+	cloudVerified := true
+	cloudChannels := 1
+	updated, err := svc.Update(cam.TenantID, cam.ID, CameraUpdateRequest{
+		CloudProvider: &cloudProvider,
+		CloudSerial:   &cloudSerial,
+		CloudVerified: &cloudVerified,
+		CloudChannels: &cloudChannels,
+	})
+	if err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if updated.CloudProvider != "hikconnect" {
+		t.Fatalf("expected CloudProvider hikconnect, got %q", updated.CloudProvider)
+	}
+	if updated.CloudSerial != "DS-2CD1023G2-LIU1234567" {
+		t.Fatalf("expected CloudSerial DS-2CD1023G2-LIU1234567, got %q", updated.CloudSerial)
+	}
+	if !updated.CloudVerified {
+		t.Fatal("expected CloudVerified true")
+	}
+	if updated.CloudChannels != 1 {
+		t.Fatalf("expected CloudChannels 1, got %d", updated.CloudChannels)
+	}
+}
