@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/bus"
+	"github.com/mistypass/cloud/api/internal/modules/camera"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -501,6 +503,284 @@ func (s *server) appCameraSnapshot(w http.ResponseWriter, r *http.Request) {
 		"url":        snap.SignedURL,
 		"taken_at":   snap.CapturedAt,
 		"event_type": "manual",
+	})
+}
+
+func (s *server) appCameraCloudToken(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	cameraID := chi.URLParam(r, "cameraID")
+	if strings.TrimSpace(cameraID) == "" {
+		writeError(w, http.StatusBadRequest, "camera ID is required")
+		return
+	}
+
+	tenantID := user.TenantID
+	cam, err := s.cameraSvc.Get(tenantID, cameraID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "camera not found")
+		return
+	}
+
+	if cam.CloudProvider == "" || cam.CloudSerial == "" {
+		writeError(w, http.StatusBadRequest, "camera has no cloud provider configured")
+		return
+	}
+
+	if !cam.CloudVerified {
+		writeError(w, http.StatusConflict, "camera cloud binding not verified")
+		return
+	}
+
+	// Check access: admin or resident with door access
+	if user.Role == "resident" {
+		accessibleDoorIDs := s.getUserAccessibleDoorIDs(tenantID, user.ID)
+		if cam.DoorID == "" || !accessibleDoorIDs[cam.DoorID] {
+			writeError(w, http.StatusForbidden, "no access to this camera")
+			return
+		}
+	}
+
+	if s.hikConnectSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "cloud video service not configured")
+		return
+	}
+
+	channel := cam.CloudChannels
+	if channel <= 0 {
+		channel = 1
+	}
+
+	token, err := s.hikConnectSvc.GetPlaybackToken(r.Context(), cam.CloudSerial, channel)
+	if err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+
+	// Audit: log token issuance for cross-tenant incident investigation
+	if s.auditSvc != nil {
+		s.auditSvc.Append(tenantID, user.Email, user.Role, "cloud_token_issued", cameraID, cam.CloudSerial)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"access_token":  token.AccessToken,
+		"device_serial": token.DeviceSerial,
+		"channel":       token.Channel,
+		"expires_at":    token.ExpiresAt.Format(time.RFC3339),
+	})
+}
+
+func (s *server) appCameraCloudRecordings(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+
+	cameraID := chi.URLParam(r, "cameraID")
+	if strings.TrimSpace(cameraID) == "" {
+		writeError(w, http.StatusBadRequest, "camera ID is required")
+		return
+	}
+
+	tenantID := user.TenantID
+	cam, err := s.cameraSvc.Get(tenantID, cameraID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "camera not found")
+		return
+	}
+
+	if cam.CloudProvider == "" || cam.CloudSerial == "" {
+		writeError(w, http.StatusBadRequest, "camera has no cloud provider configured")
+		return
+	}
+
+	// Check access
+	if user.Role == "resident" {
+		accessibleDoorIDs := s.getUserAccessibleDoorIDs(tenantID, user.ID)
+		if cam.DoorID == "" || !accessibleDoorIDs[cam.DoorID] {
+			writeError(w, http.StatusForbidden, "no access to this camera")
+			return
+		}
+	}
+
+	if s.hikConnectSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "cloud video service not configured")
+		return
+	}
+
+	// Parse date query param (default: today)
+	dateStr := r.URL.Query().Get("date")
+	var start, end time.Time
+	if dateStr != "" {
+		parsed, parseErr := time.Parse("2006-01-02", dateStr)
+		if parseErr != nil {
+			writeError(w, http.StatusBadRequest, "invalid date format, expected YYYY-MM-DD")
+			return
+		}
+		start = parsed
+		end = parsed.Add(24*time.Hour - time.Second)
+	} else {
+		now := time.Now().UTC()
+		start = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+		end = start.Add(24*time.Hour - time.Second)
+	}
+
+	recordings, err := s.hikConnectSvc.ListRecordings(r.Context(), cam.CloudSerial, start, end)
+	if err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+
+	items := make([]map[string]any, 0, len(recordings))
+	for _, rec := range recordings {
+		items = append(items, map[string]any{
+			"start_time": rec.StartTime.Format(time.RFC3339),
+			"end_time":   rec.EndTime.Format(time.RFC3339),
+			"type":       rec.Type,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"camera_id":  cameraID,
+		"date":       start.Format("2006-01-02"),
+		"recordings": items,
+	})
+}
+
+func (s *server) adminCameraCloudBind(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	if user.Role != "tenant_admin" && user.Role != "admin" {
+		writeError(w, http.StatusForbidden, "admin access required")
+		return
+	}
+
+	cameraID := chi.URLParam(r, "cameraID")
+	if strings.TrimSpace(cameraID) == "" {
+		writeError(w, http.StatusBadRequest, "camera ID is required")
+		return
+	}
+
+	tenantID := user.TenantID
+	cam, err := s.cameraSvc.Get(tenantID, cameraID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "camera not found")
+		return
+	}
+
+	if s.hikConnectSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "cloud video service not configured")
+		return
+	}
+
+	var body struct {
+		DeviceSerial string `json:"device_serial"`
+		ValidateCode string `json:"validate_code"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if strings.TrimSpace(body.DeviceSerial) == "" || strings.TrimSpace(body.ValidateCode) == "" {
+		writeError(w, http.StatusBadRequest, "device_serial and validate_code are required")
+		return
+	}
+
+	if err := s.hikConnectSvc.BindDevice(r.Context(), body.DeviceSerial, body.ValidateCode); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// Update camera record with cloud binding info
+	cloudProvider := "hikconnect"
+	cloudSerial := body.DeviceSerial
+	cloudVerified := true
+	cloudChannels := 1
+	_, updateErr := s.cameraSvc.Update(tenantID, cameraID, camera.CameraUpdateRequest{
+		CloudProvider: &cloudProvider,
+		CloudSerial:   &cloudSerial,
+		CloudVerified: &cloudVerified,
+		CloudChannels: &cloudChannels,
+	})
+	if updateErr != nil {
+		writeInternalError(w, r, updateErr)
+		return
+	}
+
+	_ = cam
+	writeJSON(w, http.StatusOK, map[string]any{
+		"camera_id":      cameraID,
+		"device_serial":  body.DeviceSerial,
+		"cloud_provider": "hikconnect",
+		"verified":       true,
+	})
+}
+
+func (s *server) adminCameraCloudUnbind(w http.ResponseWriter, r *http.Request) {
+	user, ok := authenticatedUser(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "invalid access token")
+		return
+	}
+	if user.Role != "tenant_admin" && user.Role != "admin" {
+		writeError(w, http.StatusForbidden, "admin access required")
+		return
+	}
+
+	cameraID := chi.URLParam(r, "cameraID")
+	if strings.TrimSpace(cameraID) == "" {
+		writeError(w, http.StatusBadRequest, "camera ID is required")
+		return
+	}
+
+	tenantID := user.TenantID
+	cam, err := s.cameraSvc.Get(tenantID, cameraID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "camera not found")
+		return
+	}
+
+	if cam.CloudSerial == "" {
+		writeError(w, http.StatusBadRequest, "camera has no cloud binding")
+		return
+	}
+
+	if s.hikConnectSvc == nil {
+		writeError(w, http.StatusServiceUnavailable, "cloud video service not configured")
+		return
+	}
+
+	if err := s.hikConnectSvc.UnbindDevice(r.Context(), cam.CloudSerial); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// Clear cloud fields
+	emptyStr := ""
+	falseBool := false
+	zeroInt := 0
+	_, updateErr := s.cameraSvc.Update(tenantID, cameraID, camera.CameraUpdateRequest{
+		CloudProvider: &emptyStr,
+		CloudSerial:   &emptyStr,
+		CloudVerified: &falseBool,
+		CloudChannels: &zeroInt,
+	})
+	if updateErr != nil {
+		writeInternalError(w, r, updateErr)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"camera_id": cameraID,
+		"unbound":   true,
 	})
 }
 
