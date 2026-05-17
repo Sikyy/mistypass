@@ -399,13 +399,18 @@ func (s *server) appListCameras(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		status := cam.Status
+		if status == "active" {
+			status = "online"
+		}
 		items = append(items, map[string]any{
 			"id":          cam.ID,
 			"name":        cam.Name,
 			"building_id": cam.PlaceID,
 			"door_id":     cam.DoorID,
-			"status":      cam.Status,
+			"status":      status,
 			"provider":    cam.Provider,
+			"vendor":      cam.Provider,
 		})
 	}
 
@@ -452,7 +457,7 @@ func (s *server) appCameraVideoLink(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"camera_id":  cameraID,
 		"video_url":  videoLink,
-		"protocol":   "hls",
+		"protocol":   "rtsp",
 		"expires_at": time.Now().UTC().Add(10 * time.Minute).Format(time.RFC3339),
 	})
 }
