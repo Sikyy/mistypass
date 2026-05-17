@@ -303,7 +303,7 @@ struct CameraPlayerContainerView: View {
 | Key | TTL | Purpose |
 |---|---|---|
 | `hikconnect:access_token` | token_expiry - 5min | Platform auth token |
-| `hikconnect:device_token:{serial}` | 5min | Per-device SDK token |
+| `hikconnect:device_token:{serial}` | token_expiry - 2min | Per-device SDK token (ISC device tokens valid ~7 days) |
 | `hikconnect:device_list` | 10min | Bound device inventory |
 | `hikconnect:recordings:{serial}:{date}` | 2min | Recording segment cache |
 
@@ -331,7 +331,7 @@ Enforcement at API layer — ISC tokens only issued if tenant subscription cover
 - ISV AppKey/AppSecret: environment variables only, never in DB
 - Device verification codes: encrypted in camera record (existing vault), cleared after successful bind
 - ISC access tokens: Redis only, not persisted to disk
-- Device-scoped SDK tokens: short-lived (5min), never stored client-side beyond session
+- Device-scoped SDK tokens: cached with TTL = actual_expiry - 2min (ISC device tokens valid ~7 days), not stored client-side beyond session
 
 ### 5.2 Tenant Isolation
 
@@ -345,6 +345,15 @@ Enforcement at API layer — ISC tokens only issued if tenant subscription cover
 - ISC device access tokens are scoped to specific device serial
 - MistyPass adds additional layer: only issue token if camera.tenant_id matches auth context
 - Tokens passed to SDK client-side — SDK handles encryption of P2P channel
+
+### 5.4 Token Issuance Audit
+
+Since all ISC devices share a single ISV account, tenant isolation is purely application-enforced. To enable incident investigation if a boundary check is ever bypassed:
+
+- Every `cloud-token` issuance emits an audit event: `{camera_id, device_serial, tenant_id, user_id, issued_at}`
+- Uses existing `audit` module — no new infrastructure
+- Retained 90 days (same as access event audit trail)
+- Enables answering: "who was issued a token for device X, and were they authorized?"
 
 ---
 
