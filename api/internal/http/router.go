@@ -25,6 +25,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/enterprise"
 	"github.com/mistypass/cloud/api/internal/modules/event"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
+	"github.com/mistypass/cloud/api/internal/modules/hikconnect"
 	"github.com/mistypass/cloud/api/internal/modules/hris"
 	"github.com/mistypass/cloud/api/internal/modules/hris/talenta"
 	"github.com/mistypass/cloud/api/internal/modules/space"
@@ -59,6 +60,7 @@ type server struct {
 	auditSvc                      *audit.Service
 	walletSvc                     *wallet.Service
 	cameraSvc                     *camera.Service
+	hikConnectSvc                 *hikconnect.Service
 	credentialSvc                 *credential.Service
 	enterpriseSvc                 *enterprise.Service
 	hrisVaultSvc                  *hris.VaultService
@@ -506,6 +508,15 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		s.workerQueueStore = redisStore
 		s.logger.Info("redis volatile store enabled", "addr", cfg.RedisAddr, "db", cfg.RedisDB)
 	}
+	if cfg.HikISCEnabled && cfg.HikISCAppKey != "" && cfg.HikISCAppSecret != "" {
+		if s.volatileStore != nil {
+			iscClient := hikconnect.NewClient(cfg.HikISCHost, cfg.HikISCAppKey, cfg.HikISCAppSecret)
+			s.hikConnectSvc = hikconnect.NewService(iscClient, s.volatileStore, cfg.HikISCTokenCacheTTL)
+			s.logger.Info("hik-connect ISC service enabled", "host", cfg.HikISCHost)
+		} else {
+			s.logger.Warn("hik-connect ISC enabled but redis is not configured; cloud video unavailable")
+		}
+	}
 	if tokenStore, ok := stateStore.(gatewayTokenStore); ok {
 		s.gatewayTokenStore = tokenStore
 	}
@@ -653,6 +664,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 				protected.Get("/cameras", s.appListCameras)
 				protected.Get("/cameras/{cameraID}/video-link", s.appCameraVideoLink)
 				protected.Post("/cameras/{cameraID}/snapshot", s.appCameraSnapshot)
+				protected.Get("/cameras/{cameraID}/cloud-token", s.appCameraCloudToken)
+				protected.Get("/cameras/{cameraID}/cloud-recordings", s.appCameraCloudRecordings)
 				protected.Patch("/cameras/{cameraId}", s.appRenameCamera)
 
 				// Hardware management
@@ -1207,6 +1220,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/cameras/{cameraID}/snapshots", s.listCameraSnapshots)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cameras/discover", s.discoverCameras)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Delete("/cameras/{cameraID}", s.deleteCamera)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/cameras/{cameraID}/cloud-bind", s.adminCameraCloudBind)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/cameras/{cameraID}/cloud-bind", s.adminCameraCloudUnbind)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/access-summary", s.getAccessSummary)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/door-activity", s.getDoorActivity)

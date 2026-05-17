@@ -152,6 +152,11 @@ type Config struct {
 	CameraSnapshotTimeoutSeconds                                 int
 	CameraSnapshotRetentionDays                                  int
 	CameraMaxSnapshotsPerEvent                                   int
+	HikISCEnabled                                                bool
+	HikISCHost                                                   string
+	HikISCAppKey                                                 string
+	HikISCAppSecret                                              string
+	HikISCTokenCacheTTL                                          time.Duration
 	OAuth2Enabled                                                bool
 	GatewayCACertPEM                                             string // PEM-encoded CA certificate for gateway mTLS
 	GatewayCAKeyPEM                                              string // PEM-encoded CA private key for gateway mTLS
@@ -175,6 +180,7 @@ func FromEnv() Config {
 	loadWalletConfig(&cfg)
 	loadReportEmailConfig(&cfg)
 	loadCameraConfig(&cfg)
+	loadHikISCConfig(&cfg)
 	loadOAuth2Config(&cfg)
 	return cfg
 }
@@ -1042,4 +1048,12 @@ func loadCameraConfig(cfg *Config) {
 	cfg.CameraSnapshotTimeoutSeconds = parseIntOrFallback(envString("CAMERA_SNAPSHOT_TIMEOUT"), 10)
 	cfg.CameraSnapshotRetentionDays = parseIntOrFallback(envString("CAMERA_SNAPSHOT_RETENTION_DAYS"), 30)
 	cfg.CameraMaxSnapshotsPerEvent = parseIntOrFallback(envString("CAMERA_MAX_SNAPSHOTS_PER_EVENT"), 3)
+}
+
+func loadHikISCConfig(cfg *Config) {
+	cfg.HikISCEnabled = parseBoolOrFallback(envString("HIK_ISC_ENABLED"), false)
+	cfg.HikISCHost = envStringOrDefault("HIK_ISC_HOST", "https://open.hikconnect.com")
+	cfg.HikISCAppKey = envString("HIK_ISC_APP_KEY")
+	cfg.HikISCAppSecret = envString("HIK_ISC_APP_SECRET")
+	cfg.HikISCTokenCacheTTL = parseDurationOrFallback(envString("HIK_ISC_TOKEN_CACHE_TTL"), 115*time.Minute)
 }
