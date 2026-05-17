@@ -759,6 +759,75 @@ func (s *Store) DescribeWorkerQueue(
 	}, nil
 }
 
+func (s *Store) SetHikConnectAccessToken(token string, ttl time.Duration) error {
+	if strings.TrimSpace(token) == "" {
+		return errors.New("hikconnect access token is empty")
+	}
+	if ttl <= 0 {
+		return errors.New("hikconnect access token ttl must be positive")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return s.client.Set(ctx, s.hikConnectAccessTokenKey(), token, ttl).Err()
+}
+
+func (s *Store) GetHikConnectAccessToken() (string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	value, err := s.client.Get(ctx, s.hikConnectAccessTokenKey()).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return value, true, nil
+}
+
+func (s *Store) DeleteHikConnectAccessToken() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return s.client.Del(ctx, s.hikConnectAccessTokenKey()).Err()
+}
+
+func (s *Store) SetHikConnectDeviceToken(serial, token string, ttl time.Duration) error {
+	nextSerial := strings.TrimSpace(serial)
+	if nextSerial == "" || strings.TrimSpace(token) == "" {
+		return errors.New("hikconnect device serial/token are required")
+	}
+	if ttl <= 0 {
+		return errors.New("hikconnect device token ttl must be positive")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return s.client.Set(ctx, s.hikConnectDeviceTokenKey(nextSerial), token, ttl).Err()
+}
+
+func (s *Store) GetHikConnectDeviceToken(serial string) (string, bool, error) {
+	nextSerial := strings.TrimSpace(serial)
+	if nextSerial == "" {
+		return "", false, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	value, err := s.client.Get(ctx, s.hikConnectDeviceTokenKey(nextSerial)).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	return value, true, nil
+}
+
+func (s *Store) hikConnectAccessTokenKey() string {
+	return s.key("hikconnect", "access_token")
+}
+
+func (s *Store) hikConnectDeviceTokenKey(serial string) string {
+	return s.key("hikconnect", "device_token", serial)
+}
+
 func (s *Store) authRefreshSessionKey(sessionID string) string {
 	return s.key("auth", "refresh", "session", sessionID)
 }
