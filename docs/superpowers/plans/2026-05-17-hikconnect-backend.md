@@ -536,7 +536,7 @@ func TestClientAddDeviceError(t *testing.T) {
 }
 
 func TestClientGetDeviceAccessToken(t *testing.T) {
-	expireMs := time.Now().Add(5 * time.Minute).UnixMilli()
+	expireMs := time.Now().Add(7 * 24 * time.Hour).UnixMilli()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/lapp/token/getDeviceAccessToken" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -848,7 +848,7 @@ func (m *mockCache) SetHikConnectDeviceToken(serial, token string, _ time.Durati
 // --- Tests ---
 
 func TestServiceGetPlaybackToken_CacheMiss(t *testing.T) {
-	expiry := time.Now().Add(5 * time.Minute)
+	expiry := time.Now().Add(7 * 24 * time.Hour) // ISC device tokens valid ~7 days
 	client := &mockISCClient{
 		accessToken:       "platform_tok",
 		accessTokenExpiry: time.Now().Add(2 * time.Hour),
@@ -1005,10 +1005,9 @@ type TokenCache interface {
 }
 
 type Service struct {
-	client          ISCClient
-	cache           TokenCache
-	accessTokenTTL  time.Duration
-	deviceTokenTTL  time.Duration
+	client         ISCClient
+	cache          TokenCache
+	accessTokenTTL time.Duration
 }
 
 func NewService(client ISCClient, cache TokenCache, accessTokenTTL time.Duration) *Service {
@@ -1019,7 +1018,6 @@ func NewService(client ISCClient, cache TokenCache, accessTokenTTL time.Duration
 		client:         client,
 		cache:          cache,
 		accessTokenTTL: accessTokenTTL,
-		deviceTokenTTL: 5 * time.Minute,
 	}
 }
 
@@ -1046,7 +1044,7 @@ func (s *Service) GetPlaybackToken(ctx context.Context, serial string, channel i
 			AccessToken:  cached,
 			DeviceSerial: serial,
 			Channel:      channel,
-			ExpiresAt:    time.Now().Add(s.deviceTokenTTL),
+			ExpiresAt:    time.Now().Add(5 * time.Minute), // approximate; real expiry tracked server-side
 		}, nil
 	}
 
@@ -1060,11 +1058,9 @@ func (s *Service) GetPlaybackToken(ctx context.Context, serial string, channel i
 		return PlaybackToken{}, fmt.Errorf("get playback token: %w", err)
 	}
 
-	// Cache device token
-	ttl := time.Until(expiresAt)
-	if ttl > s.deviceTokenTTL {
-		ttl = s.deviceTokenTTL
-	}
+	// Cache device token with TTL = actual_expiry - 2 minutes
+	// ISC device tokens are valid ~7 days; caching near full expiry avoids unnecessary API calls
+	ttl := time.Until(expiresAt) - 2*time.Minute
 	if ttl > 0 {
 		_ = s.cache.SetHikConnectDeviceToken(serial, deviceToken, ttl)
 	}
@@ -1261,6 +1257,11 @@ func (s *server) appCameraCloudToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
+	}
+
+	// Audit: log token issuance for cross-tenant incident investigation
+	if s.auditSvc != nil {
+		s.auditSvc.Append(tenantID, user.Email, user.Role, "cloud_token_issued", cameraID, cam.CloudSerial)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
