@@ -144,6 +144,8 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
     templateByID: tpl.templateByID,
     resolveTargetType: tpl.resolveTargetType,
     loadWalletOps,
+    setGlobalIssuanceSummary: setIssuanceSummary,
+    setGlobalError: setError,
   })
 
   // --- Delivery hook ---

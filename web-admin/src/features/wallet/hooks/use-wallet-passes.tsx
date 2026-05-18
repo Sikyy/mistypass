@@ -41,6 +41,8 @@ type UseWalletPassesParams = {
   templateByID: Map<string, WalletPassTemplate>
   resolveTargetType: (templateID: string) => "user" | "visitor"
   loadWalletOps: (tenantID: string) => Promise<void>
+  setGlobalIssuanceSummary: (value: string) => void
+  setGlobalError: (value: string) => void
 }
 
 export function useWalletPasses({
@@ -51,6 +53,8 @@ export function useWalletPasses({
   templateByID,
   resolveTargetType,
   loadWalletOps,
+  setGlobalIssuanceSummary,
+  setGlobalError,
 }: UseWalletPassesParams) {
   const { t } = useTranslation()
 
@@ -518,6 +522,8 @@ export function useWalletPasses({
     setUpdatingPassID(pass.id)
     setIssuanceSummary("")
     setError("")
+    setGlobalIssuanceSummary("")
+    setGlobalError("")
     try {
       const payload = {
         tenant_id: nextTenantID,
@@ -563,6 +569,8 @@ export function useWalletPasses({
     setBatchUpdatingPassAction(action)
     setIssuanceSummary("")
     setError("")
+    setGlobalIssuanceSummary("")
+    setGlobalError("")
     try {
       const settled = await Promise.allSettled(
         targetPasses.map((pass) => {
@@ -625,6 +633,8 @@ export function useWalletPasses({
     setIssuingSingle(true)
     setIssuanceSummary("")
     setError("")
+    setGlobalIssuanceSummary("")
+    setGlobalError("")
     try {
       const targetType = resolveTargetType(payload.templateID)
       const pass = await issueWalletPass(token, {
@@ -681,6 +691,8 @@ export function useWalletPasses({
     setIssuingBatch(true)
     setIssuanceSummary("")
     setError("")
+    setGlobalIssuanceSummary("")
+    setGlobalError("")
     try {
       const targetType = resolveTargetType(payload.templateID)
       const result = await issueWalletPassBatch(token, {
