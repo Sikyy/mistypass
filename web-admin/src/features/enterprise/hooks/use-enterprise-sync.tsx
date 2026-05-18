@@ -984,7 +984,7 @@ export function useEnterpriseSync({
     }
   }
 
-  async function onReplayHRISWebhookExecution(executionID: string) {
+  async function onReplayHRISWebhookExecution(executionID: string): Promise<void> {
     const tenantID = selectedTenantID.trim()
     if (!writable || !tenantID || executionActionID) {
       return

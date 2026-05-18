@@ -9,6 +9,8 @@ import {
   type EnterpriseSyncJob,
   type EnterpriseSyncWorkerAlertSummaryItem,
   type EnterpriseEmployee,
+  type UserGroup,
+  type AccessPolicy,
 } from "@/lib/api"
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -161,8 +163,8 @@ type UseEnterpriseWorkflowParams = {
   failedSyncJobCount: number
   pendingApprovalCount: number
   workerAlertCount: number
-  tenantGroups: { length: number; name?: string }[]
-  tenantPolicies: { length: number; name?: string }[]
+  tenantGroups: UserGroup[]
+  tenantPolicies: AccessPolicy[]
   syncJobs: EnterpriseSyncJob[]
   sortedSyncJobs: EnterpriseSyncJob[]
   latestSyncJob: EnterpriseSyncJob | null

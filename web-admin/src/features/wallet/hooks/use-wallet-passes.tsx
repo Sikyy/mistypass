@@ -837,8 +837,8 @@ export function useWalletPasses({
     }
   }
 
-  const singleTargetType = selectedSingleTemplate?.pass_type === "visitor" ? "visitor" : "user"
-  const batchTargetType = selectedBatchTemplate?.pass_type === "visitor" ? "visitor" : "user"
+  const singleTargetType: "visitor" | "user" = selectedSingleTemplate?.pass_type === "visitor" ? "visitor" : "user"
+  const batchTargetType: "visitor" | "user" = selectedBatchTemplate?.pass_type === "visitor" ? "visitor" : "user"
 
   return {
     passes,

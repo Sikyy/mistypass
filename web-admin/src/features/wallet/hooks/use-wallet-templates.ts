@@ -13,7 +13,7 @@ import {
   type WalletScenarioKind,
 } from "../pages/wallet-page-utils"
 
-const defaultTemplateStatus = "active"
+const defaultTemplateStatus: "active" | "inactive" = "active"
 const defaultTemplatePassType = "employee"
 
 type UseWalletTemplatesParams = {

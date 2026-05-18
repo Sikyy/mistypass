@@ -56,6 +56,8 @@ import {
   walletScenarioHint,
   walletScenarioLabel,
   withRouteHints,
+  deliveryNotificationStatusVariant,
+  deliveryNotificationStatusLabel,
   type WalletScenarioKind,
 } from "./wallet-page-utils"
 
