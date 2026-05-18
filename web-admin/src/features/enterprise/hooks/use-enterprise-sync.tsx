@@ -1017,7 +1017,6 @@ export function useEnterpriseSync({
               sourceExecutionID: result.source_execution_id,
             })
       )
-      return result
     } catch (err) {
       const message =
         err instanceof Error
