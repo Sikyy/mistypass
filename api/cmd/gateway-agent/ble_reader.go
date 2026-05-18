@@ -16,11 +16,14 @@ import (
 // Real BLE hardware support (via tinygo.org/x/bluetooth or BlueZ D-Bus) will be
 // added in Phase 4 when ESP32 hardware is ready. The authentication protocol
 // remains the same regardless of transport.
+const maxBLEConcurrentSessions = 8
+
 type BLEReader struct {
 	logger   *slog.Logger
 	lockID   string
 	agent    *Agent
 	listener net.Listener // TCP listener for simulator mode
+	sem      chan struct{} // limits concurrent sessions
 
 	mu      sync.Mutex
 	running bool
@@ -33,6 +36,7 @@ func NewBLEReader(logger *slog.Logger, lockID string, agent *Agent) *BLEReader {
 		logger: logger,
 		lockID: lockID,
 		agent:  agent,
+		sem:    make(chan struct{}, maxBLEConcurrentSessions),
 		stopCh: make(chan struct{}),
 	}
 }
@@ -79,7 +83,16 @@ func (b *BLEReader) acceptLoop() {
 				continue
 			}
 		}
-		go b.handleSession(conn)
+		select {
+		case b.sem <- struct{}{}:
+			go func() {
+				defer func() { <-b.sem }()
+				b.handleSession(conn)
+			}()
+		default:
+			b.logger.Warn("BLE session rejected: max concurrent sessions reached", "remote", conn.RemoteAddr())
+			conn.Close()
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -16,25 +17,40 @@ type RelayDriver interface {
 // --- DryRunRelay (no hardware, just logs) ---
 
 type DryRunRelay struct {
-	logger *slog.Logger
+	logger      *slog.Logger
+	mu          sync.Mutex
+	relockTimer *time.Timer
 }
 
 func (r *DryRunRelay) Unlock(duration time.Duration) error {
 	r.logger.Info(fmt.Sprintf(">>> DRY RUN: relay ON for %s", duration))
-	go func() {
-		time.Sleep(duration)
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.relockTimer = time.AfterFunc(duration, func() {
 		r.logger.Info(">>> DRY RUN: relay OFF (door relocked)")
-	}()
+	})
+	r.mu.Unlock()
 	return nil
 }
 
-func (r *DryRunRelay) Close() error { return nil }
+func (r *DryRunRelay) Close() error {
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.mu.Unlock()
+	return nil
+}
 
 // --- GPIO Relay (Linux sysfs, works on Orange Pi / Raspberry Pi) ---
 
 type GPIORelay struct {
-	pin    int
-	logger *slog.Logger
+	pin         int
+	logger      *slog.Logger
+	mu          sync.Mutex
+	relockTimer *time.Timer
 }
 
 func NewGPIORelay(pin int, logger *slog.Logger) (*GPIORelay, error) {
@@ -69,19 +85,27 @@ func (r *GPIORelay) Unlock(duration time.Duration) error {
 		return fmt.Errorf("gpio relay on: %w", err)
 	}
 
-	go func() {
-		time.Sleep(duration)
-		// Pull HIGH to deactivate relay
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.relockTimer = time.AfterFunc(duration, func() {
 		r.logger.Info(">>> GPIO relay OFF (relocked)", "pin", r.pin)
 		if err := r.writeFile(valuePath, "1"); err != nil {
 			r.logger.Error("gpio relay off failed", "error", err)
 		}
-	}()
+	})
+	r.mu.Unlock()
 
 	return nil
 }
 
 func (r *GPIORelay) Close() error {
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.mu.Unlock()
 	// Set HIGH (relay off) and unexport
 	valuePath := fmt.Sprintf("/sys/class/gpio/gpio%d/value", r.pin)
 	r.writeFile(valuePath, "1")
@@ -96,8 +120,10 @@ func (r *GPIORelay) writeFile(path, value string) error {
 // --- RS485 Modbus Relay (via serial port) ---
 
 type RS485Relay struct {
-	device string
-	logger *slog.Logger
+	device      string
+	logger      *slog.Logger
+	mu          sync.Mutex
+	relockTimer *time.Timer
 }
 
 func NewRS485Relay(device string, logger *slog.Logger) (*RS485Relay, error) {
@@ -120,13 +146,17 @@ func (r *RS485Relay) Unlock(duration time.Duration) error {
 		return fmt.Errorf("rs485 relay on: %w", err)
 	}
 
-	go func() {
-		time.Sleep(duration)
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.relockTimer = time.AfterFunc(duration, func() {
 		r.logger.Info(">>> RS485 relay OFF (relocked)", "device", r.device)
 		if err := r.sendCommand(offCmd); err != nil {
 			r.logger.Error("rs485 relay off failed", "error", err)
 		}
-	}()
+	})
+	r.mu.Unlock()
 
 	return nil
 }
@@ -141,4 +171,11 @@ func (r *RS485Relay) sendCommand(cmd []byte) error {
 	return err
 }
 
-func (r *RS485Relay) Close() error { return nil }
+func (r *RS485Relay) Close() error {
+	r.mu.Lock()
+	if r.relockTimer != nil {
+		r.relockTimer.Stop()
+	}
+	r.mu.Unlock()
+	return nil
+}

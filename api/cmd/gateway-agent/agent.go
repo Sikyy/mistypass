@@ -67,6 +67,9 @@ type Agent struct {
 
 	// mTLS client authentication
 	mtls *DeviceMTLS
+
+	// Cached HTTP client (rebuilt on TLS config change)
+	cachedHTTPClient *http.Client
 }
 
 // AccessRule is a local credential → lock mapping for offline decision.
@@ -286,6 +289,7 @@ func (a *Agent) registerDevice() error {
 		if err := a.mtls.StoreCert([]byte(result.CertPEM), []byte(result.CACertPEM)); err != nil {
 			a.logger.Warn("mTLS: failed to store certificate", "error", err)
 		} else {
+			a.rebuildHTTPClient()
 			cn, notAfter, _ := a.mtls.CertInfo()
 			a.logger.Info("mTLS: client certificate obtained",
 				"cn", cn,
@@ -502,6 +506,7 @@ func (a *Agent) renewMTLSCert() {
 		a.logger.Warn("mTLS: cert renewal store failed", "error", err)
 		return
 	}
+	a.rebuildHTTPClient()
 
 	cn, notAfter, _ := a.mtls.CertInfo()
 	a.logger.Info("mTLS: certificate renewed",
@@ -966,16 +971,32 @@ func (a *Agent) HandleCredentialPresented(credentialType, credentialData, lockID
 // --- HTTP Client ---
 
 func (a *Agent) httpClient() *http.Client {
+	a.mu.RLock()
+	c := a.cachedHTTPClient
+	a.mu.RUnlock()
+	if c != nil {
+		return c
+	}
+	return a.rebuildHTTPClient()
+}
+
+func (a *Agent) rebuildHTTPClient() *http.Client {
 	tlsCfg := a.buildTLSConfig()
+	var c *http.Client
 	if tlsCfg == nil {
-		return &http.Client{Timeout: 30 * time.Second}
+		c = &http.Client{Timeout: 30 * time.Second}
+	} else {
+		c = &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				TLSClientConfig: tlsCfg,
+			},
+		}
 	}
-	return &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: tlsCfg,
-		},
-	}
+	a.mu.Lock()
+	a.cachedHTTPClient = c
+	a.mu.Unlock()
+	return c
 }
 
 // pinnedTLSConfig returns a TLS config for WebSocket connections.
