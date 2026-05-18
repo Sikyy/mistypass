@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { MistyIslandMark } from "@/components/brand/misty-island-mark"
 import { useAuth } from "@/context/auth-context"
-import { confirmPasswordReset, login, requestPasswordReset, userSignUp, webAuthnLoginBegin, webAuthnLoginFinish, webAuthnLoginFinishMFA } from "@/lib/api"
+import { confirmPasswordReset, login, requestPasswordReset, userSignUp, webAuthnLoginBegin, webAuthnLoginFinish, webAuthnLoginFinishMFA, type SerializedPublicKeyCredential } from "@/lib/api"
 
 const languageOptions = [
   { code: "zh-CN", labelKey: "common.language.zh" },
@@ -77,7 +77,7 @@ function bufferToBase64url(buffer: ArrayBuffer): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
-function serializePublicKeyCredential(credential: PublicKeyCredential): any {
+function serializePublicKeyCredential(credential: PublicKeyCredential): SerializedPublicKeyCredential {
   const response = credential.response as AuthenticatorAssertionResponse
   return {
     id: credential.id,
