@@ -35,6 +35,18 @@ export type WebAuthnCredential = {
   created_at: string
 }
 
+export type SerializedPublicKeyCredential = {
+  id: string
+  rawId: string
+  type: string
+  response: {
+    clientDataJSON: string
+    authenticatorData: string
+    signature: string
+    userHandle?: string
+  }
+}
+
 export type WebAuthnLoginFinishResponse =
   | (LoginResponse & { mfa_required?: undefined })
   | { mfa_required: true; webauthn_token: string }
@@ -177,7 +189,7 @@ export async function webAuthnLoginBegin(email: string): Promise<CredentialReque
 
 export async function webAuthnLoginFinish(
   email: string,
-  credential: any,
+  credential: SerializedPublicKeyCredential,
 ): Promise<WebAuthnLoginFinishResponse> {
   const params = new URLSearchParams({ email })
   return request<WebAuthnLoginFinishResponse>(`/api/v1/auth/webauthn/login/finish?${params}`, {
@@ -208,8 +220,8 @@ export async function deleteWebAuthnCredential(token: string | undefined, creden
 
 // --- Signup / Password Change ---
 
-export async function userSignUp(payload: { name: string; email: string; password: string }): Promise<any> {
-  return request("/api/v1/users/sign_up", { method: "POST", body: JSON.stringify(payload) })
+export async function userSignUp(payload: { name: string; email: string; password: string }): Promise<void> {
+  await request("/api/v1/users/sign_up", { method: "POST", body: JSON.stringify(payload) })
 }
 
 export async function changeUserPassword(token: string | undefined, currentPassword: string, newPassword: string): Promise<{ status: string }> {

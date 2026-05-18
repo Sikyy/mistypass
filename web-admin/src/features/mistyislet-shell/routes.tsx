@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react"
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router"
+import { Link, Navigate, Route, Routes, useParams } from "react-router"
 
 import { PageFrame } from "@/components/mistyislet/primitives"
 import type { CurrentUser } from "@/lib/api"
@@ -236,11 +236,18 @@ function OrganizationRoute({ token, viewer }: AuthenticatedResourcePageProps) {
   return <OrganizationSetupAdaptedPage title={title} token={token} viewer={viewer} />
 }
 
-function GenericRoute() {
-  const location = useLocation()
-  const segment = location.pathname.split("/").filter(Boolean).pop() ?? "workspace"
-  const placeScoped = location.pathname.startsWith("/places/")
-  return <GenericAdaptedPage title={titleFromSegment(segment)} placeScoped={placeScoped} />
+function NotFoundPage() {
+  return (
+    <PageFrame breadcrumbs={["Home", "Not Found"]} title="Not Found" description="">
+      <div className="flex flex-col items-center justify-center gap-4 rounded-[6px] border border-line-default bg-white py-16">
+        <h1 className="text-3xl font-bold text-content-heading">404 — Page not found</h1>
+        <p className="text-sm text-content-subtle">The page you are looking for does not exist.</p>
+        <Link to="/home" className="text-sm font-medium text-brand-primary hover:underline">
+          Go back to home
+        </Link>
+      </div>
+    </PageFrame>
+  )
 }
 
 export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerChange, onLogout }: MistyisletConsoleRoutesProps) {
@@ -295,7 +302,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/access-links/claim" element={<AccessLinkClaimPage />} />
         <Route path="/access-link/:token" element={<AccessLinkClaimPage />} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
-        <Route path="*" element={<GenericRoute />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   )
