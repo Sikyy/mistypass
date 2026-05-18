@@ -212,7 +212,8 @@ func (m *DeviceMTLS) NeedsRenewal(window time.Duration) bool {
 
 // TLSConfig returns a tls.Config with the client certificate for mTLS.
 // Falls back to standard TLS if no client cert is loaded.
-func (m *DeviceMTLS) TLSConfig(pinSHA256 string) *tls.Config {
+// Note: certificate pinning is handled separately in Agent.buildTLSConfig().
+func (m *DeviceMTLS) TLSConfig(_ string) *tls.Config {
 	m.mu.RLock()
 	cert := m.cert
 	caCertPEM := m.caCertPEM
