@@ -1507,15 +1507,15 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 ┌─────────────────────────────────────────────────────────┐
 │              MistyPass Gateway Agent (本地)               │
 │                                                           │
-│   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│   │Hikvision │  │ Suprema  │  │Fingerspot│  │ ZKTeco   │ │
-│   │ ISUP 5.0 │  │  G-SDK   │  │ TCP Push │  │ Push SDK │ │
-│   └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘ │
-│        │ TCP         │ gRPC        │ TCP         │ TCP   │
-└────────┼─────────────┼─────────────┼─────────────┼───────┘
-         │             │             │             │
-    🏭 网关直连    🏭 网关直连    🏭 网关直连    🏭 网关直连
-    （局域网）    （局域网）     （局域网）    （局域网）
+│   ┌──────────┐  ┌──────────┐                  ┌──────────┐ │
+│   │Hikvision │  │ Suprema  │   Fingerspot:    │ ZKTeco   │ │
+│   │ ISUP 5.0 │  │  G-SDK   │   ⚠️ 纯云中转    │ Push SDK │ │
+│   └────┬─────┘  └────┬─────┘   无本地协议      └────┬─────┘ │
+│        │ TCP         │ gRPC                         │ TCP   │
+└────────┼─────────────┼──────────────────────────────┼───────┘
+         │             │                              │
+    🏭 网关直连    🏭 网关直连                     🏭 网关直连
+    （局域网）    （局域网）                      （局域网）
 ```
 
 **Cloud 路线**：客户无需部署网关，设备自连厂商云，MistyPass 云端通过 REST API 管理
@@ -1527,7 +1527,7 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 |------|-----------|-------------|--------|-----------|-------------|
 | **Hikvision** | ISC OpenAPI (REST) | ISUP 5.0 (TCP 透传) | 🔥🔥🔥 | 🟡 后端完成，等 TPP 审批 | ⬜ 待 TPP 签约 |
 | **Suprema** | CLUe / BioStar X (REST) | G-SDK (gRPC 直连) | 🔥🔥🔥 | ⬜ 待申请 Technical Partner | ⬜ 待评估 |
-| **Fingerspot** | Cloud REST API + Webhook | TCP Push (设备推送到网关) | 🔥🔥 | ⬜ 待注册开发者账号 | ⬜ 待评估 |
+| **Fingerspot** | Cloud REST API + Webhook | ⚠️ 纯云中转，无本地协议 | 🔥🔥 | 🟡 账号已注册，待对接 | — 不适用 |
 | **ZKTeco** | ZKBio Cloud (REST) | Push SDK (TCP 推送) | 🔥 | ⬜ 待做 | 🟡 事件入库已完成 |
 
 ### 16.3 Hikvision — ISC OpenAPI + ISUP 5.0
@@ -1594,32 +1594,69 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 - G-SDK Go 示例: https://github.com/nicejongwoo/biostar-device-controller（社区参考）
 - Knowledge Base: https://kb.supremainc.com/
 
-### 16.5 Fingerspot — Cloud REST API + TCP Push
+### 16.5 Fingerspot — Cloud REST API + Webhook（纯云中转）
 
-> 无正式合作伙伴流程，注册账号 + 付订阅即可用
-> 主要针对考勤/打卡场景，门禁控制能力有限但作为印尼本土品牌有价值
+> 已注册开发者账号（2026-05-19），API Token 已获取
+> 架构：纯云中转 — 所有指令经 developer.fingerspot.io 转发到设备，设备实时数据通过 Webhook 回传
+> ⚠️ 无本地直连协议，不支持 Gateway 路线（设备必须联网连 Fingerspot 云）
 > 已在 PSE Kominfo 备案（印尼数据合规友好）
 
-#### Cloud 路线：Fingerspot Cloud REST API
+#### 账号信息
+
+| 项目 | 值 |
+|------|------|
+| Portal | https://developer.fingerspot.io |
+| Email | info@mistyislet.com |
+| Account ID | DEV-0002-2134 |
+| 到期 | 2026-07-03 |
+| 设备配额 | 1 台 |
+
+#### Cloud 路线：REST API + Webhook
+
+**API 端点**（全部 POST JSON，`Authorization: Bearer [token]`，Base URL: `https://developer.fingerspot.io/api/`）：
+
+| 端点 | 用途 | 请求参数 |
+|------|------|---------|
+| `/api/get_attlog` | 获取打卡记录 | trans_id, cloud_id, start_date, end_date |
+| `/api/get_userinfo` | 获取设备用户 | trans_id, cloud_id, pin |
+| `/api/set_userinfo` | 下发用户到设备 | trans_id, cloud_id, data (pin, name, privilege, password) |
+| `/api/delete_userinfo` | 删除设备用户 | trans_id, cloud_id, pin |
+| `/api/get_allpin` | 获取所有 User ID | trans_id, cloud_id |
+| `/api/set_time` | 设置设备时区 | trans_id, cloud_id, timezone |
+| `/api/register_online` | 注册设备上线 | trans_id, cloud_id |
+| `/api/restart` | 重启设备 | trans_id, cloud_id |
+| `/api/get_device` | 获取设备详情 | trans_id, cloud_id |
+
+**Webhook 回调**（设备 → Fingerspot 云 → POST JSON 到 MistyPass endpoint）：
+
+| 类型 | 说明 | Payload 示例 |
+|------|------|-------------|
+| `attlog` | 实时打卡事件 | `{"type":"attlog","cloud_id":"xxx","data":{"pin":"1","scan":"2020-07-21 10:11","verify":"1","status_scan":"1"}}` |
+| `get_userinfo` | 用户查询响应 | 异步返回设备用户信息 |
+| `set_userinfo` | 用户下发响应 | 成功/失败回执 |
+| `delete_userinfo` | 用户删除响应 | 成功/失败回执 |
+| `get_allpin` | 全部 PIN 响应 | 返回设备全部用户 ID |
+
+#### 集成待做事项
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
-| 开发者账号注册 | ⬜ 待做 | https://developer.fingerspot.io/customer/register |
-| REST API 对接 | ⬜ 待做 | Get/Set Userinfo、Get Attlog、Realtime Scan |
-| Webhook 事件接收 | ⬜ 待做 | 打卡/门禁事件实时推送到 MistyPass 云端 |
-| 前端设备管理集成 | ⬜ 待做 | 复用 Southbound UI |
+| 开发者账号注册 | ✅ 完成 | Account ID: DEV-0002-2134，到期 2026-07-03 |
+| REST API 客户端 (`fingerspot/client.go`) | ⬜ 待做 | 9 个 API 端点封装 |
+| Webhook 接收端点 | ⬜ 待做 | `POST /api/v1/gateway/southbound/fingerspot/webhook` |
+| 设备注册 + cloud_id 映射 | ⬜ 待做 | cloud_id → tenant_id 映射（类似 ZKTeco serial 映射） |
+| 考勤记录同步 | ⬜ 待做 | Attlog → MistyPass 事件系统 |
+| 人员/凭据双向同步 | ⬜ 待做 | Set/Get/Delete Userinfo 封装 |
+| 前端设备管理集成 | ⬜ 待做 | provider 枚举增加 `"fingerspot"` |
+| 前端 Webhook 配置 UI | ⬜ 待做 | 帮用户配置 Fingerspot 端的 Webhook URL |
 
-#### Gateway 路线：TCP Push (设备直连网关)
+#### Gateway 路线：不适用
 
-| 事项 | 状态 | 说明 |
-|------|------|------|
-| TCP Push 协议分析 | ⬜ 待做 | Fingerspot 设备可配置推送目标 IP（网关） |
-| 事件接收与解析 | ⬜ 待做 | 网关接收设备打卡/门禁事件，解析为统一格式 |
-| 人员/凭据下发 | ⬜ 待做 | 通过设备 TCP 命令接口下发用户数据 |
-| 离线缓存 | ⬜ 待做 | 断网时网关缓存事件，恢复后批量上报 |
+Fingerspot 架构为纯云中转，设备必须通过 developer.fingerspot.io 中转所有指令和数据。
+无本地 TCP/UDP 直连协议，不支持 MistyPass 网关直连模式。
+如客户部署了网关但也有 Fingerspot 设备，仍走 Cloud 路线（网关不参与 Fingerspot 通信）。
 
-**费用**：Rp 300,000/年/每台云端设备（含税，仅 Cloud 路线）
-**支持命令**：Get Attlog、Get/Set Userinfo、Set Time、Register Online、Realtime Data Scan、Restart
+**费用**：Rp 300,000/年/每台云端设备（含税）
 
 ### 16.6 ZKTeco — ZKBio Cloud + Push SDK
 
@@ -1650,15 +1687,14 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 2026 Q2（现在）
 ├── Hikvision Cloud (ISC OpenAPI)   → 等 TPP 审批，审批通过后 1 周完成 E2E
 ├── Suprema Technical Partner 申请   → 立即提交（Cloud + G-SDK 均依赖）
-├── Fingerspot 开发者账号注册        → 立即注册（无审批流程）
+├── Fingerspot 开发者账号             → ✅ 已注册（DEV-0002-2134，到期 2026-07-03）
 └── ZKTeco Gateway (Push SDK)       → ✅ 事件入库已完成
 
 2026 Q3
 ├── Hikvision Gateway (ISUP 5.0)    → TPP 签约后开通，网关透传实时事件
 ├── Suprema Cloud (CLUe REST API)   → Partner 审批后开发（预估 2-3 周）
 ├── Suprema Gateway (G-SDK gRPC)    → 与 CLUe 并行，Go stub 生成 + 设备直连
-├── Fingerspot Cloud (REST API)     → 注册后 1 周可完成
-├── Fingerspot Gateway (TCP Push)   → 与 Cloud 并行，设备直连网关
+├── Fingerspot Cloud (REST API)     → ✅ 已注册，可立即开发（纯云，无 Gateway 路线）
 └── ZKTeco Cloud (ZKBio Cloud)      → 视客户需求启动
 
 2026 Q4
