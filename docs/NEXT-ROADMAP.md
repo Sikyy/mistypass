@@ -1484,18 +1484,57 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 > 目标：成为硬件无关的云 SaaS 门禁平台，支持主流品牌设备即插即用
 > 定位：对标 Kisi / Verkada，做全硬件兼容的云门禁 SaaS
 
-### 16.1 集成总览
+### 16.1 双路线集成架构
 
-| 阶段 | 品牌 | 集成方式 | 优先级 | 状态 |
-|------|------|---------|--------|------|
-| 第一阶段 | **Hikvision** | ISC OpenAPI (Hik-Connect) | 🔥🔥🔥 | 🟡 后端完成，等 TPP 审批 |
-| 第二阶段 | **Suprema CLUe** | REST API 云对云 | 🔥🔥🔥 | ⬜ 待申请 Technical Partner |
-| 第三阶段 | **Fingerspot** | REST API + Webhook | 🔥🔥 | ⬜ 待注册开发者账号 |
-| 第四阶段 | **ZKTeco** | ZKBio Cloud / Push SDK | 🔥 | 🟡 Push 事件入库已完成 |
+每家厂商均提供两条集成路径，覆盖不同客户场景：
 
-### 16.2 Hikvision — ISC OpenAPI (Hik-Connect)
+```
+┌─────────────────────────────────────────────────────────┐
+│                  MistyPass 云端 SaaS                      │
+│                                                           │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│   │Hikvision │  │ Suprema  │  │Fingerspot│  │ ZKTeco   │ │
+│   │ISC Cloud │  │CLUe Cloud│  │Cloud API │  │ZKBio Cloud│ │
+│   └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘ │
+│        │ REST        │ REST        │ REST        │ REST  │
+└────────┼─────────────┼─────────────┼─────────────┼───────┘
+         │             │             │             │
+    ☁️ 云对云     ☁️ 云对云      ☁️ 云对云     ☁️ 云对云
+    （无网关）    （无网关）     （无网关）    （无网关）
+
+═══════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────┐
+│              MistyPass Gateway Agent (本地)               │
+│                                                           │
+│   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
+│   │Hikvision │  │ Suprema  │  │Fingerspot│  │ ZKTeco   │ │
+│   │ ISUP 5.0 │  │  G-SDK   │  │ TCP Push │  │ Push SDK │ │
+│   └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘ │
+│        │ TCP         │ gRPC        │ TCP         │ TCP   │
+└────────┼─────────────┼─────────────┼─────────────┼───────┘
+         │             │             │             │
+    🏭 网关直连    🏭 网关直连    🏭 网关直连    🏭 网关直连
+    （局域网）    （局域网）     （局域网）    （局域网）
+```
+
+**Cloud 路线**：客户无需部署网关，设备自连厂商云，MistyPass 云端通过 REST API 管理
+**Gateway 路线**：客户部署 MistyPass 网关，统一协调多品牌设备，离线可用、低延迟
+
+### 16.2 集成总览
+
+| 品牌 | Cloud 路线 | Gateway 路线 | 优先级 | Cloud 状态 | Gateway 状态 |
+|------|-----------|-------------|--------|-----------|-------------|
+| **Hikvision** | ISC OpenAPI (REST) | ISUP 5.0 (TCP 透传) | 🔥🔥🔥 | 🟡 后端完成，等 TPP 审批 | ⬜ 待 TPP 签约 |
+| **Suprema** | CLUe / BioStar X (REST) | G-SDK (gRPC 直连) | 🔥🔥🔥 | ⬜ 待申请 Technical Partner | ⬜ 待评估 |
+| **Fingerspot** | Cloud REST API + Webhook | TCP Push (设备推送到网关) | 🔥🔥 | ⬜ 待注册开发者账号 | ⬜ 待评估 |
+| **ZKTeco** | ZKBio Cloud (REST) | Push SDK (TCP 推送) | 🔥 | ⬜ 待做 | 🟡 事件入库已完成 |
+
+### 16.3 Hikvision — ISC OpenAPI + ISUP 5.0
 
 > ISV 模式：单平台账号管理多客户设备，适合 SaaS 多租户架构
+
+#### Cloud 路线：ISC OpenAPI (Hik-Connect)
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
@@ -1505,15 +1544,24 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | ISC OpenAPI 单元测试 | ✅ 完成 | HTTP 客户端 + 签名验证测试 |
 | E2E 集成测试 | ⬜ 待做 | 需 AppKey/AppSecret，build tag `integration` 隔离 |
 | 前端设备管理页面 | ✅ 完成 | Southbound 设备管理 UI |
-| ISUP 5.0 云端透传 | ⬜ 待做 | 需 TPP 签约后开通，实时事件推送 |
 
-**阻塞项**：TPP 审批（AppKey/AppSecret）
+#### Gateway 路线：ISUP 5.0 (设备透传)
 
-### 16.3 Suprema CLUe — 云原生集成平台
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| ISUP 5.0 协议对接 | ⬜ 待做 | 需 TPP 签约后开通，设备通过网关透传到 MistyPass |
+| 设备注册与心跳 | ⬜ 待做 | 网关接收设备上线/心跳/状态变更 |
+| 实时事件推送 | ⬜ 待做 | 门禁事件、报警事件实时推送到网关 |
+| 视频流代理 | ⬜ 待做 | 网关代理 RTSP 视频流到 MistyPass 云端 |
 
-> 云原生架构，设备通过标准 REST API 直连云端，无需本地服务器
-> 参考：Verkada 已通过 CLUe 接入 Suprema BioStation 3
+**阻塞项**：TPP 审批（AppKey/AppSecret）— Cloud + Gateway 均依赖
+
+### 16.4 Suprema — CLUe REST API + G-SDK
+
 > 安全资质：CSA STAR Level 2、ISO 27001、ISO 27701、AES-256、Secure Element
+> 参考：Verkada 已通过 CLUe 接入 Suprema BioStation 3
+
+#### Cloud 路线：CLUe / BioStar X REST API
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
@@ -1524,61 +1572,97 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | 事件订阅与推送 | ⬜ 待做 | 门禁事件实时同步到 MistyPass |
 | 前端设备管理集成 | ⬜ 待做 | 复用现有 Southbound UI 框架 |
 
+#### Gateway 路线：G-SDK (gRPC 直连)
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| G-SDK Go 客户端封装 | ⬜ 待做 | gRPC proto 生成 Go stub，封装为 gateway-agent 模块 |
+| 设备发现（局域网扫描） | ⬜ 待做 | UDP broadcast 发现同网段 Suprema 设备 |
+| 凭据下发（人脸/指纹/卡） | ⬜ 待做 | 通过 gRPC 直接写入设备，无需经过 CLUe 云 |
+| 实时事件监听 | ⬜ 待做 | gRPC 长连接订阅设备事件 |
+| 门禁控制（开门/锁门） | ⬜ 待做 | 网关直接下发开门指令，延迟 <50ms |
+| 离线模式 | ⬜ 待做 | 断网时网关缓存凭据变更，恢复后同步 |
+
 **下一步**：填写 Technical Partner 申请表，准备信息：
 - 公司：MistyPass — 云端智能门禁 SaaS 平台
-- 集成目标：CLUe 云对云集成，管理 BioStation 3 / BioEntry 设备
+- 集成目标：CLUe 云对云 + G-SDK 网关直连双路线集成
 - 目标市场：印尼企业门禁（工厂、办公楼、公寓）
 
 **SDK 文档（无需申请即可查看）**：
 - BioStar X API: https://www.supremainc.com/en/support/development-tools_biostar-2-api.asp
 - G-SDK: https://www.supremainc.com/en/support/development-tools_suprema-g-sdk.asp
+- G-SDK Go 示例: https://github.com/nicejongwoo/biostar-device-controller（社区参考）
 - Knowledge Base: https://kb.supremainc.com/
 
-### 16.4 Fingerspot — 印尼本土品牌
+### 16.5 Fingerspot — Cloud REST API + TCP Push
 
 > 无正式合作伙伴流程，注册账号 + 付订阅即可用
-> 主要针对考勤/打卡场景，门禁控制能力有限但作为本土品牌选项有价值
+> 主要针对考勤/打卡场景，门禁控制能力有限但作为印尼本土品牌有价值
 > 已在 PSE Kominfo 备案（印尼数据合规友好）
+
+#### Cloud 路线：Fingerspot Cloud REST API
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
 | 开发者账号注册 | ⬜ 待做 | https://developer.fingerspot.io/customer/register |
 | REST API 对接 | ⬜ 待做 | Get/Set Userinfo、Get Attlog、Realtime Scan |
-| Webhook 事件接收 | ⬜ 待做 | 打卡/门禁事件实时推送 |
+| Webhook 事件接收 | ⬜ 待做 | 打卡/门禁事件实时推送到 MistyPass 云端 |
 | 前端设备管理集成 | ⬜ 待做 | 复用 Southbound UI |
 
-**费用**：Rp 300,000/年/每台云端设备（含税）
+#### Gateway 路线：TCP Push (设备直连网关)
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| TCP Push 协议分析 | ⬜ 待做 | Fingerspot 设备可配置推送目标 IP（网关） |
+| 事件接收与解析 | ⬜ 待做 | 网关接收设备打卡/门禁事件，解析为统一格式 |
+| 人员/凭据下发 | ⬜ 待做 | 通过设备 TCP 命令接口下发用户数据 |
+| 离线缓存 | ⬜ 待做 | 断网时网关缓存事件，恢复后批量上报 |
+
+**费用**：Rp 300,000/年/每台云端设备（含税，仅 Cloud 路线）
 **支持命令**：Get Attlog、Get/Set Userinfo、Set Time、Register Online、Realtime Data Scan、Restart
 
-### 16.5 ZKTeco — Push SDK + ZKBio Cloud
+### 16.6 ZKTeco — ZKBio Cloud + Push SDK
 
 > ZKTeco 设备覆盖面广，印尼市场占有率高
-> 当前已完成 Push 事件入库（设备主动推送事件到 MistyPass）
+> 当前已完成 Push 事件入库（设备主动推送事件到 MistyPass 网关）
+
+#### Cloud 路线：ZKBio Cloud REST API
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| ZKBio Cloud API 对接 | ⬜ 待做 | 云端设备管理 + 人员同步 |
+| 设备注册与发现 | ⬜ 待做 | 通过 ZKBio Cloud API 管理设备 |
+| 人员/凭据云端同步 | ⬜ 待做 | 向 ZKBio Cloud 推送门禁权限，再下发到设备 |
+
+#### Gateway 路线：Push SDK (TCP 推送)
 
 | 事项 | 状态 | 说明 |
 |------|------|------|
 | Push SDK 事件入库 | ✅ 完成 | `routes_southbound.go` — serial→tenant 映射 + 审计日志 |
-| ZKBio Cloud API 对接 | ⬜ 待做 | 云端设备管理 + 人员同步 |
-| 设备注册与发现 | ⬜ 待做 | 通过 Push SDK 自动注册或手动绑定 |
-| 人员/凭据下发 | ⬜ 待做 | 向 ZKTeco 设备推送门禁权限 |
+| 设备注册与心跳 | ⬜ 待做 | 通过 Push SDK 自动注册或手动绑定 |
+| 人员/凭据下发 | ⬜ 待做 | 网关向 ZKTeco 设备直接推送门禁权限 |
 | Wiegand 读卡器集成 | ✅ 完成 | Gateway Agent Wiegand GPIO 驱动（ProID10 兼容） |
 | 前端设备管理集成 | 🟡 部分完成 | Southbound UI 已有，需增加 ZKTeco 特有配置 |
 
-### 16.6 集成优先级与时间线
+### 16.7 集成优先级与时间线
 
 ```
 2026 Q2（现在）
-├── Hikvision ISC OpenAPI     → 等 TPP 审批，审批通过后 1 周完成 E2E
-├── Suprema CLUe              → 立即提交 Technical Partner 申请
-└── ZKTeco Push SDK           → ✅ 已完成事件入库
+├── Hikvision Cloud (ISC OpenAPI)   → 等 TPP 审批，审批通过后 1 周完成 E2E
+├── Suprema Technical Partner 申请   → 立即提交（Cloud + G-SDK 均依赖）
+├── Fingerspot 开发者账号注册        → 立即注册（无审批流程）
+└── ZKTeco Gateway (Push SDK)       → ✅ 事件入库已完成
 
 2026 Q3
-├── Hikvision ISUP 5.0        → TPP 签约后开通实时推送
-├── Suprema CLUe 对接         → Partner 审批后开发（预估 2-3 周）
-├── Fingerspot API 对接        → 注册后 1 周可完成
-└── ZKTeco ZKBio Cloud        → 视客户需求启动
+├── Hikvision Gateway (ISUP 5.0)    → TPP 签约后开通，网关透传实时事件
+├── Suprema Cloud (CLUe REST API)   → Partner 审批后开发（预估 2-3 周）
+├── Suprema Gateway (G-SDK gRPC)    → 与 CLUe 并行，Go stub 生成 + 设备直连
+├── Fingerspot Cloud (REST API)     → 注册后 1 周可完成
+├── Fingerspot Gateway (TCP Push)   → 与 Cloud 并行，设备直连网关
+└── ZKTeco Cloud (ZKBio Cloud)      → 视客户需求启动
 
 2026 Q4
-├── Suprema 生物识别深度集成   → 人脸/指纹模板同步
-└── 更多品牌按需扩展           → 大华 DSS、TTLock 等
+├── Suprema 生物识别深度集成         → G-SDK 人脸/指纹模板直接写入设备
+├── 全品牌 Gateway 离线模式          → 断网缓存 + 恢复同步统一框架
+└── 更多品牌按需扩展                 → 大华 DSS、TTLock 等
 ```
