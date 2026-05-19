@@ -1,6 +1,6 @@
 # Mistyislet 后续推进路线图
 
-> 更新日期：2026-05-03 (v8 — 纯软件全部清零，剩余项均依赖硬件或外部账号)
+> 更新日期：2026-05-19 (v9 — Fingerspot Cloud 集成完成，iOS App 已开发)
 > 第一优先级：BLE 移动凭据 MVP（印尼两个工厂客户）— 见第 9 节
 > 第一理念：让用户更方便、更安全、更高效地开门
 > ⚠️ Apple/Google Wallet 功能因印尼��策原因暂停推进（Apple Pay/Google Pay 在印尼暂不可用）
@@ -98,6 +98,16 @@
 | Visitor/Elevator 页面增加 mutation 错误处理 | 质量 | Low | done |
 | WebAuthn/密码重置错误响应屏蔽内部细节 | 安全 | Low | done |
 | SQL deleteProjectionRows 加安全注释 | 质量 | Low | done |
+
+### 2026-05-19 会话完成项
+| 事项 | 类别 | 状态 |
+|---|---|---|
+| Fingerspot Cloud REST API 集成（11 端点客户端 + 服务层 + 设备验证） | 南向网关 | done |
+| Fingerspot Webhook 接收器（attlog 事件入库 + 审计日志） | 南向网关 | done |
+| Fingerspot 管理路由（12 路由：webhook + 11 admin 端点） | 南向网关 | done |
+| Fingerspot 配置加载（4 env vars + enable 开关） | 基础设施 | done |
+| GatewayDevice Provider 字段（区分 hikvision/zkteco/fingerspot 设备） | 后端 | done |
+| 前端 Southbound 页面增加 Fingerspot 选项 | 前端 | done |
 
 ---
 
@@ -1313,6 +1323,7 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | 海康 ISAPI | ✅ | `southbound/hikvision.go` | — |
 | 海康 ISUP 5.0 | ❌ | — | **未实现（NAT 穿透场景）** |
 | ZKTeco Push SDK | ✅ | `southbound/zkteco.go` | — |
+| Fingerspot Cloud API | ✅ | `modules/fingerspot/` (client + service + webhook) | — |
 | Webhook 事件推送 | ✅ | `modules/audit/webhook.go` | — |
 | REST API | ✅ | 469 端点 | — |
 
@@ -1374,7 +1385,7 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 
 ## 13. 剩余待做项（全部依赖硬件或外部账号）
 
-> **2026-05-03 v8 状态：纯软件工作已全部完成。以下所有待做项均卡在外部依赖上。**
+> **2026-05-19 v9 状态：Fingerspot Cloud 集成完成，iOS App 已开发。以下所有待做项均卡在外部依赖上。**
 
 ### 🔴 等硬件到货（已采购，到货后立即推进）
 
@@ -1400,7 +1411,7 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 
 | 序号 | 事项 | 预估 | 触发条件 | V2 Phase |
 |---:|------|------|---------|---------|
-| D1 | **iOS App 开发** | 4-6 周 | 开发资源就绪（文档已完成：`APP-DEVELOPMENT-PLAN.md`） | Phase 2 |
+| D1 | ~~iOS App 开发~~ | ~~4-6 周~~ | ~~开发资源就绪~~ | ✅ done（`/ios-MistyisletPass/`） |
 | D2 | **Android App 真机 BLE** | 3-5 天 | BLE 硬件到货 + Nordic BLE 库替换 TCP 模拟器 | Phase 1E |
 | D3 | **NFC HCE 辅助通道** | 2 周 | Phase 2 BLE 稳定后 | Phase 2 |
 | D4 | **多因子认证（BLE + 指纹/PIN）** | 1 周 | 高安全客户需求 | Phase 2 |
@@ -1433,24 +1444,24 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 
 ---
 
-## 14. V2 架构文档 Phase 覆盖率总结（2026-05-03 v8 更新）
+## 14. V2 架构文档 Phase 覆盖率总结（2026-05-19 v9 更新）
 
 | V2 Phase | 总项 | 已完成 | 覆盖率 | 瓶颈 |
 |----------|---:|---:|---:|------|
-| Phase 1 MVP | 22 | 20 | **91%** | ISUP 5.0（需海康签约）、BLE 真机（需硬件） |
-| Phase 2 扩展 | 14 | 8 | **57%** | iOS App、TTLock、NFC HCE、Camera 真实集成 |
+| Phase 1 MVP | 23 | 21 | **91%** | ISUP 5.0（需海康签约）、BLE 真机（需硬件） |
+| Phase 2 扩展 | 14 | 9 | **64%** | TTLock、NFC HCE、Camera 真实集成 |
 | Phase 3 平台化 | 10 | 2 | **20%** | 客户需求驱动 |
 | Phase 4 自研硬件 | 4 | 0 | **0%** | Phase 3 稳定后启动 |
 
 > **Phase 1 关键路径**：H1 BLE 硬件到货 → 3 天集成 → Phase 1E 工厂部署
-> **Phase 2 并行路径**：D1 iOS App + E2 TTLock + H4 Camera（不阻塞主线）
-> **已验证**：Okta SCIM 集成端到端通过，前端 378 端点 93.6% 覆盖
+> **Phase 2 并行路径**：E2 TTLock + H4 Camera（不阻塞主线）
+> **已验证**：Okta SCIM 集成端到端通过，Fingerspot Cloud API 11 端点全覆盖，iOS App 已开发
 
 ---
 
 ## 15. 文档索引
 
-> 更新日期：2026-05-03
+> 更新日期：2026-05-19
 
 | 文档 | 路径 | 说明 |
 |---|---|---|
@@ -1475,4 +1486,6 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | **生产 WAF 指南** | `docs/production-waf-guide.md` | Cloudflare WAF + 白名单 + DDoS + Terraform |
 | **iOS App 开发计划** | `ios-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | HIG 合规 + BLE + Secure Enclave + 3 Phase |
 | **Android App 开发计划** | `android-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | M3 合规 + Keystore + Nordic BLE + 印尼适配 |
+| **Fingerspot 集成设计** | `docs/superpowers/specs/2026-05-19-fingerspot-integration-design.md` | Cloud REST API 11 端点 + Webhook |
+| **Fingerspot 集成实施计划** | `docs/superpowers/plans/2026-05-19-fingerspot-integration.md` | 7 任务 TDD 实施计划 |
 | OpenAPI Spec | `GET /api/v1/openapi.json` | 自动生成，版本 2026-05-03 |
