@@ -1476,3 +1476,109 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 | **iOS App 开发计划** | `ios-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | HIG 合规 + BLE + Secure Enclave + 3 Phase |
 | **Android App 开发计划** | `android-MistyisletPass/APP-DEVELOPMENT-PLAN.md` | M3 合规 + Keystore + Nordic BLE + 印尼适配 |
 | OpenAPI Spec | `GET /api/v1/openapi.json` | 自动生成，版本 2026-05-03 |
+
+---
+
+## 16. 硬件厂商集成路线图（2026-05-19）
+
+> 目标：成为硬件无关的云 SaaS 门禁平台，支持主流品牌设备即插即用
+> 定位：对标 Kisi / Verkada，做全硬件兼容的云门禁 SaaS
+
+### 16.1 集成总览
+
+| 阶段 | 品牌 | 集成方式 | 优先级 | 状态 |
+|------|------|---------|--------|------|
+| 第一阶段 | **Hikvision** | ISC OpenAPI (Hik-Connect) | 🔥🔥🔥 | 🟡 后端完成，等 TPP 审批 |
+| 第二阶段 | **Suprema CLUe** | REST API 云对云 | 🔥🔥🔥 | ⬜ 待申请 Technical Partner |
+| 第三阶段 | **Fingerspot** | REST API + Webhook | 🔥🔥 | ⬜ 待注册开发者账号 |
+| 第四阶段 | **ZKTeco** | ZKBio Cloud / Push SDK | 🔥 | 🟡 Push 事件入库已完成 |
+
+### 16.2 Hikvision — ISC OpenAPI (Hik-Connect)
+
+> ISV 模式：单平台账号管理多客户设备，适合 SaaS 多租户架构
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| TPP 合作伙伴申请 | 🟡 已提交 | tpp.hikvision.com，等待审批发放 AppKey/AppSecret |
+| ISC OpenAPI 后端集成 | ✅ 完成 | `api/internal/modules/hikconnect/` — HTTP 客户端 + 服务层 + token 缓存 |
+| ISC OpenAPI domain models | ✅ 完成 | 设备/区域/人员/事件/视频模型定义 |
+| ISC OpenAPI 单元测试 | ✅ 完成 | HTTP 客户端 + 签名验证测试 |
+| E2E 集成测试 | ⬜ 待做 | 需 AppKey/AppSecret，build tag `integration` 隔离 |
+| 前端设备管理页面 | ✅ 完成 | Southbound 设备管理 UI |
+| ISUP 5.0 云端透传 | ⬜ 待做 | 需 TPP 签约后开通，实时事件推送 |
+
+**阻塞项**：TPP 审批（AppKey/AppSecret）
+
+### 16.3 Suprema CLUe — 云原生集成平台
+
+> 云原生架构，设备通过标准 REST API 直连云端，无需本地服务器
+> 参考：Verkada 已通过 CLUe 接入 Suprema BioStation 3
+> 安全资质：CSA STAR Level 2、ISO 27001、ISO 27701、AES-256、Secure Element
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| Technical Partner 申请 | ⬜ 待做 | https://go.supremainc.com/l/881442/2022-12-05/2txdl7 |
+| CLUe REST API 对接 | ⬜ 待做 | 需 Partner 审批后获取 API 文档和沙箱 |
+| 设备发现与注册 | ⬜ 待做 | CLUe 设备直连云，通过 API 管理 |
+| 人脸/指纹凭据同步 | ⬜ 待做 | BioStation 3 人脸识别 + BioEntry 指纹 |
+| 事件订阅与推送 | ⬜ 待做 | 门禁事件实时同步到 MistyPass |
+| 前端设备管理集成 | ⬜ 待做 | 复用现有 Southbound UI 框架 |
+
+**下一步**：填写 Technical Partner 申请表，准备信息：
+- 公司：MistyPass — 云端智能门禁 SaaS 平台
+- 集成目标：CLUe 云对云集成，管理 BioStation 3 / BioEntry 设备
+- 目标市场：印尼企业门禁（工厂、办公楼、公寓）
+
+**SDK 文档（无需申请即可查看）**：
+- BioStar X API: https://www.supremainc.com/en/support/development-tools_biostar-2-api.asp
+- G-SDK: https://www.supremainc.com/en/support/development-tools_suprema-g-sdk.asp
+- Knowledge Base: https://kb.supremainc.com/
+
+### 16.4 Fingerspot — 印尼本土品牌
+
+> 无正式合作伙伴流程，注册账号 + 付订阅即可用
+> 主要针对考勤/打卡场景，门禁控制能力有限但作为本土品牌选项有价值
+> 已在 PSE Kominfo 备案（印尼数据合规友好）
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| 开发者账号注册 | ⬜ 待做 | https://developer.fingerspot.io/customer/register |
+| REST API 对接 | ⬜ 待做 | Get/Set Userinfo、Get Attlog、Realtime Scan |
+| Webhook 事件接收 | ⬜ 待做 | 打卡/门禁事件实时推送 |
+| 前端设备管理集成 | ⬜ 待做 | 复用 Southbound UI |
+
+**费用**：Rp 300,000/年/每台云端设备（含税）
+**支持命令**：Get Attlog、Get/Set Userinfo、Set Time、Register Online、Realtime Data Scan、Restart
+
+### 16.5 ZKTeco — Push SDK + ZKBio Cloud
+
+> ZKTeco 设备覆盖面广，印尼市场占有率高
+> 当前已完成 Push 事件入库（设备主动推送事件到 MistyPass）
+
+| 事项 | 状态 | 说明 |
+|------|------|------|
+| Push SDK 事件入库 | ✅ 完成 | `routes_southbound.go` — serial→tenant 映射 + 审计日志 |
+| ZKBio Cloud API 对接 | ⬜ 待做 | 云端设备管理 + 人员同步 |
+| 设备注册与发现 | ⬜ 待做 | 通过 Push SDK 自动注册或手动绑定 |
+| 人员/凭据下发 | ⬜ 待做 | 向 ZKTeco 设备推送门禁权限 |
+| Wiegand 读卡器集成 | ✅ 完成 | Gateway Agent Wiegand GPIO 驱动（ProID10 兼容） |
+| 前端设备管理集成 | 🟡 部分完成 | Southbound UI 已有，需增加 ZKTeco 特有配置 |
+
+### 16.6 集成优先级与时间线
+
+```
+2026 Q2（现在）
+├── Hikvision ISC OpenAPI     → 等 TPP 审批，审批通过后 1 周完成 E2E
+├── Suprema CLUe              → 立即提交 Technical Partner 申请
+└── ZKTeco Push SDK           → ✅ 已完成事件入库
+
+2026 Q3
+├── Hikvision ISUP 5.0        → TPP 签约后开通实时推送
+├── Suprema CLUe 对接         → Partner 审批后开发（预估 2-3 周）
+├── Fingerspot API 对接        → 注册后 1 周可完成
+└── ZKTeco ZKBio Cloud        → 视客户需求启动
+
+2026 Q4
+├── Suprema 生物识别深度集成   → 人脸/指纹模板同步
+└── 更多品牌按需扩展           → 大华 DSS、TTLock 等
+```
