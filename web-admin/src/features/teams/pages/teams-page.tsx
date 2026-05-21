@@ -321,7 +321,7 @@ export function TeamsAdaptedPage({
           <Button
             disabled={!canMutate}
             onClick={openMemberSheet}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Member
@@ -330,7 +330,7 @@ export function TeamsAdaptedPage({
             variant="outline"
             disabled={!canMutate}
             onClick={openTeamSheet}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
           >
             New Team
           </Button>
@@ -341,7 +341,7 @@ export function TeamsAdaptedPage({
               setActionError("")
               setDeleteTeamConfirmOpen(true)
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
           >
             Delete Team
           </Button>
@@ -349,17 +349,17 @@ export function TeamsAdaptedPage({
       }
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live team resources are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionNotice ? (
-        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+        <div className="mp-alert-success">
           {actionNotice}
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -374,7 +374,7 @@ export function TeamsAdaptedPage({
           <p className="mt-1 text-sm text-content-subtle">{t("kisi.teams.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[780px] text-left text-sm">
+          <table className={cn("mp-table", "min-w-[780px]")}>
             <thead className="bg-surface-page">
               <tr className="border-b border-line-subtle">
                 <th className="px-6 py-4 font-semibold">{t("kisi.teams.name")}</th>
@@ -388,10 +388,10 @@ export function TeamsAdaptedPage({
               {teams.map((team) => (
                 <tr
                   key={team.id}
-                  className={`border-b border-line-subtle last:border-0 hover:bg-surface-page ${selectedTeam?.id === team.id ? "bg-[#f7f7ff]" : ""}`}
+                  className={cn("mp-table-row", selectedTeam?.id === team.id && "bg-[#f7f7ff]")}
                 >
                   <td className="px-6 py-5">
-                    <button type="button" onClick={() => setSelectedTeamID(team.id)} className="font-semibold text-[#4f55ff]">
+                    <button type="button" onClick={() => setSelectedTeamID(team.id)} className="font-semibold text-brand">
                       {team.name}
                     </button>
                   </td>
@@ -417,7 +417,7 @@ export function TeamsAdaptedPage({
           <Button
             disabled={!canMutate || !selectedTeam || updateTeamMutation.isPending || !teamName.trim()}
             onClick={() => updateTeamMutation.mutate()}
-            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             Save
           </Button>
@@ -489,14 +489,14 @@ export function TeamsAdaptedPage({
                   variant="outline"
                   disabled={!canMutate || !selectedTeam}
                   onClick={openMemberSheet}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   Add Members
                 </Button>
               }
             />
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className={cn("mp-table", "min-w-[760px]")}>
                 <thead>
                   <tr className="border-b border-line-subtle bg-surface-page text-content-body">
                     <th className="px-7 py-4 font-semibold">{t("kisi.teams.name")}</th>
@@ -508,8 +508,8 @@ export function TeamsAdaptedPage({
                 </thead>
                 <tbody>
                   {selectedMemberships.map((membership) => (
-                    <tr key={membership.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
-                      <td className="px-7 py-5 font-semibold text-[#4f55ff]">{membership.name}</td>
+                    <tr key={membership.id} className="mp-table-row">
+                      <td className="px-7 py-5 font-semibold text-brand">{membership.name}</td>
                       <td className="px-4 py-5 text-content-subtle">{membership.email}</td>
                       <td className="px-4 py-5 text-content-body">{membership.sourceLabel}</td>
                       <td className="px-4 py-5">
@@ -554,7 +554,7 @@ export function TeamsAdaptedPage({
                   variant="outline"
                   disabled={!canMutate || !selectedTeam}
                   onClick={openAccessSheet}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   Assign Access Right
                 </Button>
@@ -694,7 +694,7 @@ export function TeamsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutate || !teamName.trim() || createTeamMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createTeamMutation.isPending ? "Creating..." : "Create Team"}
               </Button>
@@ -779,7 +779,7 @@ export function TeamsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedTeam || !memberID.trim() || createMembershipMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createMembershipMutation.isPending ? "Adding..." : "Add Member"}
               </Button>
@@ -801,7 +801,7 @@ export function TeamsAdaptedPage({
               assignAccessRightMutation.mutate()
             }}
           >
-            <div className="grid grid-cols-3 gap-2 rounded-[6px] bg-[#f3f4f8] p-1">
+            <div className="grid grid-cols-3 gap-2 rounded-[6px] bg-surface-sunken p-1">
               {accessScopeOptions.map((scope) => (
                 <button
                   key={scope}
@@ -854,7 +854,7 @@ export function TeamsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedTeam || !accessScopeID || !accessRoleID || assignAccessRightMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {assignAccessRightMutation.isPending ? "Assigning..." : "Assign Access Right"}
               </Button>

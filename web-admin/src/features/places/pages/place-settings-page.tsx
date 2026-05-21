@@ -154,17 +154,17 @@ export function PlaceSettingsAdaptedPage({
         description={t("kisi.floors.description")}
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live place settings are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionNotice ? (
-        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+        <div className="mp-alert-success">
           {actionNotice}
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -176,7 +176,7 @@ export function PlaceSettingsAdaptedPage({
           <Button
             disabled={!canMutate || updatePlaceMutation.isPending || !placeName.trim()}
             onClick={() => updatePlaceMutation.mutate()}
-            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updatePlaceMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -292,15 +292,15 @@ export function PlaceSettingsAdaptedPage({
                     className={cn(
                       "ml-auto h-10 rounded-[6px] bg-white px-5",
                       index === 2
-                        ? "border-[#f1b7b2] text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
-                        : "border-[#8589ff] text-[#4f55ff]"
+                        ? "border-danger-border text-danger-text hover:border-danger-border hover:bg-danger-bg hover:text-[#9f1d1d]"
+                        : "border-brand-ring text-brand"
                     )}
                   >
                     {index === 0 ? "Export" : index === 1 ? "Rotate" : index === 2 ? "Lockdown" : "Cancel"}
                   </Button>
                 </div>
               ))}
-              <div className="flex gap-5 rounded-[6px] border border-[#f1b7b2] bg-[#fffafa] p-5">
+              <div className={cn("mp-alert-danger", "flex gap-5 p-5")}>
                 <div>
                   <h3 className="font-semibold text-content-heading">{t("common.delete")}</h3>
                   <p className="mt-1 text-sm text-content-subtle">{t("common.deleteConfirm")}</p>
@@ -313,7 +313,7 @@ export function PlaceSettingsAdaptedPage({
                     setActionError("")
                     setDeleteConfirmOpen(true)
                   }}
-                  className="ml-auto h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d] disabled:border-line-default disabled:text-[#8d909b]"
+                  className="ml-auto h-10 rounded-[6px] border-danger-border bg-white px-5 text-danger-text hover:border-danger-border hover:bg-danger-bg hover:text-[#9f1d1d] disabled:border-line-default disabled:text-[#8d909b]"
                 >
                   <Trash2Icon className="mr-1.5 size-4" />
                   Delete
@@ -351,7 +351,7 @@ export function PlaceSettingsAdaptedPage({
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}

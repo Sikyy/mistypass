@@ -77,7 +77,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
       {/* Header */}
       <div>
         <h2 className="text-lg font-semibold text-[#17171c]">SCIM 2.0 Provisioning</h2>
-        <p className="mt-1 text-sm text-[#6f717c]">
+        <p className="mt-1 text-sm text-content-subtle">
           Configure SCIM to automatically sync users from your Identity Provider (Okta, Entra ID, OneLogin).
           When employees join or leave in your IdP, their access is automatically updated.
         </p>
@@ -85,7 +85,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
 
       {/* Connection Info */}
       {config && (
-        <div className="rounded-lg border border-[#eceef2] bg-white p-5">
+        <div className="rounded-lg border border-line-subtle bg-white p-5">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#17171c]">
             <LinkIcon className="size-4" />
             Connection Details
@@ -93,12 +93,12 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-md bg-[#f7f7f8] px-4 py-3">
               <div>
-                <p className="text-xs font-medium text-[#6f717c]">SCIM Base URL</p>
+                <p className="text-xs font-medium text-content-subtle">SCIM Base URL</p>
                 <p className="mt-0.5 font-mono text-sm text-[#17171c]">{config.scim_base_url}</p>
               </div>
               <button
                 type="button"
-                className="rounded p-1.5 text-[#6f717c] hover:bg-[#eceef2]"
+                className="rounded p-1.5 text-content-subtle hover:bg-line-subtle"
                 onClick={() => copyToClipboard(config.scim_base_url, "url")}
               >
                 {copied === "url" ? <CheckCircleIcon className="size-4 text-green-600" /> : <ClipboardCopyIcon className="size-4" />}
@@ -107,20 +107,20 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
 
             <div className="flex items-center justify-between rounded-md bg-[#f7f7f8] px-4 py-3">
               <div>
-                <p className="text-xs font-medium text-[#6f717c]">Authentication</p>
+                <p className="text-xs font-medium text-content-subtle">Authentication</p>
                 <p className="mt-0.5 text-sm text-[#17171c]">Bearer Token (HTTP Header)</p>
               </div>
-              <span className="rounded bg-[#e0e1ff] px-2 py-0.5 text-xs font-medium text-[#4f55ff]">
+              <span className="rounded bg-brand-subtle px-2 py-0.5 text-xs font-medium text-brand">
                 SCIM {config.scim_version}
               </span>
             </div>
 
             <div className="flex items-center justify-between rounded-md bg-[#f7f7f8] px-4 py-3">
               <div>
-                <p className="text-xs font-medium text-[#6f717c]">Supported Operations</p>
+                <p className="text-xs font-medium text-content-subtle">Supported Operations</p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {config.supported_operations.map((op) => (
-                    <span key={op} className="rounded bg-white px-2 py-0.5 text-xs text-[#6f717c] border border-[#eceef2]">
+                    <span key={op} className="rounded bg-white px-2 py-0.5 text-xs text-content-subtle border border-line-subtle">
                       {op}
                     </span>
                   ))}
@@ -132,7 +132,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
       )}
 
       {/* Token Management */}
-      <div className="rounded-lg border border-[#eceef2] bg-white p-5">
+      <div className="rounded-lg border border-line-subtle bg-white p-5">
         <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-[#17171c]">
           <KeyIcon className="size-4" />
           Bearer Token
@@ -197,7 +197,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
 
         <div className="mt-3 flex gap-2">
           <Button
-            className="h-9 gap-1.5 rounded-[6px] bg-[#4f55ff] px-4 text-white hover:bg-[#3439cc]"
+            className="h-9 gap-1.5 rounded-[6px] bg-brand px-4 text-white hover:bg-brand-hover"
             onClick={() => generateMutation.mutate("okta")}
             disabled={generateMutation.isPending}
           >
@@ -234,17 +234,17 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
 
       {/* Setup Guide */}
       {config && (
-        <div className="rounded-lg border border-[#eceef2] bg-white p-5">
+        <div className="rounded-lg border border-line-subtle bg-white p-5">
           <h3 className="mb-4 text-sm font-semibold text-[#17171c]">Setup Guide</h3>
           <ol className="space-y-3">
             {config.setup_steps.map((step) => (
               <li key={step.step} className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#f3f4f8] text-xs font-bold text-[#6f717c]">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-sunken text-xs font-bold text-content-subtle">
                   {step.step}
                 </span>
                 <div>
                   <p className="text-sm font-medium text-[#17171c]">{step.title}</p>
-                  <p className="text-xs text-[#6f717c]">{step.description}</p>
+                  <p className="text-xs text-content-subtle">{step.description}</p>
                 </div>
               </li>
             ))}
@@ -253,12 +253,12 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
       )}
 
       {/* Provisioning Logs */}
-      <div className="rounded-lg border border-[#eceef2] bg-white p-5">
+      <div className="rounded-lg border border-line-subtle bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#17171c]">Provisioning Activity</h3>
           <button
             type="button"
-            className="rounded p-1 text-[#6f717c] hover:bg-[#f3f4f8]"
+            className="rounded p-1 text-content-subtle hover:bg-surface-sunken"
             onClick={() => queryClient.invalidateQueries({ queryKey: ["scim-logs"] })}
           >
             <RefreshCwIcon className="size-4" />
@@ -270,7 +270,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#eceef2] text-left text-xs text-[#6f717c]">
+                <tr className="border-b border-line-subtle text-left text-xs text-content-subtle">
                   <th className="pb-2 font-medium">Action</th>
                   <th className="pb-2 font-medium">Target</th>
                   <th className="pb-2 font-medium">Time</th>
@@ -284,7 +284,7 @@ export function EnterpriseSCIMWorkspace({ token }: EnterpriseSCIMWorkspaceProps)
                         {log.action.replace(/_/g, " ")}
                       </span>
                     </td>
-                    <td className="py-2 text-[#6f717c]">{log.target}</td>
+                    <td className="py-2 text-content-subtle">{log.target}</td>
                     <td className="py-2 text-xs text-[#9a9ca7]">{new Date(log.timestamp).toLocaleString()}</td>
                   </tr>
                 ))}

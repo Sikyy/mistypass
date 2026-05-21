@@ -254,7 +254,7 @@ export function FloorsAdaptedPage({
               setActionError("")
               setAddFloorOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Floor
@@ -262,17 +262,17 @@ export function FloorsAdaptedPage({
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             Live floor resources are unavailable. Showing reference data.
           </div>
         ) : null}
         {actionNotice ? (
-          <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+          <div className="mp-alert-success">
             {actionNotice}
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -286,7 +286,7 @@ export function FloorsAdaptedPage({
                 onClick={() => setSelectedFloorID(floor.id)}
                 className={cn(
                   "rounded-[6px] border border-line-subtle p-5 text-left transition-colors hover:bg-surface-page",
-                  selectedFloor?.id === floor.id && "bg-[#f4f3ef]"
+                  selectedFloor?.id === floor.id && "bg-surface-selected"
                 )}
               >
                 <LayersIcon className="size-6 text-content-subtle" />
@@ -313,7 +313,7 @@ export function FloorsAdaptedPage({
               <Button
                 disabled={!canMutate || !selectedFloor || updateFloorMutation.isPending || !floorName.trim()}
                 onClick={() => updateFloorMutation.mutate()}
-                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
               >
                 {updateFloorMutation.isPending ? "Saving..." : "Save"}
               </Button>
@@ -321,7 +321,7 @@ export function FloorsAdaptedPage({
               <Button
                 disabled={!canMutate || !selectedArea || updateAreaMutation.isPending || !areaName.trim()}
                 onClick={() => updateAreaMutation.mutate()}
-                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
               >
                 {updateAreaMutation.isPending ? "Saving..." : "Save Area"}
               </Button>
@@ -383,7 +383,7 @@ export function FloorsAdaptedPage({
                       setActionError("")
                       setAddAreaOpen(true)
                     }}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                   >
                     <PlusIcon className="mr-1.5 size-4" />
                     Add Area
@@ -399,7 +399,7 @@ export function FloorsAdaptedPage({
                       onClick={() => setSelectedAreaID(area.id)}
                       className={cn(
                         "flex w-full items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3 text-left text-sm hover:bg-surface-page",
-                        selectedArea?.id === area.id && "bg-[#f4f3ef]"
+                        selectedArea?.id === area.id && "bg-surface-selected"
                       )}
                     >
                       <span className="font-semibold text-content-heading">{area.name}</span>
@@ -434,7 +434,7 @@ export function FloorsAdaptedPage({
               <div className="divide-y divide-line-subtle">
                 {selectedFloorDoors.map((door) => (
                   <div key={door.id} className="grid gap-3 px-7 py-5 md:grid-cols-[240px_160px_1fr] md:items-center">
-                    <span className="font-semibold text-[#4f55ff]">{door.name}</span>
+                    <span className="font-semibold text-brand">{door.name}</span>
                     <StatusDot tone={door.status === "online" ? "success" : "warning"} label={door.status === "online" ? "Online" : "Review"} />
                     <span className="text-sm text-content-subtle">{door.gatewaySerial}</span>
                   </div>
@@ -528,7 +528,7 @@ export function FloorsAdaptedPage({
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}
@@ -539,7 +539,7 @@ export function FloorsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutate || createFloorMutation.isPending || !newFloorName.trim()}
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createFloorMutation.isPending ? "Creating..." : t("kisi.floors.addFloor")}
               </Button>
@@ -570,7 +570,7 @@ export function FloorsAdaptedPage({
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}
@@ -581,7 +581,7 @@ export function FloorsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutate || !selectedFloor || createAreaMutation.isPending || !newAreaName.trim()}
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createAreaMutation.isPending ? "Creating..." : t("kisi.floors.addArea")}
               </Button>

@@ -682,7 +682,7 @@ export function OrganizationSetupAdaptedPage({
                 saveAlertPoliciesMutation.mutate()
               }
             }}
-            className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {isCreatePlace
               ? "Create Place"
@@ -700,7 +700,7 @@ export function OrganizationSetupAdaptedPage({
               <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
               <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.createPlaceDesc")}</p>
             </div>
-            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-brand-subtle px-5 py-4 text-sm text-[#3439cc]">
+            <div className="mx-7 mt-4 rounded-[6px] border border-brand-ring bg-brand-subtle px-5 py-4 text-sm text-brand-hover">
               Use the Places page to create places. This wizard view is a preview placeholder.
             </div>
             {activeTab === "General" ? (
@@ -775,14 +775,14 @@ export function OrganizationSetupAdaptedPage({
                   setAlertPolicyError("")
                   setCreateAlertPolicyOpen(true)
                 }}
-                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc] disabled:border-line-default disabled:text-content-muted"
+                className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover disabled:border-line-default disabled:text-content-muted"
               >
                 <PlusIcon className="mr-1.5 size-4" />
                 Add Policy
               </Button>
             </div>
             {alertPolicyError ? (
-              <div className="border-b border-[#f1c27a] bg-warning-bg px-7 py-4 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "rounded-none border-0 border-b px-7")}>
                 {alertPolicyError}
               </div>
             ) : null}
@@ -796,7 +796,7 @@ export function OrganizationSetupAdaptedPage({
                     ].filter(Boolean)
                     return (
                       <div key={policy.id} className="grid gap-5 px-7 py-5 xl:grid-cols-[40px_minmax(180px,1fr)_minmax(260px,1.2fr)_200px] xl:items-start">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-surface-sunken">
                           <AlertCircleIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0">
@@ -910,7 +910,7 @@ export function OrganizationSetupAdaptedPage({
                   })
                 : alertRows.map((row) => (
                     <div key={row[0]} className="flex gap-5 px-7 py-5">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-surface-sunken">
                         <AlertCircleIcon className="size-5 text-content-body" />
                       </div>
                       <div className="min-w-0">
@@ -939,14 +939,14 @@ export function OrganizationSetupAdaptedPage({
                 variant="outline"
                 disabled={!defaultIntegrationTenantID || saveIntegrationMutation.isPending}
                 onClick={openCreateIntegrationSheet}
-                className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc] disabled:border-line-default disabled:text-content-muted"
+                className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover disabled:border-line-default disabled:text-content-muted"
               >
                 <PlusIcon className="mr-1.5 size-4" />
                 Add Integration
               </Button>
             </div>
             {integrationError ? (
-              <div className="border-b border-[#f1c27a] bg-warning-bg px-7 py-4 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "rounded-none border-0 border-b px-7")}>
                 {integrationError}
               </div>
             ) : null}
@@ -955,7 +955,7 @@ export function OrganizationSetupAdaptedPage({
                 ? visibleIntegrations.map((integration) => (
                     <div key={integration.id} className="rounded-[6px] border border-line-subtle p-5">
                       <div className="flex items-start gap-4">
-                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", integrationStatus(integration) === "warning" ? "bg-warning-bg" : "bg-[#f1f2f5]")}>
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", integrationStatus(integration) === "warning" ? "bg-warning-bg" : "bg-surface-sunken")}>
                           <ShieldCheckIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -1003,7 +1003,7 @@ export function OrganizationSetupAdaptedPage({
                 : (isSsoScim ? integrationRows.slice(0, 2) : integrationRows).map((row, index) => (
                     <div key={row[0]} className="rounded-[6px] border border-line-subtle p-5">
                       <div className="flex items-start gap-4">
-                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-warning-bg" : "bg-[#f1f2f5]")}>
+                        <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", index === 1 ? "bg-warning-bg" : "bg-surface-sunken")}>
                           <ShieldCheckIcon className="size-5 text-content-body" />
                         </div>
                         <div className="min-w-0">
@@ -1026,7 +1026,7 @@ export function OrganizationSetupAdaptedPage({
               <h2 className="text-lg font-semibold text-content-heading">{activeTab}</h2>
               <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.billingDesc")}</p>
             </div>
-            <div className="mx-7 mt-4 rounded-[6px] border border-[#c9ccff] bg-brand-subtle px-5 py-4 text-sm text-[#3439cc]">
+            <div className="mx-7 mt-4 rounded-[6px] border border-brand-ring bg-brand-subtle px-5 py-4 text-sm text-brand-hover">
               Billing management is coming soon. The settings below are preview placeholders.
             </div>
             <div className="divide-y divide-line-subtle">
@@ -1251,7 +1251,7 @@ export function OrganizationSetupAdaptedPage({
               </div>
             ) : null}
             {integrationError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {integrationError}
               </div>
             ) : null}
@@ -1262,7 +1262,7 @@ export function OrganizationSetupAdaptedPage({
               <Button
                 type="submit"
                 disabled={saveIntegrationMutation.isPending || (Boolean(editingIntegrationID) && integrationDetailQuery.isPending)}
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {saveIntegrationMutation.isPending ? t("kisi.orgSetup.saving") : editingIntegrationID ? "Save Integration" : "Add Integration"}
               </Button>
@@ -1398,7 +1398,7 @@ export function OrganizationSetupAdaptedPage({
                       !(createAlertPolicyTenantID.trim() || defaultAlertPolicyTenantID)
                     }
                     onClick={() => previewAlertPolicyConditionMutation.mutate()}
-                    className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-[#f6f7fb]"
+                    className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-surface-sunken"
                   >
                     <BarChart3Icon className="mr-2 h-4 w-4" />
                     {previewAlertPolicyConditionMutation.isPending ? "Previewing..." : "Preview"}
@@ -1486,7 +1486,7 @@ export function OrganizationSetupAdaptedPage({
                   !createAlertPolicyDraft.window_seconds.trim() ||
                   !createAlertPolicyDraft.cooldown_seconds.trim()
                 }
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {createAlertPolicyMutation.isPending ? "Creating..." : "Create Policy"}
               </Button>
@@ -1554,7 +1554,7 @@ function OrganizationSettingsSection({
         <p className="mt-1 text-sm text-content-subtle">{t("kisi.orgSetup.settingsDesc")}</p>
       </div>
       {settingsNotice && (
-        <div className="mx-7 mt-4 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+        <div className={cn("mp-alert-success", "mx-7 mt-4 py-3")}>
           {settingsNotice}
         </div>
       )}
@@ -1576,7 +1576,7 @@ function OrganizationSettingsSection({
           <div className="space-y-5">
             <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
               <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
-                <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
+                <ShieldCheckIcon className="size-5 text-brand" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-content-heading">{t("kisi.myAccount.mfaTitle")}</h3>
@@ -1588,7 +1588,7 @@ function OrganizationSettingsSection({
             </div>
             <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
               <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
-                <FingerprintIcon className="size-5 text-[#4f55ff]" />
+                <FingerprintIcon className="size-5 text-brand" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-content-heading">WebAuthn Sign-in</h3>
@@ -1632,7 +1632,7 @@ function OrganizationSettingsSection({
               </div>
               <Button
                 variant="outline"
-                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                className="ml-auto h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 disabled={exportMutation.isPending}
                 onClick={() => exportMutation.mutate()}
               >
@@ -1646,7 +1646,7 @@ function OrganizationSettingsSection({
               </div>
               <Button
                 variant="outline"
-                className="ml-auto h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                className="ml-auto h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 onClick={() => setConfirmRotate(true)}
               >
                 Rotate
@@ -1659,7 +1659,7 @@ function OrganizationSettingsSection({
               </div>
               <Button
                 variant="outline"
-                className="ml-auto h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+                className="ml-auto h-10 rounded-[6px] border-danger-border bg-white px-5 text-danger-text hover:border-danger-border hover:bg-danger-bg hover:text-[#9f1d1d]"
                 onClick={() => setConfirmDisable(true)}
               >
                 Disable

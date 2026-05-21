@@ -457,7 +457,7 @@ export function HardwareAdaptedPage({
               setActionError("")
               setAddHardwareOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Hardware
@@ -465,17 +465,17 @@ export function HardwareAdaptedPage({
         }
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live hardware resources are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionNotice ? (
-        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+        <div className="mp-alert-success">
           {actionNotice}
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -498,7 +498,7 @@ export function HardwareAdaptedPage({
                   onClick={() => setSelectedDeviceID(item.id)}
                   className={cn(
                     "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
-                    selectedDevice?.id === item.id && "bg-[#f4f3ef]"
+                    selectedDevice?.id === item.id && "bg-surface-selected"
                   )}
                 >
                   <td className="px-6 py-5 font-semibold text-content-heading">{item.name}</td>
@@ -555,7 +555,7 @@ export function HardwareAdaptedPage({
                     variant="outline"
                     disabled={!canManageHardware || !selectedGatewayID || !bindDoorID || bindDoorMutation.isPending}
                     onClick={() => bindDoorMutation.mutate()}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                   >
                     <LinkIcon className="mr-1.5 size-4" />
                     Bind Door
@@ -566,7 +566,7 @@ export function HardwareAdaptedPage({
             <div className="divide-y divide-line-subtle">
               {selectedDeviceDoorRows.map((door, index) => (
                 <div key={door.id} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_160px_1fr_72px] md:items-center">
-                  <span className="font-semibold text-[#4f55ff]">{door.name}</span>
+                  <span className="font-semibold text-brand">{door.name}</span>
                   <StatusDot tone={selectedDevice?.tone ?? "success"} label={selectedDevice?.statusLabel ?? "Online"} />
                   <span className="text-sm text-content-subtle">{index === 0 ? "Primary controller path" : "Reader assignment"}</span>
                   <div className="flex justify-end">
@@ -638,7 +638,7 @@ export function HardwareAdaptedPage({
                         })
                       }
                     }}
-                    className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                    className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                   >
                     <RotateCwIcon className="mr-1.5 size-4" />
                     Reboot
@@ -656,7 +656,7 @@ export function HardwareAdaptedPage({
                           })
                         }
                       }}
-                      className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
+                      className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-content-muted hover:bg-surface-page"
                     >
                       <ShieldOffIcon className="mr-1.5 size-4" />
                       Reset Tamper
@@ -675,7 +675,7 @@ export function HardwareAdaptedPage({
                           })
                         }
                       }}
-                      className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                      className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                     >
                       <ZapIcon className="mr-1.5 size-4" />
                       Trigger
@@ -694,7 +694,7 @@ export function HardwareAdaptedPage({
                         })
                       }
                     }}
-                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
                   >
                     <SendIcon className="mr-1.5 size-4" />
                     Publish Config
@@ -708,7 +708,7 @@ export function HardwareAdaptedPage({
                         setDeassignTarget(selectedDevice)
                       }
                     }}
-                    className="h-10 rounded-[6px] border-[#e0a8a8] bg-white px-5 text-[#b42318] hover:bg-[#fff5f5] disabled:border-line-default disabled:text-[#8d909b]"
+                    className="h-10 rounded-[6px] border-[#e0a8a8] bg-white px-5 text-[#b42318] hover:bg-danger-bg disabled:border-line-default disabled:text-[#8d909b]"
                   >
                     <UnlinkIcon className="mr-1.5 size-4" />
                     Deassign
@@ -940,7 +940,7 @@ export function HardwareAdaptedPage({
               </>
             )}
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}
@@ -956,7 +956,7 @@ export function HardwareAdaptedPage({
                   !hardwareSerial.trim() ||
                   (hardwareMode === "reader" && !hardwareGatewayID)
                 }
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {addHardwareMutation.isPending ? "Registering..." : t("kisi.hardware.addHardware")}
               </Button>

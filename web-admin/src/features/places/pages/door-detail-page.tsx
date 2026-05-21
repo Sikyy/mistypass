@@ -331,7 +331,7 @@ export function DoorDetailAdaptedPage({
                 setActionError("")
                 setAddDoorOpen(true)
               }}
-              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               Add Door
@@ -340,7 +340,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("unlock")}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
             >
               <DoorOpenIcon className="mr-1.5 size-4" />
               Unlock
@@ -367,7 +367,7 @@ export function DoorDetailAdaptedPage({
               variant="interaction"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("lock_down")}
-              className="h-10 rounded-[6px] text-[#4f55ff]"
+              className="h-10 rounded-[6px] text-brand"
             >
               <ShieldAlertIcon className="mr-1.5 size-4" />
               Lockdown
@@ -376,7 +376,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("cancel_lockdown")}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
             >
               <ShieldOffIcon className="mr-1.5 size-4" />
               Cancel
@@ -385,7 +385,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("first_to_arrive")}
-              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
+              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-content-muted hover:bg-surface-page"
             >
               First to Arrive
             </Button>
@@ -393,7 +393,7 @@ export function DoorDetailAdaptedPage({
               variant="outline"
               disabled={!canMutate || lockActionMutation.isPending}
               onClick={() => lockActionMutation.mutate("last_to_leave")}
-              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-[#9a9ca7] hover:bg-surface-page"
+              className="h-10 rounded-[6px] border-line-default bg-white px-5 text-content-subtle hover:border-content-muted hover:bg-surface-page"
             >
               Last to Leave
             </Button>
@@ -404,7 +404,7 @@ export function DoorDetailAdaptedPage({
                 setActionError("")
                 setDeleteDoorConfirmOpen(true)
               }}
-              className="h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff7f7] hover:text-[#9f1d1d]"
+              className="h-10 rounded-[6px] border-danger-border bg-white px-5 text-danger-text hover:border-danger-border hover:bg-[#fff7f7] hover:text-[#9f1d1d]"
             >
               <Trash2Icon className="mr-1.5 size-4" />
               Delete Door
@@ -413,17 +413,17 @@ export function DoorDetailAdaptedPage({
         }
       >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live door resources are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionNotice ? (
-        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+        <div className="mp-alert-success">
           {actionNotice}
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -447,7 +447,7 @@ export function DoorDetailAdaptedPage({
                   onClick={() => setSelectedDoorID(door.id)}
                   className={cn(
                     "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
-                    selectedDoor?.id === door.id && "bg-[#f4f3ef]"
+                    selectedDoor?.id === door.id && "bg-surface-selected"
                   )}
                 >
                   <td className="px-6 py-5 font-semibold text-content-heading">{door.name}</td>
@@ -473,7 +473,7 @@ export function DoorDetailAdaptedPage({
           <Button
             disabled={!canMutate || updateLockMutation.isPending || !doorName.trim()}
             onClick={() => updateLockMutation.mutate()}
-            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updateLockMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -565,7 +565,7 @@ export function DoorDetailAdaptedPage({
               action={
                 <Button
                   variant="outline"
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   Add Group
                 </Button>
@@ -577,7 +577,7 @@ export function DoorDetailAdaptedPage({
                 [i18next.t("common.group"), "24/7", i18next.t("common.reader")],
               ].map((row) => (
                 <div key={row[0]} className="grid gap-3 px-7 py-5 md:grid-cols-[220px_190px_1fr] md:items-center">
-                  <span className="font-semibold text-[#4f55ff]">{row[0]}</span>
+                  <span className="font-semibold text-brand">{row[0]}</span>
                   <span className="text-sm text-content-body">{row[1]}</span>
                   <span className="text-sm text-content-subtle">{row[2]}</span>
                 </div>
@@ -641,7 +641,7 @@ export function DoorDetailAdaptedPage({
       <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
         <div className="flex items-center justify-center gap-14 border-b border-line-subtle px-6 py-4">
           <button className="text-base font-semibold text-content-body">{t("kisi.doors.unlockSchedules")}</button>
-          <button className="border-b-2 border-[#4f55ff] px-4 pb-4 text-base font-semibold text-[#4f55ff]">{t("kisi.doors.accessSchedules")}</button>
+          <button className="border-b-2 border-brand px-4 pb-4 text-base font-semibold text-brand">{t("kisi.doors.accessSchedules")}</button>
         </div>
         <div className="flex items-center gap-4 border-b border-line-subtle px-8 py-6">
           <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand text-white">
@@ -661,13 +661,13 @@ export function DoorDetailAdaptedPage({
             <ChevronDownIcon className="size-4" />
           </button>
           <div className="flex items-center justify-center gap-5 text-sm font-semibold text-content-body">
-            <span className="text-[#4f55ff]">‹</span>
+            <span className="text-brand">‹</span>
             <span>Week: Apr 20 - Apr 26</span>
-            <span className="text-[#4f55ff]">›</span>
+            <span className="text-brand">›</span>
           </div>
           <Button
             variant="outline"
-            className="h-11 rounded-[6px] border-[#8589ff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            className="h-11 rounded-[6px] border-brand-ring bg-white text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
           >
             Add Schedule
             <ChevronDownIcon className="ml-1.5 size-4" />
@@ -685,10 +685,10 @@ export function DoorDetailAdaptedPage({
               ))}
             </div>
             {["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24", "Sat 25", "Sun 26"].map((day, index) => (
-              <div key={day} className={cn("border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-content-subtle last:border-r-0", index > 3 && "bg-[#c4c6cc]")}>
+              <div key={day} className={cn("border-r border-white/80 bg-surface-sunken text-center text-sm font-semibold text-content-subtle last:border-r-0", index > 3 && "bg-[#c4c6cc]")}>
                 <div className="border-b border-white/80 bg-white py-4">{day}</div>
                 {day.startsWith("Thu") ? (
-                  <div className="mx-auto mt-[188px] w-full max-w-[120px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
+                  <div className="mx-auto mt-[188px] w-full max-w-[120px] rounded-[5px] bg-[#17171c] p-3 text-left text-xs text-white">
                     <p className="truncate font-semibold">{t("kisi.doors.accessPermitted")}</p>
                     <p className="mt-1 text-white/70">6:00 PM - 10:00 PM</p>
                   </div>
@@ -697,7 +697,7 @@ export function DoorDetailAdaptedPage({
             ))}
           </div>
           <div className="mt-6 flex flex-wrap gap-8 text-sm font-semibold text-content-body">
-            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#202443]" />{t("kisi.doors.accessPermitted")}</span>
+            <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#17171c]" />{t("kisi.doors.accessPermitted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#c4c6cc]" />{t("kisi.doors.accessRestricted")}</span>
             <span className="inline-flex items-center gap-2"><span className="size-5 rounded-[3px] bg-[#3b3c42]" />{t("kisi.doors.accessException")}</span>
           </div>
@@ -821,7 +821,7 @@ export function DoorDetailAdaptedPage({
               </label>
             </div>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}
@@ -838,7 +838,7 @@ export function DoorDetailAdaptedPage({
                   !newDoorFloorID ||
                   !newDoorAreaID
                 }
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createLockMutation.isPending ? "Creating..." : t("kisi.doors.addDoor")}
               </Button>

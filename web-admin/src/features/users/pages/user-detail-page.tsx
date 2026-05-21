@@ -247,7 +247,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
             <Button
               asChild
               variant="interaction"
-              className="h-10 rounded-[6px] text-[#4f55ff]"
+              className="h-10 rounded-[6px] text-brand"
             >
               <Link to="/access-rights">{t("common.shareAccess")}</Link>
             </Button>
@@ -256,7 +256,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               variant="outline"
               disabled={!canMutate || inviteUserMutation.isPending}
               onClick={() => inviteUserMutation.mutate()}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
             >
               <MailPlusIcon className="mr-1.5 size-4" />
               {inviteUserMutation.isPending ? "Sending..." : "Resend Invite"}
@@ -266,7 +266,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               variant="outline"
               disabled={!canDelete || deleteUserMutation.isPending}
               onClick={() => setDeleteConfirmOpen(true)}
-              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+              className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
             >
               <Trash2Icon className="mr-1.5 size-4" />
               Delete User
@@ -275,17 +275,17 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
         }
       >
         {userQuery.isError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {userQuery.error instanceof Error ? userQuery.error.message : "User detail failed to load."}
           </div>
         ) : null}
         {actionNotice ? (
-          <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+          <div className="mp-alert-success">
             {actionNotice}
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -303,7 +303,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
               <Button
                 disabled={saveDisabled}
                 onClick={() => updateUserMutation.mutate({})}
-                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+                className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
               >
                 {updateUserMutation.isPending ? "Saving..." : "Save"}
               </Button>
@@ -391,7 +391,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                     </label>
                   </div>
                   <div className="flex gap-5 rounded-[6px] border border-line-subtle p-5">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-[6px] bg-surface-sunken">
                       <UsersIcon className="size-5 text-content-body" />
                     </div>
                     <div className="max-w-3xl">
@@ -418,7 +418,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                   <div className="flex size-28 items-center justify-center rounded-[10px] bg-[#eef0f4]">
                     <CameraIcon className="size-12 text-content-heading" />
                   </div>
-                  <button type="button" className="text-base font-semibold text-[#4f55ff]">
+                  <button type="button" className="text-base font-semibold text-brand">
                     Add Photo
                   </button>
                 </div>
@@ -432,7 +432,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 title={t("kisi.teams.accessRights")}
                 description={t("kisi.accessRights.pageDesc")}
                 action={
-                  <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
+                  <Button asChild variant="outline" className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover">
                     <Link to="/access-rights">{t("common.shareAccess")}</Link>
                   </Button>
                 }
@@ -451,7 +451,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                     {accessRows.length > 0 ? (
                       accessRows.map((row) => (
                         <tr key={row[0]} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
-                          <td className="px-7 py-5 font-semibold text-[#4f55ff]">{row[0]}</td>
+                          <td className="px-7 py-5 font-semibold text-brand">{row[0]}</td>
                           <td className="px-4 py-5 text-content-body">{row[1]}</td>
                           <td className="px-4 py-5 text-content-subtle">{row[2]}</td>
                           <td className="px-4 py-5 text-content-subtle">{row[3]}</td>
@@ -495,7 +495,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                             return (
                               <div key={door.id} className="flex items-center gap-2 rounded-[6px] border border-line-subtle px-3 py-2 text-sm">
                                 <StatusDot tone={gw ? gw.tone : "warning"} label="" />
-                                <Link to={`/places/${door.placeId}/doors`} className="font-medium text-[#4f55ff] hover:underline">
+                                <Link to={`/places/${door.placeId}/doors`} className="font-medium text-brand hover:underline">
                                   {door.name}
                                 </Link>
                                 <span className="text-content-subtle">{door.floorName}</span>
@@ -517,7 +517,7 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
                 title={t("kisi.credentials.title")}
                 description={t("kisi.credentials.title")}
                 action={
-                  <Button asChild variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
+                  <Button asChild variant="outline" className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover">
                     <Link to="/credentials">{t("kisi.credentials.issue")}</Link>
                   </Button>
                 }

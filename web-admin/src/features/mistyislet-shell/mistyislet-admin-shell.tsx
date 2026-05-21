@@ -59,9 +59,9 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
     return (
       <Link
         to={entry.to}
-        className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-content-body transition-colors hover:bg-[#f7f7f8]"
+        className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-left text-sm font-medium text-white/68 transition-colors hover:bg-white/8 hover:text-white/90"
       >
-        <Icon className="size-4 text-content-subtle" />
+        <Icon className="size-4 text-white/38" />
         <span>{entry.label}</span>
       </Link>
     )
@@ -71,9 +71,9 @@ function NavItem({ entry, pathname }: { entry: NavEntry; pathname: string }) {
     <button
       type="button"
       disabled
-      className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-content-body transition-colors hover:bg-[#f7f7f8] disabled:cursor-default"
+      className="flex h-10 w-full items-center gap-3 rounded-[6px] px-3 text-left text-sm font-medium text-white/68 transition-colors hover:bg-white/8 disabled:cursor-default"
     >
-      <Icon className="size-4 text-content-subtle" />
+      <Icon className="size-4 text-white/38" />
       <span>{entry.label}</span>
     </button>
   )
@@ -96,7 +96,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
   const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname, t)
 
   return (
-    <header className="sticky top-0 z-40 hidden h-[64px] items-center bg-[#202443] text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] lg:flex">
+    <header className="sticky top-0 z-40 hidden h-[64px] items-center bg-[#0d0d0c] text-white shadow-[0_1px_0_rgba(0,0,0,0.18)] lg:flex">
       <div className="flex h-full w-[248px] shrink-0 items-center px-8">
         <Link to="/home" className="text-[27px] font-bold leading-none tracking-[0.02em]">
           Mistyislet
@@ -126,7 +126,7 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
           aria-label="Notifications"
         >
           <BellIcon className="size-5" />
-          <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-[#fff45c] text-[10px] font-bold text-[#202443]">
+          <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-[#fff45c] text-[10px] font-bold text-[#0d0d0c]">
             1
           </span>
         </button>
@@ -154,20 +154,20 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
             <DropdownMenuLabel className="px-4 py-3 text-xs font-semibold text-content-subtle">
               {roleLabel}
             </DropdownMenuLabel>
-            <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-[#f7f7f8] focus:text-content-heading">
+            <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-surface-page focus:text-content-heading">
               <Link to="/my-account">{t("kisi.shell.myAccount")}</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-[#f7f7f8] focus:text-content-heading">
+            <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-surface-page focus:text-content-heading">
               <a href="https://docs.mistyislet.com/help" target="_blank" rel="noopener noreferrer">{t("kisi.shell.helpSupport")}</a>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
+            <DropdownMenuSeparator className="m-0 bg-line-subtle" />
             <DropdownMenuLabel className="px-4 py-2 text-xs font-semibold text-content-subtle">
               {t("kisi.shell.language", { lang: LANGUAGE_OPTIONS.find(l => (i18n.resolvedLanguage ?? i18n.language).startsWith(l.code.split("-")[0]))?.label ?? "English" })}
             </DropdownMenuLabel>
             {LANGUAGE_OPTIONS.map((lang) => (
               <DropdownMenuItem
                 key={lang.code}
-                className="cursor-pointer rounded-none px-4 py-2.5 text-sm text-content-heading focus:bg-[#f7f7f8] focus:text-content-heading"
+                className="cursor-pointer rounded-none px-4 py-2.5 text-sm text-content-heading focus:bg-surface-page focus:text-content-heading"
                 onSelect={() => void i18n.changeLanguage(lang.code)}
               >
                 <span className="min-w-0 flex-1">{lang.label}</span>
@@ -176,11 +176,11 @@ function GlobalTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
                 ) : null}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
-            <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-content-heading focus:bg-[#f7f7f8] focus:text-content-heading">
+            <DropdownMenuSeparator className="m-0 bg-line-subtle" />
+            <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-content-heading focus:bg-surface-page focus:text-content-heading">
               {t("kisi.shell.addAccount")}
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-[#f7f7f8] focus:text-content-heading" onSelect={onLogout}>
+            <DropdownMenuItem className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading focus:bg-surface-page focus:text-content-heading" onSelect={onLogout}>
               {t("kisi.shell.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -208,17 +208,17 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
   }, [hasActiveCollapsibleSection])
 
   return (
-    <aside className="sticky top-[64px] hidden h-[calc(100vh-64px)] w-[248px] shrink-0 flex-col overflow-hidden border-r border-[#e1e3e8] bg-white lg:flex">
+    <aside className="sticky top-[64px] hidden h-[calc(100vh-64px)] w-[248px] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#0d0d0c] lg:flex">
       <nav className="flex-1 overflow-auto px-4 py-9">
         {currentView === "place" && selectedPlaceName ? (
-          <div className="mb-5 rounded-[6px] border border-[#e1e3e8] bg-surface-page px-4 py-3">
-            <p className="text-xs font-semibold text-content-subtle">{t("kisi.shell.place")}</p>
-            <p className="mt-1 truncate text-sm font-semibold text-content-heading">{selectedPlaceName}</p>
+          <div className="mb-5 rounded-[6px] border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs font-semibold text-white/42">{t("kisi.shell.place")}</p>
+            <p className="mt-1 truncate text-sm font-semibold text-white/90">{selectedPlaceName}</p>
             {canReturnToOrganization ? (
               <button
                 type="button"
                 onClick={backToOrganization}
-                className="mt-3 text-left text-xs font-semibold text-[#4f55ff] hover:underline"
+                className="mt-3 text-left text-xs font-semibold text-brand hover:underline"
               >
                 {t("kisi.shell.backToOrg")}
               </button>
@@ -226,16 +226,16 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
           </div>
         ) : null}
         {sections.map((section, index) => (
-          <div key={section.title ?? `section-${index}`} className={cn("space-y-1", index > 0 && "mt-3 border-t border-line-default pt-3")}>
+          <div key={section.title ?? `section-${index}`} className={cn("space-y-1", index > 0 && "mt-3 border-t border-white/10 pt-3")}>
             {section.collapsible ? (
               <button
                 type="button"
                 onClick={() => setOrganizationSetupOpen((current) => !current)}
                 aria-expanded={organizationSetupOpen}
-                className="mb-2 flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left text-sm font-semibold text-content-body hover:bg-[#f7f7f8]"
+                className="mb-2 flex h-8 w-full items-center gap-2 rounded-[6px] px-2 text-left text-sm font-medium text-white/68 hover:bg-white/8"
               >
-                <ChevronDownIcon className={cn("size-4 text-content-body transition-transform", !organizationSetupOpen && "-rotate-90")} />
-                <SettingsIcon className="size-4 text-content-subtle" />
+                <ChevronDownIcon className={cn("size-4 text-white/52 transition-transform", !organizationSetupOpen && "-rotate-90")} />
+                <SettingsIcon className="size-4 text-white/38" />
                 <span>{section.title}</span>
               </button>
             ) : null}
@@ -251,24 +251,24 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
         ))}
       </nav>
 
-      <div className="space-y-2 border-t border-line-default px-4 py-3">
+      <div className="space-y-2 border-t border-white/10 px-4 py-3">
         <div className="space-y-1">
           <a
             href="https://shop.mistyislet.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-content-body hover:bg-[#f7f7f8]"
+            className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-medium text-white/58 hover:bg-white/8 hover:text-white/80"
           >
-            <ShoppingBagIcon className="size-4 shrink-0 text-content-subtle" />
+            <ShoppingBagIcon className="size-4 shrink-0 text-white/38" />
             <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.shop")}</span>
           </a>
           <a
             href="https://docs.mistyislet.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-semibold text-content-body hover:bg-[#f7f7f8]"
+            className="flex h-9 w-full min-w-0 items-center gap-3 rounded-[6px] px-3 text-left text-sm font-medium text-white/58 hover:bg-white/8 hover:text-white/80"
           >
-            <BookOpenIcon className="size-4 shrink-0 text-content-subtle" />
+            <BookOpenIcon className="size-4 shrink-0 text-white/38" />
             <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.documentation")}</span>
           </a>
         </div>
@@ -276,9 +276,9 @@ function AdminSidebar({ viewer }: Pick<MistyisletAdminShellProps, "viewer">) {
           href="https://docs.mistyislet.com/help"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 flex h-10 w-full min-w-0 items-center gap-3 rounded-[6px] border-t border-line-default px-3 pt-2 text-left text-sm font-semibold text-content-body hover:bg-[#f7f7f8]"
+          className="mt-1 flex h-10 w-full min-w-0 items-center gap-3 rounded-[6px] border-t border-white/10 px-3 pt-2 text-left text-sm font-medium text-white/58 hover:bg-white/8 hover:text-white/80"
         >
-          <CircleHelpIcon className="size-4 shrink-0 text-content-subtle" />
+          <CircleHelpIcon className="size-4 shrink-0 text-white/38" />
           <span className="min-w-0 flex-1 truncate whitespace-nowrap">{t("kisi.shell.helpFeedback")}</span>
         </a>
       </div>
@@ -292,7 +292,7 @@ function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
   const roleLabel = formatMistyisletRoleLabel(viewer, location.pathname, t)
 
   return (
-    <header className="sticky top-0 z-40 bg-[#202443] text-white lg:hidden">
+    <header className="sticky top-0 z-40 bg-[#0d0d0c] text-white lg:hidden">
       <div className="flex h-[64px] items-center justify-between px-5">
         <Link to="/home" className="text-2xl font-bold leading-none">
           Mistyislet
@@ -318,7 +318,7 @@ function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
               <DropdownMenuItem asChild className="cursor-pointer rounded-none px-4 py-3 text-sm text-content-heading">
                 <a href="https://docs.mistyislet.com/help" target="_blank" rel="noopener noreferrer">{t("kisi.shell.helpSupport")}</a>
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
+              <DropdownMenuSeparator className="m-0 bg-line-subtle" />
               {LANGUAGE_OPTIONS.map((lang) => (
                 <DropdownMenuItem
                   key={lang.code}
@@ -331,7 +331,7 @@ function MobileTopBar({ viewer, onLogout }: Omit<MistyisletAdminShellProps, "chi
                   ) : null}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator className="m-0 bg-[#eceef2]" />
+              <DropdownMenuSeparator className="m-0 bg-line-subtle" />
               <DropdownMenuItem className="cursor-default rounded-none px-4 py-3 text-sm text-content-heading">
                 {t("kisi.shell.addAccount")}
               </DropdownMenuItem>

@@ -111,7 +111,7 @@ export function ElevatorsAdaptedPage({ token, viewer, placeID }: { token: string
           return (
             <div key={elevator.id} className="mb-4 rounded-[6px] border border-line-subtle bg-white">
               <div className="flex items-center gap-4 border-b border-line-subtle px-5 py-4">
-                <Building2Icon className="size-5 text-[#4f55ff]" />
+                <Building2Icon className="size-5 text-brand" />
                 <div className="flex-1">
                   <h3 className="font-semibold text-content-heading">{elevator.name}</h3>
                   {elevator.description && <p className="text-sm text-content-subtle">{elevator.description}</p>}

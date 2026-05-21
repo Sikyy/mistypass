@@ -206,7 +206,7 @@ export function HolidayCalendarsAdaptedPage({
           <Button
             disabled={!canMutate}
             onClick={openCreate}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             New Calendar
@@ -214,7 +214,7 @@ export function HolidayCalendarsAdaptedPage({
         }
       >
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -371,7 +371,7 @@ export function HolidayCalendarsAdaptedPage({
                     type="button"
                     disabled={!draftCountry || presetsQuery.isPending}
                     onClick={loadPresets}
-                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-content-body hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-content-muted"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm font-semibold text-content-body hover:bg-surface-sunken disabled:bg-surface-sunken disabled:text-content-muted"
                   >
                     <DownloadIcon className="mr-1.5 size-4" />
                     {presetsQuery.isPending ? "Loading..." : "Load"}
@@ -411,7 +411,7 @@ export function HolidayCalendarsAdaptedPage({
                     type="button"
                     disabled={!newEntryDate.trim() || !newEntryName.trim()}
                     onClick={addManualEntry}
-                    className="h-11 w-full rounded-[6px] border border-[#c8cad6] bg-white px-3 text-sm font-semibold text-content-body hover:bg-[#f3f4f8] disabled:bg-[#f8f8fa] disabled:text-content-muted"
+                    className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm font-semibold text-content-body hover:bg-surface-sunken disabled:bg-surface-sunken disabled:text-content-muted"
                   >
                     <PlusIcon className="mr-1.5 size-4" />
                     Add
@@ -490,7 +490,7 @@ export function HolidayCalendarsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canSubmit || createMutation.isPending || updateMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."

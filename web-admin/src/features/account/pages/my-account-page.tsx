@@ -7,6 +7,7 @@ import { ChevronDownIcon, CloudIcon, FingerprintIcon, SearchIcon, ShieldCheckIco
 import { ConfirmActionDialog } from "@/components/mistyislet/actions"
 import { PageFrame, SettingsPanel, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { formatMistyisletRoleLabel } from "@/features/mistyislet-shell/navigation"
 import {
   changeUserPassword,
@@ -141,7 +142,7 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
         }}
         footer={
           <>
-            <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-[#4f55ff]" onClick={onLogout}>{t("kisi.shell.signOut")}</Button>
+            <Button variant="interaction" className="mr-auto h-10 rounded-[6px] text-brand" onClick={onLogout}>{t("kisi.shell.signOut")}</Button>
             <Button
               disabled={activeTab !== "profile" || !profileDirty || !profileName.trim() || profileMutation.isPending}
               className="h-10 rounded-[8px] px-8"
@@ -255,14 +256,14 @@ export function MyAccountPage({ token, viewer, onViewerChange, onLogout }: MyAcc
                 <SearchIcon className="size-4 text-content-subtle" />
                 <span className="text-sm text-content-muted">{t("common.search")}</span>
               </div>
-              <Button variant="outline" className="h-11 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
+              <Button variant="outline" className="h-11 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover">
                 Add API Key
               </Button>
             </div>
             <div className="divide-y divide-line-subtle px-7">
               {apiKeys.map((item) => (
                 <div key={item[0]} className="flex items-center gap-4 py-5">
-                  <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+                  <div className="flex size-10 items-center justify-center rounded-[6px] bg-surface-sunken">
                     <CloudIcon className="size-5 text-content-body" />
                   </div>
                   <div className="min-w-0">
@@ -343,7 +344,7 @@ function MFASecurityTab({ token }: { token: string }) {
       </div>
 
       {mfaNotice && (
-        <div className="mx-7 mt-2 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+        <div className={cn("mp-alert-success", "mx-7 mt-2 py-3")}>
           {mfaNotice}
         </div>
       )}
@@ -351,7 +352,7 @@ function MFASecurityTab({ token }: { token: string }) {
       <div className="px-7 py-5">
         <div className="flex items-start gap-4">
           <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
-            <ShieldCheckIcon className="size-5 text-[#4f55ff]" />
+            <ShieldCheckIcon className="size-5 text-brand" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-content-heading">{t("kisi.myAccount.mfaTitle")}</h3>
@@ -372,7 +373,7 @@ function MFASecurityTab({ token }: { token: string }) {
             {mfaStep === "idle" && mfaEnabled && (
               <Button
                 variant="outline"
-                className="mt-4 h-10 rounded-[6px] border-[#f1b7b2] px-6 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+                className="mt-4 h-10 rounded-[6px] border-danger-border px-6 text-danger-text hover:border-danger-border hover:bg-danger-bg hover:text-[#9f1d1d]"
                 onClick={() => { setMfaNotice(""); setConfirmDisable(true) }}
               >
                 {t("kisi.myAccount.mfaDisable")}
@@ -415,7 +416,7 @@ function MFASecurityTab({ token }: { token: string }) {
                       Cancel
                     </Button>
                   </div>
-                  {mfaError && <p className="mt-2 text-sm text-[#d93025]">{mfaError}</p>}
+                  {mfaError && <p className="mt-2 text-sm text-danger-text">{mfaError}</p>}
                 </div>
               </div>
             )}
@@ -495,7 +496,7 @@ function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => 
         {sessions.length > 1 && (
           <Button
             variant="outline"
-            className="h-10 rounded-[6px] border-[#f1b7b2] bg-white px-5 text-[#d93025] hover:border-[#f1b7b2] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+            className="h-10 rounded-[6px] border-danger-border bg-white px-5 text-danger-text hover:border-danger-border hover:bg-danger-bg hover:text-[#9f1d1d]"
             onClick={() => setConfirmRevokeAll(true)}
           >
             Revoke all
@@ -510,7 +511,7 @@ function LoginSessionsTab({ token, onLogout }: { token: string; onLogout: () => 
       ) : (
         sessions.map((session) => (
           <div key={session.session_id} className="flex items-center gap-4 px-7 py-5">
-            <div className="flex size-10 items-center justify-center rounded-[6px] bg-[#f1f2f5]">
+            <div className="flex size-10 items-center justify-center rounded-[6px] bg-surface-sunken">
               <CloudIcon className="size-5 text-content-body" />
             </div>
             <div className="min-w-0 flex-1">
@@ -718,7 +719,7 @@ function PasskeyCredentialsTab({ token }: { token: string }) {
         creds.map((cred) => (
           <div key={cred.id} className="flex items-center gap-4 px-7 py-5">
             <div className="flex size-10 items-center justify-center rounded-[6px] bg-brand-subtle">
-              <FingerprintIcon className="size-5 text-[#4f55ff]" />
+              <FingerprintIcon className="size-5 text-brand" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-content-heading">{cred.display_name}</p>

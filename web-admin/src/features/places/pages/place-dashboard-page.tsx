@@ -63,7 +63,7 @@ export function PlaceDashboardAdaptedPage({
       description={place ? t("kisi.placeDashboard.description", { place: place.name }) : t("kisi.placeDashboard.description", { place: "" })}
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live place resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -82,9 +82,9 @@ export function PlaceDashboardAdaptedPage({
         <div className="divide-y divide-line-subtle">
           {events.length > 0 ? (
             events.slice(0, 6).map((event, index) => (
-              <div key={event.id} className={cn("grid grid-cols-[90px_1fr_180px_120px] items-center px-6 py-4 text-sm", index === 0 && "bg-[#e7e5df]")}>
+              <div key={event.id} className={cn("grid grid-cols-[90px_1fr_180px_120px] items-center px-6 py-4 text-sm", index === 0 && "bg-surface-active")}>
                 <span className="font-medium text-content-subtle">{event.timeLabel}</span>
-                <span className="font-semibold text-[#4f55ff]">{event.object}</span>
+                <span className="font-semibold text-brand">{event.object}</span>
                 <span className="text-content-body">{event.action}</span>
                 <StatusDot tone={event.tone} label={event.statusLabel} />
               </div>
@@ -164,10 +164,10 @@ function DailyUsageTable({ events, t }: { events: EventRow[]; t: TFn }) {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className="inline-block rounded bg-[#e8e9ff] px-2 py-0.5 text-xs font-semibold text-[#4f55ff]">{row.uniqueUsers}</span>
+                  <span className="inline-block rounded bg-brand-subtle px-2 py-0.5 text-xs font-semibold text-brand">{row.uniqueUsers}</span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-semibold", row.occupancy > 50 ? "bg-[#d4f5db] text-[#1f6b3a]" : "bg-surface-sunken text-content-subtle")}>{row.occupancy}%</span>
+                  <span className={cn("inline-block rounded px-2 py-0.5 text-xs font-semibold", row.occupancy > 50 ? "bg-success-bg text-success-text" : "bg-surface-sunken text-content-subtle")}>{row.occupancy}%</span>
                 </td>
               </tr>
             ))}

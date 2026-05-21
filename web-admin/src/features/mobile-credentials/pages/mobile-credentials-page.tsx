@@ -8,6 +8,8 @@ import {
   type MobileCredential,
   type CurrentUser,
 } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 type MobileCredentialsPageProps = {
   token: string
@@ -42,8 +44,8 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1a1c23]">Mobile Credentials</h1>
-          <p className="mt-1 text-sm text-[#6f717c]">
+          <h1 className="text-2xl font-semibold text-content-heading">Mobile Credentials</h1>
+          <p className="mt-1 text-sm text-content-subtle">
             BLE mobile credentials registered by users (Android Keystore / iOS Secure Enclave)
           </p>
         </div>
@@ -51,18 +53,19 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-            className="rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+            className="rounded-[6px] border border-line-default bg-white px-3 py-2 text-sm text-content-body"
           >
             <option value="">All Status</option>
             <option value="active">Active</option>
             <option value="revoked">Revoked</option>
           </select>
-          <button
+          <Button
+            variant="outline"
+            size="icon"
             onClick={() => queryClient.invalidateQueries({ queryKey: ["mobile-credentials"] })}
-            className="rounded-md border border-[#d9dbe3] p-2 hover:bg-[#f5f6f8]"
           >
             <RefreshCwIcon className="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -74,8 +77,8 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
       </div>
 
       {/* Credentials table */}
-      <div className="rounded-lg border border-[#eceef2] bg-white">
-        <div className="grid grid-cols-[1fr_1fr_100px_120px_100px_80px] gap-4 border-b border-[#eceef2] px-4 py-3 text-xs font-medium uppercase text-[#6f717c]">
+      <div className="rounded-[6px] border border-line-subtle bg-white">
+        <div className="grid grid-cols-[1fr_1fr_100px_120px_100px_80px] gap-4 border-b border-line-subtle px-4 py-3 text-xs font-medium uppercase text-content-subtle">
           <div>User</div>
           <div>Device</div>
           <div>Platform</div>
@@ -85,11 +88,11 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
         </div>
 
         {credentialsQuery.isLoading && (
-          <div className="p-8 text-center text-[#6f717c]">Loading...</div>
+          <div className="p-8 text-center text-content-subtle">Loading...</div>
         )}
 
         {filtered.length === 0 && !credentialsQuery.isLoading && (
-          <div className="p-8 text-center text-[#6f717c]">
+          <div className="p-8 text-center text-content-subtle">
             No mobile credentials registered yet
           </div>
         )}
@@ -97,16 +100,16 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
         {filtered.map((cred) => (
           <div
             key={cred.id}
-            className="grid cursor-pointer grid-cols-[1fr_1fr_100px_120px_100px_80px] items-center gap-4 border-b border-[#eceef2] px-4 py-3 last:border-b-0 hover:bg-[#fafbfc]"
+            className="grid cursor-pointer grid-cols-[1fr_1fr_100px_120px_100px_80px] items-center gap-4 border-b border-line-subtle px-4 py-3 last:border-b-0 hover:bg-surface-page"
             onClick={() => setDetailCred(cred)}
           >
             <div>
-              <div className="text-sm font-medium text-[#1a1c23]">{cred.user_email}</div>
-              <div className="text-xs text-[#6f717c]">{cred.user_id}</div>
+              <div className="text-sm font-medium text-content-heading">{cred.user_email}</div>
+              <div className="text-xs text-content-subtle">{cred.user_id}</div>
             </div>
             <div>
-              <div className="text-sm text-[#1a1c23]">{cred.device_model}</div>
-              <div className="text-xs text-[#6f717c]">{cred.device_id.slice(0, 20)}...</div>
+              <div className="text-sm text-content-heading">{cred.device_model}</div>
+              <div className="text-xs text-content-subtle">{cred.device_id.slice(0, 20)}...</div>
             </div>
             <div>
               <span className="inline-flex items-center gap-1 text-sm">
@@ -138,8 +141,8 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
       {/* Credential detail dialog */}
       {detailCred && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDetailCred(null)}>
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="mb-4 text-lg font-semibold text-[#17171c]">Credential Details</h3>
+          <div className="w-full max-w-md rounded-[6px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-semibold text-content-heading">Credential Details</h3>
             <dl className="space-y-2 text-sm">
               {[
                 ["ID", detailCred.id],
@@ -155,26 +158,23 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
                 ...(detailCred.revoked_at ? [["Revoked", new Date(detailCred.revoked_at).toLocaleString()]] : []),
               ].map(([label, value]) => (
                 <div key={label as string} className="flex justify-between">
-                  <dt className="text-[#6f717c]">{label}</dt>
-                  <dd className="font-medium text-[#17171c]">{value}</dd>
+                  <dt className="text-content-subtle">{label}</dt>
+                  <dd className="font-medium text-content-heading">{value}</dd>
                 </div>
               ))}
             </dl>
             <div className="mt-4 flex justify-end gap-2">
               {detailCred.status === "active" && (
-                <button
-                  className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+                <Button
+                  variant="destructive"
                   onClick={() => { setDetailCred(null); setConfirmRevoke(detailCred.id) }}
                 >
                   Revoke
-                </button>
+                </Button>
               )}
-              <button
-                className="rounded-md border border-[#d9dbe3] px-4 py-2 text-sm"
-                onClick={() => setDetailCred(null)}
-              >
+              <Button variant="outline" onClick={() => setDetailCred(null)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -183,26 +183,23 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
       {/* Revoke confirmation dialog */}
       {confirmRevoke && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-[400px] rounded-lg bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold">Revoke Credential</h3>
-            <p className="mt-2 text-sm text-[#6f717c]">
+          <div className="w-[400px] rounded-[6px] bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-content-heading">Revoke Credential</h3>
+            <p className="mt-2 text-sm text-content-subtle">
               This will immediately revoke the mobile credential. The user will no longer be able to
               unlock doors via BLE until they re-register.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmRevoke(null)}
-                className="rounded-md border border-[#d9dbe3] px-4 py-2 text-sm"
-              >
+              <Button variant="outline" onClick={() => setConfirmRevoke(null)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
                 onClick={() => revokeMutation.mutate(confirmRevoke)}
                 disabled={revokeMutation.isPending}
-                className="rounded-md bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
               >
                 {revokeMutation.isPending ? "Revoking..." : "Revoke"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -212,12 +209,13 @@ export function MobileCredentialsPage({ token, viewer }: MobileCredentialsPagePr
 }
 
 function StatCard({ label, value, color }: { label: string; value: number; color?: string }) {
-  const colorClass =
-    color === "green" ? "text-green-600" : color === "red" ? "text-red-600" : "text-[#1a1c23]"
   return (
-    <div className="rounded-lg border border-[#eceef2] bg-white p-4">
-      <div className="text-xs font-medium uppercase text-[#6f717c]">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold ${colorClass}`}>{value}</div>
+    <div className="rounded-[6px] border border-line-subtle bg-white p-4">
+      <div className="text-xs font-medium uppercase text-content-subtle">{label}</div>
+      <div className={cn(
+        "mt-1 text-2xl font-semibold",
+        color === "green" ? "text-success-text" : color === "red" ? "text-danger-text" : "text-content-heading"
+      )}>{value}</div>
     </div>
   )
 }

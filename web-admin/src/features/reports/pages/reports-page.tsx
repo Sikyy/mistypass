@@ -129,7 +129,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
       description={placeScoped ? "Place statistics, trends, and audit slices" : "Organization alerts, audit log, and statistics"}
     >
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -141,7 +141,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-content-body")}
+              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-brand text-brand" : "text-content-body")}
             >
               {tab}
             </button>
@@ -178,7 +178,7 @@ export function ReportsAdaptedPage({ token, viewer, placeID, placeScoped = false
                       type="button"
                       disabled={downloadingReportID === report.id}
                       onClick={() => void handleDownload(report)}
-                      className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-content-body hover:bg-[#f3f4f8]"
+                      className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-surface-sunken"
                     >
                       <DownloadIcon className="mr-1.5 size-4" />
                       {downloadingReportID === report.id ? "Exporting..." : "CSV"}

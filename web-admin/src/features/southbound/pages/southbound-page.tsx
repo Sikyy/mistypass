@@ -60,78 +60,78 @@ export function SouthboundPage({ token, viewer }: SouthboundPageProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-[#1a1c23]">Southbound Gateway</h1>
-        <p className="mt-1 text-sm text-[#6f717c]">
+        <p className="mt-1 text-sm text-content-subtle">
           Direct control of third-party door controllers (Hikvision ISAPI / ZKTeco)
         </p>
       </div>
 
       {/* Device Configuration */}
-      <div className="rounded-lg border border-[#eceef2] bg-white p-6">
+      <div className="rounded-lg border border-line-subtle bg-white p-6">
         <h2 className="mb-4 text-lg font-medium">Device Connection</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Provider</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Provider</label>
             <select
               value={provider}
               onChange={(e) => setProvider(e.target.value as SouthboundProvider)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
             >
               <option value="hikvision">Hikvision (ISAPI)</option>
               <option value="zkteco">ZKTeco (CGI/Push)</option>
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Device ID</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Device ID</label>
             <input
               value={deviceID}
               onChange={(e) => setDeviceID(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="device_001"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Host / IP</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Host / IP</label>
             <input
               value={host}
               onChange={(e) => setHost(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="192.168.1.64"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Port</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Port</label>
             <input
               value={port}
               onChange={(e) => setPort(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="80"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Username</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Username</label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="admin"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Password</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="password"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#6f717c]">Door Index</label>
+            <label className="mb-1 block text-xs font-medium text-content-subtle">Door Index</label>
             <input
               value={doorIndex}
               onChange={(e) => setDoorIndex(e.target.value)}
-              className="w-full rounded-md border border-[#d9dbe3] px-3 py-2 text-sm"
+              className="w-full rounded-md border border-line-default px-3 py-2 text-sm"
               placeholder="1"
             />
           </div>
@@ -142,7 +142,7 @@ export function SouthboundPage({ token, viewer }: SouthboundPageProps) {
           <button
             onClick={() => testMutation.mutate()}
             disabled={!host || testMutation.isPending}
-            className="flex items-center gap-2 rounded-md border border-[#d9dbe3] px-4 py-2 text-sm hover:bg-[#f5f6f8] disabled:opacity-50"
+            className="flex items-center gap-2 rounded-md border border-line-default px-4 py-2 text-sm hover:bg-surface-sunken disabled:opacity-50"
           >
             <WifiIcon className="size-4" />
             {testMutation.isPending ? "Testing..." : "Test Connection"}
@@ -177,12 +177,12 @@ export function SouthboundPage({ token, viewer }: SouthboundPageProps) {
       </div>
 
       {/* Provider info */}
-      <div className="rounded-lg border border-[#eceef2] bg-white p-6">
+      <div className="rounded-lg border border-line-subtle bg-white p-6">
         <h2 className="mb-3 text-lg font-medium">Provider Reference</h2>
         <div className="grid grid-cols-2 gap-6 text-sm">
           <div>
             <h3 className="font-medium">Hikvision (ISAPI)</h3>
-            <ul className="mt-2 space-y-1 text-[#6f717c]">
+            <ul className="mt-2 space-y-1 text-content-subtle">
               <li>Protocol: HTTP REST + Digest Auth</li>
               <li>Default Port: 80 (HTTP) / 443 (HTTPS)</li>
               <li>Unlock: PUT /ISAPI/AccessControl/RemoteControl/door/N</li>
@@ -191,7 +191,7 @@ export function SouthboundPage({ token, viewer }: SouthboundPageProps) {
           </div>
           <div>
             <h3 className="font-medium">ZKTeco (CGI)</h3>
-            <ul className="mt-2 space-y-1 text-[#6f717c]">
+            <ul className="mt-2 space-y-1 text-content-subtle">
               <li>Protocol: HTTP CGI + Basic Auth</li>
               <li>Default Port: 80</li>
               <li>Unlock: POST /cgi-bin/accessControl.cgi?action=openDoor</li>

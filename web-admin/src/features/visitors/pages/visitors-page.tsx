@@ -259,7 +259,7 @@ function GuestRow({
           <span className="font-semibold text-content-heading">{guest.name}</span>
           {guest.company && <span className="text-sm text-content-subtle">({guest.company})</span>}
           {guest.id_document_type && (
-            <span className="rounded bg-[#f3f4f8] px-1.5 py-0.5 text-xs font-medium text-content-subtle">
+            <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-xs font-medium text-content-subtle">
               {guest.id_document_type}
             </span>
           )}

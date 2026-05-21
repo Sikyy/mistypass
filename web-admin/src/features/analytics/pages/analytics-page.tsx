@@ -84,7 +84,7 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
           <Button
             onClick={handleExport}
             disabled={exporting}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
           >
             <DownloadIcon className="mr-2 size-4" />
             {exporting ? "Exporting..." : "Export PDF"}
@@ -106,7 +106,7 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
       {/* Door Activity */}
       <section>
         <h2 className="mb-4 text-lg font-semibold text-content-heading">Door Activity</h2>
-        <div className="rounded-[6px] border border-[#e1e3e8] bg-white">
+        <div className="rounded-[6px] border border-line-default bg-white">
           {doorQuery.isPending ? (
             <p className="px-5 py-8 text-center text-sm text-content-subtle">Loading door activity...</p>
           ) : doors.length === 0 ? (
@@ -140,20 +140,20 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
       <section>
         <h2 className="mb-4 text-lg font-semibold text-content-heading">Alarm Metrics</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-[6px] border border-[#e1e3e8] bg-white p-5">
+          <div className="rounded-[6px] border border-line-default bg-white p-5">
             <p className="text-sm font-medium text-content-subtle">Total Alarms</p>
             <p className="mt-2 text-2xl font-bold text-content-heading">
               {alarmQuery.isPending ? "--" : alarms?.total ?? 0}
             </p>
           </div>
-          <div className="rounded-[6px] border border-[#e1e3e8] bg-white p-5">
+          <div className="rounded-[6px] border border-line-default bg-white p-5">
             <p className="text-sm font-medium text-content-subtle">Open / Resolved</p>
             <div className="mt-2 flex items-center gap-4">
               <StatusDot tone="danger" label={`${alarms?.by_status?.["open"] ?? 0} open`} />
               <StatusDot tone="success" label={`${alarms?.by_status?.["resolved"] ?? 0} resolved`} />
             </div>
           </div>
-          <div className="rounded-[6px] border border-[#e1e3e8] bg-white p-5">
+          <div className="rounded-[6px] border border-line-default bg-white p-5">
             <p className="mb-3 text-sm font-medium text-content-subtle">By Severity</p>
             <div className="space-y-2">
               {alarmQuery.isPending ? (

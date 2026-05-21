@@ -538,7 +538,7 @@ export function GroupsAdaptedPage({
               setActionError("")
               setCreateGroupOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Add Group
@@ -551,7 +551,7 @@ export function GroupsAdaptedPage({
               setActionError("")
               setDeleteGroupConfirmOpen(true)
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
           >
             <Trash2Icon className="mr-1.5 size-4" />
             Delete Group
@@ -560,12 +560,12 @@ export function GroupsAdaptedPage({
       }
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live group resources are unavailable. Showing reference data.
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -576,7 +576,7 @@ export function GroupsAdaptedPage({
           <p className="mt-1 text-sm text-content-subtle">{t("kisi.groups.pageDesc")}</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className={cn("mp-table", "min-w-[760px]")}>
             <thead className="bg-surface-page">
               <tr className="border-b border-line-subtle">
                 <th className="px-6 py-4 font-semibold">{t("common.name")}</th>
@@ -593,11 +593,11 @@ export function GroupsAdaptedPage({
                   aria-selected={currentGroup?.id === group.id}
                   onClick={() => setSelectedGroupID(group.id)}
                   className={cn(
-                    "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page",
+                    "mp-table-row cursor-pointer",
                     currentGroup?.id === group.id ? "bg-[#f7f7ff]" : ""
                   )}
                 >
-                  <td className="px-6 py-4 font-semibold text-[#4f55ff]">{group.name}</td>
+                  <td className="px-6 py-4 font-semibold text-brand">{group.name}</td>
                   <td className="px-4 py-4 text-content-body">{group.kind}</td>
                   <td className="px-4 py-4 text-content-subtle">{group.targetLabel}</td>
                   <td className="px-4 py-4 text-content-body">{group.memberCount}</td>
@@ -630,7 +630,7 @@ export function GroupsAdaptedPage({
             type="button"
             disabled={!canMutateGroups || !groupFormDirty || !editGroupName.trim() || updateGroupMutation.isPending}
             onClick={() => updateGroupMutation.mutate()}
-            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+            className="h-10 rounded-[8px] bg-brand px-8 text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
           >
             {updateGroupMutation.isPending ? "Saving..." : "Save"}
           </Button>
@@ -672,7 +672,7 @@ export function GroupsAdaptedPage({
               title={t("common.members")}
               description={t("kisi.groups.membersDesc")}
               action={
-                <Button variant="outline" className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]">
+                <Button variant="outline" className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover">
                   Add Members
                 </Button>
               }
@@ -705,7 +705,7 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddDoorsOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Doors
@@ -715,7 +715,7 @@ export function GroupsAdaptedPage({
             <div className="divide-y divide-line-subtle">
               {doorRows.map((row) => (
                 <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
-                  <span className="font-semibold text-[#4f55ff]">{row.name}</span>
+                  <span className="font-semibold text-brand">{row.name}</span>
                   <span className="text-sm text-content-body">{row.floorName}</span>
                   <StatusDot tone={row.status === "online" ? "success" : "warning"} label={row.status === "online" ? t("common.online") : t("common.status")} />
                   <Button
@@ -767,7 +767,7 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddElevatorStopOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Elevator Stop
@@ -779,7 +779,7 @@ export function GroupsAdaptedPage({
                 const stop = allElevatorStops.find((s) => s.id === row.elevator_stop_id)
                 return (
                   <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
-                    <span className="font-semibold text-[#4f55ff]">{stop?.name ?? row.elevator_stop_id}</span>
+                    <span className="font-semibold text-brand">{stop?.name ?? row.elevator_stop_id}</span>
                     <span className="text-sm text-content-body">{stop?.status ?? "unknown"}</span>
                     <StatusDot tone={stop?.status === "online" ? "success" : "warning"} label={stop?.status ?? "unknown"} />
                     <Button
@@ -819,7 +819,7 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setAddTerminalOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Terminal
@@ -831,7 +831,7 @@ export function GroupsAdaptedPage({
                 const terminal = allTerminals.find((t) => t.id === row.terminal_id)
                 return (
                   <div key={row.id} className="grid gap-3 px-7 py-5 md:grid-cols-[minmax(180px,1fr)_180px_140px_100px] md:items-center">
-                    <span className="font-semibold text-[#4f55ff]">{terminal?.name ?? row.terminal_id}</span>
+                    <span className="font-semibold text-brand">{terminal?.name ?? row.terminal_id}</span>
                     <span className="text-sm text-content-body">{terminal?.description ?? ""}</span>
                     <StatusDot tone={terminal?.status === "online" ? "success" : "warning"} label={terminal?.status ?? "unknown"} />
                     <Button
@@ -874,7 +874,7 @@ export function GroupsAdaptedPage({
                     setActionError("")
                     setCreateLinkOpen(true)
                   }}
-                  className="h-10 rounded-[6px] border-[#8589ff] bg-white px-6 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                  className="h-10 rounded-[6px] border-brand-ring bg-white px-6 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                 >
                   <PlusIcon className="mr-1.5 size-4" />
                   Add Link
@@ -939,9 +939,9 @@ export function GroupsAdaptedPage({
                   ))}
                 </div>
                 {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => (
-                  <div key={day} className="border-r border-white/80 bg-[#f1f2f5] text-center text-sm font-semibold text-content-subtle last:border-r-0">
+                  <div key={day} className="border-r border-white/80 bg-surface-sunken text-center text-sm font-semibold text-content-subtle last:border-r-0">
                     <div className="border-b border-white/80 bg-white py-4">{day}</div>
-                    <div className="mx-auto mt-16 w-full max-w-[118px] rounded-[5px] bg-[#202443] p-3 text-left text-xs text-white">
+                    <div className="mx-auto mt-16 w-full max-w-[118px] rounded-[5px] bg-[#17171c] p-3 text-left text-xs text-white">
                       <p className="truncate font-semibold">{t("kisi.doors.accessPermitted")}</p>
                       <p className="mt-1 text-white/70">08:00 - 18:00</p>
                     </div>
@@ -961,7 +961,7 @@ export function GroupsAdaptedPage({
                   <div
                     className={cn(
                       "flex size-12 shrink-0 items-center justify-center rounded-[6px]",
-                      enabled ? "bg-brand text-white" : "bg-[#f1f2f5] text-content-body"
+                      enabled ? "bg-brand text-white" : "bg-surface-sunken text-content-body"
                     )}
                   >
                     <Icon className="size-6" />
@@ -969,7 +969,7 @@ export function GroupsAdaptedPage({
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold text-content-heading">{title}</h3>
                     <p className="mt-1 max-w-3xl text-sm leading-6 text-content-subtle">
-                      {description} <span className="text-[#4f55ff] underline underline-offset-2">{t("common.description")}</span>
+                      {description} <span className="text-brand underline underline-offset-2">{t("common.description")}</span>
                     </p>
                   </div>
                   <div className="ml-auto pt-2">
@@ -1100,7 +1100,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canCreateGroups || !createGroupName.trim() || createGroupMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {createGroupMutation.isPending ? "Creating..." : "Create Group"}
               </Button>
@@ -1149,7 +1149,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutateGroupLocks || addDoorMutation.isPending || availableDoorRows.length === 0}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {addDoorMutation.isPending ? "Adding..." : "Add Doors"}
               </Button>
@@ -1220,7 +1220,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutateGroupLinks || !createLinkName.trim() || createLinkMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {createLinkMutation.isPending ? "Creating..." : "Create Link"}
               </Button>
@@ -1310,7 +1310,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutateGroupLinks || !editLinkName.trim() || !editingLinkID || updateLinkMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {updateLinkMutation.isPending ? "Saving..." : "Save Link"}
               </Button>
@@ -1359,7 +1359,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutateGroups || addElevatorStopMutation.isPending || availableElevatorStops.length === 0}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {addElevatorStopMutation.isPending ? "Adding..." : "Add Elevator Stop"}
               </Button>
@@ -1408,7 +1408,7 @@ export function GroupsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canMutateGroups || addTerminalMutation.isPending || availableTerminals.length === 0}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {addTerminalMutation.isPending ? "Adding..." : "Add Terminal"}
               </Button>

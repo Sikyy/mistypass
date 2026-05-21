@@ -15,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react"
 
 import { PageFrame, KpiCard, StatusDot } from "@/components/mistyislet/primitives"
+import { cn } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
 import { getNetworkTopology, type CurrentUser, type NetworkTopology } from "@/lib/api"
 
@@ -148,14 +149,14 @@ function DeviceCard({
   const cardBg = isCloud
     ? "bg-gradient-to-r from-[#f3f4ff] to-white border-[#c5c9ff]"
     : isGateway
-      ? "bg-white border-[#e1e3e8]"
+      ? "bg-white border-line-default"
       : "bg-surface-page border-line-subtle"
 
   const iconBg = isCloud
-    ? "bg-[#eef0ff] text-[#4f55ff]"
+    ? "bg-brand-subtle text-brand"
     : isGateway
       ? "bg-surface-page text-content-subtle ring-1 ring-[#eceef2]"
-      : "bg-[#f1f2f5] text-content-subtle"
+      : "bg-surface-sunken text-content-subtle"
 
   const iconSize = isCloud || isGateway ? "size-10" : "size-8"
   const innerIconSize = isCloud || isGateway ? "size-5" : "size-4"
@@ -182,7 +183,7 @@ function DeviceCard({
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-content-muted">
             <span className="capitalize">{node.type}</span>
             {node.protocol ? (
-              <span className="rounded bg-[#f1f2f5] px-1.5 py-0.5 text-[10px] font-medium text-content-subtle">
+              <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-content-subtle">
                 {protocolLabel(node.protocol)}
               </span>
             ) : null}
@@ -284,13 +285,13 @@ function FlatGrid({ nodes }: { nodes: TopologyNode[] }) {
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex items-center gap-3 rounded-[6px] border border-[#f5c6c2] bg-[#fef3f2] px-5 py-4 text-sm text-[#d93025]">
+    <div className={cn("mp-alert-danger", "flex items-center gap-3")}>
       <span className="min-w-0 flex-1">{message}</span>
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 rounded-[6px] border border-line-default bg-white px-3 py-1.5 text-xs font-medium text-content-body hover:bg-[#f1f2f5]"
+          className="inline-flex items-center gap-1.5 rounded-[6px] border border-line-default bg-white px-3 py-1.5 text-xs font-medium text-content-body hover:bg-surface-sunken"
         >
           <RefreshCwIcon className="size-3" />
           Retry
@@ -339,7 +340,7 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
           type="button"
           onClick={() => topologyQuery.refetch()}
           disabled={topologyQuery.isFetching}
-          className="inline-flex items-center gap-2 rounded-[6px] border border-line-default bg-white px-4 py-2 text-sm font-medium text-content-body hover:bg-[#f1f2f5] disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-[6px] border border-line-default bg-white px-4 py-2 text-sm font-medium text-content-body hover:bg-surface-sunken disabled:opacity-50"
         >
           <RefreshCwIcon className={`size-4 ${topologyQuery.isFetching ? "animate-spin" : ""}`} />
           Refresh
@@ -394,12 +395,12 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
             onRetry={() => topologyQuery.refetch()}
           />
         ) : loading ? (
-          <div className="rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-12 text-center">
-            <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-[#e1e3e8] border-t-[#4f55ff]" />
+          <div className="rounded-[6px] border border-line-default bg-white px-5 py-12 text-center">
+            <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-line-default border-t-brand" />
             <p className="text-sm text-content-subtle">Loading network topology...</p>
           </div>
         ) : !topology || topology.nodes.length === 0 ? (
-          <div className="rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-12 text-center">
+          <div className="rounded-[6px] border border-line-default bg-white px-5 py-12 text-center">
             <NetworkIcon className="mx-auto mb-3 size-10 text-[#d9dbe3]" />
             <p className="text-sm font-medium text-content-body">No network devices found</p>
             <p className="mt-1 text-xs text-content-muted">
@@ -417,7 +418,7 @@ export function NetworkTopologyPage({ token, viewer }: { token: string; viewer: 
       {topology && topology.nodes.length > 0 ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-content-heading">Legend</h2>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-[6px] border border-[#e1e3e8] bg-white px-5 py-3">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-[6px] border border-line-default bg-white px-5 py-3">
             {(
               [
                 ["cloud", "Cloud"],

@@ -81,7 +81,7 @@ export function EventHistoryAdaptedPage({
       description={placeScoped ? t("kisi.eventHistory.unlockDesc") : t("kisi.eventHistory.description")}
     >
       {resourceQuery.usingFallback ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Live event resources are unavailable. Showing reference data.
         </div>
       ) : null}
@@ -92,7 +92,7 @@ export function EventHistoryAdaptedPage({
         </div>
         <div className="flex items-center gap-2 border-b border-line-subtle bg-surface-page px-6 py-4 text-xs text-content-subtle">
           <MapPinPlusIcon className="size-4" />
-          {t("kisi.eventHistory.timezone")} <span className="text-[#4f55ff]">{t("kisi.accessLink.change")}</span>
+          {t("kisi.eventHistory.timezone")} <span className="text-brand">{t("kisi.accessLink.change")}</span>
         </div>
         <div className="flex flex-col gap-3 border-b border-line-subtle px-6 py-4 md:flex-row md:items-center">
           <DropdownMenu>
@@ -141,13 +141,13 @@ export function EventHistoryAdaptedPage({
                 const expanded = expandedRow === row.id
                 return (
                   <Fragment key={row.id}>
-                    <tr className={cn("border-b border-line-subtle last:border-0", expanded && "bg-[#e7e5df]")}>
+                    <tr className={cn("border-b border-line-subtle last:border-0", expanded && "bg-surface-active")}>
                       <td className="px-6 py-4">
                         <button type="button" onClick={() => setExpandedRow(expanded ? "" : row.id)} aria-label={`Toggle ${row.object} details`}>
                           <ChevronDownIcon className={cn("size-4 text-content-body transition-transform", !expanded && "-rotate-90")} />
                         </button>
                       </td>
-                      <td className="px-4 py-4 text-[#4f55ff]">{row.object}</td>
+                      <td className="px-4 py-4 text-brand">{row.object}</td>
                       <td className="px-4 py-4 text-content-body">{row.action}</td>
                       <td className="px-4 py-4 text-content-subtle">{row.user}</td>
                       <td className="px-4 py-4 text-content-body">{row.timeLabel}</td>

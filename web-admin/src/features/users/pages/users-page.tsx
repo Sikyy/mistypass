@@ -263,7 +263,7 @@ export function UsersAdaptedPage({
             type="button"
             disabled={!canMutate}
             onClick={() => openUserSheet("add")}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
           >
             <PlusIcon className="mr-1.5 size-4" />
             {t("kisi.users.addUser")}
@@ -271,17 +271,17 @@ export function UsersAdaptedPage({
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             Live user resources are unavailable. Showing reference data.
           </div>
         ) : null}
         {actionNotice ? (
-          <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+          <div className="mp-alert-success">
             {actionNotice}
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -294,13 +294,13 @@ export function UsersAdaptedPage({
 
         <section className="overflow-hidden rounded-[6px] border border-line-default bg-white">
           <div className="flex items-center gap-3 border-b border-line-subtle p-5">
-            <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search Users..." className="h-11 border-[#8589ff]" />
+            <MistyisletSearchField value={query} onChange={setQuery} placeholder="Search Users..." className="h-11 border-brand-ring" />
             <Button
               type="button"
               variant="outline"
               disabled={!canMutate}
               onClick={() => openUserSheet("invite")}
-              className="h-11 rounded-[6px] border-[#c9ccff] bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+              className="h-11 rounded-[6px] border-brand-ring bg-white text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
             >
               <MailPlusIcon className="mr-1.5 size-4" />
               {t("kisi.users.invite")}
@@ -331,7 +331,7 @@ export function UsersAdaptedPage({
                 type="button"
                 disabled={!canMutate || bulkStatusMutation.isPending}
                 onClick={() => bulkStatusMutation.mutate("suspended")}
-                className="font-semibold text-[#4f55ff] disabled:text-content-muted"
+                className="font-semibold text-brand disabled:text-content-muted"
               >
                 {t("kisi.users.suspendAccess")}
               </button>
@@ -347,7 +347,7 @@ export function UsersAdaptedPage({
                 type="button"
                 disabled={!canMutate || bulkInviteMutation.isPending}
                 onClick={() => bulkInviteMutation.mutate()}
-                className="font-semibold text-[#4f55ff] disabled:text-content-muted"
+                className="font-semibold text-brand disabled:text-content-muted"
               >
                 {t("kisi.users.sendInvite")}
               </button>
@@ -356,7 +356,7 @@ export function UsersAdaptedPage({
                   type="button"
                   disabled={!canMutate || bulkDeleteMutation.isPending}
                   onClick={() => { if (window.confirm(t("kisi.users.deleteConfirm", { count: selectedUsers.size }))) bulkDeleteMutation.mutate() }}
-                  className="font-semibold text-[#d93025] disabled:text-content-muted"
+                  className="font-semibold text-danger-text disabled:text-content-muted"
                 >
                   Delete
                 </button>
@@ -367,7 +367,7 @@ export function UsersAdaptedPage({
             </div>
           ) : null}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className={cn("mp-table", "min-w-[720px]")}>
               <thead className="bg-white text-content-body">
                 <tr className="border-b border-line-subtle">
                   <th className="w-12 px-6 py-4">
@@ -376,7 +376,7 @@ export function UsersAdaptedPage({
                       onClick={toggleAllFilteredUsers}
                       className={cn(
                         "block size-5 rounded-[3px] border",
-                        allFilteredSelected ? "border-[#4f55ff] bg-brand" : "border-[#9a9ca7] bg-white"
+                        allFilteredSelected ? "border-brand bg-brand" : "border-content-muted bg-white"
                       )}
                       aria-label={allFilteredSelected ? "Clear selected users" : "Select all users"}
                     />
@@ -392,8 +392,8 @@ export function UsersAdaptedPage({
                   <tr
                     key={row.id}
                     className={cn(
-                      "border-b border-line-subtle last:border-0 hover:bg-surface-page",
-                      selectedUsers.has(row.id) ? "bg-[#e7e5df]" : placeScoped && index === 0 && "bg-[#f4f3ef]"
+                      "mp-table-row",
+                      selectedUsers.has(row.id) ? "bg-surface-active" : placeScoped && index === 0 && "bg-surface-selected"
                     )}
                   >
                     <td className="px-6 py-4">
@@ -402,7 +402,7 @@ export function UsersAdaptedPage({
                         onClick={() => toggleUser(row.id)}
                         className={cn(
                           "block size-5 rounded-[3px] border",
-                          selectedUsers.has(row.id) ? "border-[#4f55ff] bg-brand" : "border-[#9a9ca7] bg-white"
+                          selectedUsers.has(row.id) ? "border-brand bg-brand" : "border-content-muted bg-white"
                         )}
                         aria-label={`Select ${row.name}`}
                       />
@@ -411,7 +411,7 @@ export function UsersAdaptedPage({
                       {placeScoped ? (
                         <span className="text-content-heading">{row.name}</span>
                       ) : (
-                        <Link to={`/users/${row.id}`} className="text-[#4f55ff] hover:underline">
+                        <Link to={`/users/${row.id}`} className="text-brand hover:underline">
                           {row.name}
                         </Link>
                       )}
@@ -517,7 +517,7 @@ export function UsersAdaptedPage({
               type="button"
               disabled={!canMutate || createUserMutation.isPending || !newName.trim() || !newEmail.trim()}
               onClick={() => createUserMutation.mutate()}
-              className="rounded-[6px] bg-brand text-white hover:bg-[#454bea] disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
+              className="rounded-[6px] bg-brand text-white hover:bg-brand-hover disabled:bg-[#eef0f4] disabled:text-[#8d909b]"
             >
               {createUserMutation.isPending ? "Saving..." : userSheetMode === "invite" ? "Create Invite" : "Create User"}
             </Button>

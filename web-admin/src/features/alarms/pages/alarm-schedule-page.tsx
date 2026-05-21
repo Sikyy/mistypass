@@ -168,8 +168,8 @@ export function AlarmSchedulePage({ token, viewer }: AlarmSchedulePageProps) {
                   onClick={() => toggleDay(idx)}
                   className={`rounded-[6px] border px-3 py-1.5 text-sm font-medium transition-colors ${
                     form.days_of_week.includes(idx)
-                      ? "border-[#4f55ff] bg-brand text-white"
-                      : "border-line-default bg-white text-content-subtle hover:border-[#8589ff]"
+                      ? "border-brand bg-brand text-white"
+                      : "border-line-default bg-white text-content-subtle hover:border-brand-ring"
                   }`}
                 >
                   {day}

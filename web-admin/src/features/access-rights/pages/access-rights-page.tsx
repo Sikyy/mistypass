@@ -629,7 +629,7 @@ export function AccessRightsAdaptedPage({
               resetShareAccessForm("role_assignment")
               setShareAccessOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Share Access
@@ -637,13 +637,13 @@ export function AccessRightsAdaptedPage({
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             Live access-right resources are unavailable. Showing reference data.
           </div>
         ) : null}
 
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -657,7 +657,7 @@ export function AccessRightsAdaptedPage({
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "whitespace-nowrap py-5 text-base font-semibold",
-                  activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-content-body"
+                  activeTab === tab ? "border-b-2 border-brand text-brand" : "text-content-body"
                 )}
               >
                 {tab}
@@ -716,7 +716,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || updateAccessRightsScheduleMutation.isPending}
                   onClick={openBulkScheduleSheet}
-                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-content-body hover:bg-[#f3f4f8]"
+                  className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-surface-sunken"
                 >
                   <CalendarClockIcon className="mr-1.5 size-4" />
                   Edit schedule
@@ -725,7 +725,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || previewAccessRightsMutation.isPending || reviewAccessRightsMutation.isPending}
                   onClick={() => previewAccessRightsMutation.mutate()}
-                  className="h-9 rounded-[6px] border border-[#c8cad6] bg-white px-3 text-content-body hover:bg-[#f3f4f8]"
+                  className="h-9 rounded-[6px] border border-line-default bg-white px-3 text-content-body hover:bg-surface-sunken"
                 >
                   <EyeIcon className="mr-1.5 size-4" />
                   {previewAccessRightsMutation.isPending ? "Previewing..." : t("kisi.accessRights.impactPreview")}
@@ -734,7 +734,7 @@ export function AccessRightsAdaptedPage({
                   type="button"
                   disabled={!canMutate || reviewAccessRightsMutation.isPending || previewAccessRightsMutation.isPending}
                   onClick={() => reviewAccessRightsMutation.mutate()}
-                  className="h-9 rounded-[6px] bg-brand px-3 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                  className="h-9 rounded-[6px] bg-brand px-3 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
                 >
                   <CheckIcon className="mr-1.5 size-4" />
                   {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}
@@ -743,7 +743,7 @@ export function AccessRightsAdaptedPage({
             </div>
           ) : null}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[940px] text-left text-sm">
+            <table className={cn("mp-table", "min-w-[940px]")}>
               <thead className="bg-surface-page">
                 <tr className="border-b border-line-subtle">
                   <th className="w-16 px-6 py-4">
@@ -752,7 +752,7 @@ export function AccessRightsAdaptedPage({
                       checked={allVisibleSelected}
                       disabled={rows.length === 0 || !canMutate}
                       onChange={(event) => toggleVisibleRows(event.target.checked)}
-                      className="size-5 rounded-[3px] border border-[#9a9ca7] accent-brand"
+                      className="size-5 rounded-[3px] border border-content-muted accent-brand"
                       aria-label="Select visible access rights"
                     />
                   </th>
@@ -766,7 +766,7 @@ export function AccessRightsAdaptedPage({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={`${activeTab}-${row.id}`} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                  <tr key={`${activeTab}-${row.id}`} className="mp-table-row">
                     <td className="px-6 py-5">
                       <input
                         type="checkbox"
@@ -777,7 +777,7 @@ export function AccessRightsAdaptedPage({
                         aria-label={`Select ${row.name}`}
                       />
                     </td>
-                    <td className="px-4 py-5 font-semibold text-[#4f55ff]">{row.name}</td>
+                    <td className="px-4 py-5 font-semibold text-brand">{row.name}</td>
                     <td className="px-4 py-5 text-content-body">{row.type}</td>
                     <td className="px-4 py-5 text-content-subtle">{row.target}</td>
                     <td className="px-4 py-5 text-content-subtle">{row.rule}</td>
@@ -866,7 +866,7 @@ export function AccessRightsAdaptedPage({
               createAccessRightMutation.mutate()
             }}
           >
-            <div className="grid grid-cols-2 gap-2 rounded-[6px] bg-[#f3f4f8] p-1">
+            <div className="grid grid-cols-2 gap-2 rounded-[6px] bg-surface-sunken p-1">
               <button
                 type="button"
                 disabled={createAccessRightMutation.isPending}
@@ -1081,7 +1081,7 @@ export function AccessRightsAdaptedPage({
                 value={scheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateScheduleTemplate(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
               >
                 <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
@@ -1126,7 +1126,7 @@ export function AccessRightsAdaptedPage({
                   createAccessRightMutation.isPending ||
                   (shareMode === "role_assignment" ? !canSubmitRoleAssignment : !canSubmitShare)
                 }
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {createAccessRightMutation.isPending ? "Creating..." : t("kisi.accessRights.shareAccess")}
               </Button>
@@ -1155,7 +1155,7 @@ export function AccessRightsAdaptedPage({
           ) : null}
 
           {editDetailQuery.error ? (
-            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+            <div className={cn("mp-alert-warning", "mx-6 mt-5 px-4 py-3")}>
               {editDetailQuery.error instanceof Error ? editDetailQuery.error.message : "Access right detail failed"}
             </div>
           ) : null}
@@ -1322,7 +1322,7 @@ export function AccessRightsAdaptedPage({
                   value={editScheduleTemplateID}
                   disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                   onChange={(event) => updateEditScheduleTemplate(event.target.value)}
-                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
+                  className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
                 >
                   <option value="">{t("common.customSchedule")}</option>
                   {scheduleTemplates.map((template) => (
@@ -1364,7 +1364,7 @@ export function AccessRightsAdaptedPage({
                 <Button
                   type="submit"
                   disabled={!canSubmitEdit || updateAccessRightMutation.isPending}
-                  className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                  className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
                 >
                   {updateAccessRightMutation.isPending ? "Saving..." : "Save Changes"}
                 </Button>
@@ -1409,7 +1409,7 @@ export function AccessRightsAdaptedPage({
                 value={bulkScheduleTemplateID}
                 disabled={scheduleTemplatesQuery.isPending && scheduleTemplates.length === 0}
                 onChange={(event) => updateBulkScheduleTemplate(event.target.value)}
-                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-[#f8f8fa]"
+                className="h-11 w-full rounded-[6px] border border-line-default bg-white px-3 text-sm text-content-body disabled:bg-surface-sunken"
               >
                 <option value="">{t("common.customSchedule")}</option>
                 {scheduleTemplates.map((template) => (
@@ -1451,7 +1451,7 @@ export function AccessRightsAdaptedPage({
               <Button
                 type="submit"
                 disabled={!canSubmitBulkSchedule || updateAccessRightsScheduleMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {updateAccessRightsScheduleMutation.isPending ? "Saving..." : "Save Schedule"}
               </Button>
@@ -1523,7 +1523,7 @@ export function AccessRightsAdaptedPage({
               type="button"
               disabled={!canMutate || selectedRows.length === 0 || reviewAccessRightsMutation.isPending}
               onClick={() => reviewAccessRightsMutation.mutate()}
-              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
             >
               <CheckIcon className="mr-1.5 size-4" />
               {reviewAccessRightsMutation.isPending ? "Marking..." : t("kisi.accessRights.markReviewed")}

@@ -34,7 +34,7 @@ export function KpiCard({
   loading: boolean
 }) {
   return (
-    <div className="min-h-[146px] rounded-[6px] border border-[#e1e3e8] bg-white p-5">
+    <div className="min-h-[146px] rounded-[6px] border border-line-default bg-white p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-content-subtle">{label}</p>
@@ -57,7 +57,7 @@ export function PageBreadcrumbs({ items }: { items: string[] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
       {items.map((item, index) => (
         <span key={`${item}-${index}`} className="flex items-center gap-2">
-          <span className={index === items.length - 1 ? "text-content-subtle" : "text-[#4f55ff] underline underline-offset-2"}>
+          <span className={index === items.length - 1 ? "text-content-subtle" : "text-brand underline underline-offset-2"}>
             {item}
           </span>
           {index < items.length - 1 ? <span className="text-content-muted">›</span> : null}
@@ -102,7 +102,7 @@ export function PageFrame({
 
 export function InfoBanner({ children }: { children: ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-[6px] border border-[#6268ff] bg-brand-subtle px-5 py-4 text-sm leading-6 text-content-body">
+    <div className="flex gap-3 rounded-[6px] border border-brand-ring bg-brand-subtle px-5 py-4 text-sm leading-6 text-content-body">
       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
         i
       </span>
@@ -139,7 +139,7 @@ export function ToggleSwitch({ enabled, onToggle, label }: { enabled: boolean; o
       onClick={onToggle}
       className={cn(
         "relative inline-flex h-5 w-10 shrink-0 rounded-full transition-colors",
-        enabled ? "bg-[#9ba3ff]" : "bg-[#c4c6cc]",
+        enabled ? "bg-brand-ring" : "bg-[#c4c6cc]",
         onToggle && "cursor-pointer"
       )}
     >
@@ -212,7 +212,7 @@ export function SettingToggleRows({
       {rows.map(([title, enabled, description, Icon], index) => (
         <div key={title} className="flex gap-5 px-7 py-5">
           {Icon ? (
-            <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", enabled ? "bg-[#eef0ff] text-[#4f55ff]" : "bg-[#f1f2f5] text-content-subtle")}>
+            <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-[6px]", enabled ? "bg-brand-subtle text-brand" : "bg-surface-sunken text-content-subtle")}>
               <Icon className="size-5" />
             </div>
           ) : null}
@@ -252,7 +252,7 @@ export function SettingsPanel({
             onClick={() => onTabChange?.(item)}
             className={cn(
               "mb-2 flex h-12 w-full items-center rounded-[6px] px-5 text-left text-base font-semibold",
-              item === active ? "bg-brand text-white" : "text-content-body hover:bg-brand-subtle hover:text-[#3439cc]"
+              item === active ? "bg-brand text-white" : "text-content-body hover:bg-brand-subtle hover:text-brand-hover"
             )}
           >
             {item}

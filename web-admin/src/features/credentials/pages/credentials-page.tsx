@@ -920,7 +920,7 @@ export function CredentialsAdaptedPage({
               setActionError("")
               setIssueOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Issue Credential
@@ -933,7 +933,7 @@ export function CredentialsAdaptedPage({
                 .then(() => setActionNotice("CSV card import created."))
                 .catch((err) => setActionError(err instanceof Error ? err.message : "Import failed"))
             }}
-            className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            className="h-10 rounded-[6px] border-brand-ring bg-white px-5 text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
           >
             <FileUpIcon className="mr-1.5 size-4" />
             Import CSV
@@ -942,17 +942,17 @@ export function CredentialsAdaptedPage({
       }
     >
       {resourceQuery.summary.partial ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           Some live credential resources are unavailable.
         </div>
       ) : null}
       {actionNotice ? (
-        <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+        <div className="mp-alert-success">
           {actionNotice}
         </div>
       ) : null}
       {actionError ? (
-        <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+        <div className="mp-alert-warning">
           {actionError}
         </div>
       ) : null}
@@ -1001,9 +1001,9 @@ export function CredentialsAdaptedPage({
           </Button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className={cn("mp-table", "min-w-[900px]")}>
             <thead>
-              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
+              <tr className={cn("mp-table-head-row", "text-content-body")}>
                 <th className="px-6 py-4 font-semibold">{t("kisi.credentials.batchAudit")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.target")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
@@ -1025,7 +1025,7 @@ export function CredentialsAdaptedPage({
                 </MistyisletEmptyTableRow>
               ) : null}
               {filteredBatchJobs.map((job) => (
-                <tr key={job.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                <tr key={job.id} className="mp-table-row">
                   <td className="max-w-[180px] break-all px-6 py-4 font-semibold text-content-heading">{job.batch_id}</td>
                   <td className="max-w-[260px] break-words px-4 py-4 text-content-body">
                     {walletIssueJobTargetLabel(job, users)}
@@ -1038,7 +1038,7 @@ export function CredentialsAdaptedPage({
                       <button
                         type="button"
                         onClick={() => openDetail(job.pass_id ?? "")}
-                        className="font-semibold text-[#4f55ff] underline-offset-2 hover:underline"
+                        className="font-semibold text-brand underline-offset-2 hover:underline"
                       >
                         {job.pass_id}
                       </button>
@@ -1062,7 +1062,7 @@ export function CredentialsAdaptedPage({
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
-              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-[#4f55ff] text-[#4f55ff]" : "text-content-body")}
+              className={cn("py-5 text-base font-semibold", activeTab === tab ? "border-b-2 border-brand text-brand" : "text-content-body")}
             >
               {tab}
             </button>
@@ -1073,9 +1073,9 @@ export function CredentialsAdaptedPage({
           <MistyisletFilterButton label={t("common.type")} className="gap-2" />
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className={cn("mp-table", "min-w-[900px]")}>
             <thead>
-              <tr className="border-b border-line-subtle bg-surface-page text-content-body">
+              <tr className={cn("mp-table-head-row", "text-content-body")}>
                 <th className="px-6 py-4 font-semibold">{t("common.user")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.type")}</th>
                 <th className="px-4 py-4 font-semibold">{t("common.status")}</th>
@@ -1086,7 +1086,7 @@ export function CredentialsAdaptedPage({
             </thead>
             <tbody>
               {visibleRows.map((row) => (
-                <tr key={row.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                <tr key={row.id} className="mp-table-row">
                   <td className="px-6 py-5 font-semibold text-content-heading">{row.user}</td>
                   <td className="px-4 py-5 text-content-body">{row.type}</td>
                   <td className="px-4 py-5">
@@ -1161,7 +1161,7 @@ export function CredentialsAdaptedPage({
               issueMutation.mutate()
             }}
           >
-            <div className="grid grid-cols-2 gap-2 rounded-[6px] bg-[#f3f4f8] p-1">
+            <div className="grid grid-cols-2 gap-2 rounded-[6px] bg-surface-sunken p-1">
               {(["single", "batch"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -1215,7 +1215,7 @@ export function CredentialsAdaptedPage({
                   <button
                     type="button"
                     onClick={() => setSelectedBatchUserIDs(selectedBatchUserIDs.length === users.length ? [] : users.map((user) => user.id))}
-                    className="text-xs font-semibold text-[#4f55ff]"
+                    className="text-xs font-semibold text-brand"
                   >
                     {selectedBatchUserIDs.length === users.length ? "Clear" : "Select all"}
                   </button>
@@ -1227,7 +1227,7 @@ export function CredentialsAdaptedPage({
                         type="checkbox"
                         checked={selectedBatchUserIDs.includes(user.id)}
                         onChange={() => toggleBatchUser(user.id)}
-                        className="size-4 rounded border-[#9a9ca7]"
+                        className="size-4 rounded border-content-muted"
                       />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold text-content-body">{user.name}</span>
@@ -1253,7 +1253,7 @@ export function CredentialsAdaptedPage({
               <Button
                 type="submit"
                 disabled={issueMutation.isPending || users.length === 0 || (issueMode === "batch" && selectedBatchUserIDs.length === 0)}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover"
               >
                 {issueMutation.isPending ? "Issuing..." : issueMode === "batch" ? "Issue Batch" : "Issue Credential"}
               </Button>
@@ -1279,7 +1279,7 @@ export function CredentialsAdaptedPage({
           {detailCardQuery.isPending ? (
             <div className="px-6 py-5 text-sm text-content-subtle">{t("common.loading")}</div>
           ) : detailCardQuery.isError ? (
-            <div className="mx-6 mt-5 rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+            <div className={cn("mp-alert-warning", "mx-6 mt-5 px-4 py-3")}>
               {detailCardQuery.error instanceof Error ? detailCardQuery.error.message : "Credential detail unavailable"}
             </div>
           ) : detailCard ? (
@@ -1377,7 +1377,7 @@ export function CredentialsAdaptedPage({
                   <Button
                     type="submit"
                     disabled={!canSubmitAssignment || detailAssignmentMutation.isPending}
-                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
                   >
                     {detailAssignmentMutation.isPending ? "Saving..." : "Save Assignment"}
                   </Button>
@@ -1420,7 +1420,7 @@ export function CredentialsAdaptedPage({
                   <Button
                     type="submit"
                     disabled={!canDispatchDelivery || deliveryMutation.isPending}
-                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
                   >
                     {deliveryMutation.isPending ? t("common.saving") : t("kisi.credentials.issue")}
                   </Button>
@@ -1564,7 +1564,7 @@ export function CredentialsAdaptedPage({
                   <Button
                     type="submit"
                     disabled={!canCreatePhysicalTask || physicalTaskMutation.isPending}
-                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                    className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
                   >
                     {physicalTaskMutation.isPending ? "Creating..." : "Create Task"}
                   </Button>
@@ -1678,7 +1678,7 @@ export function CredentialsAdaptedPage({
                         variant="ghost"
                         disabled={selectedPhysicalInventoryCount === 0}
                         onClick={() => setSelectedPhysicalInventoryIDs([])}
-                        className="h-9 rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]"
+                        className="h-9 rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-brand-hover"
                       >
                         Clear
                       </Button>
@@ -1687,7 +1687,7 @@ export function CredentialsAdaptedPage({
                   <p className="text-xs text-content-subtle">
                     {selectedPhysicalInventoryCount} selected. Reserved and issued cards must continue through physical card tasks.
                   </p>
-                  <div className="overflow-hidden rounded-[6px] border border-[#e1e3e8] bg-white">
+                  <div className="overflow-hidden rounded-[6px] border border-line-default bg-white">
                     <table className="w-full table-fixed text-left text-sm">
                       <thead className="bg-surface-page text-xs font-semibold uppercase text-content-subtle">
                         <tr>
@@ -1850,7 +1850,7 @@ export function CredentialsAdaptedPage({
                     variant="ghost"
                     disabled={credentialActionMutation.isPending || detailCard.status === "unassigned" || detailCard.status === "revoked"}
                     onClick={() => requestCredentialAction({ id: detailCard.id, action: "deassign", label: detailCard.card_number || detailCard.id })}
-                    className="rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]"
+                    className="rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-brand-hover"
                   >
                     Deassign
                   </Button>
@@ -1859,7 +1859,7 @@ export function CredentialsAdaptedPage({
                     variant="ghost"
                     disabled={credentialActionMutation.isPending || detailCard.status === "revoked"}
                     onClick={() => requestCredentialAction({ id: detailCard.id, action: "revoke", label: detailCard.card_number || detailCard.id })}
-                    className="rounded-[6px] text-[#bd2f2f] hover:bg-[#fff5f5] hover:text-[#9f1d1d]"
+                    className="rounded-[6px] text-[#bd2f2f] hover:bg-danger-bg hover:text-[#9f1d1d]"
                   >
                     Revoke
                   </Button>

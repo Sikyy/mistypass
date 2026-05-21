@@ -18,6 +18,7 @@ import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/act
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
@@ -411,7 +412,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
         description="Manage bookable spaces and reservations for meeting rooms, prayer rooms, phone booths, and more."
       >
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -423,7 +424,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             <Button
               disabled={!canMutate}
               onClick={openCreateSpace}
-              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               Create Space
@@ -432,16 +433,16 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
 
           <div className="overflow-hidden rounded-[6px] border border-line-default bg-white">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
+              <table className={cn("mp-table", "min-w-[800px]")}>
                 <thead>
-                  <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Capacity Mode</th>
-                    <th className="px-4 py-3">Max Capacity</th>
-                    <th className="px-4 py-3">Current Occupancy</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="w-12 px-4 py-3" />
+                  <tr className="mp-table-head-row">
+                    <th className="mp-table-head-cell">Name</th>
+                    <th className="mp-table-head-cell">Type</th>
+                    <th className="mp-table-head-cell">Capacity Mode</th>
+                    <th className="mp-table-head-cell">Max Capacity</th>
+                    <th className="mp-table-head-cell">Current Occupancy</th>
+                    <th className="mp-table-head-cell">Status</th>
+                    <th className={cn("mp-table-head-cell", "w-12")} />
                   </tr>
                 </thead>
                 <tbody>
@@ -450,10 +451,10 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                     return (
                       <tr
                         key={space.id}
-                        className={
-                          "cursor-pointer border-b border-line-subtle last:border-0 hover:bg-surface-page" +
-                          (selectedSpaceID === space.id ? " bg-brand-subtle" : "")
-                        }
+                        className={cn(
+                          "mp-table-row cursor-pointer",
+                          selectedSpaceID === space.id && "bg-brand-subtle"
+                        )}
                         onClick={() => setSelectedSpaceID(selectedSpaceID === space.id ? null : space.id)}
                       >
                         <td className="px-4 py-4 font-semibold text-content-heading">{space.name}</td>
@@ -526,9 +527,9 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
               </div>
               {spaceStatus.active_bookings.length > 0 ? (
                 <div className="overflow-x-auto rounded-[6px] border border-line-subtle">
-                  <table className="w-full text-left text-sm">
+                  <table className="mp-table">
                     <thead>
-                      <tr className="border-b border-line-subtle bg-surface-page text-xs font-semibold text-content-subtle">
+                      <tr className="mp-table-head-row">
                         <th className="px-4 py-2">Title</th>
                         <th className="px-4 py-2">User</th>
                         <th className="px-4 py-2">Start</th>
@@ -570,7 +571,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             <Button
               disabled={!canMutate || spaces.length === 0}
               onClick={openCreateBooking}
-              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+              className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
             >
               <PlusIcon className="mr-1.5 size-4" />
               New Booking
@@ -597,21 +598,21 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left text-sm">
+              <table className={cn("mp-table", "min-w-[800px]")}>
                 <thead>
-                  <tr className="border-b border-line-subtle bg-surface-page text-left text-xs font-semibold text-content-subtle">
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3">Space</th>
-                    <th className="px-4 py-3">User</th>
-                    <th className="px-4 py-3">Start Time</th>
-                    <th className="px-4 py-3">End Time</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="w-12 px-4 py-3" />
+                  <tr className="mp-table-head-row">
+                    <th className="mp-table-head-cell">Title</th>
+                    <th className="mp-table-head-cell">Space</th>
+                    <th className="mp-table-head-cell">User</th>
+                    <th className="mp-table-head-cell">Start Time</th>
+                    <th className="mp-table-head-cell">End Time</th>
+                    <th className="mp-table-head-cell">Status</th>
+                    <th className={cn("mp-table-head-cell", "w-12")} />
                   </tr>
                 </thead>
                 <tbody>
                   {bookings.map((booking) => (
-                    <tr key={booking.id} className="border-b border-line-subtle last:border-0 hover:bg-surface-page">
+                    <tr key={booking.id} className="mp-table-row">
                       <td className="px-4 py-4 font-semibold text-content-heading">{booking.title ?? "-"}</td>
                       <td className="px-4 py-4 text-content-body">{spaceNameByID(booking.space_id)}</td>
                       <td className="px-4 py-4 text-content-body">{booking.user_name}</td>
@@ -814,7 +815,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
               <Button
                 type="submit"
                 disabled={!canMutate || !spaceForm.name.trim() || createSpaceMutation.isPending || updateSpaceMutation.isPending}
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createSpaceMutation.isPending || updateSpaceMutation.isPending
                   ? "Saving..."
@@ -920,7 +921,7 @@ export function BookingsPage({ token, viewer }: BookingsPageProps) {
                   createBookingMutation.isPending ||
                   updateBookingMutation.isPending
                 }
-                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createBookingMutation.isPending || updateBookingMutation.isPending
                   ? "Saving..."

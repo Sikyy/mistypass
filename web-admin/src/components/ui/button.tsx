@@ -10,17 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-brand text-white shadow-[0_1px_2px_rgba(35,38,120,0.18)] hover:bg-[#454bea] active:bg-[#3f44d4] disabled:bg-[#eef0f4] disabled:text-[#8d909b] disabled:shadow-none disabled:opacity-100",
+          "bg-brand text-white shadow-[0_1px_2px_rgba(35,90,78,0.18)] hover:bg-brand-hover active:bg-[#458a7e] disabled:bg-[#eef0f4] disabled:text-[#8d909b] disabled:shadow-none disabled:opacity-100",
         outline:
-          "border-line-default bg-white text-content-body hover:border-[#8589ff] hover:bg-brand-subtle hover:text-[#3439cc] aria-expanded:border-[#8589ff] aria-expanded:bg-brand-subtle aria-expanded:text-[#3439cc] disabled:border-line-default disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
+          "border-line-default bg-white text-content-body hover:border-brand-ring hover:bg-brand-subtle hover:text-brand-hover aria-expanded:border-brand-ring aria-expanded:bg-brand-subtle aria-expanded:text-brand-hover disabled:border-line-default disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
         secondary:
-          "bg-[#eef0f4] text-content-body hover:bg-[#e2e5ec] aria-expanded:bg-[#e2e5ec] aria-expanded:text-content-body disabled:bg-[#f1f2f5] disabled:text-[#8d909b] disabled:opacity-100",
+          "bg-surface-sunken text-content-body hover:bg-line-subtle aria-expanded:bg-line-subtle aria-expanded:text-content-body disabled:bg-surface-sunken disabled:text-[#8d909b] disabled:opacity-100",
         ghost:
-          "text-content-body hover:bg-brand-subtle hover:text-[#3439cc] aria-expanded:bg-brand-subtle aria-expanded:text-[#3439cc] disabled:bg-transparent disabled:text-[#8d909b] disabled:opacity-100",
+          "text-content-body hover:bg-brand-subtle hover:text-brand-hover aria-expanded:bg-brand-subtle aria-expanded:text-brand-hover disabled:bg-transparent disabled:text-[#8d909b] disabled:opacity-100",
         interaction:
           "bg-transparent text-foreground hover:bg-transparent hover:text-interaction focus-visible:border-interaction focus-visible:ring-interaction/30 aria-expanded:text-interaction disabled:text-[#8d909b] disabled:opacity-100",
         destructive:
-          "bg-[#fff5f5] text-[#bd2f2f] hover:bg-[#ffe8e8] hover:text-[#9f1d1d] focus-visible:border-[#d45b5b] focus-visible:ring-[#d45b5b]/20 disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
+          "bg-danger-bg text-[#bd2f2f] hover:bg-[#ffe8e8] hover:text-[#9f1d1d] focus-visible:border-[#d45b5b] focus-visible:ring-[#d45b5b]/20 disabled:bg-[#f7f8fb] disabled:text-[#8d909b] disabled:opacity-100",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

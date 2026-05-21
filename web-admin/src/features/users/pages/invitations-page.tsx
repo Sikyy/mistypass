@@ -7,6 +7,7 @@ import { MailXIcon, RefreshCwIcon } from "lucide-react"
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
+import { cn } from "@/lib/utils"
 import {
   cancelInvitation,
   listInvitations,
@@ -96,7 +97,7 @@ export function InvitationsAdaptedPage({
       description={t("kisi.invitations.description")}
     >
       {actionNotice && (
-        <div className="mx-0 mb-4 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+        <div className={cn("mp-alert-success", "mx-0 mb-4 py-3")}>
           {actionNotice}
         </div>
       )}
@@ -112,7 +113,7 @@ export function InvitationsAdaptedPage({
                 className={`rounded-[6px] px-3 py-1.5 text-xs font-medium transition-colors ${
                   statusFilter === s
                     ? "bg-brand text-white"
-                    : "bg-surface-sunken text-content-subtle hover:bg-[#eceef2]"
+                    : "bg-surface-sunken text-content-subtle hover:bg-line-subtle"
                 }`}
               >
                 {s === "" ? t("common.all") : t(`kisi.invitations.${s === "cancelled" ? "cancelled_status" : s}`)}
@@ -141,7 +142,7 @@ export function InvitationsAdaptedPage({
                   <tr key={d.id} className="border-b border-line-subtle hover:bg-surface-page">
                     <td className="px-6 py-3 font-medium text-content-heading">{d.email}</td>
                     <td className="px-6 py-3 text-content-subtle">
-                      <Link to={`/users/${d.user_id}`} className="text-[#4f55ff] hover:underline">
+                      <Link to={`/users/${d.user_id}`} className="text-brand hover:underline">
                         {d.user_id}
                       </Link>
                     </td>

@@ -214,7 +214,7 @@ async function loadHomeSummary(token: string, viewer: CurrentUser): Promise<Home
 function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: boolean }) {
   const { t } = useTranslation()
   return (
-    <section className="rounded-[6px] border border-[#e1e3e8] bg-white">
+    <section className="rounded-[6px] border border-line-default bg-white">
       <div className="flex items-center justify-between border-b border-line-subtle px-6 py-5">
         <div>
           <h2 className="text-lg font-semibold text-content-heading">{t("kisi.home.recentActivity")}</h2>
@@ -227,12 +227,12 @@ function RecentActivity({ items, loading }: { items: HomeActivity[]; loading: bo
         {loading ? (
           Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="grid grid-cols-[64px_1fr] gap-4 px-6 py-4 sm:grid-cols-[76px_1fr_120px]">
-              <div className="h-4 w-12 animate-pulse rounded bg-[#eceef2]" />
+              <div className="h-4 w-12 animate-pulse rounded bg-line-subtle" />
               <div className="space-y-2">
-                <div className="h-4 w-2/3 animate-pulse rounded bg-[#eceef2]" />
-                <div className="h-3 w-1/2 animate-pulse rounded bg-[#f1f2f5]" />
+                <div className="h-4 w-2/3 animate-pulse rounded bg-line-subtle" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-surface-sunken" />
               </div>
-              <div className="hidden h-4 w-20 animate-pulse rounded bg-[#eceef2] sm:block" />
+              <div className="hidden h-4 w-20 animate-pulse rounded bg-line-subtle sm:block" />
             </div>
           ))
         ) : items.length > 0 ? (
@@ -331,7 +331,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
     <>
       <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-medium text-[#4f55ff]">
+          <div className="flex items-center gap-2 text-sm font-medium text-brand">
             <Link to="/home" className="underline-offset-4 hover:underline">
               Home
             </Link>
@@ -342,14 +342,14 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
           <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-content-subtle">
             <span>{scopeName}</span>
             <span className="size-1 rounded-full bg-[#c3c6d1]" />
-            <span className="rounded-full border border-[#e1e3e8] bg-white px-2.5 py-1 text-xs font-semibold text-content-body">
+            <span className="rounded-full border border-line-default bg-white px-2.5 py-1 text-xs font-semibold text-content-body">
               {formatMistyisletRoleLabel(viewer, location.pathname)}
             </span>
           </div>
         </div>
 
         {summaryQuery.isError || summary?.partial ? (
-          <div className="rounded-[14px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+          <div className={cn("mp-alert-warning", "rounded-[14px] px-4 py-3")}>
             Some live signals are unavailable.
           </div>
         ) : null}
@@ -361,7 +361,7 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
         ))}
       </section>
 
-      <section className="mt-8 rounded-[6px] border border-[#e1e3e8] bg-white p-6">
+      <section className="mt-8 rounded-[6px] border border-line-default bg-white p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-content-heading">{t("kisi.home.quickActions")}</h2>
@@ -378,8 +378,8 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
                   className={cn(
                     "h-10 rounded-[6px] px-4",
                     action.primary
-                      ? "border-[#4f55ff] bg-brand text-white hover:bg-[#454bea]"
-                      : "border-line-default bg-white text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+                      ? "border-brand bg-brand text-white hover:bg-brand-hover"
+                      : "border-line-default bg-white text-brand hover:border-brand-hover hover:bg-brand-subtle hover:text-brand-hover"
                   )}
                 >
                   <Link to={action.to}>

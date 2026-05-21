@@ -6,6 +6,7 @@ import { Building2Icon, PlusIcon, StarIcon } from "lucide-react"
 
 import { PageFrame, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
@@ -77,7 +78,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               setActionError("")
               setCreateOpen(true)
             }}
-            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+            className="h-10 rounded-[6px] bg-brand px-5 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
           >
             <PlusIcon className="mr-1.5 size-4" />
             Create Place
@@ -85,17 +86,17 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
         }
       >
         {resourceQuery.usingFallback ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             Live place resources are unavailable. Showing reference data.
           </div>
         ) : null}
         {actionNotice ? (
-          <div className="rounded-[6px] border border-[#b9dfc7] bg-[#f1fff5] px-5 py-4 text-sm text-[#1f6b3a]">
+          <div className="mp-alert-success">
             {actionNotice}
           </div>
         ) : null}
         {actionError ? (
-          <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-5 py-4 text-sm text-warning-text">
+          <div className="mp-alert-warning">
             {actionError}
           </div>
         ) : null}
@@ -112,7 +113,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
                   <Building2Icon className="size-6 text-content-subtle" />
                   <button
                     type="button"
-                    className="flex size-8 items-center justify-center rounded-[6px] hover:bg-[#f1f2f5]"
+                    className="flex size-8 items-center justify-center rounded-[6px] hover:bg-surface-sunken"
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
@@ -186,7 +187,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               />
             </label>
             {actionError ? (
-              <div className="rounded-[6px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              <div className={cn("mp-alert-warning", "px-4 py-3")}>
                 {actionError}
               </div>
             ) : null}
@@ -197,7 +198,7 @@ export function PlacesAdaptedPage({ token, viewer }: { token: string; viewer: Cu
               <Button
                 type="submit"
                 disabled={!canMutate || createPlaceMutation.isPending || !placeName.trim()}
-                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-[#454bea] disabled:bg-[#c6c8d2]"
+                className="h-10 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover disabled:bg-[#c6c8d2]"
               >
                 {createPlaceMutation.isPending ? "Creating..." : "Create Place"}
               </Button>

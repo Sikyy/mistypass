@@ -52,7 +52,7 @@ export function RowActionsMenu({
           variant="ghost"
           size="icon-sm"
           aria-label={label}
-          className={cn("rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-[#3439cc]", className)}
+          className={cn("rounded-[6px] text-content-subtle hover:bg-brand-subtle hover:text-brand-hover", className)}
         >
           <MoreHorizontalIcon className="size-4" />
         </Button>
@@ -75,9 +75,9 @@ export function RowActionsMenu({
                 item.onSelect()
               }}
               className={cn(
-                "cursor-pointer rounded-[5px] px-2.5 py-2 text-sm text-content-body focus:bg-brand-subtle focus:text-[#3439cc]",
+                "cursor-pointer rounded-[5px] px-2.5 py-2 text-sm text-content-body focus:bg-brand-subtle focus:text-brand-hover",
                 item.destructive &&
-                  "text-[#bd2f2f] data-[variant=destructive]:text-[#bd2f2f] data-[variant=destructive]:focus:bg-[#fff5f5] data-[variant=destructive]:focus:text-[#9f1d1d]"
+                  "text-[#bd2f2f] data-[variant=destructive]:text-[#bd2f2f] data-[variant=destructive]:focus:bg-danger-bg data-[variant=destructive]:focus:text-[#9f1d1d]"
               )}
             >
               {Icon ? <Icon className="size-4" /> : null}

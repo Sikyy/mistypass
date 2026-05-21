@@ -7,6 +7,7 @@ import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/act
 import { MistyisletEmptyTableRow, MistyisletSearchField } from "@/components/mistyislet/data-display"
 import { PageFrame } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
@@ -171,7 +172,7 @@ export function SchedulesAdaptedPage({
       }
     >
       {actionNotice && (
-        <div className="mx-0 mb-4 rounded-[6px] border border-[#b7e4c7] bg-[#f0faf4] px-5 py-3 text-sm text-[#1a7f37]">
+        <div className={cn("mp-alert-success", "mx-0 mb-4 py-3")}>
           {actionNotice}
         </div>
       )}
