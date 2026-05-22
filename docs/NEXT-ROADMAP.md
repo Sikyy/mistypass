@@ -1391,8 +1391,8 @@ Phase 0  [1 周]    硬件选型 + BLE 验证 + 客户需求确认
 
 | 序号 | 事项 | 预估 | 硬件依赖 | 采购状态 | V2 Phase |
 |---:|------|------|---------|---------|---------|
-| H1 | **BLE 真机硬件集成** | 3 天 | Orange Pi Zero3 + USB BLE 5.0 dongle | 待采购 | Phase 1E |
-| H2 | **RS485 协议适配层** | 2 天 | USB-RS485 转换器 + Modbus 继电器 + 电磁锁 | EM Lock 已采购 | Phase 1E |
+| H1 | **BLE 真机硬件集成** | 3 天 | Orange Pi Zero3 + USB BLE 5.0 dongle | ✅ 全部到货 | Phase 1E |
+| H2 | **RS485 协议适配层** | 2 天 | USB-RS485 转换器 + Modbus 继电器 + 电磁锁 | USB-RS485 + EM Lock 已有 | Phase 1E |
 | H3 | **OTA Gateway 固件侧** | 1 天 | 同 H2 硬件 + Ed25519 签名密钥 | — | Phase 1E |
 | H4 | **Camera 真实集成** | 3 天 | Hikvision DS-2CD1023G2-LIU PoE 摄像头 | 已采购 | Phase 2 |
 | H5 | **Wireless Locks API** | 2 天 | BLE 智能锁（Tuya/TTLock）~$65 | 待采购 | Phase 2 |
