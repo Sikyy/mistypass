@@ -3,6 +3,7 @@ package httpx
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,8 +33,14 @@ type reportSchedule struct {
 	DayOfWeek  int      `json:"day_of_week"`
 	Enabled    bool     `json:"enabled"`
 	LastSentAt string   `json:"last_sent_at,omitempty"`
+	NextRunAt  string   `json:"next_run_at,omitempty"`
 	CreatedAt  string   `json:"created_at"`
 	UpdatedAt  string   `json:"updated_at"`
+}
+
+type resendAttachment struct {
+	Filename string `json:"filename"`
+	Content  string `json:"content"`
 }
 
 type reportSchedulePayload struct {
@@ -442,19 +450,47 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		emailFrom = "no-reply@mistypass.local"
 	}
 
-	// Build the report HTML body.
+	// Build the report PDF and attach it.
 	now := time.Now().UTC()
 	periodEnd := now.Truncate(time.Second)
 	periodStart := periodEnd.Add(-24 * time.Hour)
-	subject := fmt.Sprintf("MistyPass Report: %s (%s)", schedule.Name, schedule.ReportType)
-	htmlBody := buildReportEmailHTML(schedule, tenantID, periodStart, periodEnd)
 
-	// Send via Resend API.
+	reportType := schedule.ReportType
+	data, err := s.buildReportData(reportType, schedule.TenantID, "", periodStart, periodEnd)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "failed to build report data: "+err.Error())
+		return
+	}
+	meta := pdfgen.ReportMeta{
+		TenantName:  s.resolveExportTenantName(schedule.TenantID),
+		PlaceName:   "All Locations",
+		PeriodStart: periodStart,
+		PeriodEnd:   periodEnd,
+		GeneratedAt: now,
+	}
+	pdfBytes, err := s.pdfRenderer.RenderPDF(s.gotenbergClient, reportType, meta, data)
+	if err != nil {
+		s.logger.Error("pdf render failed for schedule", "error", err, "schedule_id", scheduleID)
+		writeError(w, http.StatusBadGateway, "PDF rendering failed: "+err.Error())
+		return
+	}
+
+	filename := pdfgen.FormatPDFFilename(reportType, periodStart, periodEnd)
+	attachments := []resendAttachment{{
+		Filename: filename,
+		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
+	}}
+
+	subject := fmt.Sprintf("[MistyPass] %s — %s (%s to %s)",
+		schedule.Name, meta.PlaceName,
+		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
+	htmlBody := "<p>Please find your scheduled report attached.</p>"
+
 	resendTimeout := s.cfg.UserInvitationResendTimeout
 	if resendTimeout < time.Second {
 		resendTimeout = 5 * time.Second
 	}
-	err := sendReportViaResend(r.Context(), resendEndpoint, resendAPIKey, emailFrom, schedule.Recipients, subject, htmlBody, resendTimeout)
+	err = sendReportViaResend(r.Context(), resendEndpoint, resendAPIKey, emailFrom, schedule.Recipients, subject, htmlBody, attachments, resendTimeout)
 	if err != nil {
 		s.logger.Error("failed to send report email", "error", err, "schedule_id", scheduleID)
 		writeError(w, http.StatusBadGateway, "failed to send report email: "+err.Error())
@@ -477,12 +513,15 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 // sendReportViaResend sends an HTML email through the Resend API.
-func sendReportViaResend(ctx context.Context, endpoint, apiKey, from string, to []string, subject, html string, timeout time.Duration) error {
+func sendReportViaResend(ctx context.Context, endpoint, apiKey, from string, to []string, subject, html string, attachments []resendAttachment, timeout time.Duration) error {
 	payload := map[string]any{
 		"from":    from,
 		"to":      append([]string(nil), to...),
 		"subject": subject,
 		"html":    html,
+	}
+	if len(attachments) > 0 {
+		payload["attachments"] = attachments
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -543,4 +582,157 @@ func writeReportEmailRow(sb *strings.Builder, label, value string) {
 func htmlEscape(s string) string {
 	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
 	return r.Replace(s)
+}
+
+// ---------------------------------------------------------------------------
+// Background report scheduler
+// ---------------------------------------------------------------------------
+
+func (s *server) startReportScheduler(stop <-chan struct{}) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	s.logger.Info("report scheduler started")
+
+	for {
+		select {
+		case <-stop:
+			s.logger.Info("report scheduler stopped")
+			return
+		case <-ticker.C:
+			s.runScheduledReports()
+		}
+	}
+}
+
+func (s *server) runScheduledReports() {
+	if !s.cfg.ReportEmailEnabled {
+		return
+	}
+	now := time.Now().UTC()
+
+	s.reportScheduleMu.RLock()
+	var due []reportSchedule
+	for _, sched := range s.reportSchedules {
+		if !sched.Enabled {
+			continue
+		}
+		if sched.NextRunAt == "" {
+			continue
+		}
+		nextRun, err := time.Parse(time.RFC3339, sched.NextRunAt)
+		if err != nil {
+			continue
+		}
+		if now.Before(nextRun) {
+			continue
+		}
+		due = append(due, sched)
+	}
+	s.reportScheduleMu.RUnlock()
+
+	if len(due) == 0 {
+		return
+	}
+
+	resendEndpoint := strings.TrimSpace(s.cfg.UserInvitationResendEndpoint)
+	if resendEndpoint == "" {
+		resendEndpoint = "https://api.resend.com/emails"
+	}
+	resendAPIKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
+	if resendAPIKey == "" {
+		return
+	}
+	emailFrom := strings.TrimSpace(s.cfg.UserInvitationEmailFrom)
+	if emailFrom == "" {
+		emailFrom = "no-reply@mistypass.local"
+	}
+	resendTimeout := s.cfg.UserInvitationResendTimeout
+	if resendTimeout < time.Second {
+		resendTimeout = 5 * time.Second
+	}
+
+	for _, sched := range due {
+		s.executeScheduledReport(sched, now, resendEndpoint, resendAPIKey, emailFrom, resendTimeout)
+	}
+}
+
+func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, resendEndpoint, resendAPIKey, emailFrom string, timeout time.Duration) {
+	periodEnd := now.Truncate(time.Second)
+	var periodStart time.Time
+	switch sched.Frequency {
+	case "daily":
+		periodStart = periodEnd.Add(-24 * time.Hour)
+	case "weekly":
+		periodStart = periodEnd.Add(-7 * 24 * time.Hour)
+	case "monthly":
+		periodStart = periodEnd.AddDate(0, -1, 0)
+	case "quarterly":
+		periodStart = periodEnd.AddDate(0, -3, 0)
+	default:
+		periodStart = periodEnd.Add(-7 * 24 * time.Hour)
+	}
+
+	data, err := s.buildReportData(sched.ReportType, sched.TenantID, "", periodStart, periodEnd)
+	if err != nil {
+		s.logger.Error("scheduled report data build failed", "error", err, "schedule_id", sched.ID)
+		return
+	}
+
+	meta := pdfgen.ReportMeta{
+		TenantName:  s.resolveExportTenantName(sched.TenantID),
+		PlaceName:   "All Locations",
+		PeriodStart: periodStart,
+		PeriodEnd:   periodEnd,
+		GeneratedAt: now,
+	}
+
+	pdfBytes, err := s.pdfRenderer.RenderPDF(s.gotenbergClient, sched.ReportType, meta, data)
+	if err != nil {
+		s.logger.Error("scheduled report PDF render failed", "error", err, "schedule_id", sched.ID)
+		return
+	}
+
+	filename := pdfgen.FormatPDFFilename(sched.ReportType, periodStart, periodEnd)
+	attachments := []resendAttachment{{
+		Filename: filename,
+		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
+	}}
+
+	subject := fmt.Sprintf("[MistyPass] %s — %s (%s to %s)",
+		sched.Name, meta.PlaceName,
+		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
+	htmlBody := "<p>Please find your scheduled report attached.</p>"
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	err = sendReportViaResend(ctx, resendEndpoint, resendAPIKey, emailFrom, sched.Recipients, subject, htmlBody, attachments, timeout)
+	if err != nil {
+		s.logger.Error("scheduled report email failed", "error", err, "schedule_id", sched.ID)
+		return
+	}
+
+	s.reportScheduleMu.Lock()
+	if current, ok := s.reportSchedules[sched.ID]; ok {
+		current.LastSentAt = now.Format(time.RFC3339)
+		current.UpdatedAt = now.Format(time.RFC3339)
+		var nextRun time.Time
+		switch sched.Frequency {
+		case "daily":
+			nextRun = now.Add(24 * time.Hour)
+		case "weekly":
+			nextRun = now.Add(7 * 24 * time.Hour)
+		case "monthly":
+			nextRun = now.AddDate(0, 1, 0)
+		case "quarterly":
+			nextRun = now.AddDate(0, 3, 0)
+		default:
+			nextRun = now.Add(7 * 24 * time.Hour)
+		}
+		current.NextRunAt = nextRun.Format(time.RFC3339)
+		s.reportSchedules[sched.ID] = current
+		s.persistReportSchedulesLocked()
+	}
+	s.reportScheduleMu.Unlock()
+
+	s.logger.Info("scheduled report sent", "schedule_id", sched.ID, "recipients", len(sched.Recipients))
 }

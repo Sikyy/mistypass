@@ -1395,6 +1395,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	s.startEnterpriseHRISWebhookDLQWorker()
 	s.startEnterpriseHRISPullWorker()
 	s.startAlertPolicyEventScheduler()
+	go s.startReportScheduler(s.quit)
 
 	return router, s, nil
 }
