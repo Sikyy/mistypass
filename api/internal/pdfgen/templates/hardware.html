@@ -1,11 +1,11 @@
 {{define "content"}}
 <div class="kpi-row">
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-online" style="color:var(--success)">--</div>
+    <div class="kpi-value metric-success" id="kpi-online">--</div>
     <div class="kpi-label">Online</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-offline" style="color:var(--danger)">--</div>
+    <div class="kpi-value metric-risk" id="kpi-offline">--</div>
     <div class="kpi-label">Offline</div>
   </div>
 </div>
@@ -53,7 +53,7 @@
     type: 'doughnut',
     data: {
       labels: ['Online', 'Offline'],
-      datasets: [{ data: [d.online || 0, d.offline || 0], backgroundColor: ['#10B981', '#EF4444'], borderWidth: 1 }]
+      datasets: [{ data: [d.online || 0, d.offline || 0], backgroundColor: [mistyPalette.moss, mistyPalette.copper], borderColor: '#FFFDF7', borderWidth: 2 }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
   });
@@ -63,7 +63,7 @@
     type: 'bar',
     data: {
       labels: battery.map(function(b) { return b.label; }),
-      datasets: [{ data: battery.map(function(b) { return b.count; }), backgroundColor: '#5046E5', borderRadius: 3 }]
+      datasets: [{ data: battery.map(function(b) { return b.count; }), backgroundColor: mistyPalette.teal, borderRadius: 4 }]
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
   });
@@ -73,17 +73,23 @@
     type: 'bar',
     data: {
       labels: signal.map(function(s) { return s.label; }),
-      datasets: [{ data: signal.map(function(s) { return s.count; }), backgroundColor: '#F59E0B', borderRadius: 3 }]
+      datasets: [{ data: signal.map(function(s) { return s.count; }), backgroundColor: mistyPalette.brass, borderRadius: 4 }]
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
   });
 
   var tbody = document.getElementById('devices-body');
-  (d.devices || []).forEach(function(dev) {
-    var tr = document.createElement('tr');
-    var statusColor = dev.status === 'online' ? 'var(--success)' : 'var(--danger)';
-    tr.innerHTML = '<td>'+dev.name+'</td><td>'+dev.type+'</td><td style="color:'+statusColor+';font-weight:600">'+dev.status+'</td><td>'+dev.battery+'%</td><td>'+dev.signal+'%</td><td>'+dev.last_seen+'</td>';
-    tbody.appendChild(tr);
+  var devices = d.devices || [];
+  if (!devices.length) appendEmptyRow(tbody, 6);
+  devices.forEach(function(dev) {
+    appendTableRow(tbody, [
+      dev.name,
+      dev.type,
+      { text: dev.status, className: statusClass(dev.status) },
+      dev.battery + '%',
+      dev.signal + '%',
+      dev.last_seen
+    ]);
   });
 })();
 {{end}}

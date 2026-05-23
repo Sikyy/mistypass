@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 )
 
@@ -25,15 +26,25 @@ var validReportTypes = map[string]bool{
 	"hardware":         true,
 }
 
+var reportTypeLabels = map[string]string{
+	"weekly_analytics": "Weekly Analytics",
+	"events":           "Access Events",
+	"unlock_stats":     "Unlock Statistics",
+	"user_presence":    "User Presence",
+	"incidents":        "Incidents",
+	"hardware":         "Hardware Health",
+}
+
 type Renderer struct {
 	templates  map[string]*template.Template
 	logoBase64 string
 }
 
 type templateData struct {
-	Meta       ReportMeta
-	LogoBase64 string
-	DataJSON   template.JS
+	Meta        ReportMeta
+	ReportLabel string
+	LogoBase64  string
+	DataJSON    template.JS
 }
 
 func NewRenderer() (*Renderer, error) {
@@ -69,9 +80,10 @@ func (r *Renderer) RenderHTML(reportType string, meta ReportMeta, data any) ([]b
 	}
 
 	td := templateData{
-		Meta:       meta,
-		LogoBase64: r.logoBase64,
-		DataJSON:   template.JS(dataJSON),
+		Meta:        meta,
+		ReportLabel: ReportTypeLabel(reportType),
+		LogoBase64:  r.logoBase64,
+		DataJSON:    template.JS(dataJSON),
 	}
 
 	var buf bytes.Buffer
@@ -95,4 +107,15 @@ func FormatPDFFilename(reportType string, start, end time.Time) string {
 		start.Format("2006-01-02"),
 		end.Format("2006-01-02"),
 	)
+}
+
+func ReportTypeLabel(reportType string) string {
+	if label, ok := reportTypeLabels[reportType]; ok {
+		return label
+	}
+	trimmed := strings.TrimSpace(reportType)
+	if trimmed == "" {
+		return "Report"
+	}
+	return strings.ReplaceAll(trimmed, "_", " ")
 }

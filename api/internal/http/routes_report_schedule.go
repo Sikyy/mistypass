@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"sort"
@@ -159,7 +160,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request) {
 
 	reportType, ok := normalizeReportScheduleReportType(payload.ReportType)
 	if !ok {
-		writeError(w, http.StatusBadRequest, "report_type must be one of: access_summary, door_activity, alarm_metrics")
+		writeError(w, http.StatusBadRequest, "report_type must be one of: weekly_analytics, events, unlock_stats, user_presence, incidents, hardware")
 		return
 	}
 
@@ -251,7 +252,7 @@ func (s *server) updateReportSchedule(w http.ResponseWriter, r *http.Request) {
 	if payload.ReportType != "" {
 		reportType, ok := normalizeReportScheduleReportType(payload.ReportType)
 		if !ok {
-			writeError(w, http.StatusBadRequest, "report_type must be one of: access_summary, door_activity, alarm_metrics")
+			writeError(w, http.StatusBadRequest, "report_type must be one of: weekly_analytics, events, unlock_stats, user_presence, incidents, hardware")
 			return
 		}
 		next.ReportType = reportType
@@ -370,12 +371,18 @@ func (s *server) restoreReportSchedulesFromState() {
 
 func normalizeReportScheduleReportType(value string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "access_summary":
-		return "access_summary", true
-	case "door_activity":
-		return "door_activity", true
-	case "alarm_metrics":
-		return "alarm_metrics", true
+	case "weekly_analytics", "access_summary":
+		return "weekly_analytics", true
+	case "events", "visitor_log":
+		return "events", true
+	case "unlock_stats", "door_activity", "door_usage":
+		return "unlock_stats", true
+	case "user_presence", "compliance":
+		return "user_presence", true
+	case "incidents", "alarm_metrics", "alarm_history":
+		return "incidents", true
+	case "hardware":
+		return "hardware", true
 	default:
 		return "", false
 	}
@@ -455,7 +462,11 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 	periodEnd := now.Truncate(time.Second)
 	periodStart := periodEnd.Add(-24 * time.Hour)
 
-	reportType := schedule.ReportType
+	reportType, ok := normalizeReportScheduleReportType(schedule.ReportType)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "unknown report type: "+schedule.ReportType)
+		return
+	}
 	data, err := s.buildReportData(reportType, schedule.TenantID, "", periodStart, periodEnd)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "failed to build report data: "+err.Error())
@@ -481,10 +492,10 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
 	}}
 
-	subject := fmt.Sprintf("[MistyPass] %s — %s (%s to %s)",
+	subject := fmt.Sprintf("[Mistyislet] %s - %s (%s to %s)",
 		schedule.Name, meta.PlaceName,
 		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
-	htmlBody := "<p>Please find your scheduled report attached.</p>"
+	htmlBody := buildReportEmailHTML(schedule.Name, reportType, meta, filename)
 
 	resendTimeout := s.cfg.UserInvitationResendTimeout
 	if resendTimeout < time.Second {
@@ -549,39 +560,52 @@ func sendReportViaResend(ctx context.Context, endpoint, apiKey, from string, to 
 	return nil
 }
 
-// buildReportEmailHTML generates a simple HTML email body for a report schedule.
-func buildReportEmailHTML(schedule reportSchedule, tenantID string, periodStart, periodEnd time.Time) string {
+// buildReportEmailHTML generates a branded HTML email body for a report schedule.
+func buildReportEmailHTML(scheduleName, reportType string, meta pdfgen.ReportMeta, filename string) string {
+	title := strings.TrimSpace(scheduleName)
+	if title == "" {
+		title = pdfgen.ReportTypeLabel(reportType)
+	}
+	period := meta.PeriodStart.Format("Jan 2, 2006") + " - " + meta.PeriodEnd.Format("Jan 2, 2006")
+
 	var sb strings.Builder
-	sb.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">`)
-	sb.WriteString(`<h2 style="color:#1a1a1a;border-bottom:2px solid #e0e0e0;padding-bottom:8px">`)
-	sb.WriteString(htmlEscape(schedule.Name))
-	sb.WriteString(`</h2>`)
-	sb.WriteString(`<table style="width:100%;border-collapse:collapse;margin:16px 0">`)
-	writeReportEmailRow(&sb, "Report type", schedule.ReportType)
-	writeReportEmailRow(&sb, "Frequency", schedule.Frequency)
-	writeReportEmailRow(&sb, "Format", schedule.Format)
-	writeReportEmailRow(&sb, "Tenant", tenantID)
-	writeReportEmailRow(&sb, "Period", periodStart.Format("2006-01-02 15:04")+" to "+periodEnd.Format("2006-01-02 15:04")+" UTC")
-	writeReportEmailRow(&sb, "Recipients", strings.Join(schedule.Recipients, ", "))
-	writeReportEmailRow(&sb, "Generated at", periodEnd.Format(time.RFC3339))
+	sb.WriteString(`<!DOCTYPE html><html><head><meta charset="utf-8"></head>`)
+	sb.WriteString(`<body style="margin:0;background:#f7f2e8;color:#141510;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">`)
+	sb.WriteString(`<div style="max-width:640px;margin:0 auto;padding:28px 20px">`)
+	sb.WriteString(`<div style="border:1px solid #2f302b;border-radius:8px;overflow:hidden;background:#fffdf7">`)
+	sb.WriteString(`<div style="background:linear-gradient(145deg,#20231f,#070806);padding:24px;color:#f5f0e6">`)
+	sb.WriteString(`<div style="font-size:13px;font-weight:700;letter-spacing:.04em">Mistyislet</div>`)
+	sb.WriteString(`<div style="margin-top:22px;color:#62b7a8;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase">`)
+	sb.WriteString(html.EscapeString(pdfgen.ReportTypeLabel(reportType)))
+	sb.WriteString(`</div>`)
+	sb.WriteString(`<h1 style="margin:8px 0 0;font-size:28px;line-height:1.08;font-weight:400;color:#f5f0e6">`)
+	sb.WriteString(html.EscapeString(title))
+	sb.WriteString(`</h1>`)
+	sb.WriteString(`<p style="margin:10px 0 0;color:#beb8aa;font-size:14px;line-height:1.5">`)
+	sb.WriteString(html.EscapeString(meta.TenantName))
+	sb.WriteString(` - `)
+	sb.WriteString(html.EscapeString(meta.PlaceName))
+	sb.WriteString(`</p></div>`)
+	sb.WriteString(`<div style="padding:22px 24px">`)
+	sb.WriteString(`<p style="margin:0 0 18px;color:#7c7568;font-size:14px;line-height:1.6">Your scheduled report is attached as a PDF. The document uses the same period and tenant scope shown below.</p>`)
+	sb.WriteString(`<table style="width:100%;border-collapse:collapse;font-size:14px">`)
+	writeReportEmailRow(&sb, "Period", period)
+	writeReportEmailRow(&sb, "Report type", pdfgen.ReportTypeLabel(reportType))
+	writeReportEmailRow(&sb, "Place", meta.PlaceName)
+	writeReportEmailRow(&sb, "Attachment", filename)
+	writeReportEmailRow(&sb, "Generated at", meta.GeneratedAt.Format(time.RFC3339))
 	sb.WriteString(`</table>`)
-	sb.WriteString(`<p style="color:#666;font-size:13px;margin-top:24px">This report was generated automatically by MistyPass. `)
-	sb.WriteString(`Log in to the admin panel to view the full report or adjust this schedule.</p>`)
-	sb.WriteString(`</body></html>`)
+	sb.WriteString(`<p style="margin:22px 0 0;color:#7c7568;font-size:12px;line-height:1.5">This report was generated automatically by Mistyislet. Open the admin console to adjust schedules, recipients, or report scope.</p>`)
+	sb.WriteString(`</div></div></div></body></html>`)
 	return sb.String()
 }
 
 func writeReportEmailRow(sb *strings.Builder, label, value string) {
-	sb.WriteString(`<tr><td style="padding:6px 12px 6px 0;font-weight:600;color:#555;white-space:nowrap;vertical-align:top">`)
-	sb.WriteString(htmlEscape(label))
-	sb.WriteString(`</td><td style="padding:6px 0;color:#1a1a1a">`)
-	sb.WriteString(htmlEscape(value))
+	sb.WriteString(`<tr><td style="padding:8px 14px 8px 0;border-top:1px solid #e8dfd1;font-weight:700;color:#141510;white-space:nowrap;vertical-align:top">`)
+	sb.WriteString(html.EscapeString(label))
+	sb.WriteString(`</td><td style="padding:8px 0;border-top:1px solid #e8dfd1;color:#7c7568">`)
+	sb.WriteString(html.EscapeString(value))
 	sb.WriteString(`</td></tr>`)
-}
-
-func htmlEscape(s string) string {
-	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
-	return r.Replace(s)
 }
 
 // ---------------------------------------------------------------------------
@@ -672,7 +696,13 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, res
 		periodStart = periodEnd.Add(-7 * 24 * time.Hour)
 	}
 
-	data, err := s.buildReportData(sched.ReportType, sched.TenantID, "", periodStart, periodEnd)
+	reportType, ok := normalizeReportScheduleReportType(sched.ReportType)
+	if !ok {
+		s.logger.Error("scheduled report has unknown type", "schedule_id", sched.ID, "report_type", sched.ReportType)
+		return
+	}
+
+	data, err := s.buildReportData(reportType, sched.TenantID, "", periodStart, periodEnd)
 	if err != nil {
 		s.logger.Error("scheduled report data build failed", "error", err, "schedule_id", sched.ID)
 		return
@@ -686,22 +716,22 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, res
 		GeneratedAt: now,
 	}
 
-	pdfBytes, err := s.pdfRenderer.RenderPDF(s.gotenbergClient, sched.ReportType, meta, data)
+	pdfBytes, err := s.pdfRenderer.RenderPDF(s.gotenbergClient, reportType, meta, data)
 	if err != nil {
 		s.logger.Error("scheduled report PDF render failed", "error", err, "schedule_id", sched.ID)
 		return
 	}
 
-	filename := pdfgen.FormatPDFFilename(sched.ReportType, periodStart, periodEnd)
+	filename := pdfgen.FormatPDFFilename(reportType, periodStart, periodEnd)
 	attachments := []resendAttachment{{
 		Filename: filename,
 		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
 	}}
 
-	subject := fmt.Sprintf("[MistyPass] %s — %s (%s to %s)",
+	subject := fmt.Sprintf("[Mistyislet] %s - %s (%s to %s)",
 		sched.Name, meta.PlaceName,
 		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
-	htmlBody := "<p>Please find your scheduled report attached.</p>"
+	htmlBody := buildReportEmailHTML(sched.Name, reportType, meta, filename)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

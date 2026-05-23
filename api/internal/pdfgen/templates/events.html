@@ -5,11 +5,11 @@
     <div class="kpi-label">Total Events</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-granted" style="color:var(--success)">--</div>
+    <div class="kpi-value metric-success" id="kpi-granted">--</div>
     <div class="kpi-label">Granted</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-denied" style="color:var(--danger)">--</div>
+    <div class="kpi-value metric-risk" id="kpi-denied">--</div>
     <div class="kpi-label">Denied</div>
   </div>
   <div class="kpi-card">
@@ -54,8 +54,8 @@
       datasets: [{
         label: 'Events',
         data: hourly,
-        backgroundColor: '#5046E5',
-        borderRadius: 2
+        backgroundColor: mistyPalette.teal,
+        borderRadius: 4
       }]
     },
     options: {
@@ -66,11 +66,10 @@
   });
 
   var tbody = document.getElementById('events-body');
-  (d.events || []).slice(0, 50).forEach(function(e) {
-    var tr = document.createElement('tr');
-    var resultColor = e.result === 'granted' ? 'var(--success)' : 'var(--danger)';
-    tr.innerHTML = '<td>'+e.time+'</td><td>'+e.user+'</td><td>'+e.door+'</td><td style="color:'+resultColor+';font-weight:600">'+e.result+'</td><td>'+e.method+'</td>';
-    tbody.appendChild(tr);
+  var events = (d.events || []).slice(0, 50);
+  if (!events.length) appendEmptyRow(tbody, 5);
+  events.forEach(function(e) {
+    appendTableRow(tbody, [e.time, e.user, e.door, { text: e.result, className: statusClass(e.result) }, e.method]);
   });
 })();
 {{end}}

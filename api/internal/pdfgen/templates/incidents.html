@@ -5,11 +5,11 @@
     <div class="kpi-label">Total Incidents</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-open" style="color:var(--danger)">--</div>
+    <div class="kpi-value metric-risk" id="kpi-open">--</div>
     <div class="kpi-label">Open</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" id="kpi-resolved" style="color:var(--success)">--</div>
+    <div class="kpi-value metric-success" id="kpi-resolved">--</div>
     <div class="kpi-label">Resolved</div>
   </div>
 </div>
@@ -49,37 +49,41 @@
 
   var sevLabels = Object.keys(d.by_severity || {});
   var sevValues = sevLabels.map(function(k) { return d.by_severity[k]; });
-  var sevColors = { critical: '#EF4444', high: '#F59E0B', medium: '#5046E5', low: '#10B981', unknown: '#6B7280' };
+  var sevColors = { critical: mistyPalette.copper, high: mistyPalette.brass, medium: mistyPalette.teal, low: mistyPalette.moss, unknown: mistyPalette.smoke };
 
   new Chart(document.getElementById('severityChart'), {
     type: 'bar',
     data: {
       labels: sevLabels,
-      datasets: [{ data: sevValues, backgroundColor: sevLabels.map(function(s) { return sevColors[s] || '#6B7280'; }), borderRadius: 3 }]
+      datasets: [{ data: sevValues, backgroundColor: sevLabels.map(function(s) { return sevColors[s] || mistyPalette.smoke; }), borderRadius: 4 }]
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
   });
 
   var statLabels = Object.keys(d.by_status || {});
   var statValues = statLabels.map(function(k) { return d.by_status[k]; });
-  var statColors = { open: '#EF4444', resolved: '#10B981', acknowledged: '#F59E0B' };
+  var statColors = { open: mistyPalette.copper, resolved: mistyPalette.moss, acknowledged: mistyPalette.brass };
 
   new Chart(document.getElementById('statusChart'), {
     type: 'doughnut',
     data: {
       labels: statLabels,
-      datasets: [{ data: statValues, backgroundColor: statLabels.map(function(s) { return statColors[s] || '#6B7280'; }), borderWidth: 1 }]
+      datasets: [{ data: statValues, backgroundColor: statLabels.map(function(s) { return statColors[s] || mistyPalette.smoke; }), borderColor: '#FFFDF7', borderWidth: 2 }]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 9 } } } } }
   });
 
   var tbody = document.getElementById('incidents-body');
-  (d.incidents || []).slice(0, 30).forEach(function(inc) {
-    var tr = document.createElement('tr');
-    var sevStyle = 'font-weight:600;color:' + (sevColors[inc.severity] || '#6B7280');
-    var statStyle = 'font-weight:600;color:' + (statColors[inc.status] || '#6B7280');
-    tr.innerHTML = '<td>'+inc.time+'</td><td>'+inc.type+'</td><td style="'+sevStyle+'">'+inc.severity+'</td><td>'+inc.door+'</td><td style="'+statStyle+'">'+inc.status+'</td>';
-    tbody.appendChild(tr);
+  var incidents = (d.incidents || []).slice(0, 30);
+  if (!incidents.length) appendEmptyRow(tbody, 5);
+  incidents.forEach(function(inc) {
+    appendTableRow(tbody, [
+      inc.time,
+      inc.type,
+      { text: inc.severity, className: statusClass(inc.severity) },
+      inc.door,
+      { text: inc.status, className: statusClass(inc.status) }
+    ]);
   });
 })();
 {{end}}

@@ -24,18 +24,18 @@ import {
 } from "@/lib/api"
 
 const REPORT_TYPES = [
-  { value: "access_summary", label: "Access Summary" },
-  { value: "alarm_history", label: "Alarm History" },
-  { value: "visitor_log", label: "Visitor Log" },
-  { value: "door_usage", label: "Door Usage" },
-  { value: "compliance", label: "Compliance" },
+  { value: "weekly_analytics", label: "Weekly Analytics" },
+  { value: "events", label: "Access Events" },
+  { value: "unlock_stats", label: "Unlock Statistics" },
+  { value: "user_presence", label: "User Presence" },
+  { value: "incidents", label: "Incidents" },
+  { value: "hardware", label: "Hardware Health" },
 ]
 
 const FREQUENCIES = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
-  { value: "quarterly", label: "Quarterly" },
 ]
 
 const FORMATS = [
@@ -54,11 +54,11 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState("")
   const [form, setForm] = useState({
-    name: "", report_type: "access_summary", frequency: "weekly", recipients: "",
+    name: "", report_type: "weekly_analytics", frequency: "weekly", recipients: "",
     format: "pdf", day_of_week: 1, enabled: true,
   })
 
-  const defaultForm = { name: "", report_type: "access_summary", frequency: "weekly", recipients: "", format: "pdf", day_of_week: 1, enabled: true }
+  const defaultForm = { name: "", report_type: "weekly_analytics", frequency: "weekly", recipients: "", format: "pdf", day_of_week: 1, enabled: true }
 
   function openCreate() {
     setEditTarget(null)
