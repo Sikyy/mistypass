@@ -1,7 +1,7 @@
 # PDF 报表设计语言适配计划
 
 > 日期：2026-05-23
-> 状态：已开始执行，首批模板与邮件样式已落地
+> 状态：首批模板、邮件样式与 Web Admin 报表类型已落地
 > 基线：PR #93 squash commit `2af7400`
 
 ## 1. 目标
@@ -51,7 +51,18 @@
 - [ ] 视业务需要，把 mobile app report export placeholder 接到统一 PDF export 链路。
 - [ ] 若客户明确需要深色 PDF 全主题，再单独增加 `dark_report` 模式。
 
-## 5. 验收清单
+## 5. 验证记录
+
+### 2026-05-23
+
+- [x] `go test ./internal/pdfgen ./internal/http`
+- [x] `npm run build`
+- [x] `git diff --check`
+- [x] preview templates 六类 HTML 路由返回 200。
+- [x] preview HTML 未检出旧紫色 token。
+- [ ] Gotenberg 实际 PDF 渲染暂未完成：当前本机 Docker/OrbStack socket 不可用，`localhost:3000` 是官网/Next.js 服务而不是 Gotenberg。
+
+## 6. 验收清单
 
 - [x] HTML 输出包含 Mistyislet 品牌 token。
 - [x] HTML 输出不包含旧紫色 token：`#5046E5`、`#E8E7FB`、`#8B5CF6`、`#EC4899`、`80,70,229`。
