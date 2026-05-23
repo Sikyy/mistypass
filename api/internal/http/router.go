@@ -19,6 +19,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
 	"github.com/mistypass/cloud/api/internal/modules/credential"
@@ -126,6 +127,8 @@ type server struct {
 	doorFavorites                 map[string]map[string]bool // userID → doorID → true
 	orgStore                      orgMembershipStore
 	magicLinkStore                magicLinkStore
+	pdfRenderer                   *pdfgen.Renderer
+	gotenbergClient               *pdfgen.GotenbergClient
 	quit                          chan struct{}
 }
 
@@ -379,6 +382,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	}
 	scheduledReports, scheduledReportSeq := defaultReferenceScheduledReports(time.Now().UTC())
 
+	pdfRenderer, err := pdfgen.NewRenderer()
+	if err != nil {
+		return nil, nil, fmt.Errorf("init pdf renderer: %w", err)
+	}
+	gotenbergClient := pdfgen.NewGotenbergClient(cfg.GotenbergURL, nil)
+
 	s := &server{
 		cfg:                           cfg,
 		stateStore:                    stateStore,
@@ -430,6 +439,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		memStore:                      map[string]any{},
 		credLastSeen:                  map[string]credentialSighting{},
 		pushDevices:                   map[string]pushDevice{},
+		pdfRenderer:                   pdfRenderer,
+		gotenbergClient:               gotenbergClient,
 		quit:                          make(chan struct{}),
 	}
 	webAuthnEngine, err := auth.NewWebAuthnEngine(cfg.WebAuthnRPDisplayName, cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins)
@@ -1227,6 +1238,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/door-activity", s.getDoorActivity)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/alarm-metrics", s.getAlarmMetrics)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/export", s.exportAnalytics)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/reports/export", s.exportReport)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules", s.listReportSchedules)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules", s.createReportSchedule)
