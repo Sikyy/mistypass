@@ -1,0 +1,80 @@
+{{define "content"}}
+<div class="section">
+  <div class="section-title">User Presence Heatmap</div>
+  <div class="chart-container" style="max-height:280px">
+    <canvas id="presenceHeatmap"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Daily Unique Users</div>
+  <div class="chart-container">
+    <canvas id="dailyUsersChart"></canvas>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="section">
+  <div class="section-title">User Activity Summary</div>
+  <table>
+    <thead>
+      <tr><th>User</th><th>First Seen</th><th>Last Seen</th><th>Total Events</th></tr>
+    </thead>
+    <tbody id="users-body"></tbody>
+  </table>
+</div>
+{{end}}
+
+{{define "charts"}}
+(function() {
+  var d = reportData;
+
+  var daily = d.daily_unique_users || [];
+  new Chart(document.getElementById('dailyUsersChart'), {
+    type: 'line',
+    data: {
+      labels: daily.map(function(r) { return r.date; }),
+      datasets: [{ label: 'Unique Users', data: daily.map(function(r) { return r.count; }), borderColor: '#5046E5', backgroundColor: 'rgba(80,70,229,0.1)', fill: true, tension: 0.3, pointRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+
+  var cells = d.heatmap_data || [];
+  var users = [...new Set(cells.map(function(c) { return c.user; }))];
+  var dates = [...new Set(cells.map(function(c) { return c.date; }))].sort();
+  var maxV = Math.max(1, ...cells.map(function(c) { return c.count; }));
+
+  new Chart(document.getElementById('presenceHeatmap'), {
+    type: 'matrix',
+    data: {
+      datasets: [{
+        data: cells.map(function(c) { return { x: dates.indexOf(c.date), y: users.indexOf(c.user), v: c.count }; }),
+        backgroundColor: function(ctx) {
+          var v = ctx.raw ? ctx.raw.v : 0;
+          return 'rgba(80,70,229,' + Math.max(0.1, v / maxV) + ')';
+        },
+        width: function(ctx) { return (ctx.chart.chartArea || {width:400}).width / Math.max(dates.length, 1) - 1; },
+        height: function(ctx) { return (ctx.chart.chartArea || {height:200}).height / Math.max(users.length, 1) - 1; }
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { type: 'linear', min: -0.5, max: dates.length - 0.5,
+          ticks: { stepSize: 1, font: { size: 7 }, callback: function(v) { return dates[v] || ''; } } },
+        y: { type: 'linear', min: -0.5, max: users.length - 0.5,
+          ticks: { stepSize: 1, font: { size: 8 }, callback: function(v) { return users[v] || ''; } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  var tbody = document.getElementById('users-body');
+  (d.users || []).forEach(function(u) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>'+u.user+'</td><td>'+u.first_seen+'</td><td>'+u.last_seen+'</td><td>'+u.total+'</td>';
+    tbody.appendChild(tr);
+  });
+})();
+{{end}}

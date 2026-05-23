@@ -147,6 +147,7 @@ type Config struct {
 	SelfRegistrationEnabled                                      bool
 	DefaultTimezone                                              string
 	ReportEmailEnabled                                           bool
+	GotenbergURL                                                 string
 	CameraEnabled                                                bool
 	CameraVaultMasterKey                                         string
 	CameraSnapshotTimeoutSeconds                                 int
@@ -1036,6 +1037,7 @@ func parseCSVList(raw string) []string {
 
 func loadReportEmailConfig(cfg *Config) {
 	cfg.ReportEmailEnabled = parseBoolOrFallback(envString("REPORT_EMAIL_ENABLED"), false)
+	cfg.GotenbergURL = envStringOrDefault("GOTENBERG_URL", "http://localhost:3000")
 }
 
 func loadOAuth2Config(cfg *Config) {

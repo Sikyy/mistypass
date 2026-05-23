@@ -1,0 +1,85 @@
+{{define "content"}}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-total">--</div>
+    <div class="kpi-label">Total Incidents</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-open" style="color:var(--danger)">--</div>
+    <div class="kpi-label">Open</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-resolved" style="color:var(--success)">--</div>
+    <div class="kpi-label">Resolved</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="section">
+    <div class="section-title">By Severity</div>
+    <div class="chart-container">
+      <canvas id="severityChart"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">By Status</div>
+    <div class="chart-container">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Incident Timeline</div>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>Type</th><th>Severity</th><th>Door</th><th>Status</th></tr>
+    </thead>
+    <tbody id="incidents-body"></tbody>
+  </table>
+</div>
+{{end}}
+
+{{define "charts"}}
+(function() {
+  var d = reportData;
+  document.getElementById('kpi-total').textContent = d.total || 0;
+  document.getElementById('kpi-open').textContent = (d.by_status || {}).open || 0;
+  document.getElementById('kpi-resolved').textContent = (d.by_status || {}).resolved || 0;
+
+  var sevLabels = Object.keys(d.by_severity || {});
+  var sevValues = sevLabels.map(function(k) { return d.by_severity[k]; });
+  var sevColors = { critical: '#EF4444', high: '#F59E0B', medium: '#5046E5', low: '#10B981', unknown: '#6B7280' };
+
+  new Chart(document.getElementById('severityChart'), {
+    type: 'bar',
+    data: {
+      labels: sevLabels,
+      datasets: [{ data: sevValues, backgroundColor: sevLabels.map(function(s) { return sevColors[s] || '#6B7280'; }), borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+
+  var statLabels = Object.keys(d.by_status || {});
+  var statValues = statLabels.map(function(k) { return d.by_status[k]; });
+  var statColors = { open: '#EF4444', resolved: '#10B981', acknowledged: '#F59E0B' };
+
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: statLabels,
+      datasets: [{ data: statValues, backgroundColor: statLabels.map(function(s) { return statColors[s] || '#6B7280'; }), borderWidth: 1 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 9 } } } } }
+  });
+
+  var tbody = document.getElementById('incidents-body');
+  (d.incidents || []).slice(0, 30).forEach(function(inc) {
+    var tr = document.createElement('tr');
+    var sevStyle = 'font-weight:600;color:' + (sevColors[inc.severity] || '#6B7280');
+    var statStyle = 'font-weight:600;color:' + (statColors[inc.status] || '#6B7280');
+    tr.innerHTML = '<td>'+inc.time+'</td><td>'+inc.type+'</td><td style="'+sevStyle+'">'+inc.severity+'</td><td>'+inc.door+'</td><td style="'+statStyle+'">'+inc.status+'</td>';
+    tbody.appendChild(tr);
+  });
+})();
+{{end}}

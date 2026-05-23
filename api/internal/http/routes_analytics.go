@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 )
 
 // ---------------------------------------------------------------------------
@@ -395,11 +397,37 @@ func (s *server) exportAnalytics(w http.ResponseWriter, r *http.Request) {
 
 	switch format {
 	case "pdf":
-		pdfBytes := generateSimplePDF(title, rows)
+		data, buildErr := s.buildReportData(reportType, tenantID, "", start, end)
+		if buildErr != nil {
+			writeError(w, http.StatusBadRequest, buildErr.Error())
+			return
+		}
+		meta := pdfgen.ReportMeta{
+			TenantName:  s.resolveExportTenantName(tenantID),
+			PlaceName:   "All Locations",
+			PeriodStart: start,
+			PeriodEnd:   end,
+			GeneratedAt: time.Now().UTC(),
+		}
+		pdfType := reportType
+		switch reportType {
+		case "access_summary":
+			pdfType = "events"
+		case "door_activity":
+			pdfType = "weekly_analytics"
+		case "alarm_metrics":
+			pdfType = "incidents"
+		}
+		pdfBytes, pdfErr := s.pdfRenderer.RenderPDF(s.gotenbergClient, pdfType, meta, data)
+		if pdfErr != nil {
+			s.logger.Error("pdf render failed", "error", pdfErr)
+			writeError(w, http.StatusBadGateway, "PDF rendering failed: "+pdfErr.Error())
+			return
+		}
 		w.Header().Set("Content-Type", "application/pdf")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", reportType+".pdf"))
 		w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
-		_, _ = w.Write(pdfBytes)
+		w.Write(pdfBytes)
 	case "csv":
 		var sb strings.Builder
 		for _, row := range rows {
@@ -496,79 +524,3 @@ func (s *server) exportAlarmMetricsRows(tenantID string, start, end time.Time) (
 	return title, rows
 }
 
-// ---------------------------------------------------------------------------
-// Simple PDF generator — creates a minimal valid PDF 1.4 document with text
-// ---------------------------------------------------------------------------
-
-func generateSimplePDF(title string, rows [][]string) []byte {
-	// Build the text content for the PDF page stream.
-	var content strings.Builder
-	content.WriteString("BT\n")
-	content.WriteString("/F1 16 Tf\n")
-	content.WriteString("50 750 Td\n")
-	content.WriteString(fmt.Sprintf("(%s) Tj\n", pdfEscapeString(title)))
-	content.WriteString("/F1 10 Tf\n")
-	content.WriteString("0 -24 Td\n")
-
-	for _, row := range rows {
-		line := strings.Join(row, "    ")
-		content.WriteString(fmt.Sprintf("0 -14 Td\n(%s) Tj\n", pdfEscapeString(line)))
-	}
-
-	// Timestamp footer
-	content.WriteString("0 -28 Td\n")
-	content.WriteString(fmt.Sprintf("/F1 8 Tf\n(Generated: %s) Tj\n", pdfEscapeString(time.Now().UTC().Format(time.RFC3339))))
-	content.WriteString("ET\n")
-	stream := content.String()
-
-	// Build minimal PDF 1.4 structure.
-	var pdf strings.Builder
-	offsets := make([]int, 5)
-
-	pdf.WriteString("%PDF-1.4\n")
-
-	// Object 1: Catalog
-	offsets[0] = pdf.Len()
-	pdf.WriteString("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
-
-	// Object 2: Pages
-	offsets[1] = pdf.Len()
-	pdf.WriteString("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
-
-	// Object 3: Page
-	offsets[2] = pdf.Len()
-	pdf.WriteString("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n")
-
-	// Object 4: Stream (page content)
-	offsets[3] = pdf.Len()
-	pdf.WriteString(fmt.Sprintf("4 0 obj\n<< /Length %d >>\nstream\n%sendstream\nendobj\n", len(stream), stream))
-
-	// Object 5: Font
-	offsets[4] = pdf.Len()
-	pdf.WriteString("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj\n")
-
-	// Cross-reference table
-	xrefOffset := pdf.Len()
-	pdf.WriteString("xref\n")
-	pdf.WriteString(fmt.Sprintf("0 %d\n", len(offsets)+1))
-	pdf.WriteString("0000000000 65535 f \n")
-	for _, off := range offsets {
-		pdf.WriteString(fmt.Sprintf("%010d 00000 n \n", off))
-	}
-
-	// Trailer
-	pdf.WriteString("trailer\n")
-	pdf.WriteString(fmt.Sprintf("<< /Size %d /Root 1 0 R >>\n", len(offsets)+1))
-	pdf.WriteString("startxref\n")
-	pdf.WriteString(fmt.Sprintf("%d\n", xrefOffset))
-	pdf.WriteString("%%EOF\n")
-
-	return []byte(pdf.String())
-}
-
-func pdfEscapeString(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "(", "\\(")
-	s = strings.ReplaceAll(s, ")", "\\)")
-	return s
-}

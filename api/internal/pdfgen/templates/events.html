@@ -1,0 +1,76 @@
+{{define "content"}}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-total">--</div>
+    <div class="kpi-label">Total Events</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-granted" style="color:var(--success)">--</div>
+    <div class="kpi-label">Granted</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-denied" style="color:var(--danger)">--</div>
+    <div class="kpi-label">Denied</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-peak">--</div>
+    <div class="kpi-label">Peak Hour</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Hourly Distribution</div>
+  <div class="chart-container">
+    <canvas id="hourlyChart"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Access Events</div>
+  <table>
+    <thead>
+      <tr><th>Time</th><th>User</th><th>Door</th><th>Result</th><th>Method</th></tr>
+    </thead>
+    <tbody id="events-body"></tbody>
+  </table>
+</div>
+{{end}}
+
+{{define "charts"}}
+(function() {
+  var d = reportData;
+  document.getElementById('kpi-total').textContent = d.total_events || 0;
+  document.getElementById('kpi-granted').textContent = d.granted || 0;
+  document.getElementById('kpi-denied').textContent = d.denied || 0;
+  document.getElementById('kpi-peak').textContent = d.peak_hour != null ? d.peak_hour + ':00' : '--';
+
+  var hourly = d.hourly_dist || new Array(24).fill(0);
+  var labels = [];
+  for (var i = 0; i < 24; i++) labels.push(i + ':00');
+  new Chart(document.getElementById('hourlyChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Events',
+        data: hourly,
+        backgroundColor: '#5046E5',
+        borderRadius: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true }, x: { ticks: { font: { size: 8 } } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  var tbody = document.getElementById('events-body');
+  (d.events || []).slice(0, 50).forEach(function(e) {
+    var tr = document.createElement('tr');
+    var resultColor = e.result === 'granted' ? 'var(--success)' : 'var(--danger)';
+    tr.innerHTML = '<td>'+e.time+'</td><td>'+e.user+'</td><td>'+e.door+'</td><td style="color:'+resultColor+';font-weight:600">'+e.result+'</td><td>'+e.method+'</td>';
+    tbody.appendChild(tr);
+  });
+})();
+{{end}}

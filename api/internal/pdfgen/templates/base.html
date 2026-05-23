@@ -1,0 +1,119 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Meta.TenantName}} — Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2/dist/chartjs-chart-matrix.min.js"></script>
+<style>
+  :root {
+    --brand: #5046E5;
+    --brand-light: #E8E7FB;
+    --text-heading: #111827;
+    --text-body: #374151;
+    --text-subtle: #6B7280;
+    --border: #E5E7EB;
+    --bg-page: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --success: #10B981;
+    --danger: #EF4444;
+    --warning: #F59E0B;
+  }
+
+  @page {
+    size: A4;
+    margin: 12mm 14mm 16mm 14mm;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 11px;
+    color: var(--text-body);
+    background: var(--bg-page);
+    line-height: 1.5;
+  }
+
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 12px;
+    border-bottom: 3px solid var(--brand);
+    margin-bottom: 20px;
+  }
+
+  .report-header .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .report-header .brand img { height: 32px; }
+  .report-header .brand-name { font-size: 14px; font-weight: 700; color: var(--text-heading); }
+  .report-header .place-name { font-size: 22px; font-weight: 700; color: var(--text-heading); margin-top: 2px; }
+  .report-header .meta { text-align: right; font-size: 10px; color: var(--text-subtle); }
+  .report-header .date-range { font-size: 12px; font-weight: 600; color: var(--text-heading); }
+
+  .section { margin-bottom: 24px; break-inside: avoid; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .section-title::before { content: ''; width: 8px; height: 8px; background: var(--brand); border-radius: 2px; display: inline-block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  table thead th { background: var(--brand); color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+  table tbody td { padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--text-body); }
+  table tbody tr:nth-child(even) { background: #F9FAFB; }
+
+  .chart-container { position: relative; width: 100%; max-height: 200px; margin: 8px 0; }
+  .chart-container canvas { max-height: 200px; }
+
+  .kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
+  .kpi-card { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; text-align: center; }
+  .kpi-card .kpi-value { font-size: 22px; font-weight: 700; color: var(--text-heading); }
+  .kpi-card .kpi-label { font-size: 9px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .page-break { break-before: page; }
+
+  .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 6px 14mm; font-size: 8px; color: var(--text-subtle); display: flex; justify-content: space-between; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <div>
+    <div class="brand">
+      <img src="data:image/png;base64,{{.LogoBase64}}" alt="Logo">
+      <span class="brand-name">{{.Meta.TenantName}}</span>
+    </div>
+    <div class="place-name">{{.Meta.PlaceName}}</div>
+  </div>
+  <div class="meta">
+    <div class="date-range">
+      {{.Meta.PeriodStart.Format "Jan 2, 2006"}} — {{.Meta.PeriodEnd.Format "Jan 2, 2006"}}
+    </div>
+    <div>Weekly Report</div>
+  </div>
+</div>
+
+{{template "content" .}}
+
+<div class="footer">
+  <span>Generated: {{.Meta.GeneratedAt.Format "2006-01-02 15:04 UTC"}}</span>
+  <span>MistyPass</span>
+</div>
+
+<script>
+const reportData = {{.DataJSON}};
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+Chart.defaults.font.size = 10;
+Chart.defaults.color = '#374151';
+{{template "charts" .}}
+</script>
+</body>
+</html>
+{{end}}

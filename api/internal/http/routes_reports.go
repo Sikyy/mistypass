@@ -15,6 +15,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
 	"github.com/mistypass/cloud/api/internal/modules/event"
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 )
 
 const (
@@ -187,12 +188,30 @@ func (s *server) downloadReferenceReport(w http.ResponseWriter, r *http.Request)
 
 	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
 	if format == "pdf" {
-		rows := parseCSVToRows(csvBody)
-		pdfBytes := generateSimplePDF("Report: "+reportID, rows)
+		meta := pdfgen.ReportMeta{
+			TenantName:  s.resolveExportTenantName(tenantID),
+			PlaceName:   "All Locations",
+			PeriodStart: time.Now().Add(-7 * 24 * time.Hour),
+			PeriodEnd:   time.Now(),
+			GeneratedAt: time.Now().UTC(),
+		}
+		pdfType := "events"
+		switch reportID {
+		case referenceReportDoorAlarmID:
+			pdfType = "incidents"
+		case referenceReportAuditActivityID:
+			pdfType = "events"
+		}
+		data, _ := s.buildReportData(pdfType, tenantID, placeID, meta.PeriodStart, meta.PeriodEnd)
+		pdfBytes, pdfErr := s.pdfRenderer.RenderPDF(s.gotenbergClient, pdfType, meta, data)
+		if pdfErr != nil {
+			writeError(w, http.StatusBadGateway, "PDF rendering failed")
+			return
+		}
 		w.Header().Set("Content-Type", "application/pdf")
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", reportID+".pdf"))
 		w.Header().Set("Content-Length", strconv.Itoa(len(pdfBytes)))
-		_, _ = w.Write(pdfBytes)
+		w.Write(pdfBytes)
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
