@@ -66,7 +66,8 @@ a:hover{background:#454bea}</style></head><body>
 
 	addr := ":9876"
 	log.Printf("Preview server at http://localhost%s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	log.Fatal(srv.ListenAndServe())
 }
 
 func sampleWeeklyAnalytics() pdfgen.WeeklyAnalyticsData {
