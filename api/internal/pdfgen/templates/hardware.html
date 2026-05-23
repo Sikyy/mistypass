@@ -1,2 +1,89 @@
-{{define "content"}}<div>placeholder</div>{{end}}
-{{define "charts"}}/* placeholder */{{end}}
+{{define "content"}}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-online" style="color:var(--success)">--</div>
+    <div class="kpi-label">Online</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-offline" style="color:var(--danger)">--</div>
+    <div class="kpi-label">Offline</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="section">
+    <div class="section-title">Device Status</div>
+    <div class="chart-container">
+      <canvas id="statusChart"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Battery Distribution</div>
+    <div class="chart-container">
+      <canvas id="batteryChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Signal Strength Distribution</div>
+  <div class="chart-container">
+    <canvas id="signalChart"></canvas>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Device Inventory</div>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Type</th><th>Status</th><th>Battery</th><th>Signal</th><th>Last Seen</th></tr>
+    </thead>
+    <tbody id="devices-body"></tbody>
+  </table>
+</div>
+{{end}}
+
+{{define "charts"}}
+(function() {
+  var d = reportData;
+  document.getElementById('kpi-online').textContent = d.online || 0;
+  document.getElementById('kpi-offline').textContent = d.offline || 0;
+
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Online', 'Offline'],
+      datasets: [{ data: [d.online || 0, d.offline || 0], backgroundColor: ['#10B981', '#EF4444'], borderWidth: 1 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+  });
+
+  var battery = d.battery_dist || [];
+  new Chart(document.getElementById('batteryChart'), {
+    type: 'bar',
+    data: {
+      labels: battery.map(function(b) { return b.label; }),
+      datasets: [{ data: battery.map(function(b) { return b.count; }), backgroundColor: '#5046E5', borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+
+  var signal = d.signal_dist || [];
+  new Chart(document.getElementById('signalChart'), {
+    type: 'bar',
+    data: {
+      labels: signal.map(function(s) { return s.label; }),
+      datasets: [{ data: signal.map(function(s) { return s.count; }), backgroundColor: '#F59E0B', borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+
+  var tbody = document.getElementById('devices-body');
+  (d.devices || []).forEach(function(dev) {
+    var tr = document.createElement('tr');
+    var statusColor = dev.status === 'online' ? 'var(--success)' : 'var(--danger)';
+    tr.innerHTML = '<td>'+dev.name+'</td><td>'+dev.type+'</td><td style="color:'+statusColor+';font-weight:600">'+dev.status+'</td><td>'+dev.battery+'%</td><td>'+dev.signal+'%</td><td>'+dev.last_seen+'</td>';
+    tbody.appendChild(tr);
+  });
+})();
+{{end}}

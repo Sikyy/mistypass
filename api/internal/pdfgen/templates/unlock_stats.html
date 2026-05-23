@@ -1,2 +1,67 @@
-{{define "content"}}<div>placeholder</div>{{end}}
-{{define "charts"}}/* placeholder */{{end}}
+{{define "content"}}
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-value" id="kpi-total">--</div>
+    <div class="kpi-label">Total Unlocks</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="section">
+    <div class="section-title">Unlocks by Method</div>
+    <div class="chart-container">
+      <canvas id="methodChart"></canvas>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Method Breakdown</div>
+    <table>
+      <thead><tr><th>Method</th><th>Count</th><th>%</th></tr></thead>
+      <tbody id="method-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Unlock Trend</div>
+  <div class="chart-container">
+    <canvas id="trendChart"></canvas>
+  </div>
+</div>
+{{end}}
+
+{{define "charts"}}
+(function() {
+  var d = reportData;
+  document.getElementById('kpi-total').textContent = d.total || 0;
+
+  var methods = Object.keys(d.by_method || {});
+  var counts = methods.map(function(m) { return d.by_method[m]; });
+  var total = counts.reduce(function(a, b) { return a + b; }, 0) || 1;
+  var colors = ['#5046E5','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899'];
+
+  new Chart(document.getElementById('methodChart'), {
+    type: 'doughnut',
+    data: { labels: methods, datasets: [{ data: counts, backgroundColor: colors.slice(0, methods.length), borderWidth: 1 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 9 } } } } }
+  });
+
+  var tbody = document.getElementById('method-body');
+  methods.forEach(function(m, i) {
+    var tr = document.createElement('tr');
+    var pct = ((d.by_method[m] / total) * 100).toFixed(1);
+    tr.innerHTML = '<td>'+m+'</td><td>'+d.by_method[m]+'</td><td>'+pct+'%</td>';
+    tbody.appendChild(tr);
+  });
+
+  var trend = d.trend || [];
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: trend.map(function(t) { return t.date; }),
+      datasets: [{ label: 'Unlocks', data: trend.map(function(t) { return t.count; }), borderColor: '#5046E5', backgroundColor: 'rgba(80,70,229,0.1)', fill: true, tension: 0.3, pointRadius: 2 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { ticks: { font: { size: 8 } } } }, plugins: { legend: { display: false } } }
+  });
+})();
+{{end}}
