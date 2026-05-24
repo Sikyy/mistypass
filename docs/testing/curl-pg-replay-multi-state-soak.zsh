@@ -1,7 +1,8 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-CURVE_SCRIPT="${CURVE_SCRIPT:-/Users/siky/code/MistyPass/docs/testing/curl-pg-replay-multi-state-curve.zsh}"
+SCRIPT_DIR="${0:A:h}"
+CURVE_SCRIPT="${CURVE_SCRIPT:-${SCRIPT_DIR}/curl-pg-replay-multi-state-curve.zsh}"
 SOAK_ROUNDS="${SOAK_ROUNDS:-4}"
 SOAK_INTERVAL_SECONDS="${SOAK_INTERVAL_SECONDS:-30}"
 SOAK_WORKDIR="${SOAK_WORKDIR:-/tmp/mp_pg_replay_soak}"
