@@ -112,4 +112,37 @@ func TestReportScheduleProviderStatus(t *testing.T) {
 	if readyStatus.From != "reports@mistypass.local" || readyStatus.Endpoint != "https://api.resend.test/emails" || readyStatus.TimeoutSeconds != 9 {
 		t.Fatalf("unexpected ready provider details: %+v", readyStatus)
 	}
+
+	cloudflareRouter, _, err := NewRouter(config.Config{
+		JWTSecret:                "report-provider-cloudflare-test-secret",
+		EnableDemoUsers:          true,
+		MailProvider:             "cloudflare",
+		ReportEmailEnabled:       true,
+		UserInvitationEmailFrom:  "reports@mistypass.local",
+		CloudflareEmailEndpoint:  "https://api.cloudflare.test/accounts/{account_id}/email/sending/send",
+		CloudflareEmailAccountID: "cf_account_123",
+		CloudflareEmailAPIToken:  "cf_email_token",
+		CloudflareEmailTimeout:   7 * time.Second,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected cloudflare router: %v", err)
+	}
+	cloudflareToken := referenceAPILogin(t, cloudflareRouter, "organization.admin@mistypass.local")
+
+	cloudflareRecorder := referenceAPIRequest(t, cloudflareRouter, http.MethodGet, "/api/v1/report-schedules/provider-status?tenant_id=tenant_demo_jakarta", cloudflareToken, nil)
+	if cloudflareRecorder.Code != http.StatusOK {
+		t.Fatalf("expected cloudflare provider status 200, got %d body=%s", cloudflareRecorder.Code, cloudflareRecorder.Body.String())
+	}
+	var cloudflareStatus reportScheduleProviderStatus
+	if err := json.Unmarshal(cloudflareRecorder.Body.Bytes(), &cloudflareStatus); err != nil {
+		t.Fatalf("decode cloudflare provider status: %v", err)
+	}
+	if cloudflareStatus.Provider != "cloudflare" || !cloudflareStatus.Enabled || !cloudflareStatus.Configured || !cloudflareStatus.Ready {
+		t.Fatalf("expected ready cloudflare provider status, got %+v", cloudflareStatus)
+	}
+	if cloudflareStatus.From != "reports@mistypass.local" ||
+		cloudflareStatus.Endpoint != "https://api.cloudflare.test/accounts/cf_account_123/email/sending/send" ||
+		cloudflareStatus.TimeoutSeconds != 7 {
+		t.Fatalf("unexpected cloudflare provider details: %+v", cloudflareStatus)
+	}
 }

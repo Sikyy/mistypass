@@ -8,15 +8,15 @@
 
 如果你现在已经有 Google Workspace，推荐保留 Workspace 负责真人邮箱，把应用系统邮件交给 Cloudflare 独立完成：Cloudflare DNS / DMARC 管域名认证，Cloudflare Email Service 负责事务发信，Cloudflare Email Routing / Workers 负责收信、转发和 webhook。Resend 不再作为 P0 依赖，只保留为可选 fallback；不建议把第一阶段的应用发信直接压到 Workspace SMTP。
 
-本项目当前代码已经具备统一发送抽象和 Resend 兼容路径，下一步应补 Cloudflare provider：
+本项目当前代码已经具备统一发送抽象、Resend fallback 和 Cloudflare Email Service 主通道：
 
-- 统一发送抽象：`api/internal/mail` 提供 `Provider` / `Message` / `Receipt`，当前最小实现为 Resend；Cloudflare Email Service 可作为同级 provider 接入。
+- 统一发送抽象：`api/internal/mail` 提供 `Provider` / `Message` / `Receipt`，当前已有 Resend 与 Cloudflare Email Service provider。
 - 报表发送：`api/internal/http/routes_report_schedule.go` 复用统一 mail provider，并继续兼容 `USER_INVITATION_RESEND_API_KEY` / `USER_INVITATION_RESEND_ENDPOINT`。
 - Web Admin：Report Schedules 页面已补 “Send now” 行操作和 provider status 状态条，provider 未启用/未配置会直接显示。
 - Report schedule 回归：`docs/testing/curl-report-schedule-resend.zsh` 已覆盖 provider status、send now、Gotenberg PDF 生成、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计。
 - Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
 - 入站/回执入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、state store 落库、受保护列表查询和 `email_inbound_event_received` 审计；`docs/testing/curl-email-inbound-webhook.zsh` 已接入 API Smoke。
-- 当前缺口不是“没有邮件能力”，而是缺少 Cloudflare Email Service 生产发送配置、Cloudflare Worker 转发和生产回执关联。
+- 当前缺口不是“没有邮件能力”，而是缺少 Cloudflare Email Service 生产账号/DNS/API token smoke、Cloudflare Worker 转发和生产回执关联。
 
 ## 2. 三种方案对比
 
@@ -80,7 +80,7 @@ type MailProvider interface {
 
 - `resend`：已作为 `api/internal/mail` 的统一 provider，报表发送与 Wallet email sender 共用。
 - `mock`：测试和本地开发。
-- `cloudflare`：下一步 P0 实现，使用 Cloudflare Email Service REST API。
+- `cloudflare`：已实现，使用 Cloudflare Email Service REST API；report schedule、Wallet alert 与 invitation email 可共用。
 - `resend`：保留为 fallback，不阻塞 Cloudflare-first 路径。
 
 需要收敛的代码面：
@@ -135,7 +135,6 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 | 优先级 | 事项 | 说明 |
 |---:|---|---|
 | P0 | 配置 Cloudflare Email Service 生产发信 DNS | 完成 Email Sending onboarding，确认 SPF/DKIM/DMARC 与 from 域名 |
-| P0 | 实现 Cloudflare `MailProvider` | 后端通过 Cloudflare Email Service REST API 发送 report PDF、Wallet alert 与系统通知 |
 | P0 | 在 mac mini `.env` 接入 Cloudflare Email token | 先让 PDF report 和告警真实可发；Resend key 降级为 fallback |
 | P1 | 生产真实 Cloudflare smoke | 用 `reports@mistyislet.com` / `no-reply@mistyislet.com` 验证 report PDF 与 Wallet alert 真收件 |
 | P1 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，下一步部署 Worker 和 allowlist/HMAC |
