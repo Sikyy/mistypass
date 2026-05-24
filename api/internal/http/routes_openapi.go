@@ -591,6 +591,10 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/invitations/{deliveryID}/resend", OperationID: "resendInvitation", Tag: "Users", Summary: "Resend an invitation."},
 		{Method: http.MethodPost, Path: "/api/v1/users/invitations/provider-receipts", OperationID: "receiveUserInvitationProviderReceipt", Tag: "Users", Summary: "Receive invitation provider receipt.", Public: true},
 
+		// Email Webhooks
+		{Method: http.MethodPost, Path: "/api/v1/webhooks/email/inbound", OperationID: "receiveEmailInboundWebhook", Tag: "Webhooks", Summary: "Receive inbound email or provider receipt webhook.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/webhooks/email/inbound/events", OperationID: "fetchEmailInboundEvents", Tag: "Webhooks", Summary: "List inbound email webhook events.", Collection: true},
+
 		// Users Batch Operations
 		{Method: http.MethodPost, Path: "/api/v1/users/batch-status", OperationID: "batchUpdateUserStatus", Tag: "Users", Summary: "Batch update user status."},
 		{Method: http.MethodPost, Path: "/api/v1/users/batch-delete", OperationID: "batchDeleteUsers", Tag: "Users", Summary: "Batch delete users."},

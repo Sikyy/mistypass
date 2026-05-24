@@ -104,6 +104,9 @@ jobs:
       - name: Report Schedule Resend Regression
         run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18189 API_BASE_URL=http://localhost:18189 RESEND_PORT=19094 GOTENBERG_PORT=19095 ./docs/testing/curl-report-schedule-resend.zsh
 
+      - name: Email Inbound Webhook Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18190 API_BASE_URL=http://localhost:18190 ./docs/testing/curl-email-inbound-webhook.zsh
+
       - name: Gateway Serial + Protocol Regression
         run: ./docs/testing/curl-gateway-serial-protocol.zsh
 
@@ -197,6 +200,7 @@ jobs:
             /tmp/mp_report_schedule_resend_api.log
             /tmp/mp_report_schedule_gotenberg.log
             /tmp/mp_report_schedule_gotenberg.jsonl
+            /tmp/mp_email_inbound_webhook_api.log
             /tmp/mp_wallet_queue_process_api.log
             /tmp/mp_wallet_dlq_requeue_api.log
             /tmp/mp_wallet_dlq_governance_api.log

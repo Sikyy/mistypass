@@ -183,6 +183,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] `MailProvider` 抽象。
 - [x] Resend provider 统一到 report schedule 与 Wallet alert sender。
 - [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
+- [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
 - [ ] Resend 生产配置与 DNS 验收。
-- Cloudflare Email Routing/Workers 入站 webhook。
+- Cloudflare Email Routing/Workers 生产转发。
 - 邮件回执关联 report schedule / wallet delivery / enterprise alert。

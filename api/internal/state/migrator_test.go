@@ -29,13 +29,14 @@ func TestRunMigrationsIsIdempotent(t *testing.T) {
 		t.Fatalf("second RunMigrations call should succeed: %v", err)
 	}
 
-	var count int
-	err := store.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&count)
+	applied, err := appliedVersions(store.db)
 	if err != nil {
-		t.Fatalf("query failed: %v", err)
+		t.Fatalf("query applied versions failed: %v", err)
 	}
-	if count != len(AllMigrations()) {
-		t.Fatalf("expected %d applied migrations, got %d", len(AllMigrations()), count)
+	for _, migration := range AllMigrations() {
+		if !applied[migration.Version] {
+			t.Fatalf("expected migration version %d to be applied; applied=%v", migration.Version, applied)
+		}
 	}
 }
 
