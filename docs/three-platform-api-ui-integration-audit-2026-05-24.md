@@ -198,7 +198,8 @@ cd /Users/siky/code/MistyPass
 - [x] `MailProvider` 抽象。
 - [x] Resend provider 统一到 report schedule 与 Wallet alert sender，保留为 fallback。
 - [x] Cloudflare Email Service provider 接入 report schedule、Wallet alert 与 invitation email。
-- [x] `REPORT_EMAIL_FROM` 已从 invitation sender 拆出；macmini 可复制 `deploy/env/cloudflare-email.example.env` 后在本机填真实 token。
+- [x] `REPORT_EMAIL_FROM` 已从 invitation sender 拆出；macmini 可复制 `deploy/env/macmini-staging.example.env` 后在本机填真实 token。
+- [x] Mac mini staging env 模板与 Compose env 透传已补齐；`deploy/macmini/update-and-redeploy.zsh` 与 launchd 模板可从 `github/main` 自动 fast-forward 后重部署。
 - [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
 - [ ] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke。

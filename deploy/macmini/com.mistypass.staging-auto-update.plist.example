@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mistypass.staging-auto-update</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Users/siky/code/MistyPass/deploy/macmini/update-and-redeploy.zsh</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>REPO_DIR</key>
+    <string>/Users/siky/code/MistyPass</string>
+    <key>REMOTE</key>
+    <string>github</string>
+    <key>BRANCH</key>
+    <string>main</string>
+    <key>ENV_FILE</key>
+    <string>/Users/siky/code/MistyPass/.env.staging</string>
+    <key>HEALTH_URL</key>
+    <string>http://127.0.0.1:8080/healthz</string>
+  </dict>
+
+  <key>StartInterval</key>
+  <integer>600</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/mistypass-staging-auto-update.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/mistypass-staging-auto-update.err</string>
+</dict>
+</plist>
