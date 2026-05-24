@@ -7233,7 +7233,7 @@
         ]
       }
     },
-    "/api/v1/app/places/{placeId}/users/": {
+    "/api/v1/app/places/{placeId}/users": {
       "get": {
         "operationId": "getAppPlacesPlaceIdUsers",
         "parameters": [

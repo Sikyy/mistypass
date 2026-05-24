@@ -1568,9 +1568,9 @@
     {
       "operationId": "getAppPlacesPlaceIdUsers",
       "method": "GET",
-      "apiPath": "/api/v1/app/places/{placeId}/users/",
-      "path": "/app/places/{placeId}/users/",
-      "retrofitPath": "app/places/{placeId}/users/",
+      "apiPath": "/api/v1/app/places/{placeId}/users",
+      "path": "/app/places/{placeId}/users",
+      "retrofitPath": "app/places/{placeId}/users",
       "parameters": [
         "placeId"
       ],
@@ -1580,9 +1580,9 @@
     {
       "operationId": "postAppPlacesPlaceIdUsers",
       "method": "POST",
-      "apiPath": "/api/v1/app/places/{placeId}/users/",
-      "path": "/app/places/{placeId}/users/",
-      "retrofitPath": "app/places/{placeId}/users/",
+      "apiPath": "/api/v1/app/places/{placeId}/users",
+      "path": "/app/places/{placeId}/users",
+      "retrofitPath": "app/places/{placeId}/users",
       "parameters": [
         "placeId"
       ],
