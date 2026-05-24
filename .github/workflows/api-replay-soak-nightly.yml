@@ -53,6 +53,7 @@ jobs:
           SOAK_INTERVAL_SECONDS=20 \
           SOAK_WORKDIR=/tmp/mp_pg_replay_soak \
           SOAK_LOG_CSV=/tmp/mp_pg_replay_soak/metrics.csv \
+          SOAK_DROP_RATIO_MAX=0.95 \
           LEVEL_TENANT_WRITES=8,16,24 \
           LEVEL_CONCURRENT_NOOP=4,4,4 \
           LEVEL_MIN_OPS=5,5,5 \
