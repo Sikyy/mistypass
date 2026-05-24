@@ -12,7 +12,7 @@
 
 - 统一发送抽象：`api/internal/mail` 提供 `Provider` / `Message` / `Receipt`，当前最小实现为 Resend。
 - 报表发送：`api/internal/http/routes_report_schedule.go` 复用统一 mail provider，并继续兼容 `USER_INVITATION_RESEND_API_KEY` / `USER_INVITATION_RESEND_ENDPOINT`。
-- Web Admin：Report Schedules 页面已补 “Send now” 行操作，provider 未启用/未配置会直接显示后端错误。
+- Web Admin：Report Schedules 页面已补 “Send now” 行操作和 provider status 状态条，provider 未启用/未配置会直接显示。
 - Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
 - 当前缺口不是“没有邮件能力”，而是缺少域名 DNS 记录清单、真实生产 key、真实收信/回执 webhook。
 

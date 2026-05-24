@@ -60,6 +60,18 @@ type reportScheduleMutationRequest struct {
 	Enabled        *bool                  `json:"enabled"`
 }
 
+type reportScheduleProviderStatus struct {
+	Provider       string   `json:"provider"`
+	Enabled        bool     `json:"enabled"`
+	Configured     bool     `json:"configured"`
+	Ready          bool     `json:"ready"`
+	Endpoint       string   `json:"endpoint"`
+	From           string   `json:"from"`
+	TimeoutSeconds int      `json:"timeout_seconds"`
+	Missing        []string `json:"missing,omitempty"`
+	Message        string   `json:"message"`
+}
+
 func (req reportScheduleMutationRequest) payload() reportSchedulePayload {
 	if req.ReportSchedule != nil {
 		return *req.ReportSchedule
@@ -126,6 +138,13 @@ func (s *server) getReportSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, item)
+}
+
+func (s *server) getReportScheduleProviderStatus(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id")); !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.reportMailProviderStatus())
 }
 
 func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request) {
@@ -728,6 +747,45 @@ func (s *server) reportMailProvider() (mail.Provider, error) {
 		From:     firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
 		Timeout:  s.reportMailTimeout(),
 	})
+}
+
+func (s *server) reportMailProviderStatus() reportScheduleProviderStatus {
+	endpoint := firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationResendEndpoint), mail.ResendEndpointDefault)
+	from := firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local")
+	apiKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
+	timeout := s.reportMailTimeout()
+
+	missing := make([]string, 0, 3)
+	if !s.cfg.ReportEmailEnabled {
+		missing = append(missing, "REPORT_EMAIL_ENABLED")
+	}
+	if apiKey == "" {
+		missing = append(missing, "USER_INVITATION_RESEND_API_KEY")
+	}
+	if from == "" {
+		missing = append(missing, "USER_INVITATION_EMAIL_FROM")
+	}
+
+	configured := apiKey != "" && from != ""
+	ready := s.cfg.ReportEmailEnabled && configured
+	message := "Report email provider is ready."
+	if !s.cfg.ReportEmailEnabled {
+		message = "Report email delivery is disabled."
+	} else if !configured {
+		message = "Report email provider is missing required configuration."
+	}
+
+	return reportScheduleProviderStatus{
+		Provider:       "resend",
+		Enabled:        s.cfg.ReportEmailEnabled,
+		Configured:     configured,
+		Ready:          ready,
+		Endpoint:       endpoint,
+		From:           from,
+		TimeoutSeconds: int(timeout.Seconds()),
+		Missing:        missing,
+		Message:        message,
+	}
 }
 
 func (s *server) reportMailTimeout() time.Duration {

@@ -1,7 +1,7 @@
 import { useState } from "react"
 import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileTextIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
+import { FileTextIcon, MailIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
 
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import { PageFrame, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
@@ -17,10 +17,12 @@ import {
 import {
   createReportSchedule,
   deleteReportSchedule,
+  getReportScheduleProviderStatus,
   listReportSchedules,
   sendReportSchedule,
   updateReportSchedule,
   type CurrentUser,
+  type ReportEmailProviderStatus,
   type ReportSchedule,
 } from "@/lib/api"
 
@@ -89,6 +91,12 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   const schedulesQuery = useQuery({
     queryKey: ["report-schedules", tenantID],
     queryFn: () => listReportSchedules(token, tenantID),
+    enabled: Boolean(token && tenantID),
+  })
+
+  const providerStatusQuery = useQuery({
+    queryKey: ["report-schedule-provider-status", tenantID],
+    queryFn: () => getReportScheduleProviderStatus(token, tenantID),
     enabled: Boolean(token && tenantID),
   })
 
@@ -199,6 +207,11 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
           {sendMessage}
         </div>
       )}
+      <ProviderStatusBanner
+        status={providerStatusQuery.data}
+        loading={providerStatusQuery.isLoading || providerStatusQuery.isFetching}
+        error={providerStatusQuery.error instanceof Error ? providerStatusQuery.error.message : ""}
+      />
 
       {/* Schedule Table */}
       <div>
@@ -336,6 +349,43 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
         destructive
       />
     </PageFrame>
+  )
+}
+
+function ProviderStatusBanner({
+  status,
+  loading,
+  error,
+}: {
+  status?: ReportEmailProviderStatus
+  loading: boolean
+  error: string
+}) {
+  const tone = error ? "danger" : status?.ready ? "success" : status?.enabled ? "danger" : "warning"
+  const label = error ? "Provider status unavailable" : status?.ready ? "Ready" : status?.enabled ? "Configuration required" : "Disabled"
+  const message = error || status?.message || "Checking report email provider."
+  const details = status
+    ? [
+        status.provider ? `provider=${status.provider}` : "",
+        status.from ? `from=${status.from}` : "",
+        status.missing?.length ? `missing=${status.missing.join(", ")}` : "",
+      ].filter(Boolean).join(" · ")
+    : ""
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[6px] border border-line-subtle bg-white px-5 py-4 text-sm text-content-body md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <MailIcon className="mt-0.5 size-4 shrink-0 text-content-subtle" />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-content-heading">Report email provider</span>
+            <StatusDot tone={tone} label={loading ? "Checking" : label} />
+          </div>
+          <p className="mt-1 text-content-subtle">{message}</p>
+          {details ? <p className="mt-1 truncate text-xs text-content-muted">{details}</p> : null}
+        </div>
+      </div>
+    </div>
   )
 }
 

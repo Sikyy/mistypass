@@ -19,7 +19,6 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
-	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
 	"github.com/mistypass/cloud/api/internal/modules/credential"
@@ -32,6 +31,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/space"
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/redistore"
 	"github.com/mistypass/cloud/api/internal/state"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -1242,6 +1242,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules", s.listReportSchedules)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules", s.createReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules/provider-status", s.getReportScheduleProviderStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules/{scheduleID}", s.getReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/report-schedules/{scheduleID}", s.updateReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/report-schedules/{scheduleID}", s.deleteReportSchedule)

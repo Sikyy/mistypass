@@ -28138,6 +28138,44 @@
         ]
       }
     },
+    "/api/v1/report-schedules/provider-status": {
+      "get": {
+        "operationId": "getReportScheduleProviderStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Check the configured report email provider status.",
+        "tags": [
+          "Report Schedules"
+        ]
+      }
+    },
     "/api/v1/report-schedules/{scheduleID}": {
       "delete": {
         "operationId": "deleteReportSchedule",

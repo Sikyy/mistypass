@@ -11,7 +11,7 @@
 
 三端主路径已经比较完整：登录、组织/场所、门点、远程开门、访客、团队/组、基础凭证、报警、预约、摄像头、报表导出都能在代码层找到对应调用。2026-05-24 已完成第一轮 P0 止血：mobile OpenAPI 扩展、覆盖测试、iOS Wallet tenant query、Android emulator debug base URL 均已落地。
 
-- `docs/openapi.json` 已更新到 478 个路径，其中 `/api/v1/app/*` 为 128 个。
+- `docs/openapi.json` 已更新到 479 个路径，其中 `/api/v1/app/*` 为 128 个。
 - `docs/openapi-mobile.json` 已更新到 128 个 mobile 路径。
 - 后端实际 `/api/v1/app/*` 路由已由 `TestOpenAPIMobileCoverage` 和生成后的 mobile 文档形成回归约束。
 - Web Admin API 模块约 270 个路径，存在一批后端已实现但 OpenAPI 未登记的 Admin extension。
@@ -29,7 +29,7 @@
 
 | 契约面 | 当前状态 | 风险 |
 |---|---|---|
-| `docs/openapi.json` | 已更新到 478 个路径，包含 128 个 `/app` 路径 | Admin extension 仍有补录空间 |
+| `docs/openapi.json` | 已更新到 479 个路径，包含 128 个 `/app` 路径 | Admin extension 仍有补录空间 |
 | `docs/openapi-mobile.json` | 已更新到 128 个 mobile 路径 | 后续需持续生成并保持 coverage test 通过 |
 | `api/internal/http/router.go` | mobile 路由实际已覆盖多模块 | 新增 mobile 路由必须同步 OpenAPI |
 | `web-admin/src/lib/api/*` | 前端调用覆盖大量 Admin API | 部分新 Admin extension 未进入 OpenAPI |
@@ -76,7 +76,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P1 | `/api/v1/oauth2/clients` | OpenAPI 存在，UI 无调用 | 新增 Developer / API Clients 管理页 |
 | P1 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在，UI 无调用 | Wallet Advanced 中补 Google Wallet provider config |
 | P1 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary` | API 与测试文档存在，UI 目前主要展示 archives/metrics/alerts | Wallet Queue Ops 补批量治理按钮和确认弹窗 |
-| P1 已推进 | `/api/v1/report-schedules/{id}/send` | API 存在；Report schedule UI 已补 “Send now” 行操作 | 发送失败会显示 provider 未启用/未配置等后端错误；下一步接 provider health/status 只读接口 |
+| P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
 
@@ -145,7 +145,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Wallet Google config | API 已有 | 无 UI | 钱包真实发卡未接 | 未接 | P1/P2 视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | export 默认值需确认 | Android spec 显示兼容 | P1 修移动端默认/文案 |
 | Camera cloud | API 已有 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
-| Email provider | 已新增统一 `MailProvider` + Resend provider | 缺 provider status UI | N/A | N/A | P1 已启动，下一步接 DNS/回执 |
+| Email provider | 已新增统一 `MailProvider` + Resend provider | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 DNS/回执 |
 
 ## 7. 推进计划
 
@@ -164,7 +164,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - Wallet Google config 页面。
 - Wallet DLQ batch governance 操作按钮。
 - [x] Report schedule `Send now` provider 错误提示。
-- [ ] Report schedule provider health/status 只读展示。
+- [x] Report schedule provider health/status 只读展示。
 
 ### Batch C：移动端 Admin 深水区（推荐 Batch A/B 后做，3-5 天）
 

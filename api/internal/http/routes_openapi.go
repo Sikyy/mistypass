@@ -1110,6 +1110,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		// Report Schedules
 		{Method: http.MethodGet, Path: "/api/v1/report-schedules", OperationID: "fetchReportSchedules", Tag: "Report Schedules", Summary: "List report delivery schedules.", Collection: true},
 		{Method: http.MethodPost, Path: "/api/v1/report-schedules", OperationID: "createReportSchedule", Tag: "Report Schedules", Summary: "Create a report delivery schedule.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/report-schedules/provider-status", OperationID: "getReportScheduleProviderStatus", Tag: "Report Schedules", Summary: "Check the configured report email provider status."},
 		{Method: http.MethodGet, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "fetchReportSchedule", Tag: "Report Schedules", Summary: "Fetch a report delivery schedule."},
 		{Method: http.MethodPatch, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "updateReportSchedule", Tag: "Report Schedules", Summary: "Update a report delivery schedule."},
 		{Method: http.MethodDelete, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "deleteReportSchedule", Tag: "Report Schedules", Summary: "Delete a report delivery schedule.", NoContent: true},
