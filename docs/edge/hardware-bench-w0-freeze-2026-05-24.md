@@ -1,5 +1,7 @@
 # Hardware Bench W0 Freeze - 2026-05-24
 
+> 能力状态：CONTRACT_READY
+
 This note freezes the W0 bench baseline for the first physical gateway and door I/O validation run. It is intentionally narrow: fixed demo resource IDs, wiring assumptions, safety gates, API smoke commands, and evidence to capture before moving to W1.
 
 ## Scope
