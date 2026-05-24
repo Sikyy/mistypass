@@ -31,14 +31,15 @@ import (
 )
 
 const (
-	defaultDriverName   = "postgres"
-	defaultQueryTimeout = 5 * time.Second
-	defaultReplayLimit  = 100
-	maxReplayLimit      = 500
-	defaultMaxOpenConns = 25
-	defaultMaxIdleConns = 10
-	defaultConnMaxIdle  = 5 * time.Minute
-	defaultConnLifetime = 30 * time.Minute
+	defaultDriverName    = "postgres"
+	defaultQueryTimeout  = 5 * time.Second
+	defaultReplayTimeout = 30 * time.Second
+	defaultReplayLimit   = 100
+	maxReplayLimit       = 500
+	defaultMaxOpenConns  = 25
+	defaultMaxIdleConns  = 10
+	defaultConnMaxIdle   = 5 * time.Minute
+	defaultConnLifetime  = 30 * time.Minute
 
 	changeTypeSnapshotSaved = "snapshot_saved"
 
@@ -2792,7 +2793,7 @@ func (s *PostgresStore) ReplayStateChanges(stateKey string, fromID int64, limit 
 	}
 	nextLimit := normalizeReplayLimit(limit)
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultReplayTimeout)
 	defer cancel()
 
 	rows, err := s.queries.ListReplayPayloadsByKeyFromID(ctx, sqlcgen.ListReplayPayloadsByKeyFromIDParams{
@@ -2863,10 +2864,10 @@ func (s *PostgresStore) ReplayStateChangesFromCheckpoint(stateKey string, limit 
 		return ReplayFromCheckpointResult{}, ErrStateKeyRequired
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
-	defer cancel()
+	checkpointCtx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	checkpoint, exists, err := s.getReplayCheckpoint(checkpointCtx, nextKey)
+	cancel()
 
-	checkpoint, exists, err := s.getReplayCheckpoint(ctx, nextKey)
 	if err != nil {
 		return ReplayFromCheckpointResult{}, err
 	}
@@ -2886,7 +2887,10 @@ func (s *PostgresStore) ReplayStateChangesFromCheckpoint(stateKey string, limit 
 		nextLastChangeID = replayResult.LastChangeID
 	}
 
-	savedCheckpoint, err := s.upsertReplayCheckpoint(ctx, nextKey, nextLastChangeID)
+	upsertCtx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+
+	savedCheckpoint, err := s.upsertReplayCheckpoint(upsertCtx, nextKey, nextLastChangeID)
 	if err != nil {
 		return ReplayFromCheckpointResult{}, err
 	}
