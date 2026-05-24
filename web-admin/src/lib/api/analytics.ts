@@ -94,4 +94,11 @@ export async function deleteReportSchedule(token: string | undefined, scheduleID
   return request(`/api/v1/report-schedules/${scheduleID}?tenant_id=${tenantID}`, { method: "DELETE" }, token)
 }
 
+export async function sendReportSchedule(token: string | undefined, scheduleID: string, tenantID: string): Promise<ReportSchedule> {
+  return request(`/api/v1/report-schedules/${scheduleID}/send?tenant_id=${tenantID}`, {
+    method: "POST",
+    body: JSON.stringify({ tenant_id: tenantID }),
+  }, token)
+}
+
 // listCameras moved to cameras.ts

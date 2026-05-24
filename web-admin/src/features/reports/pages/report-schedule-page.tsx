@@ -1,7 +1,7 @@
 import { useState } from "react"
 import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileTextIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { FileTextIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
 
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import { PageFrame, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
@@ -18,6 +18,7 @@ import {
   createReportSchedule,
   deleteReportSchedule,
   listReportSchedules,
+  sendReportSchedule,
   updateReportSchedule,
   type CurrentUser,
   type ReportSchedule,
@@ -53,6 +54,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   const [editTarget, setEditTarget] = useState<ReportSchedule | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState("")
+  const [sendMessage, setSendMessage] = useState("")
   const [form, setForm] = useState({
     name: "", report_type: "weekly_analytics", frequency: "weekly", recipients: "",
     format: "pdf", day_of_week: 1, enabled: true,
@@ -64,6 +66,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
     setEditTarget(null)
     setForm(defaultForm)
     setMutationError("")
+    setSendMessage("")
     setSheetOpen(true)
   }
 
@@ -79,6 +82,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       enabled: s.enabled,
     })
     setMutationError("")
+    setSendMessage("")
     setSheetOpen(true)
   }
 
@@ -105,6 +109,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       setSheetOpen(false)
       setForm(defaultForm)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to create report schedule"),
   })
@@ -127,6 +132,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       setEditTarget(null)
       setForm(defaultForm)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to update report schedule"),
   })
@@ -136,6 +142,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       updateReportSchedule(token, s.id, { tenant_id: tenantID, enabled: !s.enabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to toggle schedule"),
   })
@@ -146,8 +153,22 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
       setConfirmDelete(null)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to delete report schedule"),
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: (s: ReportSchedule) => sendReportSchedule(token, s.id, tenantID),
+    onSuccess: (schedule) => {
+      queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+      setMutationError("")
+      setSendMessage(`${schedule.name} sent via the configured mail provider.`)
+    },
+    onError: (err) => {
+      setSendMessage("")
+      setMutationError(err instanceof Error ? err.message : "Failed to send report schedule")
+    },
   })
 
   const schedules = schedulesQuery.data?.items ?? []
@@ -173,6 +194,11 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
           {mutationError}
         </div>
       )}
+      {sendMessage && (
+        <div className="rounded-[6px] border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          {sendMessage}
+        </div>
+      )}
 
       {/* Schedule Table */}
       <div>
@@ -195,6 +221,8 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
                 onEdit={openEdit}
                 onDelete={setConfirmDelete}
                 onToggle={(sched) => toggleMutation.mutate(sched)}
+                onSend={(sched) => sendMutation.mutate(sched)}
+                sending={sendMutation.isPending}
               />
             ))}
           </div>
@@ -316,11 +344,15 @@ function ReportRow({
   onEdit,
   onDelete,
   onToggle,
+  onSend,
+  sending,
 }: {
   schedule: ReportSchedule
   onEdit: (s: ReportSchedule) => void
   onDelete: (id: string) => void
   onToggle: (s: ReportSchedule) => void
+  onSend: (s: ReportSchedule) => void
+  sending: boolean
 }) {
   const typeLabel = REPORT_TYPES.find((t) => t.value === schedule.report_type)?.label ?? schedule.report_type
   const freqLabel = FREQUENCIES.find((f) => f.value === schedule.frequency)?.label ?? schedule.frequency
@@ -342,6 +374,7 @@ function ReportRow({
         <StatusDot tone={schedule.enabled ? "success" : "warning"} label={schedule.enabled ? "Active" : "Paused"} />
         <RowActionsMenu
           items={[
+            { id: "send", label: sending ? "Sending..." : "Send now", icon: SendIcon, disabled: sending, onSelect: () => onSend(schedule) },
             { id: "edit", label: "Edit", icon: PencilIcon, onSelect: () => onEdit(schedule) },
             { id: "delete", label: "Delete", icon: Trash2Icon, onSelect: () => onDelete(schedule.id), destructive: true },
           ]}

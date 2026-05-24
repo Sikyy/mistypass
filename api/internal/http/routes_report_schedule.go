@@ -1,19 +1,17 @@
 package httpx
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"html"
-	"io"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mistypass/cloud/api/internal/mail"
 	"github.com/mistypass/cloud/api/internal/pdfgen"
 )
 
@@ -37,11 +35,6 @@ type reportSchedule struct {
 	NextRunAt  string   `json:"next_run_at,omitempty"`
 	CreatedAt  string   `json:"created_at"`
 	UpdatedAt  string   `json:"updated_at"`
-}
-
-type resendAttachment struct {
-	Filename string `json:"filename"`
-	Content  string `json:"content"`
 }
 
 type reportSchedulePayload struct {
@@ -441,20 +434,11 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate Resend configuration — reuse user-invitation Resend config.
-	resendEndpoint := strings.TrimSpace(s.cfg.UserInvitationResendEndpoint)
-	if resendEndpoint == "" {
-		resendEndpoint = "https://api.resend.com/emails"
-	}
-	resendAPIKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
-	if resendAPIKey == "" {
-		s.logger.Warn("Resend API key not configured (set USER_INVITATION_RESEND_API_KEY)")
+	provider, err := s.reportMailProvider()
+	if err != nil {
+		s.logger.Warn("report email provider is not configured", "error", err)
 		writeError(w, http.StatusNotImplemented, "email provider is not configured")
 		return
-	}
-	emailFrom := strings.TrimSpace(s.cfg.UserInvitationEmailFrom)
-	if emailFrom == "" {
-		emailFrom = "no-reply@mistypass.local"
 	}
 
 	// Build the report PDF and attach it.
@@ -487,7 +471,7 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := pdfgen.FormatPDFFilename(reportType, periodStart, periodEnd)
-	attachments := []resendAttachment{{
+	attachments := []mail.Attachment{{
 		Filename: filename,
 		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
 	}}
@@ -497,11 +481,18 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
 	htmlBody := buildReportEmailHTML(schedule.Name, reportType, meta, filename)
 
-	resendTimeout := s.cfg.UserInvitationResendTimeout
-	if resendTimeout < time.Second {
-		resendTimeout = 5 * time.Second
-	}
-	err = sendReportViaResend(r.Context(), resendEndpoint, resendAPIKey, emailFrom, schedule.Recipients, subject, htmlBody, attachments, resendTimeout)
+	receipt, err := provider.Send(r.Context(), mail.Message{
+		TenantID:       schedule.TenantID,
+		To:             schedule.Recipients,
+		IdempotencyKey: reportScheduleEmailIdempotencyKey(schedule.ID, periodEnd),
+		Subject:        subject,
+		HTML:           htmlBody,
+		Attachments:    attachments,
+		Metadata: map[string]string{
+			"report_schedule_id": schedule.ID,
+			"report_type":        reportType,
+		},
+	})
 	if err != nil {
 		s.logger.Error("failed to send report email", "error", err, "schedule_id", scheduleID)
 		writeError(w, http.StatusBadGateway, "failed to send report email: "+err.Error())
@@ -519,45 +510,8 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	s.reportScheduleMu.Unlock()
 
-	s.appendAuditLog(r, tenantID, "report_schedule_sent", fmt.Sprintf("schedule_id=%s,report_type=%s,recipients=%d", schedule.ID, schedule.ReportType, len(schedule.Recipients)), "report_schedule")
+	s.appendAuditLog(r, tenantID, "report_schedule_sent", fmt.Sprintf("schedule_id=%s,report_type=%s,recipients=%d,provider=%s,provider_delivery_id=%s", schedule.ID, schedule.ReportType, len(schedule.Recipients), receipt.Provider, receipt.ProviderDeliveryID), "report_schedule")
 	writeJSON(w, http.StatusOK, schedule)
-}
-
-// sendReportViaResend sends an HTML email through the Resend API.
-func sendReportViaResend(ctx context.Context, endpoint, apiKey, from string, to []string, subject, html string, attachments []resendAttachment, timeout time.Duration) error {
-	payload := map[string]any{
-		"from":    from,
-		"to":      append([]string(nil), to...),
-		"subject": subject,
-		"html":    html,
-	}
-	if len(attachments) > 0 {
-		payload["attachments"] = attachments
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal email payload: %w", err)
-	}
-
-	client := &http.Client{Timeout: timeout}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return fmt.Errorf("resend api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
-	}
-	return nil
 }
 
 // buildReportEmailHTML generates a branded HTML email body for a report schedule.
@@ -658,29 +612,18 @@ func (s *server) runScheduledReports() {
 		return
 	}
 
-	resendEndpoint := strings.TrimSpace(s.cfg.UserInvitationResendEndpoint)
-	if resendEndpoint == "" {
-		resendEndpoint = "https://api.resend.com/emails"
-	}
-	resendAPIKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
-	if resendAPIKey == "" {
+	provider, err := s.reportMailProvider()
+	if err != nil {
+		s.logger.Warn("scheduled report email provider is not configured", "error", err)
 		return
-	}
-	emailFrom := strings.TrimSpace(s.cfg.UserInvitationEmailFrom)
-	if emailFrom == "" {
-		emailFrom = "no-reply@mistypass.local"
-	}
-	resendTimeout := s.cfg.UserInvitationResendTimeout
-	if resendTimeout < time.Second {
-		resendTimeout = 5 * time.Second
 	}
 
 	for _, sched := range due {
-		s.executeScheduledReport(sched, now, resendEndpoint, resendAPIKey, emailFrom, resendTimeout)
+		s.executeScheduledReport(sched, now, provider)
 	}
 }
 
-func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, resendEndpoint, resendAPIKey, emailFrom string, timeout time.Duration) {
+func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, provider mail.Provider) {
 	periodEnd := now.Truncate(time.Second)
 	var periodStart time.Time
 	switch sched.Frequency {
@@ -723,7 +666,7 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, res
 	}
 
 	filename := pdfgen.FormatPDFFilename(reportType, periodStart, periodEnd)
-	attachments := []resendAttachment{{
+	attachments := []mail.Attachment{{
 		Filename: filename,
 		Content:  base64.StdEncoding.EncodeToString(pdfBytes),
 	}}
@@ -733,9 +676,20 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, res
 		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
 	htmlBody := buildReportEmailHTML(sched.Name, reportType, meta, filename)
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.reportMailTimeout())
 	defer cancel()
-	err = sendReportViaResend(ctx, resendEndpoint, resendAPIKey, emailFrom, sched.Recipients, subject, htmlBody, attachments, timeout)
+	receipt, err := provider.Send(ctx, mail.Message{
+		TenantID:       sched.TenantID,
+		To:             sched.Recipients,
+		IdempotencyKey: reportScheduleEmailIdempotencyKey(sched.ID, periodEnd),
+		Subject:        subject,
+		HTML:           htmlBody,
+		Attachments:    attachments,
+		Metadata: map[string]string{
+			"report_schedule_id": sched.ID,
+			"report_type":        reportType,
+		},
+	})
 	if err != nil {
 		s.logger.Error("scheduled report email failed", "error", err, "schedule_id", sched.ID)
 		return
@@ -764,5 +718,26 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, res
 	}
 	s.reportScheduleMu.Unlock()
 
-	s.logger.Info("scheduled report sent", "schedule_id", sched.ID, "recipients", len(sched.Recipients))
+	s.logger.Info("scheduled report sent", "schedule_id", sched.ID, "recipients", len(sched.Recipients), "provider", receipt.Provider, "provider_delivery_id", receipt.ProviderDeliveryID)
+}
+
+func (s *server) reportMailProvider() (mail.Provider, error) {
+	return mail.NewResendProvider(mail.ResendOptions{
+		Endpoint: strings.TrimSpace(s.cfg.UserInvitationResendEndpoint),
+		APIKey:   strings.TrimSpace(s.cfg.UserInvitationResendAPIKey),
+		From:     firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
+		Timeout:  s.reportMailTimeout(),
+	})
+}
+
+func (s *server) reportMailTimeout() time.Duration {
+	timeout := s.cfg.UserInvitationResendTimeout
+	if timeout < time.Second {
+		timeout = 5 * time.Second
+	}
+	return timeout
+}
+
+func reportScheduleEmailIdempotencyKey(scheduleID string, periodEnd time.Time) string {
+	return "report_schedule:" + strings.TrimSpace(scheduleID) + ":" + periodEnd.UTC().Format(time.RFC3339)
 }

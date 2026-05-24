@@ -10,9 +10,11 @@
 
 本项目当前代码已经具备 Resend 路径：
 
-- 报表发送：`api/internal/http/routes_report_schedule.go` 复用 `USER_INVITATION_RESEND_API_KEY` / `USER_INVITATION_RESEND_ENDPOINT`。
-- Wallet 告警：`api/internal/config/config.go` 支持 `WALLET_ALERT_EMAIL_PROVIDER=resend`，且 `spaceemail` 会映射到 `resend` 兼容模式。
-- 当前缺口不是“没有邮件能力”，而是缺少统一 mail provider 抽象、域名 DNS 记录清单、真实收信/回执 webhook。
+- 统一发送抽象：`api/internal/mail` 提供 `Provider` / `Message` / `Receipt`，当前最小实现为 Resend。
+- 报表发送：`api/internal/http/routes_report_schedule.go` 复用统一 mail provider，并继续兼容 `USER_INVITATION_RESEND_API_KEY` / `USER_INVITATION_RESEND_ENDPOINT`。
+- Web Admin：Report Schedules 页面已补 “Send now” 行操作，provider 未启用/未配置会直接显示后端错误。
+- Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
+- 当前缺口不是“没有邮件能力”，而是缺少域名 DNS 记录清单、真实生产 key、真实收信/回执 webhook。
 
 ## 2. 三种方案对比
 
@@ -54,7 +56,7 @@
 - Wallet alert dispatch resend smoke 通过。
 - DMARC aggregate 记录能看到通过率。
 
-### Phase E1：统一 MailProvider 抽象（1 天）
+### Phase E1：统一 MailProvider 抽象（已启动）
 
 目标：避免 report schedule、wallet alert、enterprise alert 各自拼 provider。
 
@@ -68,7 +70,7 @@ type MailProvider interface {
 
 最小实现：
 
-- `resend`：保留现有可用路径。
+- `resend`：已作为 `api/internal/mail` 的统一 provider，报表发送与 Wallet email sender 共用。
 - `mock`：测试和本地开发。
 - `cloudflare`：后续接 Cloudflare Email Service 时实现，不影响业务层。
 
@@ -127,4 +129,3 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 | P1 | 抽 `MailProvider` 接口 | 避免后续从 Resend 换 Cloudflare 时改业务层 |
 | P1 | 新增 Cloudflare inbound webhook | 解决回信、退信、供应商事件入库 |
 | P2 | Cloudflare Email Service 发信适配 | 等账号侧可用性、价格和限制确认后接 |
-
