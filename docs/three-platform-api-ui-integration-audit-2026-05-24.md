@@ -113,7 +113,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P1 | `APIService.exportReport` | 默认 `format = "csv"`，但新 PDF 报表已成为主路径 | Admin Export UI 若用于 PDF，默认改为 `pdf` 或明确格式选择 |
 | P1 | `Constants.API` | 大量路径手写，且有些常量未被 UI 调用 | 等 mobile OpenAPI 补齐后生成 typed client 或生成常量 |
 | P1 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，iOS 未接 | 放入 Camera 真实集成排期 |
-| P2 | Admin detail routes | events detail/related、incidents detail/occurrences、zone detail、user detail/logins/access-rights/share-access 未完全接 UI | 按移动端 Admin 权限产品范围逐步补 |
+| P2 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences 已补 API smoke；zone detail、user detail/logins/access-rights/share-access 仍需 App UI 接线 | 已启动 iOS 仓库联调；按移动端 Admin 权限产品范围逐步补 |
 
 ## 5. Android API 审计
 
@@ -130,14 +130,14 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P0 已完成 | `app/build.gradle.kts` debug `API_BASE_URL` | `http://localhost:8081/api/v1/` 在 Android 模拟器里通常指向模拟器自身，不是 Mac host | 已改为 `http://10.0.2.2:8080/api/v1/` |
 | P1 | Device push | Android 只有 `POST /app/devices/register`，后端另有 iOS APNS `/app/devices/apns`；FCM token 注册语义需确认 | 明确 Android FCM 是否复用 register，或新增 `/app/devices/fcm` |
 | P1 | Camera cloud token/recordings | 后端存在但 Android 未接 | Camera 真实集成阶段补 UI |
-| P1 | Admin detail routes | 同 iOS，列表页多，详情/相关事件/用户 access-rights 较少 | 按运营场景补详情页 |
+| P1 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences 已补 API smoke；详情/相关事件/用户 access-rights UI 仍需 App 接线 | 已启动 Android 仓库联调；按运营场景补详情页 |
 | P2 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | mobile OpenAPI 完成后生成 Retrofit interface 或至少生成 path constants |
 
 ## 6. 三端不一致清单
 
 | 领域 | 后端 | Web Admin | iOS | Android | 结论 |
 |---|---|---|---|---|---|
-| Mobile OpenAPI | 已生成 128 个 `/app` 路径 | 不依赖 | 依赖手写常量 | 依赖手写 Retrofit | P0 已完成，后续推进 generated client |
+| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents deep routes 已接 API Smoke | 不依赖 | 依赖手写常量，联调中 | 依赖手写 Retrofit，联调中 | P0 已完成，后续推进 generated client |
 | Wallet pass status | 需要 `tenant_id` query | 已带 tenant query | 已修 | 移动端暂未主路径调用 | P0 已完成 |
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
@@ -173,7 +173,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 ### Batch C：移动端 Admin 深水区（推荐 Batch A/B 后做，3-5 天）
 
-- events/incidents detail + related/occurrences。
+- [x] events/incidents detail + related/occurrences 后端 API smoke；iOS/Android 仓库已启动真实 App 联调。
 - user detail/logins/access-rights/share-access。
 - camera cloud token/recordings。
 - zone detail、holiday regions。

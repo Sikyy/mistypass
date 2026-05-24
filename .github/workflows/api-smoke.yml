@@ -107,6 +107,9 @@ jobs:
       - name: Email Inbound Webhook Regression
         run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18190 API_BASE_URL=http://localhost:18190 ./docs/testing/curl-email-inbound-webhook.zsh
 
+      - name: Mobile Admin Events Incidents Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18191 API_BASE_URL=http://localhost:18191 ./docs/testing/curl-mobile-admin-events-incidents.zsh
+
       - name: Gateway Serial + Protocol Regression
         run: ./docs/testing/curl-gateway-serial-protocol.zsh
 
@@ -201,6 +204,7 @@ jobs:
             /tmp/mp_report_schedule_gotenberg.log
             /tmp/mp_report_schedule_gotenberg.jsonl
             /tmp/mp_email_inbound_webhook_api.log
+            /tmp/mp_mobile_admin_events_incidents_api.log
             /tmp/mp_wallet_queue_process_api.log
             /tmp/mp_wallet_dlq_requeue_api.log
             /tmp/mp_wallet_dlq_governance_api.log
