@@ -37,17 +37,27 @@ func main() {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		fmt.Fprint(w, `<!DOCTYPE html><html><head><meta charset="utf-8"><title>PDF Template Preview</title>
-<style>body{font-family:sans-serif;max-width:600px;margin:40px auto;padding:0 20px}
-a{display:block;padding:12px 16px;margin:8px 0;background:#5046E5;color:#fff;text-decoration:none;border-radius:6px;text-align:center}
-a:hover{background:#454bea}</style></head><body>
-<h1>PDF Report Template Preview</h1>
-<p>Click a report type to preview the rendered HTML (same output that Gotenberg converts to PDF):</p>
-<a href="/weekly_analytics">Weekly Analytics</a>
-<a href="/events">Events</a>
-<a href="/unlock_stats">Unlock Stats</a>
-<a href="/user_presence">User Presence</a>
-<a href="/incidents">Incidents</a>
-<a href="/hardware">Hardware</a>
+<style>
+:root{color-scheme:dark;--obsidian:#070806;--graphite:#141510;--mist:#F5F0E6;--smoke:#BEB8AA;--teal:#62B7A8}
+*{box-sizing:border-box}body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;margin:0;background:radial-gradient(ellipse 70% 45% at 70% 8%,rgba(98,183,168,.13),transparent 62%),var(--obsidian);color:var(--mist)}
+main{width:min(760px,calc(100% - 40px));margin:0 auto;padding:72px 0}
+.kicker{color:var(--teal);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}.title{max-width:560px;margin:16px 0 12px;font-size:48px;font-weight:400;line-height:1.04}.copy{max-width:480px;color:rgba(245,240,230,.68);font-size:16px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:34px}
+a{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:58px;border:1px solid rgba(245,240,230,.15);border-radius:6px;padding:14px 16px;background:rgba(245,240,230,.035);color:var(--mist);text-decoration:none}
+a:hover{border-color:rgba(98,183,168,.55);background:rgba(98,183,168,.08)}a span{color:var(--teal)}
+</style></head><body><main>
+<div class="kicker">Mistyislet PDF Preview</div>
+<h1 class="title">Report templates</h1>
+<p class="copy">Preview the HTML that Gotenberg converts to PDF. Each template uses the Mistyislet report palette and shared layout.</p>
+<div class="grid">
+<a href="/weekly_analytics">Weekly Analytics <span>Open</span></a>
+<a href="/events">Access Events <span>Open</span></a>
+<a href="/unlock_stats">Unlock Statistics <span>Open</span></a>
+<a href="/user_presence">User Presence <span>Open</span></a>
+<a href="/incidents">Incidents <span>Open</span></a>
+<a href="/hardware">Hardware Health <span>Open</span></a>
+</div>
+</main>
 </body></html>`)
 	})
 

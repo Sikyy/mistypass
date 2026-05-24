@@ -4,114 +4,509 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Meta.TenantName}} — Report</title>
+<title>{{.Meta.TenantName}} - {{.ReportLabel}}</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2/dist/chartjs-chart-matrix.min.js"></script>
 <style>
   :root {
-    --brand: #5046E5;
-    --brand-light: #E8E7FB;
-    --text-heading: #111827;
-    --text-body: #374151;
-    --text-subtle: #6B7280;
-    --border: #E5E7EB;
-    --bg-page: #FFFFFF;
-    --bg-card: #FFFFFF;
-    --success: #10B981;
-    --danger: #EF4444;
-    --warning: #F59E0B;
+    color-scheme: dark;
+    --obsidian: #070806;
+    --site-bg: #0d0d0c;
+    --graphite: #141510;
+    --panel: rgba(255, 255, 255, 0.025);
+    --panel-strong: rgba(255, 255, 255, 0.045);
+    --mist: #f5f0e6;
+    --mist-strong: #fffdf7;
+    --smoke: #beb8aa;
+    --muted: rgba(245, 240, 230, 0.52);
+    --faint: rgba(245, 240, 230, 0.32);
+    --teal: #62b7a8;
+    --moss: #7f9b6b;
+    --brass: #c9a25b;
+    --copper: #a96e42;
+    --line: rgba(255, 255, 255, 0.12);
+    --line-strong: rgba(255, 255, 255, 0.17);
   }
 
   @page {
     size: A4;
-    margin: 12mm 14mm 16mm 14mm;
+    margin: 11mm 13mm 16mm 13mm;
+    background: var(--site-bg);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  html,
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100%;
+    background: var(--site-bg);
+  }
+
+  body {
+    position: relative;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 11px;
-    color: var(--text-body);
-    background: var(--bg-page);
-    line-height: 1.5;
+    color: var(--mist);
+    line-height: 1.48;
   }
 
-  .report-header {
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: screen;
+    background-image: url("data:image/png;base64,{{.NoiseBase64}}");
+    background-repeat: repeat;
+    background-size: 154px 154px;
+  }
+
+  .report-page {
+    position: relative;
+    z-index: 1;
+    min-height: 100%;
+    padding-bottom: 18px;
+    background:
+      radial-gradient(ellipse 68% 42% at 76% -4%, rgba(98, 183, 168, 0.13), transparent 62%),
+      linear-gradient(180deg, rgba(13, 13, 12, 0), rgba(13, 13, 12, 0.88) 460px),
+      var(--site-bg);
+  }
+
+  .report-masthead {
+    position: relative;
+    min-height: 286px;
+    margin-bottom: 18px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgba(13, 13, 12, 0.16) 0%, rgba(13, 13, 12, 0.56) 48%, rgba(13, 13, 12, 0.94) 100%),
+      url("data:image/png;base64,{{.HeroBase64}}") center 46% / cover no-repeat,
+      var(--obsidian);
+    box-shadow: 0 30px 88px rgba(0, 0, 0, 0.34);
+  }
+
+  .report-masthead::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    mix-blend-mode: screen;
+    background-image: url("data:image/png;base64,{{.NoiseBase64}}");
+    background-repeat: repeat;
+    background-size: 154px 154px;
+  }
+
+  .masthead-top,
+  .masthead-main {
+    position: relative;
+    z-index: 1;
+  }
+
+  .masthead-top {
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    padding-bottom: 12px;
-    border-bottom: 3px solid var(--brand);
-    margin-bottom: 20px;
+    gap: 18px;
+    padding: 16px 20px 0;
   }
 
-  .report-header .brand {
+  .brand-lockup {
     display: flex;
     align-items: center;
     gap: 10px;
+    min-width: 0;
   }
 
-  .report-header .brand img { height: 32px; }
-  .report-header .brand-name { font-size: 14px; font-weight: 700; color: var(--text-heading); }
-  .report-header .place-name { font-size: 22px; font-weight: 700; color: var(--text-heading); margin-top: 2px; }
-  .report-header .meta { text-align: right; font-size: 10px; color: var(--text-subtle); }
-  .report-header .date-range { font-size: 12px; font-weight: 600; color: var(--text-heading); }
+  .brand-lockup img {
+    width: auto;
+    height: 22px;
+    max-width: 108px;
+    object-fit: contain;
+  }
 
-  .section { margin-bottom: 24px; break-inside: avoid; }
-  .section-title { font-size: 13px; font-weight: 700; color: var(--brand); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
-  .section-title::before { content: ''; width: 8px; height: 8px; background: var(--brand); border-radius: 2px; display: inline-block; }
+  .brand-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mist);
+    white-space: nowrap;
+  }
 
-  table { width: 100%; border-collapse: collapse; font-size: 10px; }
-  table thead th { background: var(--brand); color: #fff; padding: 6px 8px; text-align: left; font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
-  table tbody td { padding: 5px 8px; border-bottom: 1px solid var(--border); color: var(--text-body); }
-  table tbody tr:nth-child(even) { background: #F9FAFB; }
+  .generated-meta {
+    text-align: right;
+    font-size: 9px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
 
-  .chart-container { position: relative; width: 100%; max-height: 200px; margin: 8px 0; }
-  .chart-container canvas { max-height: 200px; }
+  .generated-meta strong {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--mist);
+  }
 
-  .kpi-row { display: flex; gap: 12px; margin-bottom: 16px; }
-  .kpi-card { flex: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; text-align: center; }
-  .kpi-card .kpi-value { font-size: 22px; font-weight: 700; color: var(--text-heading); }
-  .kpi-card .kpi-label { font-size: 9px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .masthead-main {
+    max-width: 560px;
+    padding: 60px 20px 28px;
+  }
 
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .report-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    color: var(--teal);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .report-kicker::before,
+  .section-title::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--teal);
+  }
+
+  .report-kicker::before {
+    box-shadow: 0 0 22px rgba(98, 183, 168, 0.42);
+  }
+
+  .section-title::before {
+    flex: 0 0 auto;
+  }
+
+  h1 {
+    max-width: 520px;
+    font-size: 39px;
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: 0;
+    color: var(--mist);
+  }
+
+  .report-subtitle {
+    margin-top: 14px;
+    max-width: 430px;
+    color: rgba(245, 240, 230, 0.72);
+    font-size: 13px;
+    line-height: 1.42;
+  }
+
+  .report-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 22px;
+  }
+
+  .report-pill {
+    border: 1px solid rgba(245, 240, 230, 0.17);
+    border-radius: 999px;
+    padding: 5px 10px;
+    color: rgba(245, 240, 230, 0.78);
+    background: rgba(255, 255, 255, 0.035);
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  .report-body {
+    position: relative;
+  }
+
+  .section {
+    margin-bottom: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel);
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.012);
+    color: var(--mist);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5px;
+    table-layout: fixed;
+  }
+
+  table thead th {
+    padding: 8px 10px;
+    text-align: left;
+    color: var(--obsidian);
+    background: var(--mist);
+    font-weight: 700;
+    font-size: 7.8px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  table thead th + th {
+    border-left: 1px solid rgba(7, 8, 6, 0.10);
+  }
+
+  table tbody td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(245, 240, 230, 0.82);
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+
+  table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.026);
+  }
+
+  table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .empty-cell {
+    color: var(--muted);
+    font-style: italic;
+    text-align: center;
+  }
+
+  .chart-container {
+    position: relative;
+    width: 100%;
+    max-height: 210px;
+    min-height: 150px;
+    margin: 0;
+    padding: 13px;
+  }
+
+  .chart-container canvas {
+    max-height: 210px;
+  }
+
+  .kpi-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-card {
+    flex: 1;
+    min-height: 68px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 13px;
+    background:
+      linear-gradient(160deg, rgba(247, 244, 238, 0.06), rgba(247, 244, 238, 0.014) 54%, rgba(98, 183, 168, 0.055)),
+      rgba(255, 255, 255, 0.025);
+  }
+
+  .kpi-card .kpi-value {
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1;
+    color: var(--mist);
+  }
+
+  .kpi-card .kpi-label {
+    margin-top: 7px;
+    font-size: 8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.10em;
+  }
+
+  .metric-success { color: var(--moss) !important; }
+  .metric-risk { color: var(--copper) !important; }
+  .metric-warning { color: var(--brass) !important; }
+  .metric-accent { color: var(--teal) !important; }
+
+  .status-pill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .status-success {
+    color: #cfe0c5;
+    background: rgba(127, 155, 107, 0.18);
+    border-color: rgba(127, 155, 107, 0.42);
+  }
+
+  .status-risk {
+    color: #e5c3ad;
+    background: rgba(169, 110, 66, 0.18);
+    border-color: rgba(169, 110, 66, 0.40);
+  }
+
+  .status-warning {
+    color: #ead8ad;
+    background: rgba(201, 162, 91, 0.18);
+    border-color: rgba(201, 162, 91, 0.42);
+  }
+
+  .status-muted {
+    color: rgba(245, 240, 230, 0.64);
+    background: rgba(245, 240, 230, 0.06);
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 13px;
+  }
+
   .page-break { break-before: page; }
 
-  .footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 6px 14mm; font-size: 8px; color: var(--text-subtle); display: flex; justify-content: space-between; border-top: 1px solid var(--border); }
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    padding: 6px 13mm;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+    color: rgba(245, 240, 230, 0.40);
+    background: rgba(13, 13, 12, 0.96);
+    font-size: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
 </style>
 </head>
 <body>
+<div class="report-page">
+  <header class="report-masthead">
+    <div class="masthead-top">
+      <div class="brand-lockup">
+        <img src="data:image/png;base64,{{.LogoBase64}}" alt="Mistyislet">
+        <span class="brand-name">Mistyislet</span>
+      </div>
+      <div class="generated-meta">
+        <strong>{{.Meta.GeneratedAt.Format "Jan 2, 2006 15:04 UTC"}}</strong>
+        Generated report
+      </div>
+    </div>
+    <div class="masthead-main">
+      <div class="report-kicker">{{.ReportLabel}}</div>
+      <h1>{{.Meta.PlaceName}}</h1>
+      <p class="report-subtitle">{{.Meta.TenantName}} operational report for access, place activity, and field operations review.</p>
+      <div class="report-pills">
+        <span class="report-pill">{{.Meta.PeriodStart.Format "Jan 2, 2006"}} - {{.Meta.PeriodEnd.Format "Jan 2, 2006"}}</span>
+        <span class="report-pill">{{.Meta.TenantName}}</span>
+        <span class="report-pill">{{.ReportLabel}}</span>
+      </div>
+    </div>
+  </header>
 
-<div class="report-header">
-  <div>
-    <div class="brand">
-      <img src="data:image/png;base64,{{.LogoBase64}}" alt="Logo">
-      <span class="brand-name">{{.Meta.TenantName}}</span>
-    </div>
-    <div class="place-name">{{.Meta.PlaceName}}</div>
-  </div>
-  <div class="meta">
-    <div class="date-range">
-      {{.Meta.PeriodStart.Format "Jan 2, 2006"}} — {{.Meta.PeriodEnd.Format "Jan 2, 2006"}}
-    </div>
-    <div>Weekly Report</div>
-  </div>
+  <main class="report-body">
+    {{template "content" .}}
+  </main>
 </div>
 
-{{template "content" .}}
-
 <div class="footer">
-  <span>Generated: {{.Meta.GeneratedAt.Format "2006-01-02 15:04 UTC"}}</span>
-  <span>MistyPass</span>
+  <span>Mistyislet report archive</span>
+  <span>Generated {{.Meta.GeneratedAt.Format "2006-01-02 15:04 UTC"}}</span>
 </div>
 
 <script>
 const reportData = {{.DataJSON}};
-Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+const mistyPalette = {
+  obsidian: '#070806',
+  graphite: '#141510',
+  mist: '#F5F0E6',
+  smoke: '#BEB8AA',
+  muted: '#7C7568',
+  teal: '#62B7A8',
+  moss: '#7F9B6B',
+  brass: '#C9A25B',
+  copper: '#A96E42',
+  line: 'rgba(245,240,230,0.12)',
+  paper: '#0D0D0C'
+};
+const chartSeries = [mistyPalette.teal, mistyPalette.moss, mistyPalette.brass, mistyPalette.copper, mistyPalette.smoke];
+
+function appendTableRow(tbody, cells) {
+  var tr = document.createElement('tr');
+  cells.forEach(function(cell) {
+    var td = document.createElement('td');
+    if (cell && typeof cell === 'object' && !Array.isArray(cell)) {
+      var text = cell.text == null ? '' : String(cell.text);
+      if (cell.className && cell.className.indexOf('status-pill') >= 0) {
+        var span = document.createElement('span');
+        span.className = cell.className;
+        span.textContent = text;
+        td.appendChild(span);
+      } else {
+        td.textContent = text;
+        if (cell.className) td.className = cell.className;
+      }
+    } else {
+      td.textContent = cell == null ? '' : String(cell);
+    }
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+  return tr;
+}
+
+function appendEmptyRow(tbody, colspan, message) {
+  var tr = document.createElement('tr');
+  var td = document.createElement('td');
+  td.colSpan = colspan;
+  td.className = 'empty-cell';
+  td.textContent = message || 'No data for this period';
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+function statusClass(value) {
+  var normalized = String(value || '').toLowerCase();
+  if (['granted', 'online', 'resolved', 'active', 'success'].indexOf(normalized) >= 0) return 'status-pill status-success';
+  if (['denied', 'offline', 'open', 'critical', 'failed'].indexOf(normalized) >= 0) return 'status-pill status-risk';
+  if (['acknowledged', 'high', 'medium', 'warning', 'low_battery'].indexOf(normalized) >= 0) return 'status-pill status-warning';
+  return 'status-pill status-muted';
+}
+
+function tealAlpha(value, maxValue, floor) {
+  var ratio = Math.max(floor || 0.12, Math.min(0.9, value / Math.max(maxValue || 1, 1)));
+  return 'rgba(98,183,168,' + ratio + ')';
+}
+
+Chart.defaults.font.family = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 Chart.defaults.font.size = 10;
-Chart.defaults.color = '#374151';
+Chart.defaults.color = 'rgba(245,240,230,0.58)';
+Chart.defaults.borderColor = 'rgba(245,240,230,0.12)';
+Chart.defaults.plugins.legend.labels.color = 'rgba(245,240,230,0.62)';
+Chart.defaults.plugins.legend.labels.boxWidth = 9;
+Chart.defaults.plugins.legend.labels.boxHeight = 9;
+Chart.defaults.plugins.legend.labels.padding = 10;
 {{template "charts" .}}
 </script>
 </body>

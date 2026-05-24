@@ -35,7 +35,7 @@
     type: 'line',
     data: {
       labels: daily.map(function(r) { return r.date; }),
-      datasets: [{ label: 'Unique Users', data: daily.map(function(r) { return r.count; }), borderColor: '#5046E5', backgroundColor: 'rgba(80,70,229,0.1)', fill: true, tension: 0.3, pointRadius: 3 }]
+      datasets: [{ label: 'Unique Users', data: daily.map(function(r) { return r.count; }), borderColor: mistyPalette.teal, backgroundColor: 'rgba(98,183,168,0.12)', fill: true, tension: 0.3, pointRadius: 3 }]
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
   });
@@ -52,7 +52,7 @@
         data: cells.map(function(c) { return { x: dates.indexOf(c.date), y: users.indexOf(c.user), v: c.count }; }),
         backgroundColor: function(ctx) {
           var v = ctx.raw ? ctx.raw.v : 0;
-          return 'rgba(80,70,229,' + Math.max(0.1, v / maxV) + ')';
+          return tealAlpha(v, maxV);
         },
         width: function(ctx) { return (ctx.chart.chartArea || {width:400}).width / Math.max(dates.length, 1) - 1; },
         height: function(ctx) { return (ctx.chart.chartArea || {height:200}).height / Math.max(users.length, 1) - 1; }
@@ -71,10 +71,10 @@
   });
 
   var tbody = document.getElementById('users-body');
-  (d.users || []).forEach(function(u) {
-    var tr = document.createElement('tr');
-    tr.innerHTML = '<td>'+u.user+'</td><td>'+u.first_seen+'</td><td>'+u.last_seen+'</td><td>'+u.total+'</td>';
-    tbody.appendChild(tr);
+  var usersRows = d.users || [];
+  if (!usersRows.length) appendEmptyRow(tbody, 4);
+  usersRows.forEach(function(u) {
+    appendTableRow(tbody, [u.user, u.first_seen, u.last_seen, u.total]);
   });
 })();
 {{end}}
