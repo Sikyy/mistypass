@@ -53,6 +53,8 @@
 
 目标：把台架材料、端口、接线、安全边界固定下来。
 
+2026-05-24 更新：W0 台架资源 ID、接线假设、安全门禁和冒烟脚本已冻结到 [Hardware Bench W0 Freeze](hardware-bench-w0-freeze-2026-05-24.md)。拿到硬件后按该文档补齐实测证据，再进入 W1。
+
 任务：
 
 - 确认现有硬件清单和照片归档。
@@ -194,6 +196,7 @@
 
 ## 7. 产出物清单
 
+- [W0 台架冻结文档](hardware-bench-w0-freeze-2026-05-24.md)。
 - 台架接线图和照片。
 - 硬件资源 ID 表。
 - Wiegand / OSDP 参数基线。
@@ -202,4 +205,3 @@
 - Web Admin Hardware 截图。
 - hardware PDF 示例。
 - 试点回滚手册。
-
