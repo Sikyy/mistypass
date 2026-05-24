@@ -67,6 +67,43 @@ func TestOpenAPISpecDocumentsReferenceExtensionsAndErrors(t *testing.T) {
 		t.Fatalf("expected physical inventory status 409 response, got %#v", physicalStatusResponses)
 	}
 
+	adminExtensionRoutes := []struct {
+		path        string
+		method      string
+		operationID string
+		group       string
+		public      bool
+	}{
+		{"/api/v1/enterprise/scim/config", "get", "fetchEnterpriseSCIMConfig", "enterprise_scim", false},
+		{"/api/v1/enterprise/scim/token", "post", "generateEnterpriseSCIMToken", "enterprise_scim", false},
+		{"/api/v1/enterprise/scim/token", "delete", "revokeEnterpriseSCIMToken", "enterprise_scim", false},
+		{"/api/v1/enterprise/scim/test", "post", "testEnterpriseSCIMEndpoint", "enterprise_scim", false},
+		{"/api/v1/enterprise/scim/logs", "get", "fetchEnterpriseSCIMLogs", "enterprise_scim", false},
+		{"/api/v1/events/{eventID}/snapshots", "get", "fetchEventSnapshots", "event_snapshots", false},
+		{"/api/v1/gateway/southbound/{provider}/test", "post", "testSouthboundConnection", "southbound", false},
+		{"/api/v1/gateway/southbound/{provider}/{deviceID}/unlock", "post", "unlockSouthboundDevice", "southbound", false},
+		{"/api/v1/gateway/southbound/{provider}/{deviceID}/sync-users", "post", "syncSouthboundUsers", "southbound", false},
+		{"/api/v1/integrations/lark/events", "post", "receiveLarkIntegrationEvents", "lark", true},
+		{"/api/v1/integrations/lark/bot/test", "post", "testLarkBot", "lark", false},
+		{"/api/v1/integrations/lark/bot/alert", "post", "sendLarkBotAlert", "lark", false},
+		{"/api/v1/integrations/lark/sync", "post", "syncLarkUsers", "lark", false},
+		{"/api/v1/integrations/google-workspace/sync", "post", "syncGoogleWorkspaceUsers", "google_workspace", false},
+	}
+	for _, route := range adminExtensionRoutes {
+		operation := mustOpenAPIOperation(t, paths, route.path, route.method)
+		if got := operation["operationId"]; got != route.operationID {
+			t.Fatalf("expected %s %s operationId %s, got %#v", route.method, route.path, route.operationID, got)
+		}
+		if got := operation["x-mistyislet-extension-group"]; got != route.group {
+			t.Fatalf("expected %s %s extension group %s, got %#v", route.method, route.path, route.group, got)
+		}
+		if route.public {
+			assertNoOpenAPISecurity(t, operation)
+		} else {
+			assertOpenAPIBearerSecurity(t, operation)
+		}
+	}
+
 	buildingsGet := mustOpenAPIOperation(t, paths, "/api/v1/buildings", "get")
 	if got := buildingsGet["deprecated"]; got != true {
 		t.Fatalf("expected legacy buildings deprecated marker, got %#v", got)
@@ -198,6 +235,13 @@ func assertOpenAPIBearerSecurity(t *testing.T, operation map[string]any) {
 	}
 	if _, ok := first["bearerAuth"]; !ok {
 		t.Fatalf("expected bearerAuth security, got %#v", first)
+	}
+}
+
+func assertNoOpenAPISecurity(t *testing.T, operation map[string]any) {
+	t.Helper()
+	if security, ok := operation["security"]; ok {
+		t.Fatalf("expected public operation without security, got %#v", security)
 	}
 }
 

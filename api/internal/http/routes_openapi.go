@@ -523,6 +523,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/event_sets/{eventSetID}", OperationID: "fetchEventSet", Tag: "Events", Summary: "Fetch an event set."},
 		{Method: http.MethodGet, Path: "/api/v1/events/meta", OperationID: "fetchEventMetadata", Tag: "Events", Summary: "Fetch event metadata."},
 		{Method: http.MethodGet, Path: "/api/v1/events/types", OperationID: "fetchEventTypes", Tag: "Events", Summary: "Fetch event types.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/events/{eventID}/snapshots", OperationID: "fetchEventSnapshots", Tag: "Events", Summary: "List camera snapshots linked to an event.", Collection: true, ExtensionGroup: "event_snapshots"},
 
 		{Method: http.MethodGet, Path: "/api/v1/reports", OperationID: "fetchReports", Tag: "Reports", Summary: "Fetch reports.", Collection: true},
 		{Method: http.MethodGet, Path: "/api/v1/reports/{reportID}", OperationID: "fetchReport", Tag: "Reports", Summary: "Fetch a report."},
@@ -653,6 +654,13 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/review", OperationID: "reviewEnterpriseJITApproval", Tag: "Enterprise", Summary: "Review a JIT provisioning approval."},
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/external-sync", OperationID: "syncEnterpriseJITApprovalExternal", Tag: "Enterprise", Summary: "Sync JIT approval to external system."},
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/external-sync/callback", OperationID: "enterpriseJITApprovalExternalSyncCallback", Tag: "Enterprise", Summary: "JIT approval external sync callback.", Public: true},
+
+		// Enterprise SCIM Admin
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/scim/config", OperationID: "fetchEnterpriseSCIMConfig", Tag: "Enterprise SCIM", Summary: "Fetch tenant SCIM configuration.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/scim/token", OperationID: "generateEnterpriseSCIMToken", Tag: "Enterprise SCIM", Summary: "Generate a SCIM bearer token.", Created: true, ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodDelete, Path: "/api/v1/enterprise/scim/token", OperationID: "revokeEnterpriseSCIMToken", Tag: "Enterprise SCIM", Summary: "Revoke the current SCIM bearer token.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/scim/test", OperationID: "testEnterpriseSCIMEndpoint", Tag: "Enterprise SCIM", Summary: "Test tenant SCIM endpoint readiness.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/scim/logs", OperationID: "fetchEnterpriseSCIMLogs", Tag: "Enterprise SCIM", Summary: "Fetch SCIM provisioning audit logs.", Collection: true, ExtensionGroup: "enterprise_scim"},
 
 		// Enterprise HRIS
 		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-connectors", OperationID: "fetchEnterpriseHRISConnectors", Tag: "Enterprise HRIS", Summary: "Fetch HRIS connectors.", Collection: true},
@@ -999,8 +1007,17 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/ota/tasks", OperationID: "fetchGatewayOTATasks", Tag: "Hardware Extensions", Summary: "Fetch gateway OTA tasks.", Collection: true, ExtensionGroup: "legacy_gateway"},
 		{Method: http.MethodPatch, Path: "/api/v1/gateways/{gatewayID}/ota/tasks/{taskID}/status", OperationID: "updateGatewayOTATaskStatus", Tag: "Hardware Extensions", Summary: "Update gateway OTA task status.", ExtensionGroup: "legacy_gateway"},
 		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/events/checkpoint", OperationID: "fetchGatewayEventCheckpoints", Tag: "Hardware Extensions", Summary: "Fetch gateway event checkpoints.", Collection: true, ExtensionGroup: "gateway_events"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/test", OperationID: "testSouthboundConnection", Tag: "Hardware Extensions", Summary: "Test a southbound device provider connection.", ExtensionGroup: "southbound"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/unlock", OperationID: "unlockSouthboundDevice", Tag: "Hardware Extensions", Summary: "Unlock a third-party southbound device.", ExtensionGroup: "southbound"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/sync-users", OperationID: "syncSouthboundUsers", Tag: "Hardware Extensions", Summary: "Sync users to a third-party southbound device.", ExtensionGroup: "southbound"},
 
 		{Method: http.MethodGet, Path: "/api/v1/network/topology", OperationID: "getNetworkTopology", Tag: "Network", Summary: "Device network topology graph for visualization."},
+
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/events", OperationID: "receiveLarkIntegrationEvents", Tag: "Integrations", Summary: "Receive Lark integration event callbacks.", Public: true, ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/test", OperationID: "testLarkBot", Tag: "Integrations", Summary: "Send a Lark bot test message.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/alert", OperationID: "sendLarkBotAlert", Tag: "Integrations", Summary: "Send a Lark bot alert message.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/sync", OperationID: "syncLarkUsers", Tag: "Integrations", Summary: "Sync users from Lark contacts.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/google-workspace/sync", OperationID: "syncGoogleWorkspaceUsers", Tag: "Integrations", Summary: "Sync users from Google Workspace.", ExtensionGroup: "google_workspace"},
 
 		{Method: http.MethodGet, Path: "/api/v1/wallet/google/config", OperationID: "fetchWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Fetch Google Wallet config.", ExtensionGroup: "google_wallet"},
 		{Method: http.MethodPut, Path: "/api/v1/wallet/google/config", OperationID: "updateWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Update Google Wallet config.", ExtensionGroup: "google_wallet"},

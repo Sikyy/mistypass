@@ -19313,6 +19313,258 @@
         ]
       }
     },
+    "/api/v1/enterprise/scim/config": {
+      "get": {
+        "operationId": "fetchEnterpriseSCIMConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch tenant SCIM configuration.",
+        "tags": [
+          "Enterprise SCIM"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "enterprise_scim"
+      }
+    },
+    "/api/v1/enterprise/scim/logs": {
+      "get": {
+        "operationId": "fetchEnterpriseSCIMLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch SCIM provisioning audit logs.",
+        "tags": [
+          "Enterprise SCIM"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "enterprise_scim"
+      }
+    },
+    "/api/v1/enterprise/scim/test": {
+      "post": {
+        "operationId": "testEnterpriseSCIMEndpoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Test tenant SCIM endpoint readiness.",
+        "tags": [
+          "Enterprise SCIM"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "enterprise_scim"
+      }
+    },
+    "/api/v1/enterprise/scim/token": {
+      "delete": {
+        "operationId": "revokeEnterpriseSCIMToken",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke the current SCIM bearer token.",
+        "tags": [
+          "Enterprise SCIM"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "enterprise_scim"
+      },
+      "post": {
+        "operationId": "generateEnterpriseSCIMToken",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Generate a SCIM bearer token.",
+        "tags": [
+          "Enterprise SCIM"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "enterprise_scim"
+      }
+    },
     "/api/v1/enterprise/sync-jobs": {
       "get": {
         "operationId": "fetchEnterpriseSyncJobs",
@@ -20541,6 +20793,87 @@
         ]
       }
     },
+    "/api/v1/events/{eventID}/snapshots": {
+      "get": {
+        "operationId": "fetchEventSnapshots",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "eventID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "items": {
+                      "items": {
+                        "additionalProperties": true,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "pagination"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Collection response with pagination metadata.",
+            "headers": {
+              "X-Collection-Range": {
+                "description": "Collection item range in the form `items start-end/total`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List camera snapshots linked to an event.",
+        "tags": [
+          "Events"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "event_snapshots"
+      }
+    },
     "/api/v1/floors": {
       "get": {
         "operationId": "fetchFloors",
@@ -21287,6 +21620,210 @@
         "tags": [
           "Gateway Bootstrap"
         ]
+      }
+    },
+    "/api/v1/gateway/southbound/{provider}/test": {
+      "post": {
+        "operationId": "testSouthboundConnection",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Test a southbound device provider connection.",
+        "tags": [
+          "Hardware Extensions"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "southbound"
+      }
+    },
+    "/api/v1/gateway/southbound/{provider}/{deviceID}/sync-users": {
+      "post": {
+        "operationId": "syncSouthboundUsers",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "deviceID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Sync users to a third-party southbound device.",
+        "tags": [
+          "Hardware Extensions"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "southbound"
+      }
+    },
+    "/api/v1/gateway/southbound/{provider}/{deviceID}/unlock": {
+      "post": {
+        "operationId": "unlockSouthboundDevice",
+        "parameters": [
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Resource identifier.",
+            "in": "path",
+            "name": "deviceID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Unlock a third-party southbound device.",
+        "tags": [
+          "Hardware Extensions"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "southbound"
       }
     },
     "/api/v1/gateway/status": {
@@ -25076,6 +25613,256 @@
         "tags": [
           "Integrations"
         ]
+      }
+    },
+    "/api/v1/integrations/google-workspace/sync": {
+      "post": {
+        "operationId": "syncGoogleWorkspaceUsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Sync users from Google Workspace.",
+        "tags": [
+          "Integrations"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "google_workspace"
+      }
+    },
+    "/api/v1/integrations/lark/bot/alert": {
+      "post": {
+        "operationId": "sendLarkBotAlert",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Send a Lark bot alert message.",
+        "tags": [
+          "Integrations"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "lark"
+      }
+    },
+    "/api/v1/integrations/lark/bot/test": {
+      "post": {
+        "operationId": "testLarkBot",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Send a Lark bot test message.",
+        "tags": [
+          "Integrations"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "lark"
+      }
+    },
+    "/api/v1/integrations/lark/events": {
+      "post": {
+        "operationId": "receiveLarkIntegrationEvents",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "summary": "Receive Lark integration event callbacks.",
+        "tags": [
+          "Integrations"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "lark"
+      }
+    },
+    "/api/v1/integrations/lark/sync": {
+      "post": {
+        "operationId": "syncLarkUsers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Sync users from Lark contacts.",
+        "tags": [
+          "Integrations"
+        ],
+        "x-mistyislet-extension": true,
+        "x-mistyislet-extension-group": "lark"
       }
     },
     "/api/v1/integrations/{integrationID}": {
@@ -35537,6 +36324,10 @@
     {
       "description": "Reference-style resource endpoints.",
       "name": "Enterprise HRIS"
+    },
+    {
+      "description": "Reference-style resource endpoints.",
+      "name": "Enterprise SCIM"
     },
     {
       "description": "Reference-style resource endpoints.",

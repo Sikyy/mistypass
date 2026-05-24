@@ -80,9 +80,9 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
 
-### 3.3 OpenAPI 缺失但 Web Admin 已调用的 Admin extension
+### 3.3 Web Admin 已调用的 Admin extension 合同
 
-这些不是 UI 缺失，而是合同缺失：
+状态：已推进。`docs/openapi.json` 已补齐 Web Admin 正在调用但此前合同缺失的 Admin extension，并在 `router_openapi_test.go` 加了防回退断言：
 
 - `/api/v1/enterprise/scim/config`
 - `/api/v1/enterprise/scim/token`
@@ -95,7 +95,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - `/api/v1/integrations/lark/*`
 - `/api/v1/integrations/google-workspace/sync`
 
-建议：把这些 extension 纳入 `docs/openapi.json`，否则后台页面虽然能跑，但 API 文档和外部调用者会看不到。
+后续建议：继续把 Web Admin 的动态调用点纳入同类合同测试，避免后台页面先跑起来、OpenAPI 再次落后。
 
 ## 4. iOS API 审计
 
@@ -142,6 +142,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
 | OAuth2 clients | API 已有 | 已补 API Clients 页面 | N/A | N/A | P1 已推进 |
+| Admin extension OpenAPI | 已补 SCIM、southbound、Lark、Google Workspace、event snapshots 合同 | 相关页面已调用 | N/A | N/A | P1 已推进 |
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | export 默认值需确认 | Android spec 显示兼容 | P1 修移动端默认/文案 |
 | Camera cloud | API 已有 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
