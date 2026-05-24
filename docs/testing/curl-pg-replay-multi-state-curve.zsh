@@ -85,7 +85,12 @@ function start_api() {
 
   (
     cd api
-    PORT="${API_PORT}" DATABASE_URL="${DATABASE_URL}" GOCACHE=/tmp/go-build go run ./cmd/api >"${SERVER_LOG}" 2>&1
+    PORT="${API_PORT}" \
+      DATABASE_URL="${DATABASE_URL}" \
+      ENABLE_DEMO_USERS="${ENABLE_DEMO_USERS:-true}" \
+      DISABLE_LOGIN_RATE_LIMIT="${DISABLE_LOGIN_RATE_LIMIT:-true}" \
+      GOCACHE=/tmp/go-build \
+      go run ./cmd/api >"${SERVER_LOG}" 2>&1
   ) &
   API_PID="$!"
 
