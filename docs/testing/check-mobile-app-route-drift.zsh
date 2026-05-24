@@ -1,11 +1,11 @@
 #!/usr/bin/env zsh
 set -euo pipefail
 
-# Compare generated mobile route constants and mobile app route literals against
+# Compare generated mobile route constants and mobile app routes against
 # docs/openapi-mobile.json.
 #
-# This catches path drift while the apps migrate from hand-written route strings
-# to the generated typed constants under docs/generated/mobile-routes.
+# This catches path drift and keeps production app code on generated typed
+# constants instead of hand-written /app/* route strings.
 
 SCRIPT_DIR="${0:A:h}"
 REPO_ROOT="${SCRIPT_DIR:h:h}"
@@ -152,6 +152,33 @@ def scan_ios_api_methods(repo: Path) -> list[tuple[str, int, str]]:
     return issues
 
 
+def scan_ios_handwritten_route_literals(repo: Path) -> list[tuple[str, int, str]]:
+    root = repo / "MistyisletPass"
+    if not root.exists():
+        return []
+
+    generated = root / "Utilities" / "MobileAPIRoutes.generated.swift"
+    issues = []
+    for path in sorted(root.rglob("*.swift")):
+        if path == generated:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if "/app/" not in line and "app/" not in line:
+                continue
+            for value in string_literals(line):
+                candidate = normalize_path(value)
+                if candidate:
+                    issues.append(
+                        (
+                            str(path),
+                            line_no,
+                            f"hand-written mobile route literal {candidate}; use Constants.API or MobileAPIRoutes",
+                        )
+                    )
+    return issues
+
+
 def scan_ios(repo: Path) -> list[tuple[str, int, str]]:
     root = repo / "MistyisletPass"
     if not root.exists():
@@ -163,6 +190,43 @@ def scan_ios(repo: Path) -> list[tuple[str, int, str]]:
             if candidate not in contract_paths:
                 issues.append((str(path), line_no, candidate))
     issues.extend(scan_ios_api_methods(repo))
+    issues.extend(scan_ios_handwritten_route_literals(repo))
+    return issues
+
+
+def scan_android_handwritten_route_literals(repo: Path) -> list[tuple[str, int, str]]:
+    root = repo / "app" / "src" / "main" / "java"
+    if not root.exists():
+        return []
+
+    issues = []
+    for path in sorted(root.rglob("*.kt")):
+        if path.name == "MobileApiRoutes.generated.kt":
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            for match in RETROFIT_ANNOTATION.finditer(line):
+                candidate = normalize_path(match.group(2))
+                if candidate:
+                    issues.append(
+                        (
+                            str(path),
+                            line_no,
+                            f"hand-written Retrofit route literal {candidate}; use MobileApiRoutes",
+                        )
+                    )
+            if "/app/" not in line and "app/" not in line:
+                continue
+            for value in string_literals(line):
+                candidate = normalize_path(value)
+                if candidate:
+                    issues.append(
+                        (
+                            str(path),
+                            line_no,
+                            f"hand-written mobile route literal {candidate}; use MobileApiRoutes",
+                        )
+                    )
     return issues
 
 
@@ -188,6 +252,7 @@ def scan_android(repo: Path) -> list[tuple[str, int, str]]:
                     continue
                 if candidate not in contract_paths:
                     issues.append((str(path), line_no, candidate))
+    issues.extend(scan_android_handwritten_route_literals(repo))
     return issues
 
 
@@ -196,7 +261,7 @@ issues.extend(("iOS", *item) for item in scan_ios(ios_repo))
 issues.extend(("Android", *item) for item in scan_android(android_repo))
 
 if issues:
-    print("FAIL: mobile app route literals missing from generated mobile route contract")
+    print("FAIL: mobile app route drift detected")
     for platform, file_path, line_no, candidate in issues:
         print(f"{platform}: {file_path}:{line_no}: {candidate}")
     sys.exit(1)

@@ -192,7 +192,7 @@
 | 不确定 GPIO 电平 | 可能损坏 SBC | 上电前用万用表确认，必要时加 level shifter |
 | 没有固定 resource ID | 事件和配置难以追踪 | W0 冻结 ID 并写入台架文档 |
 | Mobile OpenAPI 缺失 | 三端 smoke 依赖手写路径 | 与 API 审计 Batch A 并行推进 |
-| 邮件 provider 未配置 | 报表/告警不能真实通知 | 按邮件方案 E0 接 Resend |
+| 邮件 provider 未配置 | 报表/告警不能真实通知 | 按邮件方案 E0 接 Cloudflare Email Service，Resend 仅作 fallback |
 
 ## 7. 产出物清单
 
