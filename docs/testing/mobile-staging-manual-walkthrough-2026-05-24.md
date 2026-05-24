@@ -46,6 +46,11 @@ GATEWAY_BOOTSTRAP_TOKEN=replace-with-fixed-random-token
 CORS_ORIGIN=https://staging-admin.mistyislet.com
 EOF
 
+# Optional but recommended for report/invitation/wallet email smoke:
+cat deploy/env/cloudflare-email.example.env >> .env.staging
+# Before starting Compose, replace CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_EMAIL_API_TOKEN,
+# and WALLET_ALERT_EMAIL_RECEIVER_MAP in .env.staging with real Mac mini-only values.
+
 docker compose --env-file .env.staging up -d --build
 curl -i http://127.0.0.1:8080/healthz
 ```

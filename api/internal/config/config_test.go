@@ -132,6 +132,38 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	}
 }
 
+func TestFromEnvReportEmailConfig(t *testing.T) {
+	t.Setenv("REPORT_EMAIL_ENABLED", "")
+	t.Setenv("REPORT_EMAIL_FROM", "")
+	t.Setenv("GOTENBERG_URL", "")
+
+	cfg := FromEnv()
+	if cfg.ReportEmailEnabled {
+		t.Fatalf("expected report email disabled by default")
+	}
+	if cfg.ReportEmailFrom != "" {
+		t.Fatalf("default report email from mismatch: got %s", cfg.ReportEmailFrom)
+	}
+	if cfg.GotenbergURL != "http://localhost:3000" {
+		t.Fatalf("default gotenberg url mismatch: got %s", cfg.GotenbergURL)
+	}
+
+	t.Setenv("REPORT_EMAIL_ENABLED", "true")
+	t.Setenv("REPORT_EMAIL_FROM", "reports@mistyislet.com")
+	t.Setenv("GOTENBERG_URL", "http://gotenberg:3000")
+
+	cfg = FromEnv()
+	if !cfg.ReportEmailEnabled {
+		t.Fatalf("expected report email enabled override")
+	}
+	if cfg.ReportEmailFrom != "reports@mistyislet.com" {
+		t.Fatalf("override report email from mismatch: got %s", cfg.ReportEmailFrom)
+	}
+	if cfg.GotenbergURL != "http://gotenberg:3000" {
+		t.Fatalf("override gotenberg url mismatch: got %s", cfg.GotenbergURL)
+	}
+}
+
 func TestFromEnvCORSOriginDefaultAllowsLocalDevelopmentHosts(t *testing.T) {
 	t.Setenv("CORS_ORIGIN", "")
 	cfg := FromEnv()

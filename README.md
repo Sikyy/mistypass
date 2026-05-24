@@ -382,7 +382,8 @@ Shared email provider env vars (optional):
 - `CLOUDFLARE_EMAIL_ENDPOINT` (default: `https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`)
 - `CLOUDFLARE_EMAIL_TIMEOUT` (duration, default: `5s`)
 - `USER_INVITATION_EMAIL_PROVIDER` (`queue` | `mock` | `resend` | `cloudflare`, default: `queue`)
-- `USER_INVITATION_EMAIL_FROM` (default: `no-reply@mistypass.local`; also used by report schedule email)
+- `USER_INVITATION_EMAIL_FROM` (default: `no-reply@mistypass.local`)
+- `REPORT_EMAIL_FROM` (report schedule sender; falls back to `USER_INVITATION_EMAIL_FROM` for backward compatibility)
 
 Wallet alert dispatch provider env vars (optional):
 
