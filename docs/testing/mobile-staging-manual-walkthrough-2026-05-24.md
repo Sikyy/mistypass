@@ -34,28 +34,41 @@ On the Mac mini:
 cd /Users/siky/code/MistyPass
 git pull --ff-only github main
 
-cat > .env.staging <<'EOF'
-APP_ENV=staging
-TZ=Asia/Jakarta
-DEFAULT_TIMEZONE=Asia/Jakarta
-ENABLE_DEMO_USERS=true
-POSTGRES_PASSWORD=replace-with-strong-staging-password
-REDIS_PASSWORD=replace-with-strong-staging-password
-JWT_SECRET=replace-with-fixed-random-long-secret
-GATEWAY_BOOTSTRAP_TOKEN=replace-with-fixed-random-token
-CORS_ORIGIN=https://staging-admin.mistyislet.com
-EOF
-
-# Optional but recommended for report/invitation/wallet email smoke:
-cat deploy/env/cloudflare-email.example.env >> .env.staging
-# Before starting Compose, replace CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_EMAIL_API_TOKEN,
-# and WALLET_ALERT_EMAIL_RECEIVER_MAP in .env.staging with real Mac mini-only values.
+cp deploy/env/macmini-staging.example.env .env.staging
+# Before starting Compose, replace all change-me / replace-* values in .env.staging.
+# Keep real Cloudflare tokens and other secrets only on the Mac mini.
 
 docker compose --env-file .env.staging up -d --build
 curl -i http://127.0.0.1:8080/healthz
 ```
 
 `.env.staging` is ignored by `.gitignore`; keep real secrets only on the Mac mini.
+
+## Mac Mini Auto-Update
+
+The staging guide now includes a one-shot updater that fetches `github/main`,
+fast-forwards only, rebuilds the Compose stack when code changed, and checks
+local health:
+
+```bash
+cd /Users/siky/code/MistyPass
+REPO_DIR=/Users/siky/code/MistyPass \
+ENV_FILE=/Users/siky/code/MistyPass/.env.staging \
+./deploy/macmini/update-and-redeploy.zsh
+```
+
+Optional launchd schedule:
+
+```bash
+cp deploy/macmini/com.mistypass.staging-auto-update.plist.example ~/Library/LaunchAgents/com.mistypass.staging-auto-update.plist
+launchctl unload ~/Library/LaunchAgents/com.mistypass.staging-auto-update.plist 2>/dev/null || true
+launchctl load ~/Library/LaunchAgents/com.mistypass.staging-auto-update.plist
+launchctl start com.mistypass.staging-auto-update
+```
+
+The example launchd job checks every 10 minutes and writes logs to
+`/tmp/mistypass-staging-auto-update.log` and
+`/tmp/mistypass-staging-auto-update.err`.
 
 Cloudflare Zero Trust setup:
 

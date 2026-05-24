@@ -57,6 +57,17 @@ docker compose up -d --build
 docker compose logs -f api
 ```
 
+Mac mini staging can start from the checked-in template:
+
+```bash
+cp deploy/env/macmini-staging.example.env .env.staging
+./deploy/macmini/update-and-redeploy.zsh
+```
+
+Replace placeholders in `.env.staging` on the Mac mini only. The updater
+fast-forwards `github/main`, rebuilds the Compose stack when code changed, and
+checks `/healthz`; an optional launchd template lives in `deploy/macmini/`.
+
 The default Compose stack now binds service ports to `127.0.0.1`, disables demo users unless explicitly enabled, and replaces public/default infra credentials with local-only passwords. Override these via your shell or a repo-root `.env` file when needed:
 
 - `POSTGRES_PASSWORD`
