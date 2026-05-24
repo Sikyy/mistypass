@@ -25,6 +25,7 @@ import {
   publishGatewayConfig,
   rebootGateway,
   processWalletJobs,
+  requeueWalletDLQJob,
   requeueWalletDLQJobs,
   restoreGatewayCertificateSerial,
   revokeGatewayCertificateSerial,
@@ -1131,12 +1132,26 @@ describe("wallet dlq governance helpers", () => {
       processed_jobs: ["wjob_005"],
       updated_at: "2026-05-24T10:03:00Z",
     }
+    const singleRequeueResult = {
+      id: "wjob_006",
+      tenant_id: "tenant_demo",
+      provider: "google",
+      batch_id: "batch_001",
+      template_id: "wpt_001",
+      target_type: "user",
+      target_id: "usr_override",
+      status: "pending",
+      retry_count: 0,
+      created_at: "2026-05-24T10:00:00Z",
+      updated_at: "2026-05-24T10:04:00Z",
+    }
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(summary), { status: 200, headers: { "Content-Type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(processResult), { status: 200, headers: { "Content-Type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(requeueResult), { status: 200, headers: { "Content-Type": "application/json" } }))
       .mockResolvedValueOnce(new Response(JSON.stringify(cleanupResult), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(singleRequeueResult), { status: 200, headers: { "Content-Type": "application/json" } }))
     vi.stubGlobal("fetch", fetchMock)
 
     await expect(getWalletJobSummary("token", { tenant_id: "tenant_demo", max_retry: 3 })).resolves.toMatchObject({ dlq: 2 })
@@ -1166,6 +1181,13 @@ describe("wallet dlq governance helpers", () => {
         actor: "web_admin.wallet.dlq.cleanup",
       })
     ).resolves.toMatchObject({ removed: 1 })
+    await expect(
+      requeueWalletDLQJob("token", "wjob_006", {
+        tenant_id: "tenant_demo",
+        target_id: "usr_override",
+        actor: "web_admin.wallet.dlq.requeue_single",
+      })
+    ).resolves.toMatchObject({ id: "wjob_006", status: "pending" })
 
     expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/summary?tenant_id=tenant_demo&max_retry=3"))
     expect(fetchMock.mock.calls[1][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/process"))
@@ -1181,6 +1203,13 @@ describe("wallet dlq governance helpers", () => {
     expect(JSON.parse(fetchMock.mock.calls[3][1]?.body as string)).toMatchObject({
       older_than_seconds: 86400,
       actor: "web_admin.wallet.dlq.cleanup",
+    })
+    expect(fetchMock.mock.calls[4][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/wjob_006/dlq/requeue"))
+    expect(fetchMock.mock.calls[4][1]?.method).toBe("POST")
+    expect(JSON.parse(fetchMock.mock.calls[4][1]?.body as string)).toMatchObject({
+      tenant_id: "tenant_demo",
+      target_id: "usr_override",
+      actor: "web_admin.wallet.dlq.requeue_single",
     })
   })
 })

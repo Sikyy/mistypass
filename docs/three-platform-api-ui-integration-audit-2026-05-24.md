@@ -75,7 +75,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
 | P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面 | 下一步按 `OAUTH2_ENABLED=true` 跑创建/编辑/删除 smoke |
 | P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
-| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示与 summary 展示；本地 API smoke 通过 | 下一步补按错误码 drill-down |
+| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke 与 Wallet role-boundary e2e 通过 | 下一步补带 DLQ fixture 的 action Playwright smoke |
 | P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
@@ -162,7 +162,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] Audit Webhook 页面。
 - [x] OAuth2 Clients / Developer API Clients 页面。
 - [x] Wallet Google config 页面。
-- [x] Wallet DLQ batch governance 操作按钮。
+- [x] Wallet DLQ batch governance、错误码 drill-down 与单条重排。
 - [x] Report schedule `Send now` provider 错误提示。
 - [x] Report schedule provider health/status 只读展示。
 

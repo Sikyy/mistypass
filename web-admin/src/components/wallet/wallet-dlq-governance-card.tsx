@@ -1,4 +1,4 @@
-import { PlayIcon, RotateCcwIcon, Trash2Icon } from "lucide-react"
+import { AlertTriangleIcon, PlayIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
@@ -6,7 +6,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { type WalletJobSummary } from "@/lib/api"
+import { type WalletIssueJob, type WalletJobSummary } from "@/lib/api"
+
+type DLQErrorCodeRow = {
+  errorCode: string
+  count: number
+}
 
 type WalletDlqGovernanceCardProps = {
   writable: boolean
@@ -14,6 +19,8 @@ type WalletDlqGovernanceCardProps = {
   loading: boolean
   refreshing: boolean
   jobSummary: WalletJobSummary | null
+  dlqErrorCodeRows: DLQErrorCodeRow[]
+  filteredDLQJobs: WalletIssueJob[]
   processLimit: string
   onProcessLimitChange: (value: string) => void
   processWorkerCount: string
@@ -30,10 +37,14 @@ type WalletDlqGovernanceCardProps = {
   onDLQOlderThanSecondsChange: (value: string) => void
   processingJobs: boolean
   requeueingDLQ: boolean
+  requeueingDLQJobID: string
   cleaningDLQ: boolean
   governanceSummary: string
   onProcessPendingJobs: () => void
   onRequeueDLQBatch: () => void
+  onRequeueDLQJob: (jobID: string) => void
+  onFocusDLQErrorCode: (errorCode: string) => void
+  onClearDLQErrorCode: () => void
   onCleanupDLQBatch: () => void
   formatDateTime: (value?: string) => string
 }
@@ -44,6 +55,8 @@ export function WalletDlqGovernanceCard({
   loading,
   refreshing,
   jobSummary,
+  dlqErrorCodeRows,
+  filteredDLQJobs,
   processLimit,
   onProcessLimitChange,
   processWorkerCount,
@@ -60,15 +73,19 @@ export function WalletDlqGovernanceCard({
   onDLQOlderThanSecondsChange,
   processingJobs,
   requeueingDLQ,
+  requeueingDLQJobID,
   cleaningDLQ,
   governanceSummary,
   onProcessPendingJobs,
   onRequeueDLQBatch,
+  onRequeueDLQJob,
+  onFocusDLQErrorCode,
+  onClearDLQErrorCode,
   onCleanupDLQBatch,
   formatDateTime,
 }: WalletDlqGovernanceCardProps) {
   const { t } = useTranslation()
-  const busy = loading || refreshing || processingJobs || requeueingDLQ || cleaningDLQ
+  const busy = loading || refreshing || processingJobs || requeueingDLQ || Boolean(requeueingDLQJobID) || cleaningDLQ
   const readOnlyDisabledReason = !writable ? t("walletPage.disabledReasons.readOnly") : undefined
   const actionDisabledReason = !writable
     ? t("walletPage.disabledReasons.readOnly")
@@ -100,6 +117,37 @@ export function WalletDlqGovernanceCard({
           <Badge variant={(jobSummary?.non_retryable_failed ?? 0) > 0 ? "destructive" : "outline"}>
             {t("walletPage.components.dlqGovernance.summary.nonRetryable", { count: jobSummary?.non_retryable_failed ?? 0 })}
           </Badge>
+        </div>
+
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium">{t("walletPage.components.dlqGovernance.errorBreakdownTitle")}</p>
+            {dlqErrorCode ? (
+              <Button variant="ghost" size="sm" className="w-fit gap-2" onClick={onClearDLQErrorCode}>
+                <XIcon className="size-4" />
+                {t("walletPage.components.dlqGovernance.clearFilter")}
+              </Button>
+            ) : null}
+          </div>
+          {dlqErrorCodeRows.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {dlqErrorCodeRows.map((row) => (
+                <Button
+                  key={row.errorCode}
+                  type="button"
+                  variant={row.errorCode === dlqErrorCode ? "secondary" : "outline"}
+                  size="sm"
+                  className="max-w-full gap-2"
+                  onClick={() => onFocusDLQErrorCode(row.errorCode)}
+                >
+                  <span className="max-w-[14rem] truncate">{row.errorCode || "unknown"}</span>
+                  <Badge variant="outline">{row.count}</Badge>
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-muted-foreground">{t("walletPage.components.dlqGovernance.noErrorBreakdown")}</p>
+          )}
         </div>
 
         <div className="grid gap-3 xl:grid-cols-3">
@@ -263,6 +311,63 @@ export function WalletDlqGovernanceCard({
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangleIcon className="size-4" />
+              <p className="text-sm font-medium">{t("walletPage.components.dlqGovernance.dlqJobsTitle")}</p>
+            </div>
+            <Badge variant="outline">{filteredDLQJobs.length}</Badge>
+          </div>
+          {filteredDLQJobs.length > 0 ? (
+            <div className="grid gap-2">
+              {filteredDLQJobs.map((job) => {
+                const requeueingThisJob = requeueingDLQJobID === job.id
+                return (
+                  <div
+                    key={job.id}
+                    className="grid gap-3 rounded-md border bg-background p-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.85fr)_auto] lg:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-mono text-xs text-foreground">{job.id}</span>
+                        <Badge variant="outline">{job.error_code || "unknown"}</Badge>
+                      </div>
+                      {job.error_message ? (
+                        <p className="mt-1 break-words text-xs text-muted-foreground">{job.error_message}</p>
+                      ) : null}
+                    </div>
+                    <div className="grid gap-1 text-xs text-muted-foreground">
+                      <span>{t("walletPage.components.dlqGovernance.jobTarget", { targetID: job.target_id || "-" })}</span>
+                      <span>{t("walletPage.components.dlqGovernance.jobRetry", { count: job.retry_count })}</span>
+                      <span>{t("walletPage.components.dlqGovernance.jobUpdated", { time: formatDateTime(job.updated_at) })}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 lg:justify-self-end"
+                      disabled={!writable || busy}
+                      title={actionDisabledReason}
+                      onClick={() => confirmAction(t("walletPage.components.dlqGovernance.confirmRequeueJob"), () => onRequeueDLQJob(job.id))}
+                    >
+                      <RotateCcwIcon className={`size-4 ${requeueingThisJob ? "animate-spin" : ""}`} />
+                      {requeueingThisJob
+                        ? t("walletPage.components.dlqGovernance.requeueingJob")
+                        : t("walletPage.components.dlqGovernance.requeueJob")}
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {dlqErrorCode
+                ? t("walletPage.components.dlqGovernance.noFilteredDLQJobs")
+                : t("walletPage.components.dlqGovernance.noDLQJobs")}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

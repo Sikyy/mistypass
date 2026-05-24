@@ -1396,6 +1396,8 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             loading,
             refreshing,
             jobSummary: alerts.jobSummary,
+            dlqErrorCodeRows: alerts.dlqErrorCodeRows,
+            filteredDLQJobs: alerts.filteredDLQJobs,
             processLimit: alerts.processLimit,
             onProcessLimitChange: alerts.setProcessLimit,
             processWorkerCount: alerts.processWorkerCount,
@@ -1412,6 +1414,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             onDLQOlderThanSecondsChange: alerts.setDLQOlderThanSeconds,
             processingJobs: alerts.processingJobs,
             requeueingDLQ: alerts.requeueingDLQ,
+            requeueingDLQJobID: alerts.requeueingDLQJobID,
             cleaningDLQ: alerts.cleaningDLQ,
             governanceSummary: alerts.governanceSummary,
             onProcessPendingJobs: () => {
@@ -1420,6 +1423,11 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             onRequeueDLQBatch: () => {
               void alerts.requeueDLQBatch()
             },
+            onRequeueDLQJob: (jobID) => {
+              void alerts.requeueDLQJob(jobID)
+            },
+            onFocusDLQErrorCode: alerts.focusDLQErrorCode,
+            onClearDLQErrorCode: alerts.clearDLQErrorCode,
             onCleanupDLQBatch: () => {
               void alerts.cleanupDLQBatch()
             },
