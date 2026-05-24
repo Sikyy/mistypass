@@ -59,6 +59,10 @@ jobs:
       - name: OpenAPI Spec Drift Guard
         run: /bin/zsh ./docs/testing/check-openapi-drift.zsh
 
+      - name: Mobile Route Constants Drift Guard
+        working-directory: api
+        run: GOCACHE=/tmp/go-build make mobile-route-constants-check
+
       - name: Pre-build API binary
         working-directory: api
         run: go build -o /tmp/mistypass-api ./cmd/api

@@ -1,4 +1,4 @@
-.PHONY: openapi openapi-mobile openapi-swift openapi-kotlin
+.PHONY: openapi openapi-mobile mobile-route-constants mobile-route-constants-check openapi-swift openapi-kotlin
 
 DOCS_DIR   := ../docs
 SPEC_FULL  := $(DOCS_DIR)/openapi.json
@@ -11,6 +11,14 @@ openapi: ## Dump full OpenAPI spec from Go source
 
 openapi-mobile: openapi ## Filter to mobile /app/* endpoints only
 	python3 cmd/openapi-extract/filter_mobile.py < $(SPEC_FULL) > $(SPEC_MOBILE)
+
+# --- Mobile route constants ---
+
+mobile-route-constants: openapi-mobile ## Generate typed Swift/Kotlin route constants from mobile OpenAPI
+	python3 cmd/openapi-extract/generate_mobile_routes.py --spec $(SPEC_MOBILE)
+
+mobile-route-constants-check: ## Verify generated mobile route constants are in sync
+	python3 cmd/openapi-extract/generate_mobile_routes.py --spec $(SPEC_MOBILE) --check
 
 # --- Codegen (requires: npm i -g @openapitools/openapi-generator-cli) ---
 
