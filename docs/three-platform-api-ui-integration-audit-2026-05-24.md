@@ -112,8 +112,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P0 已完成 | `Constants.API.walletPassSuspendPath/ActivatePath/RevokePath` | 调 `/api/v1/wallet/passes/{id}/...` 时没有带 `tenant_id`；后端 `changeWalletPassStatus` 从 query 解析 tenant | 方法已增加 `tenantId` 参数，并改为 `...?tenant_id=` |
 | P1 已完成 | `APIService.exportReport` | 默认 `format = "csv"`，但新 PDF 报表已成为主路径 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `714d0f6` 已改默认 PDF，并补模型/常量测试 |
 | P1 | `Constants.API` | 大量路径手写，且有些常量未被 UI 调用 | 等 mobile OpenAPI 补齐后生成 typed client 或生成常量 |
-| P1 部分推进 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，已补 mock-backed 成功路径测试；iOS UI 未接 | 放入 Camera 真实集成排期 |
-| P2 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents App 接线已完成 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `714d0f6` 已接 event/incident detail APIs；后续补 user/zone/camera UI |
+| P1 已推进 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，已补 mock-backed 成功路径测试；iOS 已补 cloud token/recordings 入口、空态和错误态 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `a87b1c5` 已接 UI；后续做真实设备 staging 验收 |
+| P2 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `714d0f6` 已接 event/incident detail APIs；`a87b1c5` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
 
 ## 5. Android API 审计
 
@@ -129,15 +129,15 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 |---:|---|---|---|
 | P0 已完成 | `app/build.gradle.kts` debug `API_BASE_URL` | `http://localhost:8081/api/v1/` 在 Android 模拟器里通常指向模拟器自身，不是 Mac host | 已改为 `http://10.0.2.2:8080/api/v1/` |
 | P1 | Device push | Android 只有 `POST /app/devices/register`，后端另有 iOS APNS `/app/devices/apns`；FCM token 注册语义需确认 | 明确 Android FCM 是否复用 register，或新增 `/app/devices/fcm` |
-| P1 部分推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android UI 未接 | Camera 真实集成阶段补 UI |
-| P1 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents App 接线已完成 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `5b841d5` 已接 event/incident detail APIs；后续补 user/zone/camera UI |
+| P1 已推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android 已补 cloud token/recordings 入口、空态和错误态 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `aa63653` 已接 UI；后续做真实设备 staging 验收 |
+| P1 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `5b841d5` 已接 event/incident detail APIs；`aa63653` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
 | P2 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | mobile OpenAPI 完成后生成 Retrofit interface 或至少生成 path constants |
 
 ## 6. 三端不一致清单
 
 | 领域 | 后端 | Web Admin | iOS | Android | 结论 |
 |---|---|---|---|---|---|
-| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents/users/zones/holiday deep routes 已接 API Smoke，camera cloud 已接 mock-backed API test | 不依赖 | events/incidents 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | events/incidents 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P0 已完成，后续推进 generated client |
+| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents/users/zones/holiday deep routes 已接 API Smoke，camera cloud 已接 mock-backed API test | 不依赖 | events/incidents/user/zone/camera deep UI 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | events/incidents/user/zone/camera deep UI 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P0 已完成，后续推进 generated client |
 | Wallet pass status | 需要 `tenant_id` query | 已带 tenant query | 已修 | 移动端暂未主路径调用 | P0 已完成 |
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
@@ -145,7 +145,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Admin extension OpenAPI | 已补 SCIM、southbound、Lark、Google Workspace、event snapshots 合同 | 相关页面已调用 | N/A | N/A | P1 已推进 |
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | 默认 PDF 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | 默认 PDF 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P1 已完成，后续只剩模拟器/真机下载体验验收 |
-| Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
+| Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 已接 cloud token/recordings UI，真实设备待验收 | 已接 cloud token/recordings UI，真实设备待验收 | P1/P2 与真实摄像头 staging 验收合并 |
 | Email provider | 已新增统一 `MailProvider` + Resend provider | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 DNS/回执 |
 
 ## 7. 推进计划
@@ -173,10 +173,10 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 ### Batch C：移动端 Admin 深水区（推荐 Batch A/B 后做，3-5 天）
 
-- [x] events/incidents detail + related/occurrences 后端 API smoke；iOS/Android 仓库已启动真实 App 联调。
-- [x] user detail/logins/access-rights/share-access 后端 API smoke；iOS/Android 仓库已启动真实 App 联调。
-- [x] camera cloud token/recordings mock-backed API test。
-- [x] zone detail、holiday regions 后端 API smoke。
+- [x] events/incidents detail + related/occurrences 后端 API smoke；iOS/Android App 接线已完成。
+- [x] user detail/logins/access-rights/share-access 后端 API smoke；iOS/Android App 接线已完成。
+- [x] camera cloud token/recordings mock-backed API test；iOS/Android 已补 cloud token/recordings UI，真实设备待 staging 验收。
+- [x] zone detail、holiday regions 后端 API smoke；iOS/Android App 接线已完成。
 - [x] 统一 report export 默认 PDF：[iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5)、[Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) 已接；下载体验待模拟器/真机验收。
 
 ### Batch D：邮件与回执（已启动）
