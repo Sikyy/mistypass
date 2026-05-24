@@ -8,6 +8,13 @@ type MockViewer = {
   building_ids: string[]
 }
 
+type WalletApiFixture = {
+  metrics?: ReturnType<typeof buildEmptyWalletMetrics>
+  jobs?: unknown[]
+  singleRequeueResult?: unknown
+  onSingleRequeue?: (jobID: string, payload: unknown) => void
+}
+
 function buildLoginResponse(viewer: MockViewer) {
   return {
     access_token: "e2e-token",
@@ -63,7 +70,7 @@ function buildEmptyWalletMetrics(tenantID: string) {
   }
 }
 
-async function setupApiMocks(page: Page, viewer: MockViewer) {
+async function setupApiMocks(page: Page, viewer: MockViewer, options?: { wallet?: WalletApiFixture }) {
   const loginResponse = buildLoginResponse(viewer)
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request()
@@ -122,7 +129,14 @@ async function setupApiMocks(page: Page, viewer: MockViewer) {
 
     if (path === "/api/v1/wallet/jobs/metrics" && method === "GET") {
       const tenantID = url.searchParams.get("tenant_id") || viewer.tenant_id
-      await fulfillJson(route, buildEmptyWalletMetrics(tenantID))
+      await fulfillJson(route, options?.wallet?.metrics ?? buildEmptyWalletMetrics(tenantID))
+      return
+    }
+
+    if (path === "/api/v1/wallet/jobs/summary" && method === "GET") {
+      const tenantID = url.searchParams.get("tenant_id") || viewer.tenant_id
+      const metrics = options?.wallet?.metrics ?? buildEmptyWalletMetrics(tenantID)
+      await fulfillJson(route, metrics.summary)
       return
     }
 
@@ -154,6 +168,19 @@ async function setupApiMocks(page: Page, viewer: MockViewer) {
         receiver_groups: ["security"],
         updated_at: "2026-04-16T00:00:00Z",
       })
+      return
+    }
+
+    if (path === "/api/v1/wallet/jobs" && method === "GET") {
+      await fulfillJson(route, { items: options?.wallet?.jobs ?? [] })
+      return
+    }
+
+    const singleRequeueMatch = path.match(/^\/api\/v1\/wallet\/jobs\/([^/]+)\/dlq\/requeue$/)
+    if (singleRequeueMatch && method === "POST") {
+      const payload = JSON.parse(request.postData() || "{}")
+      options?.wallet?.onSingleRequeue?.(singleRequeueMatch[1], payload)
+      await fulfillJson(route, options?.wallet?.singleRequeueResult ?? { id: singleRequeueMatch[1], status: "pending" })
       return
     }
 
@@ -329,6 +356,120 @@ test("wallet should keep advanced operations collapsed behind the daily issuance
   await expect(toggle).toHaveText(/收起高级运营/)
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
   await expect(page.getByTestId("wallet-advanced-content")).toBeVisible()
+})
+
+test("wallet dlq governance should filter by error code and requeue one job", async ({ page }) => {
+  const viewer: MockViewer = {
+    id: "user-tenant-admin-wallet-dlq",
+    email: "tenant.admin.wallet.dlq@sudirman.co",
+    role: "tenant_admin",
+    tenant_id: "tenant-sudirman",
+    building_ids: ["building-1"],
+  }
+  const metrics = buildEmptyWalletMetrics(viewer.tenant_id)
+  metrics.summary = {
+    ...metrics.summary,
+    total: 3,
+    failed: 2,
+    dlq: 2,
+    retryable_failed: 1,
+    non_retryable_failed: 1,
+    error_code_breakdown: {
+      template_inactive: 2,
+      wallet_provider_timeout: 1,
+    },
+  }
+  metrics.window = {
+    ...metrics.window,
+    failed: 2,
+    dlq: 2,
+    error_code_breakdown: {
+      template_inactive: 2,
+      wallet_provider_timeout: 1,
+    },
+  }
+  const requeueRequests: Array<{ jobID: string; payload: unknown }> = []
+  await setupApiMocks(page, viewer, {
+    wallet: {
+      metrics,
+      jobs: [
+        {
+          id: "wjob_dlq_001",
+          tenant_id: viewer.tenant_id,
+          provider: "google",
+          batch_id: "batch_dlq_001",
+          template_id: "wpt_employee",
+          target_type: "user",
+          target_id: "usr_001",
+          status: "dlq",
+          retry_count: 3,
+          error_code: "template_inactive",
+          error_message: "Template is inactive",
+          created_at: "2026-05-24T08:00:00Z",
+          updated_at: "2026-05-24T09:00:00Z",
+        },
+        {
+          id: "wjob_dlq_002",
+          tenant_id: viewer.tenant_id,
+          provider: "google",
+          batch_id: "batch_dlq_001",
+          template_id: "wpt_employee",
+          target_type: "user",
+          target_id: "usr_002",
+          status: "dlq",
+          retry_count: 3,
+          error_code: "wallet_provider_timeout",
+          error_message: "Provider timeout",
+          created_at: "2026-05-24T08:10:00Z",
+          updated_at: "2026-05-24T08:50:00Z",
+        },
+      ],
+      singleRequeueResult: {
+        id: "wjob_dlq_001",
+        tenant_id: viewer.tenant_id,
+        provider: "google",
+        batch_id: "batch_dlq_001",
+        template_id: "wpt_employee",
+        target_type: "user",
+        target_id: "usr_001",
+        status: "pending",
+        retry_count: 0,
+        created_at: "2026-05-24T08:00:00Z",
+        updated_at: "2026-05-24T09:05:00Z",
+      },
+      onSingleRequeue: (jobID, payload) => {
+        requeueRequests.push({ jobID, payload })
+      },
+    },
+  })
+  await login(page, viewer.email)
+
+  await page.goto("/wallet")
+  const toggle = page.getByTestId("wallet-advanced-toggle")
+  await toggle.click()
+
+  const card = page.getByTestId("wallet-dlq-governance-card")
+  await expect(card.getByText("DLQ 错误码")).toBeVisible()
+  await card.getByRole("button", { name: /template_inactive/ }).click()
+  await expect(card.locator("#wallet-dlq-error-code")).toHaveValue("template_inactive")
+  await expect(card.getByText("wjob_dlq_001")).toBeVisible()
+  await expect(card.getByText("wjob_dlq_002")).toHaveCount(0)
+
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("确认重排")
+    await dialog.accept()
+  })
+  await card.getByRole("button", { name: "重排任务" }).click()
+
+  await expect(card).toContainText("Wallet DLQ 任务 wjob_dlq_001 已重排，状态 pending。")
+  expect(requeueRequests).toHaveLength(1)
+  expect(requeueRequests[0]).toMatchObject({
+    jobID: "wjob_dlq_001",
+    payload: {
+      tenant_id: viewer.tenant_id,
+      actor: "web_admin.wallet.dlq.requeue_single",
+    },
+  })
 })
 
 test("operator should see read-only boundary hints on gateways page", async ({ page }) => {
