@@ -298,7 +298,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/gateways" element={<GatewaysPage token={token} viewer={viewer} />} />
         <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />
-        <Route path="/audit" element={<AuditPage token={token} />} />
+        <Route path="/audit" element={<AuditPage token={token} viewer={viewer} />} />
         <Route path="/access-links/claim" element={<AccessLinkClaimPage />} />
         <Route path="/access-link/:token" element={<AccessLinkClaimPage />} />
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />

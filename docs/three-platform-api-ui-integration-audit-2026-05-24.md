@@ -72,7 +72,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 | 优先级 | API | 当前证据 | 建议 |
 |---:|---|---|---|
-| P0 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI 和 curl 文档存在，`web-admin/src` 没有业务调用 | 新增 Integrations -> Audit Webhook 页面 |
+| P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
 | P1 | `/api/v1/oauth2/clients` | OpenAPI 存在，UI 无调用 | 新增 Developer / API Clients 管理页 |
 | P1 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在，UI 无调用 | Wallet Advanced 中补 Google Wallet provider config |
 | P1 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary` | API 与测试文档存在，UI 目前主要展示 archives/metrics/alerts | Wallet Queue Ops 补批量治理按钮和确认弹窗 |
@@ -159,7 +159,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 ### Batch B：后台 UI 补洞（推荐本周做，2-3 天）
 
-- Audit Webhook 页面。
+- [x] Audit Webhook 页面。
 - OAuth2 Clients / Developer API Clients 页面。
 - Wallet Google config 页面。
 - Wallet DLQ batch governance 操作按钮。
