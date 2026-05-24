@@ -63,6 +63,7 @@ export type EventSet = {
 }
 
 export type AuditLog = {
+  tenant_id?: string
   id: string
   actor: string
   role: string
@@ -70,6 +71,34 @@ export type AuditLog = {
   target: string
   source: string
   at: string
+}
+
+export type AuditWebhookConfig = {
+  tenant_id: string
+  enabled: boolean
+  endpoint: string
+  actions?: string[]
+  updated_by: string
+  updated_at: string
+}
+
+export type AuditWebhookDelivery = {
+  tenant_id: string
+  id: string
+  audit_log_id: string
+  action: string
+  endpoint: string
+  status: string
+  attempt_count?: number
+  http_status?: number
+  error?: string
+  response_body?: string
+  dispatched_at: string
+}
+
+export type AuditWebhookDispatchResponse = {
+  delivery: AuditWebhookDelivery
+  event: AuditLog
 }
 
 // --- Access Events ---
@@ -179,4 +208,54 @@ export async function listEventTypes(token: string | undefined): Promise<string[
 
 export async function listAuditLogs(token: string | undefined): Promise<AuditLog[]> {
   return requestItems<AuditLog>("/api/v1/audit-logs", token)
+}
+
+export async function getAuditWebhookConfig(token: string | undefined, tenantID: string): Promise<AuditWebhookConfig> {
+  return request<AuditWebhookConfig>(`/api/v1/audit/webhook/config?tenant_id=${encodeURIComponent(tenantID)}`, { method: "GET" }, token)
+}
+
+export async function updateAuditWebhookConfig(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    enabled: boolean
+    endpoint: string
+    actions: string[]
+    signing_secret?: string
+    updated_by?: string
+  }
+): Promise<AuditWebhookConfig> {
+  return request<AuditWebhookConfig>(
+    "/api/v1/audit/webhook/config",
+    { method: "PUT", body: JSON.stringify(payload) },
+    token
+  )
+}
+
+export async function listAuditWebhookDeliveries(
+  token: string | undefined,
+  tenantID: string,
+  limit = 10
+): Promise<{ items: AuditWebhookDelivery[] }> {
+  return request<{ items: AuditWebhookDelivery[] }>(
+    `/api/v1/audit/webhook/deliveries?tenant_id=${encodeURIComponent(tenantID)}&limit=${limit}`,
+    { method: "GET" },
+    token
+  )
+}
+
+export async function dispatchAuditWebhook(
+  token: string | undefined,
+  payload: {
+    tenant_id: string
+    audit_log_id?: string
+    action?: string
+    source?: string
+  }
+): Promise<AuditWebhookDispatchResponse> {
+  return request<AuditWebhookDispatchResponse>(
+    "/api/v1/audit/webhook/dispatch",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  )
 }

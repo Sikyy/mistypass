@@ -54,6 +54,7 @@ type Config struct {
 	UserInvitationResendAPIKey                                   string
 	UserInvitationResendTimeout                                  time.Duration
 	UserInvitationProviderWebhookSecret                          string
+	EmailInboundWebhookSecret                                    string
 	TrustedProxyCIDRs                                            []string
 	DatabaseURL                                                  string
 	DatabaseAutoMigrate                                          bool
@@ -174,6 +175,7 @@ func FromEnv() Config {
 	loadOTelConfig(&cfg)
 	loadAuthConfig(&cfg)
 	loadUserInvitationConfig(&cfg)
+	loadEmailInboundWebhookConfig(&cfg)
 	loadDatabaseConfig(&cfg)
 	loadEnterpriseConfig(&cfg)
 	loadGatewayConfig(&cfg)
@@ -299,6 +301,10 @@ func loadUserInvitationConfig(cfg *Config) {
 		cfg.UserInvitationResendTimeout = 5 * time.Second
 	}
 	cfg.UserInvitationProviderWebhookSecret = envString("USER_INVITATION_PROVIDER_WEBHOOK_SECRET")
+}
+
+func loadEmailInboundWebhookConfig(cfg *Config) {
+	cfg.EmailInboundWebhookSecret = envString("EMAIL_INBOUND_WEBHOOK_SECRET")
 }
 
 func loadDatabaseConfig(cfg *Config) {

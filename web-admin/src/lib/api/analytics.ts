@@ -41,6 +41,18 @@ export type ReportSchedule = {
   updated_at: string
 }
 
+export type ReportEmailProviderStatus = {
+  provider: string
+  enabled: boolean
+  configured: boolean
+  ready: boolean
+  endpoint: string
+  from: string
+  timeout_seconds: number
+  missing?: string[]
+  message: string
+}
+
 export async function getAccessSummary(token: string | undefined, tenantID: string, start: string, end: string, buildingID?: string): Promise<AccessSummary> {
   const params = new URLSearchParams({ tenant_id: tenantID, start, end })
   if (buildingID) params.set("building_id", buildingID)
@@ -78,6 +90,10 @@ export async function listReportSchedules(token: string | undefined, tenantID: s
   return request(`/api/v1/report-schedules?tenant_id=${tenantID}`, {}, token)
 }
 
+export async function getReportScheduleProviderStatus(token: string | undefined, tenantID: string): Promise<ReportEmailProviderStatus> {
+  return request(`/api/v1/report-schedules/provider-status?tenant_id=${tenantID}`, {}, token)
+}
+
 export async function getReportSchedule(token: string | undefined, scheduleID: string, tenantID: string): Promise<ReportSchedule> {
   return request(`/api/v1/report-schedules/${scheduleID}?tenant_id=${tenantID}`, {}, token)
 }
@@ -92,6 +108,13 @@ export async function updateReportSchedule(token: string | undefined, scheduleID
 
 export async function deleteReportSchedule(token: string | undefined, scheduleID: string, tenantID: string): Promise<void> {
   return request(`/api/v1/report-schedules/${scheduleID}?tenant_id=${tenantID}`, { method: "DELETE" }, token)
+}
+
+export async function sendReportSchedule(token: string | undefined, scheduleID: string, tenantID: string): Promise<ReportSchedule> {
+  return request(`/api/v1/report-schedules/${scheduleID}/send?tenant_id=${tenantID}`, {
+    method: "POST",
+    body: JSON.stringify({ tenant_id: tenantID }),
+  }, token)
 }
 
 // listCameras moved to cameras.ts

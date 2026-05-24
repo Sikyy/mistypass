@@ -37,6 +37,7 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("USER_INVITATION_RESEND_API_KEY", "")
 	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "")
 	t.Setenv("USER_INVITATION_PROVIDER_WEBHOOK_SECRET", "")
+	t.Setenv("EMAIL_INBOUND_WEBHOOK_SECRET", "")
 
 	cfg := FromEnv()
 	if cfg.UserInvitationEmailProvider != "queue" {
@@ -51,6 +52,9 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	if cfg.UserInvitationProviderWebhookSecret != "" {
 		t.Fatalf("default invitation webhook secret mismatch: got %s", cfg.UserInvitationProviderWebhookSecret)
 	}
+	if cfg.EmailInboundWebhookSecret != "" {
+		t.Fatalf("default email inbound webhook secret mismatch: got %s", cfg.EmailInboundWebhookSecret)
+	}
 
 	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "resend")
 	t.Setenv("USER_INVITATION_EMAIL_FROM", "invites@mistypass.local")
@@ -58,6 +62,7 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	t.Setenv("USER_INVITATION_RESEND_API_KEY", "re_invite_token")
 	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "9s")
 	t.Setenv("USER_INVITATION_PROVIDER_WEBHOOK_SECRET", "invite-webhook-secret")
+	t.Setenv("EMAIL_INBOUND_WEBHOOK_SECRET", "email-inbound-secret")
 
 	cfg = FromEnv()
 	if cfg.UserInvitationEmailProvider != "resend" {
@@ -77,6 +82,9 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	}
 	if cfg.UserInvitationProviderWebhookSecret != "invite-webhook-secret" {
 		t.Fatalf("override invitation webhook secret mismatch: got %s", cfg.UserInvitationProviderWebhookSecret)
+	}
+	if cfg.EmailInboundWebhookSecret != "email-inbound-secret" {
+		t.Fatalf("override email inbound webhook secret mismatch: got %s", cfg.EmailInboundWebhookSecret)
 	}
 
 	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "invalid-provider")

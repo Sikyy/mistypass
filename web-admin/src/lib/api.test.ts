@@ -4,10 +4,13 @@ import {
   APIError,
   batchUpdateWalletPhysicalCardInventoryStatus,
   bindGatewayDoor,
+  cleanupWalletDLQJobs,
   createBuilding,
   createDoor,
   createTemporaryAccess,
   createUserGroup,
+  getWalletGoogleConfig,
+  getWalletJobSummary,
   listAccessEvents,
   listBuildings,
   listDoorGroups,
@@ -21,11 +24,16 @@ import {
   parseAPIErrorDetails,
   publishGatewayConfig,
   rebootGateway,
+  processWalletJobs,
+  requeueWalletDLQJob,
+  requeueWalletDLQJobs,
   restoreGatewayCertificateSerial,
   revokeGatewayCertificateSerial,
+  upsertWalletGoogleConfig,
   updateWalletPhysicalCardInventoryStatus,
   updateGatewayStatus,
   updateUserGroup,
+  validateWalletGoogleConfig,
 } from "./api"
 
 describe("api list response normalization", () => {
@@ -1002,6 +1010,207 @@ describe("legacy wallet pass helper", () => {
 
     expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/cards?tenant_id=tenant_demo"))
     expect(fetchMock.mock.calls[0][0]).not.toContain("/api/v1/wallet/passes")
+  })
+})
+
+describe("wallet google config helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("reads, saves, and validates provider config through wallet google routes", async () => {
+    const config = {
+      id: "wcfg_001",
+      tenant_id: "tenant_demo",
+      provider: "google",
+      issuer_id: "issuer_001",
+      service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+      key_ref: "kms://wallet/google/issuer",
+      status: "active",
+      created_at: "2026-05-24T10:00:00Z",
+      updated_at: "2026-05-24T10:05:00Z",
+    }
+    const validation = {
+      provider: "google",
+      tenant_id: "tenant_demo",
+      valid: true,
+      items: [{ field: "issuer_id", status: "ok", message: "issuer_id looks good" }],
+      checked_at: "2026-05-24T10:10:00Z",
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(config), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(config), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(validation), { status: 200, headers: { "Content-Type": "application/json" } }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(getWalletGoogleConfig("token", "tenant_demo")).resolves.toMatchObject({
+      issuer_id: "issuer_001",
+      status: "active",
+    })
+    await expect(
+      upsertWalletGoogleConfig("token", {
+        tenant_id: "tenant_demo",
+        issuer_id: "issuer_001",
+        service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+        key_ref: "kms://wallet/google/issuer",
+        status: "active",
+        actor: "web_admin.wallet.google_config",
+      })
+    ).resolves.toMatchObject({ id: "wcfg_001" })
+    await expect(
+      validateWalletGoogleConfig("token", {
+        tenant_id: "tenant_demo",
+        issuer_id: "issuer_001",
+        service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+        key_ref: "kms://wallet/google/issuer",
+      })
+    ).resolves.toMatchObject({ valid: true })
+
+    expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config?tenant_id=tenant_demo"))
+    expect(fetchMock.mock.calls[1][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config"))
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("PUT")
+    expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string)).toMatchObject({
+      tenant_id: "tenant_demo",
+      status: "active",
+      actor: "web_admin.wallet.google_config",
+    })
+    expect(fetchMock.mock.calls[2][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config/validate"))
+    expect(fetchMock.mock.calls[2][1]?.method).toBe("POST")
+  })
+})
+
+describe("wallet dlq governance helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("routes summary, process, requeue, and cleanup calls to wallet queue endpoints", async () => {
+    const summary = {
+      tenant_id: "tenant_demo",
+      max_retry: 3,
+      total: 6,
+      pending: 2,
+      processing: 0,
+      success: 1,
+      failed: 1,
+      dlq: 2,
+      retryable_failed: 1,
+      non_retryable_failed: 1,
+      updated_at: "2026-05-24T10:00:00Z",
+    }
+    const processResult = {
+      tenant_id: "tenant_demo",
+      limit: 10,
+      worker_count: 2,
+      max_retry: 3,
+      claimed: 2,
+      succeeded: 1,
+      failed: 0,
+      dlq: 1,
+      skipped: 0,
+      retried: 1,
+      pending_after: 0,
+      processed_job_ids: ["wjob_001", "wjob_002"],
+      started_at: "2026-05-24T10:01:00Z",
+      completed_at: "2026-05-24T10:01:01Z",
+    }
+    const requeueResult = {
+      tenant_id: "tenant_demo",
+      limit: 10,
+      requeued: 2,
+      skipped: 0,
+      remaining_dlq: 0,
+      processed_jobs: ["wjob_003", "wjob_004"],
+      updated_at: "2026-05-24T10:02:00Z",
+    }
+    const cleanupResult = {
+      tenant_id: "tenant_demo",
+      limit: 10,
+      removed: 1,
+      remaining_dlq: 1,
+      processed_jobs: ["wjob_005"],
+      updated_at: "2026-05-24T10:03:00Z",
+    }
+    const singleRequeueResult = {
+      id: "wjob_006",
+      tenant_id: "tenant_demo",
+      provider: "google",
+      batch_id: "batch_001",
+      template_id: "wpt_001",
+      target_type: "user",
+      target_id: "usr_override",
+      status: "pending",
+      retry_count: 0,
+      created_at: "2026-05-24T10:00:00Z",
+      updated_at: "2026-05-24T10:04:00Z",
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(summary), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(processResult), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(requeueResult), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(cleanupResult), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(singleRequeueResult), { status: 200, headers: { "Content-Type": "application/json" } }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(getWalletJobSummary("token", { tenant_id: "tenant_demo", max_retry: 3 })).resolves.toMatchObject({ dlq: 2 })
+    await expect(
+      processWalletJobs("token", {
+        tenant_id: "tenant_demo",
+        limit: 10,
+        worker_count: 2,
+        max_retry: 3,
+        actor: "web_admin.wallet.queue.process",
+      })
+    ).resolves.toMatchObject({ claimed: 2 })
+    await expect(
+      requeueWalletDLQJobs("token", {
+        tenant_id: "tenant_demo",
+        limit: 10,
+        error_code: "template_inactive",
+        actor: "web_admin.wallet.dlq.requeue",
+      })
+    ).resolves.toMatchObject({ requeued: 2 })
+    await expect(
+      cleanupWalletDLQJobs("token", {
+        tenant_id: "tenant_demo",
+        limit: 10,
+        error_code: "template_inactive",
+        older_than_seconds: 86400,
+        actor: "web_admin.wallet.dlq.cleanup",
+      })
+    ).resolves.toMatchObject({ removed: 1 })
+    await expect(
+      requeueWalletDLQJob("token", "wjob_006", {
+        tenant_id: "tenant_demo",
+        target_id: "usr_override",
+        actor: "web_admin.wallet.dlq.requeue_single",
+      })
+    ).resolves.toMatchObject({ id: "wjob_006", status: "pending" })
+
+    expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/summary?tenant_id=tenant_demo&max_retry=3"))
+    expect(fetchMock.mock.calls[1][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/process"))
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("POST")
+    expect(fetchMock.mock.calls[2][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/dlq/requeue"))
+    expect(fetchMock.mock.calls[2][1]?.method).toBe("POST")
+    expect(JSON.parse(fetchMock.mock.calls[2][1]?.body as string)).toMatchObject({
+      tenant_id: "tenant_demo",
+      error_code: "template_inactive",
+    })
+    expect(fetchMock.mock.calls[3][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/dlq/cleanup"))
+    expect(fetchMock.mock.calls[3][1]?.method).toBe("POST")
+    expect(JSON.parse(fetchMock.mock.calls[3][1]?.body as string)).toMatchObject({
+      older_than_seconds: 86400,
+      actor: "web_admin.wallet.dlq.cleanup",
+    })
+    expect(fetchMock.mock.calls[4][0]).toEqual(expect.stringContaining("/api/v1/wallet/jobs/wjob_006/dlq/requeue"))
+    expect(fetchMock.mock.calls[4][1]?.method).toBe("POST")
+    expect(JSON.parse(fetchMock.mock.calls[4][1]?.body as string)).toMatchObject({
+      tenant_id: "tenant_demo",
+      target_id: "usr_override",
+      actor: "web_admin.wallet.dlq.requeue_single",
+    })
   })
 })
 

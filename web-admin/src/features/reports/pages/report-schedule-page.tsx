@@ -1,7 +1,7 @@
 import { useState } from "react"
 import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileTextIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { FileTextIcon, MailIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
 
 import { ConfirmActionDialog, RowActionsMenu } from "@/components/mistyislet/actions"
 import { PageFrame, StatusDot, ToggleSwitch } from "@/components/mistyislet/primitives"
@@ -17,9 +17,12 @@ import {
 import {
   createReportSchedule,
   deleteReportSchedule,
+  getReportScheduleProviderStatus,
   listReportSchedules,
+  sendReportSchedule,
   updateReportSchedule,
   type CurrentUser,
+  type ReportEmailProviderStatus,
   type ReportSchedule,
 } from "@/lib/api"
 
@@ -53,6 +56,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   const [editTarget, setEditTarget] = useState<ReportSchedule | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [mutationError, setMutationError] = useState("")
+  const [sendMessage, setSendMessage] = useState("")
   const [form, setForm] = useState({
     name: "", report_type: "weekly_analytics", frequency: "weekly", recipients: "",
     format: "pdf", day_of_week: 1, enabled: true,
@@ -64,6 +68,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
     setEditTarget(null)
     setForm(defaultForm)
     setMutationError("")
+    setSendMessage("")
     setSheetOpen(true)
   }
 
@@ -79,12 +84,19 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       enabled: s.enabled,
     })
     setMutationError("")
+    setSendMessage("")
     setSheetOpen(true)
   }
 
   const schedulesQuery = useQuery({
     queryKey: ["report-schedules", tenantID],
     queryFn: () => listReportSchedules(token, tenantID),
+    enabled: Boolean(token && tenantID),
+  })
+
+  const providerStatusQuery = useQuery({
+    queryKey: ["report-schedule-provider-status", tenantID],
+    queryFn: () => getReportScheduleProviderStatus(token, tenantID),
     enabled: Boolean(token && tenantID),
   })
 
@@ -105,6 +117,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       setSheetOpen(false)
       setForm(defaultForm)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to create report schedule"),
   })
@@ -127,6 +140,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       setEditTarget(null)
       setForm(defaultForm)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to update report schedule"),
   })
@@ -136,6 +150,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       updateReportSchedule(token, s.id, { tenant_id: tenantID, enabled: !s.enabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to toggle schedule"),
   })
@@ -146,8 +161,22 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
       queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
       setConfirmDelete(null)
       setMutationError("")
+      setSendMessage("")
     },
     onError: (err) => setMutationError(err instanceof Error ? err.message : "Failed to delete report schedule"),
+  })
+
+  const sendMutation = useMutation({
+    mutationFn: (s: ReportSchedule) => sendReportSchedule(token, s.id, tenantID),
+    onSuccess: (schedule) => {
+      queryClient.invalidateQueries({ queryKey: ["report-schedules"] })
+      setMutationError("")
+      setSendMessage(`${schedule.name} sent via the configured mail provider.`)
+    },
+    onError: (err) => {
+      setSendMessage("")
+      setMutationError(err instanceof Error ? err.message : "Failed to send report schedule")
+    },
   })
 
   const schedules = schedulesQuery.data?.items ?? []
@@ -173,6 +202,16 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
           {mutationError}
         </div>
       )}
+      {sendMessage && (
+        <div className="rounded-[6px] border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          {sendMessage}
+        </div>
+      )}
+      <ProviderStatusBanner
+        status={providerStatusQuery.data}
+        loading={providerStatusQuery.isLoading || providerStatusQuery.isFetching}
+        error={providerStatusQuery.error instanceof Error ? providerStatusQuery.error.message : ""}
+      />
 
       {/* Schedule Table */}
       <div>
@@ -195,6 +234,8 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
                 onEdit={openEdit}
                 onDelete={setConfirmDelete}
                 onToggle={(sched) => toggleMutation.mutate(sched)}
+                onSend={(sched) => sendMutation.mutate(sched)}
+                sending={sendMutation.isPending}
               />
             ))}
           </div>
@@ -311,16 +352,57 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
   )
 }
 
+function ProviderStatusBanner({
+  status,
+  loading,
+  error,
+}: {
+  status?: ReportEmailProviderStatus
+  loading: boolean
+  error: string
+}) {
+  const tone = error ? "danger" : status?.ready ? "success" : status?.enabled ? "danger" : "warning"
+  const label = error ? "Provider status unavailable" : status?.ready ? "Ready" : status?.enabled ? "Configuration required" : "Disabled"
+  const message = error || status?.message || "Checking report email provider."
+  const details = status
+    ? [
+        status.provider ? `provider=${status.provider}` : "",
+        status.from ? `from=${status.from}` : "",
+        status.missing?.length ? `missing=${status.missing.join(", ")}` : "",
+      ].filter(Boolean).join(" · ")
+    : ""
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[6px] border border-line-subtle bg-white px-5 py-4 text-sm text-content-body md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <MailIcon className="mt-0.5 size-4 shrink-0 text-content-subtle" />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-content-heading">Report email provider</span>
+            <StatusDot tone={tone} label={loading ? "Checking" : label} />
+          </div>
+          <p className="mt-1 text-content-subtle">{message}</p>
+          {details ? <p className="mt-1 truncate text-xs text-content-muted">{details}</p> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ReportRow({
   schedule,
   onEdit,
   onDelete,
   onToggle,
+  onSend,
+  sending,
 }: {
   schedule: ReportSchedule
   onEdit: (s: ReportSchedule) => void
   onDelete: (id: string) => void
   onToggle: (s: ReportSchedule) => void
+  onSend: (s: ReportSchedule) => void
+  sending: boolean
 }) {
   const typeLabel = REPORT_TYPES.find((t) => t.value === schedule.report_type)?.label ?? schedule.report_type
   const freqLabel = FREQUENCIES.find((f) => f.value === schedule.frequency)?.label ?? schedule.frequency
@@ -342,6 +424,7 @@ function ReportRow({
         <StatusDot tone={schedule.enabled ? "success" : "warning"} label={schedule.enabled ? "Active" : "Paused"} />
         <RowActionsMenu
           items={[
+            { id: "send", label: sending ? "Sending..." : "Send now", icon: SendIcon, disabled: sending, onSelect: () => onSend(schedule) },
             { id: "edit", label: "Edit", icon: PencilIcon, onSelect: () => onEdit(schedule) },
             { id: "delete", label: "Delete", icon: Trash2Icon, onSelect: () => onDelete(schedule.id), destructive: true },
           ]}

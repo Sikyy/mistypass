@@ -58,9 +58,13 @@ func buildOpenAPISpec() map[string]any {
 }
 
 func buildOpenAPIOperation(definition openAPIOperationDefinition) map[string]any {
+	operationID := strings.TrimSpace(definition.OperationID)
+	if operationID == "" {
+		operationID = generatedOpenAPIOperationID(definition.Method, definition.Path)
+	}
 	operation := map[string]any{
 		"tags":        []string{definition.Tag},
-		"operationId": definition.OperationID,
+		"operationId": operationID,
 		"summary":     definition.Summary,
 		"responses":   openAPIResponses(definition),
 	}
@@ -112,6 +116,34 @@ func needsJSONRequestBody(method string) bool {
 	default:
 		return false
 	}
+}
+
+func generatedOpenAPIOperationID(method, path string) string {
+	prefix := strings.ToLower(strings.TrimSpace(method))
+	if prefix == "" {
+		prefix = "call"
+	}
+	trimmed := strings.TrimPrefix(path, "/api/v1/")
+	parts := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == '/' || r == '-' || r == '_' || r == '{' || r == '}'
+	})
+	var builder strings.Builder
+	builder.WriteString(prefix)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		builder.WriteString(openAPIOperationIDPart(part))
+	}
+	return builder.String()
+}
+
+func openAPIOperationIDPart(part string) string {
+	if part == "" {
+		return ""
+	}
+	return strings.ToUpper(part[:1]) + part[1:]
 }
 
 func openAPIResponses(definition openAPIOperationDefinition) map[string]any {
@@ -491,6 +523,7 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/event_sets/{eventSetID}", OperationID: "fetchEventSet", Tag: "Events", Summary: "Fetch an event set."},
 		{Method: http.MethodGet, Path: "/api/v1/events/meta", OperationID: "fetchEventMetadata", Tag: "Events", Summary: "Fetch event metadata."},
 		{Method: http.MethodGet, Path: "/api/v1/events/types", OperationID: "fetchEventTypes", Tag: "Events", Summary: "Fetch event types.", Collection: true},
+		{Method: http.MethodGet, Path: "/api/v1/events/{eventID}/snapshots", OperationID: "fetchEventSnapshots", Tag: "Events", Summary: "List camera snapshots linked to an event.", Collection: true, ExtensionGroup: "event_snapshots"},
 
 		{Method: http.MethodGet, Path: "/api/v1/reports", OperationID: "fetchReports", Tag: "Reports", Summary: "Fetch reports.", Collection: true},
 		{Method: http.MethodGet, Path: "/api/v1/reports/{reportID}", OperationID: "fetchReport", Tag: "Reports", Summary: "Fetch a report."},
@@ -559,6 +592,10 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/invitations/{deliveryID}/resend", OperationID: "resendInvitation", Tag: "Users", Summary: "Resend an invitation."},
 		{Method: http.MethodPost, Path: "/api/v1/users/invitations/provider-receipts", OperationID: "receiveUserInvitationProviderReceipt", Tag: "Users", Summary: "Receive invitation provider receipt.", Public: true},
 
+		// Email Webhooks
+		{Method: http.MethodPost, Path: "/api/v1/webhooks/email/inbound", OperationID: "receiveEmailInboundWebhook", Tag: "Webhooks", Summary: "Receive inbound email or provider receipt webhook.", Public: true},
+		{Method: http.MethodGet, Path: "/api/v1/webhooks/email/inbound/events", OperationID: "fetchEmailInboundEvents", Tag: "Webhooks", Summary: "List inbound email webhook events.", Collection: true},
+
 		// Users Batch Operations
 		{Method: http.MethodPost, Path: "/api/v1/users/batch-status", OperationID: "batchUpdateUserStatus", Tag: "Users", Summary: "Batch update user status."},
 		{Method: http.MethodPost, Path: "/api/v1/users/batch-delete", OperationID: "batchDeleteUsers", Tag: "Users", Summary: "Batch delete users."},
@@ -617,6 +654,13 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/review", OperationID: "reviewEnterpriseJITApproval", Tag: "Enterprise", Summary: "Review a JIT provisioning approval."},
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/{approvalID}/external-sync", OperationID: "syncEnterpriseJITApprovalExternal", Tag: "Enterprise", Summary: "Sync JIT approval to external system."},
 		{Method: http.MethodPost, Path: "/api/v1/enterprise/jit-provision-approvals/external-sync/callback", OperationID: "enterpriseJITApprovalExternalSyncCallback", Tag: "Enterprise", Summary: "JIT approval external sync callback.", Public: true},
+
+		// Enterprise SCIM Admin
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/scim/config", OperationID: "fetchEnterpriseSCIMConfig", Tag: "Enterprise SCIM", Summary: "Fetch tenant SCIM configuration.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/scim/token", OperationID: "generateEnterpriseSCIMToken", Tag: "Enterprise SCIM", Summary: "Generate a SCIM bearer token.", Created: true, ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodDelete, Path: "/api/v1/enterprise/scim/token", OperationID: "revokeEnterpriseSCIMToken", Tag: "Enterprise SCIM", Summary: "Revoke the current SCIM bearer token.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodPost, Path: "/api/v1/enterprise/scim/test", OperationID: "testEnterpriseSCIMEndpoint", Tag: "Enterprise SCIM", Summary: "Test tenant SCIM endpoint readiness.", ExtensionGroup: "enterprise_scim"},
+		{Method: http.MethodGet, Path: "/api/v1/enterprise/scim/logs", OperationID: "fetchEnterpriseSCIMLogs", Tag: "Enterprise SCIM", Summary: "Fetch SCIM provisioning audit logs.", Collection: true, ExtensionGroup: "enterprise_scim"},
 
 		// Enterprise HRIS
 		{Method: http.MethodGet, Path: "/api/v1/enterprise/hris-connectors", OperationID: "fetchEnterpriseHRISConnectors", Tag: "Enterprise HRIS", Summary: "Fetch HRIS connectors.", Collection: true},
@@ -769,9 +813,166 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/oauth2/revoke", OperationID: "oauth2Revoke", Tag: "OAuth2", Summary: "OAuth2 token revocation (RFC 7009).", Public: true},
 	}
 
+	definitions = append(definitions, openAPIMobileExtendedOperationDefinitions()...)
 	definitions = append(definitions, openAPIExtensionOperationDefinitions()...)
 	definitions = append(definitions, openAPILegacyOperationDefinitions()...)
 	return definitions
+}
+
+func openAPIMobileExtendedOperationDefinitions() []openAPIOperationDefinition {
+	mobile := func(method, path, summary string, public bool) openAPIOperationDefinition {
+		return openAPIOperationDefinition{
+			Method:  method,
+			Path:    path,
+			Tag:     "Mobile App",
+			Summary: summary,
+			Public:  public,
+		}
+	}
+	return []openAPIOperationDefinition{
+		mobile(http.MethodDelete, "/api/v1/app/credentials/nfc/{credentialId}", "Unbind an NFC card from the current mobile user.", false),
+		mobile(http.MethodDelete, "/api/v1/app/me/logins/{loginId}", "Revoke one of the current user's mobile login sessions.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/cards/{cardUid}", "Unassign a card from a place user.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/doors/{doorId}/favorite", "Remove a place door from the user's favorites.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/doors/{doorId}/lockdown", "Disable lockdown for a place door.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/groups/{groupId}", "Delete a place access group.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/groups/{groupId}/doors/{doorId}", "Remove a door from a place access group.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/groups/{groupId}/members/{memberId}", "Remove a member from a place access group.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/guests/{guestId}", "Delete a place guest.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/lockdown", "Disable lockdown for a place.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/schedules/{scheduleId}", "Delete a place schedule.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/teams/{teamId}", "Delete a place team.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights/{accessRightId}", "Remove an access right from a place team.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/teams/{teamId}/members/{memberId}", "Remove a member from a place team.", false),
+		mobile(http.MethodDelete, "/api/v1/app/places/{placeId}/users/{userId}", "Remove a user from a place.", false),
+
+		mobile(http.MethodGet, "/api/v1/app/access/pin-code", "Fetch the current user's PIN unlock code.", false),
+		mobile(http.MethodGet, "/api/v1/app/alarm-schedules", "List mobile alarm schedules.", false),
+		mobile(http.MethodGet, "/api/v1/app/alarm-schedules/calendar", "Fetch the mobile alarm schedule calendar.", false),
+		mobile(http.MethodGet, "/api/v1/app/alarms", "List mobile alarms.", false),
+		mobile(http.MethodGet, "/api/v1/app/alarms/stream", "Stream mobile alarms.", false),
+		mobile(http.MethodGet, "/api/v1/app/auth/org-lookup", "Resolve an organization from an email domain.", true),
+		mobile(http.MethodGet, "/api/v1/app/auth/org/{orgId}/methods", "Fetch mobile authentication methods for an organization.", true),
+		mobile(http.MethodGet, "/api/v1/app/bookable-spaces", "List mobile bookable spaces.", false),
+		mobile(http.MethodGet, "/api/v1/app/bookable-spaces/{spaceID}/status", "Fetch mobile bookable space status.", false),
+		mobile(http.MethodGet, "/api/v1/app/bookings", "List mobile bookings.", false),
+		mobile(http.MethodGet, "/api/v1/app/cameras", "List mobile cameras.", false),
+		mobile(http.MethodGet, "/api/v1/app/cameras/{cameraID}/cloud-recordings", "List camera cloud recordings for mobile playback.", false),
+		mobile(http.MethodGet, "/api/v1/app/cameras/{cameraID}/cloud-token", "Fetch a camera cloud playback token.", false),
+		mobile(http.MethodGet, "/api/v1/app/cameras/{cameraID}/video-link", "Fetch a camera video link for mobile playback.", false),
+		mobile(http.MethodGet, "/api/v1/app/credentials/nfc", "List NFC cards bound to the current mobile user.", false),
+		mobile(http.MethodGet, "/api/v1/app/me/logins", "List the current user's mobile login sessions.", false),
+		mobile(http.MethodGet, "/api/v1/app/orgs", "List organizations available to the current mobile user.", false),
+		mobile(http.MethodGet, "/api/v1/app/orgs/{orgId}/places", "List places in an organization for the current mobile user.", false),
+		mobile(http.MethodGet, "/api/v1/app/orgs/{orgId}/places/search", "Search places in an organization for the current mobile user.", false),
+		mobile(http.MethodGet, "/api/v1/app/orgs/{orgId}/settings", "Fetch mobile organization settings.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/activity", "Fetch place activity for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/activity/{eventId}", "Fetch a place presence event for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/analytics/failed-attempts", "Fetch place failed-attempt analytics for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/analytics/presence", "Fetch place presence analytics for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/analytics/summary", "Fetch place analytics summary for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/cards", "List place cards for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/cards/{cardUid}/status", "Fetch a place card status.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/credentials", "List place credentials for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/credentials/search", "Search place credentials for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/credentials/{credentialId}", "Fetch a place credential for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/doors", "List place doors for mobile users.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/doors/search", "Search place doors for mobile users.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/doors/{doorId}/restrictions", "Fetch place door restrictions.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/doors/{doorId}/schedules", "Fetch place door schedules.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/events", "List place events for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/events/{eventId}", "Fetch a place event for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/events/{eventId}/media", "Fetch place event media for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/events/{eventId}/related", "Fetch related place events for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/groups", "List place access groups for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/groups/{groupId}/doors", "List doors in a place access group.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/groups/{groupId}/members", "List members in a place access group.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/guests", "List place guests for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/holiday-regions", "List place holiday regions for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/holiday-regions/{regionId}/holidays", "List holidays in a place holiday region.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/incidents", "List place incidents for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/incidents/{incidentId}", "Fetch a place incident for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/incidents/{incidentId}/occurrences", "List place incident occurrences.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/schedules", "List place schedules for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/teams", "List place teams for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/teams/{teamId}", "Fetch a place team for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights", "List access rights for a place team.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/teams/{teamId}/members", "List members in a place team.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/users/", "List place users for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/users/search", "Search place users for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/users/{userId}", "Fetch a place user for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/users/{userId}/access-rights", "Fetch access rights for a place user.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/users/{userId}/logins", "Fetch login sessions for a place user.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/visitor-groups", "List visitor groups for a place.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/visitor-groups/{groupId}/members", "List visitor group members for a place.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/zones", "List place zones for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/places/{placeId}/zones/{zoneId}", "Fetch a place zone for mobile admins.", false),
+		mobile(http.MethodGet, "/api/v1/app/visitor-passes", "List resident visitor passes.", false),
+
+		mobile(http.MethodPatch, "/api/v1/app/alarms/{alarmID}/status", "Update a mobile alarm status.", false),
+		mobile(http.MethodPatch, "/api/v1/app/cameras/{cameraId}", "Rename a camera from the mobile app.", false),
+		mobile(http.MethodPatch, "/api/v1/app/gateways/{gatewayId}", "Rename a gateway from the mobile app.", false),
+		mobile(http.MethodPatch, "/api/v1/app/me", "Update the current mobile user's profile.", false),
+		mobile(http.MethodPatch, "/api/v1/app/places/{placeId}/doors/{doorId}", "Rename a place door from the mobile app.", false),
+		mobile(http.MethodPatch, "/api/v1/app/places/{placeId}/groups/{groupId}", "Update a place access group.", false),
+		mobile(http.MethodPatch, "/api/v1/app/places/{placeId}/guests/{guestId}", "Update a place guest status.", false),
+		mobile(http.MethodPatch, "/api/v1/app/places/{placeId}/users/{userId}/role", "Update a place user's role.", false),
+
+		mobile(http.MethodPost, "/api/v1/app/access/pin-unlock", "Unlock a door from the mobile app using a PIN.", false),
+		mobile(http.MethodPost, "/api/v1/app/auth/2fa/backup", "Verify a mobile backup code.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/2fa/verify", "Verify a mobile two-factor code.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/magic-link", "Request a mobile magic link.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/magic-link/verify", "Verify a mobile magic link.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/register", "Register a mobile account.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/restore-password", "Restore a mobile account password.", true),
+		mobile(http.MethodPost, "/api/v1/app/auth/sso/{orgId}", "Start mobile SSO for an organization.", true),
+		mobile(http.MethodPost, "/api/v1/app/bookings", "Create a mobile booking.", false),
+		mobile(http.MethodPost, "/api/v1/app/bookings/{bookingID}/cancel", "Cancel a mobile booking.", false),
+		mobile(http.MethodPost, "/api/v1/app/bookings/{bookingID}/check-in", "Check in to a mobile booking.", false),
+		mobile(http.MethodPost, "/api/v1/app/bookings/{bookingID}/check-out", "Check out from a mobile booking.", false),
+		mobile(http.MethodPost, "/api/v1/app/cameras/{cameraID}/snapshot", "Capture a camera snapshot from the mobile app.", false),
+		mobile(http.MethodPost, "/api/v1/app/credentials/nfc", "Bind an NFC card to the current mobile user.", false),
+		mobile(http.MethodPost, "/api/v1/app/devices/apns", "Register an APNS device token for mobile push.", false),
+		mobile(http.MethodPost, "/api/v1/app/devices/register", "Register a mobile push device.", false),
+		mobile(http.MethodPost, "/api/v1/app/me/avatar", "Upload the current mobile user's avatar.", false),
+		mobile(http.MethodPost, "/api/v1/app/me/change-password", "Change the current mobile user's password.", false),
+		mobile(http.MethodPost, "/api/v1/app/me/primary-device", "Set the current user's primary mobile device.", false),
+		mobile(http.MethodPost, "/api/v1/app/orgs/{orgId}/switch", "Switch the current mobile organization.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/cards/assign", "Assign a card within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/cards/manual-token", "Create a manual card token within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/credentials", "Create a credential within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/credentials/{credentialId}/activate", "Activate a credential within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/credentials/{credentialId}/revoke", "Revoke a credential within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/credentials/{credentialId}/suspend", "Suspend a credential within a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/doors/{doorId}/lockdown", "Enable lockdown for a place door.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/doors/{doorId}/qr-unlock", "Unlock a place door using a QR code.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/doors/{doorId}/unlock", "Unlock a place door from the mobile app.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/groups", "Create a place access group.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/groups/{groupId}/doors", "Add a door to a place access group.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/groups/{groupId}/members", "Add a member to a place access group.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/guests", "Create a place guest.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/lockdown", "Enable lockdown for a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/reports/export", "Export a place report from the mobile app.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/schedules", "Create a place schedule.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/teams", "Create a place team.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights", "Assign an access right to a place team.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/teams/{teamId}/members", "Add a member to a place team.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/users/", "Add a user to a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/users/invite", "Invite a user to a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/users/{userId}/share-access", "Share access for a place user.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/users/{userId}/sign-out", "Sign out a place user.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/visitor-groups", "Create a visitor group for a place.", false),
+		mobile(http.MethodPost, "/api/v1/app/places/{placeId}/visitor-groups/{groupId}/cleanup-expired", "Clean up expired visitors in a visitor group.", false),
+		mobile(http.MethodPost, "/api/v1/app/qr-token", "Generate a mobile QR token.", false),
+
+		mobile(http.MethodPut, "/api/v1/app/access/doors/{doorId}/favorite", "Favorite or update a mobile access door favorite.", false),
+		mobile(http.MethodPut, "/api/v1/app/orgs/{orgId}/settings", "Update mobile organization settings.", false),
+		mobile(http.MethodPut, "/api/v1/app/places/{placeId}/doors/{doorId}/favorite", "Favorite a place door from the mobile app.", false),
+		mobile(http.MethodPut, "/api/v1/app/places/{placeId}/schedules/{scheduleId}", "Update a place schedule.", false),
+		mobile(http.MethodPut, "/api/v1/app/places/{placeId}/settings", "Update place settings from the mobile app.", false),
+		mobile(http.MethodPut, "/api/v1/app/places/{placeId}/teams/{teamId}", "Update a place team.", false),
+		mobile(http.MethodPut, "/api/v1/app/places/{placeId}/users/{userId}/role", "Update a place user's role.", false),
+	}
 }
 
 func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
@@ -806,8 +1007,17 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/ota/tasks", OperationID: "fetchGatewayOTATasks", Tag: "Hardware Extensions", Summary: "Fetch gateway OTA tasks.", Collection: true, ExtensionGroup: "legacy_gateway"},
 		{Method: http.MethodPatch, Path: "/api/v1/gateways/{gatewayID}/ota/tasks/{taskID}/status", OperationID: "updateGatewayOTATaskStatus", Tag: "Hardware Extensions", Summary: "Update gateway OTA task status.", ExtensionGroup: "legacy_gateway"},
 		{Method: http.MethodGet, Path: "/api/v1/gateways/{gatewayID}/events/checkpoint", OperationID: "fetchGatewayEventCheckpoints", Tag: "Hardware Extensions", Summary: "Fetch gateway event checkpoints.", Collection: true, ExtensionGroup: "gateway_events"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/test", OperationID: "testSouthboundConnection", Tag: "Hardware Extensions", Summary: "Test a southbound device provider connection.", ExtensionGroup: "southbound"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/unlock", OperationID: "unlockSouthboundDevice", Tag: "Hardware Extensions", Summary: "Unlock a third-party southbound device.", ExtensionGroup: "southbound"},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/southbound/{provider}/{deviceID}/sync-users", OperationID: "syncSouthboundUsers", Tag: "Hardware Extensions", Summary: "Sync users to a third-party southbound device.", ExtensionGroup: "southbound"},
 
 		{Method: http.MethodGet, Path: "/api/v1/network/topology", OperationID: "getNetworkTopology", Tag: "Network", Summary: "Device network topology graph for visualization."},
+
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/events", OperationID: "receiveLarkIntegrationEvents", Tag: "Integrations", Summary: "Receive Lark integration event callbacks.", Public: true, ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/test", OperationID: "testLarkBot", Tag: "Integrations", Summary: "Send a Lark bot test message.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/bot/alert", OperationID: "sendLarkBotAlert", Tag: "Integrations", Summary: "Send a Lark bot alert message.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/lark/sync", OperationID: "syncLarkUsers", Tag: "Integrations", Summary: "Sync users from Lark contacts.", ExtensionGroup: "lark"},
+		{Method: http.MethodPost, Path: "/api/v1/integrations/google-workspace/sync", OperationID: "syncGoogleWorkspaceUsers", Tag: "Integrations", Summary: "Sync users from Google Workspace.", ExtensionGroup: "google_workspace"},
 
 		{Method: http.MethodGet, Path: "/api/v1/wallet/google/config", OperationID: "fetchWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Fetch Google Wallet config.", ExtensionGroup: "google_wallet"},
 		{Method: http.MethodPut, Path: "/api/v1/wallet/google/config", OperationID: "updateWalletGoogleConfig", Tag: "Credentials Extensions", Summary: "Update Google Wallet config.", ExtensionGroup: "google_wallet"},
@@ -921,6 +1131,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		// Report Schedules
 		{Method: http.MethodGet, Path: "/api/v1/report-schedules", OperationID: "fetchReportSchedules", Tag: "Report Schedules", Summary: "List report delivery schedules.", Collection: true},
 		{Method: http.MethodPost, Path: "/api/v1/report-schedules", OperationID: "createReportSchedule", Tag: "Report Schedules", Summary: "Create a report delivery schedule.", Created: true},
+		{Method: http.MethodGet, Path: "/api/v1/report-schedules/provider-status", OperationID: "getReportScheduleProviderStatus", Tag: "Report Schedules", Summary: "Check the configured report email provider status."},
 		{Method: http.MethodGet, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "fetchReportSchedule", Tag: "Report Schedules", Summary: "Fetch a report delivery schedule."},
 		{Method: http.MethodPatch, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "updateReportSchedule", Tag: "Report Schedules", Summary: "Update a report delivery schedule."},
 		{Method: http.MethodDelete, Path: "/api/v1/report-schedules/{scheduleID}", OperationID: "deleteReportSchedule", Tag: "Report Schedules", Summary: "Delete a report delivery schedule.", NoContent: true},

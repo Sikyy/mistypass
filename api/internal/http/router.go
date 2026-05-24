@@ -19,7 +19,6 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/alarm"
 	"github.com/mistypass/cloud/api/internal/modules/audit"
-	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
 	"github.com/mistypass/cloud/api/internal/modules/credential"
@@ -32,6 +31,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/space"
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
+	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/redistore"
 	"github.com/mistypass/cloud/api/internal/state"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -100,6 +100,9 @@ type server struct {
 	reportScheduleMu              sync.RWMutex
 	reportSchedules               map[string]reportSchedule
 	reportScheduleSeq             int
+	emailInboundMu                sync.RWMutex
+	emailInboundEvents            []emailInboundEvent
+	emailInboundSeq               int
 	customAlertPolicyMu           sync.RWMutex
 	customAlertPolicies           map[string]referenceAlertPolicy
 	customAlertPolicySeq          int
@@ -427,6 +430,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		scheduledReports:              scheduledReports,
 		scheduledReportSeq:            scheduledReportSeq,
 		reportSchedules:               map[string]reportSchedule{},
+		emailInboundEvents:            []emailInboundEvent{},
 		customAlertPolicies:           map[string]referenceAlertPolicy{},
 		alertCooldowns:                map[string]time.Time{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
@@ -569,6 +573,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	}
 	s.restoreAlertPoliciesFromState()
 	s.restoreReportSchedulesFromState()
+	s.restoreEmailInboundEventsFromState()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -606,6 +611,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/exchange", s.enterpriseAuthExchange)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/logout", s.enterpriseAuthLogout)
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/enterprise/hris-webhook/{connectorID}", s.receiveEnterpriseHRISWebhook)
+		r.With(s.withEnterpriseWebhookRateLimit).Post("/webhooks/email/inbound", s.receiveEmailInboundWebhook)
 		r.With(s.withEnterprisePublicRateLimit).Get("/enterprise/auth/oidc/callback", s.enterpriseOIDCCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/saml/callback", s.enterpriseSAMLCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/jit-provision-approvals/external-sync/callback", s.enterpriseJITApprovalExternalSyncCallback)
@@ -1242,10 +1248,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules", s.listReportSchedules)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules", s.createReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules/provider-status", s.getReportScheduleProviderStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules/{scheduleID}", s.getReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Patch("/report-schedules/{scheduleID}", s.updateReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/report-schedules/{scheduleID}", s.deleteReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules/{scheduleID}/send", s.sendReportSchedule)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/webhooks/email/inbound/events", s.listEmailInboundEvents)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/audit-logs", s.listAuditLogs)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/audit/webhook/config", s.getAuditWebhookConfig)

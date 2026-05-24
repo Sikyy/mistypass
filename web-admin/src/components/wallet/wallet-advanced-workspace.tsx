@@ -8,24 +8,30 @@ import { WalletAlertNotificationRecordsCard } from "@/components/wallet/wallet-a
 import { WalletAlertSubscriptionCard } from "@/components/wallet/wallet-alert-subscription-card"
 import { WalletAlertTrendPanels } from "@/components/wallet/wallet-alert-trend-panels"
 import { WalletDlqCleanupArchivesCard } from "@/components/wallet/wallet-dlq-cleanup-archives-card"
+import { WalletDlqGovernanceCard } from "@/components/wallet/wallet-dlq-governance-card"
+import { WalletGoogleConfigCard } from "@/components/wallet/wallet-google-config-card"
 import { WalletPhysicalCardTasksSection } from "@/components/wallet/wallet-physical-card-tasks-section"
 import { WalletRiskOverviewPanels } from "@/components/wallet/wallet-risk-overview-panels"
 
 type WalletAdvancedWorkspaceProps = {
+  googleConfigCardProps: ComponentProps<typeof WalletGoogleConfigCard>
   physicalCardTasksSectionProps: ComponentProps<typeof WalletPhysicalCardTasksSection>
   alertSubscriptionCardProps: ComponentProps<typeof WalletAlertSubscriptionCard>
   riskOverviewPanelsProps: ComponentProps<typeof WalletRiskOverviewPanels>
   alertTrendPanelsProps: ComponentProps<typeof WalletAlertTrendPanels>
   alertNotificationRecordsCardProps: ComponentProps<typeof WalletAlertNotificationRecordsCard>
+  dlqGovernanceCardProps: ComponentProps<typeof WalletDlqGovernanceCard>
   dlqCleanupArchivesCardProps: ComponentProps<typeof WalletDlqCleanupArchivesCard>
 }
 
 export function WalletAdvancedWorkspace({
+  googleConfigCardProps,
   physicalCardTasksSectionProps,
   alertSubscriptionCardProps,
   riskOverviewPanelsProps,
   alertTrendPanelsProps,
   alertNotificationRecordsCardProps,
+  dlqGovernanceCardProps,
   dlqCleanupArchivesCardProps,
 }: WalletAdvancedWorkspaceProps) {
   const { t } = useTranslation()
@@ -36,8 +42,16 @@ export function WalletAdvancedWorkspace({
   const recentPhysicalCardTasks = physicalCardTasksSectionProps.recentPhysicalCardTasks ?? []
   const alertItems = riskOverviewPanelsProps.alertItems ?? []
   const alertNotifications = alertNotificationRecordsCardProps.alertNotifications ?? []
+  const dlqCount = dlqGovernanceCardProps.jobSummary?.dlq ?? 0
   const dlqArchives = dlqCleanupArchivesCardProps.archives ?? []
+  const googleConfigStatus = googleConfigCardProps.config
+    ? t("walletPage.advanced.summary.googleConfigured")
+    : t("walletPage.advanced.summary.googleNotConfigured")
   const summaryItems = [
+    {
+      label: t("walletPage.advanced.summary.googleConfig"),
+      value: googleConfigStatus,
+    },
     {
       label: t("walletPage.advanced.summary.physicalTasks"),
       value: recentPhysicalCardTasks.length,
@@ -49,6 +63,10 @@ export function WalletAdvancedWorkspace({
     {
       label: t("walletPage.advanced.summary.notifications"),
       value: alertNotifications.length,
+    },
+    {
+      label: t("walletPage.advanced.summary.dlq"),
+      value: dlqCount,
     },
     {
       label: t("walletPage.advanced.summary.dlqArchives"),
@@ -89,6 +107,8 @@ export function WalletAdvancedWorkspace({
 
       {open ? (
         <div className="space-y-4 border-t px-4 py-4" data-testid="wallet-advanced-content">
+          <WalletGoogleConfigCard {...googleConfigCardProps} />
+
           <WalletPhysicalCardTasksSection {...physicalCardTasksSectionProps} />
 
           <WalletAlertSubscriptionCard {...alertSubscriptionCardProps} />
@@ -98,6 +118,8 @@ export function WalletAdvancedWorkspace({
           <WalletAlertTrendPanels {...alertTrendPanelsProps} />
 
           <WalletAlertNotificationRecordsCard {...alertNotificationRecordsCardProps} />
+
+          <WalletDlqGovernanceCard {...dlqGovernanceCardProps} />
 
           <WalletDlqCleanupArchivesCard {...dlqCleanupArchivesCardProps} />
         </div>

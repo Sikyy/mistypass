@@ -1,10 +1,13 @@
 package httpx
 
 import (
+	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/mistypass/cloud/api/internal/config"
 	"github.com/mistypass/cloud/api/internal/pdfgen"
 )
 
@@ -53,5 +56,60 @@ func TestBuildReportEmailHTMLUsesMistyisletBrand(t *testing.T) {
 	}
 	if strings.Contains(body, "Please find your scheduled report attached") {
 		t.Fatal("expected placeholder email copy to be removed")
+	}
+}
+
+func TestReportScheduleProviderStatus(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "report-provider-status-test-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	recorder := referenceAPIRequest(t, router, http.MethodGet, "/api/v1/report-schedules/provider-status?tenant_id=tenant_demo_jakarta", token, nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected provider status 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var status reportScheduleProviderStatus
+	if err := json.Unmarshal(recorder.Body.Bytes(), &status); err != nil {
+		t.Fatalf("decode provider status: %v", err)
+	}
+	if status.Provider != "resend" || status.Enabled || status.Configured || status.Ready {
+		t.Fatalf("unexpected disabled provider status: %+v", status)
+	}
+	if !containsString(status.Missing, "REPORT_EMAIL_ENABLED") || !containsString(status.Missing, "USER_INVITATION_RESEND_API_KEY") {
+		t.Fatalf("expected missing enabled/api key fields, got %+v", status)
+	}
+
+	readyRouter, _, err := NewRouter(config.Config{
+		JWTSecret:                    "report-provider-ready-test-secret",
+		EnableDemoUsers:              true,
+		ReportEmailEnabled:           true,
+		UserInvitationEmailFrom:      "reports@mistypass.local",
+		UserInvitationResendEndpoint: "https://api.resend.test/emails",
+		UserInvitationResendAPIKey:   "re_test_key",
+		UserInvitationResendTimeout:  9 * time.Second,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected ready router: %v", err)
+	}
+	readyToken := referenceAPILogin(t, readyRouter, "organization.admin@mistypass.local")
+
+	readyRecorder := referenceAPIRequest(t, readyRouter, http.MethodGet, "/api/v1/report-schedules/provider-status?tenant_id=tenant_demo_jakarta", readyToken, nil)
+	if readyRecorder.Code != http.StatusOK {
+		t.Fatalf("expected ready provider status 200, got %d body=%s", readyRecorder.Code, readyRecorder.Body.String())
+	}
+	var readyStatus reportScheduleProviderStatus
+	if err := json.Unmarshal(readyRecorder.Body.Bytes(), &readyStatus); err != nil {
+		t.Fatalf("decode ready provider status: %v", err)
+	}
+	if !readyStatus.Enabled || !readyStatus.Configured || !readyStatus.Ready {
+		t.Fatalf("expected ready provider status, got %+v", readyStatus)
+	}
+	if readyStatus.From != "reports@mistypass.local" || readyStatus.Endpoint != "https://api.resend.test/emails" || readyStatus.TimeoutSeconds != 9 {
+		t.Fatalf("unexpected ready provider details: %+v", readyStatus)
 	}
 }

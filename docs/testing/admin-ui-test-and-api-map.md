@@ -151,11 +151,12 @@
   - `POST /api/v1/enterprise/hris-webhook-receipts/{receiptID}/process`、`POST /api/v1/enterprise/hris-webhook-receipts/process-batch`、`POST /api/v1/enterprise/hris-webhook-dlq/{entryID}/replay`、`POST /api/v1/enterprise/hris-webhook-dlq/replay-batch` 现都支持可选 `execution_mode=queued`；当前实现语义是“claim + 持久化 execution record（`dispatch_mode=worker_tick`）+ 立即返回 queued + wake worker，由 worker tick 扫描 `queued` execution 继续执行”；仅在 worker disabled 时才 fallback 到进程内后台异步执行，并非真正外部队列。
   - IDP 与审批：`GET /api/v1/enterprise/idp-config`、`GET /api/v1/enterprise/jit-provision-approvals`、`POST /api/v1/enterprise/jit-provision-approvals/{approvalID}/review`
 
-### 3.2 已实现但未挂载路由
+### 3.2 运维接口挂载状态
 
-- 页面文件：`web-admin/src/pages/audit-page.tsx`
+- 页面文件：`web-admin/src/features/audit/pages/audit-page.tsx`
 - API 已有：`GET /api/v1/audit-logs`
-- `CONTRACT_READY` 页面与 API 已具备，`App.tsx` 尚未注册 `/audit` 路由，UI 入口暂不可见。
+- `/audit` 路由已挂载，并已接入 Audit Webhook config / deliveries / dispatch。
+- `/developer/api-clients` 路由已挂载，并已接入 OAuth2 client list / create / update / delete。
 - 设备 bootstrap 运维接口（仅网关设备侧调用，当前未在 UI 暴露）：
   - `POST /api/v1/gateway/register`
   - `POST /api/v1/gateway/activate`
@@ -174,10 +175,6 @@
   - `POST /api/v1/state/change-log/replay`（`state_key/from_id/limit`）
   - `GET /api/v1/state/change-log/checkpoints?state_key=...&limit=...`
   - `POST /api/v1/state/change-log/replay/checkpoint`（`state_key/limit`）
-  - `GET /api/v1/audit/webhook/config?tenant_id=...`
-  - `PUT /api/v1/audit/webhook/config`
-  - `GET /api/v1/audit/webhook/deliveries?tenant_id=...&limit=...`
-  - `POST /api/v1/audit/webhook/dispatch`（`tenant_id + audit_log_id/filters`）
   - `GET /api/v1/wallet/jobs/summary?tenant_id=...&max_retry=...`
   - `POST /api/v1/wallet/jobs/process`
   - `POST /api/v1/wallet/jobs/{jobID}/dlq/requeue`

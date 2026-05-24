@@ -67,6 +67,7 @@ import { useWalletPasses } from "../hooks/use-wallet-passes"
 import { useWalletDelivery } from "../hooks/use-wallet-delivery"
 import { useWalletAlerts } from "../hooks/use-wallet-alerts"
 import { useWalletPhysicalCards } from "../hooks/use-wallet-physical-cards"
+import { useWalletGoogleConfig } from "../hooks/use-wallet-google-config"
 
 type WalletPageProps = {
   token: string
@@ -94,6 +95,9 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
 
   // --- Alerts hook ---
   const alerts = useWalletAlerts({ token, tenantID: tenants.tenantID })
+
+  // --- Google Wallet provider config hook ---
+  const googleConfig = useWalletGoogleConfig({ token, tenantID: tenants.tenantID })
 
   // Unified loadWalletOps orchestrator — coordinates across hooks
   async function loadWalletOps(nextTenantID: string) {
@@ -129,6 +133,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
       )
     )
 
+    await googleConfig.loadGoogleConfig(nextTenantID)
     await tenants.loadEnterpriseData(nextTenantID)
   }
 
@@ -516,6 +521,7 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
         tenants.setTenantID(nextTenantID)
         if (!nextTenantID) {
           alerts.resetMetricsAndAlerts()
+          googleConfig.resetGoogleConfig()
           tpl.setTemplates([])
           passes.setPasses([])
           tenants.resetEnterpriseData()
@@ -956,8 +962,8 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
   }
 
   // --- Merged summaries/errors from hooks ---
-  const effectiveIssuanceSummary = issuanceSummary || tpl.issuanceSummary || passes.issuanceSummary
-  const effectiveError = error || tenants.queryError || tpl.error || passes.error || alerts.error
+  const effectiveIssuanceSummary = googleConfig.summary || issuanceSummary || tpl.issuanceSummary || passes.issuanceSummary
+  const effectiveError = error || tenants.queryError || tpl.error || passes.error || alerts.error || googleConfig.error
 
   return (
     <div className="space-y-6">
@@ -1264,6 +1270,26 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
       </div>
 
         <WalletAdvancedWorkspace
+          googleConfigCardProps={{
+            writable,
+            readOnlyBoundaryHint,
+            tenantID: tenants.tenantID,
+            config: googleConfig.config,
+            validation: googleConfig.validation,
+            loading,
+            refreshing,
+            loadingConfig: googleConfig.loadingConfig,
+            savingConfig: googleConfig.savingConfig,
+            validatingConfig: googleConfig.validatingConfig,
+            error: googleConfig.error,
+            formatDateTime,
+            onSaveConfig: (payload) => {
+              void googleConfig.saveGoogleConfig(payload)
+            },
+            onValidateConfig: (payload) => {
+              void googleConfig.validateGoogleConfig(payload)
+            },
+          }}
           physicalCardTasksSectionProps={{
             writable,
             loading,
@@ -1361,6 +1387,49 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             retryingAlertNotificationID: alerts.retryingAlertNotificationID,
             onRetryAlertNotification: (notificationID) => {
               void alerts.retryAlertNotification(notificationID)
+            },
+            formatDateTime,
+          }}
+          dlqGovernanceCardProps={{
+            writable,
+            readOnlyBoundaryHint,
+            loading,
+            refreshing,
+            jobSummary: alerts.jobSummary,
+            dlqErrorCodeRows: alerts.dlqErrorCodeRows,
+            filteredDLQJobs: alerts.filteredDLQJobs,
+            processLimit: alerts.processLimit,
+            onProcessLimitChange: alerts.setProcessLimit,
+            processWorkerCount: alerts.processWorkerCount,
+            onProcessWorkerCountChange: alerts.setProcessWorkerCount,
+            processMaxRetry: alerts.processMaxRetry,
+            onProcessMaxRetryChange: alerts.setProcessMaxRetry,
+            dlqLimit: alerts.dlqLimit,
+            onDLQLimitChange: alerts.setDLQLimit,
+            dlqErrorCode: alerts.dlqErrorCode,
+            onDLQErrorCodeChange: alerts.setDLQErrorCode,
+            dlqTargetIDOverride: alerts.dlqTargetIDOverride,
+            onDLQTargetIDOverrideChange: alerts.setDLQTargetIDOverride,
+            dlqOlderThanSeconds: alerts.dlqOlderThanSeconds,
+            onDLQOlderThanSecondsChange: alerts.setDLQOlderThanSeconds,
+            processingJobs: alerts.processingJobs,
+            requeueingDLQ: alerts.requeueingDLQ,
+            requeueingDLQJobID: alerts.requeueingDLQJobID,
+            cleaningDLQ: alerts.cleaningDLQ,
+            governanceSummary: alerts.governanceSummary,
+            onProcessPendingJobs: () => {
+              void alerts.processPendingJobs()
+            },
+            onRequeueDLQBatch: () => {
+              void alerts.requeueDLQBatch()
+            },
+            onRequeueDLQJob: (jobID) => {
+              void alerts.requeueDLQJob(jobID)
+            },
+            onFocusDLQErrorCode: alerts.focusDLQErrorCode,
+            onClearDLQErrorCode: alerts.clearDLQErrorCode,
+            onCleanupDLQBatch: () => {
+              void alerts.cleanupDLQBatch()
             },
             formatDateTime,
           }}
