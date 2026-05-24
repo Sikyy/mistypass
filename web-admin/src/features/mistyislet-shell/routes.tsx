@@ -93,6 +93,9 @@ const MobileCredentialsPage = lazy(() =>
 const SouthboundPage = lazy(() =>
   import("@/features/southbound/pages/southbound-page").then((module) => ({ default: module.SouthboundPage }))
 )
+const APIClientsPage = lazy(() =>
+  import("@/features/developer/pages/api-clients-page").then((module) => ({ default: module.APIClientsPage }))
+)
 const BookingsPage = lazy(() =>
   import("@/features/bookings/pages/bookings-page").then((module) => ({ default: module.BookingsPage }))
 )
@@ -276,6 +279,7 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/visitors" element={<VisitorsPage token={token} viewer={viewer} />} />
         <Route path="/mobile-credentials" element={<MobileCredentialsPage token={token} viewer={viewer} />} />
         <Route path="/southbound" element={<SouthboundPage token={token} viewer={viewer} />} />
+        <Route path="/developer/api-clients" element={<APIClientsPage token={token} viewer={viewer} />} />
         <Route path="/bookings" element={<BookingsPage token={token} viewer={viewer} />} />
         <Route path="/places" element={<PlacesAdaptedPage token={token} viewer={viewer} />} />
         <Route path="/places/assigned" element={<Navigate to={`/places/${DEMO_PLACE_ID}/dashboard`} replace />} />

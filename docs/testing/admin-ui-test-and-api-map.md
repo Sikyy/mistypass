@@ -156,6 +156,7 @@
 - 页面文件：`web-admin/src/features/audit/pages/audit-page.tsx`
 - API 已有：`GET /api/v1/audit-logs`
 - `/audit` 路由已挂载，并已接入 Audit Webhook config / deliveries / dispatch。
+- `/developer/api-clients` 路由已挂载，并已接入 OAuth2 client list / create / update / delete。
 - 设备 bootstrap 运维接口（仅网关设备侧调用，当前未在 UI 暴露）：
   - `POST /api/v1/gateway/register`
   - `POST /api/v1/gateway/activate`

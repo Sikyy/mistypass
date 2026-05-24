@@ -57,6 +57,7 @@ const mistyisletPreviewRoutePrefixes = [
   "/event-history",
   "/reports",
   "/organization",
+  "/developer",
   "/analytics",
   "/network",
   "/alarm-schedules",
@@ -134,6 +135,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
       entries: [
         { label: t("kisi.shell.navAlertPolicies"), icon: BellIcon, to: "/organization/alert-policies" },
         { label: t("kisi.shell.navIntegrations"), icon: ShieldCheckIcon, to: "/organization/integrations" },
+        { label: "API Clients", icon: KeyRoundIcon, to: "/developer/api-clients" },
         { label: t("kisi.shell.navBilling"), icon: FileTextIcon, to: "/organization/billing" },
         { label: t("kisi.shell.navCreatePlace"), icon: MapPinPlusIcon, to: "/organization/create-place" },
         { label: t("kisi.shell.navSettings"), icon: SettingsIcon, to: "/organization/settings" },

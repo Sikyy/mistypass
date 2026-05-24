@@ -73,7 +73,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | 优先级 | API | 当前证据 | 建议 |
 |---:|---|---|---|
 | P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
-| P1 | `/api/v1/oauth2/clients` | OpenAPI 存在，UI 无调用 | 新增 Developer / API Clients 管理页 |
+| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面 | 下一步按 `OAUTH2_ENABLED=true` 跑创建/编辑/删除 smoke |
 | P1 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在，UI 无调用 | Wallet Advanced 中补 Google Wallet provider config |
 | P1 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary` | API 与测试文档存在，UI 目前主要展示 archives/metrics/alerts | Wallet Queue Ops 补批量治理按钮和确认弹窗 |
 | P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
@@ -140,8 +140,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Mobile OpenAPI | 已生成 128 个 `/app` 路径 | 不依赖 | 依赖手写常量 | 依赖手写 Retrofit | P0 已完成，后续推进 generated client |
 | Wallet pass status | 需要 `tenant_id` query | 已带 tenant query | 已修 | 移动端暂未主路径调用 | P0 已完成 |
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
-| Audit webhook | API 已有 | 无完整 UI | N/A | N/A | P1 补 Web Admin |
-| OAuth2 clients | API 已有 | 无 UI | N/A | N/A | P1 补 Web Admin |
+| Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
+| OAuth2 clients | API 已有 | 已补 API Clients 页面 | N/A | N/A | P1 已推进 |
 | Wallet Google config | API 已有 | 无 UI | 钱包真实发卡未接 | 未接 | P1/P2 视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | export 默认值需确认 | Android spec 显示兼容 | P1 修移动端默认/文案 |
 | Camera cloud | API 已有 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
@@ -160,7 +160,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 ### Batch B：后台 UI 补洞（推荐本周做，2-3 天）
 
 - [x] Audit Webhook 页面。
-- OAuth2 Clients / Developer API Clients 页面。
+- [x] OAuth2 Clients / Developer API Clients 页面。
 - Wallet Google config 页面。
 - Wallet DLQ batch governance 操作按钮。
 - [x] Report schedule `Send now` provider 错误提示。
