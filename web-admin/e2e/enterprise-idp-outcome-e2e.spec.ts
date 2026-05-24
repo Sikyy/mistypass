@@ -1381,6 +1381,14 @@ test("wallet receipt recovery review link should carry enterprise segment hints"
 
   const reviewLink = page.getByRole("link", { name: "返回到 企业回执复核" }).first()
   await expect(reviewLink).toBeVisible()
+  await expect
+    .poll(async () => {
+      const href = await reviewLink.getAttribute("href")
+      const nextURL = new URL(href ?? "", "http://localhost")
+      return nextURL.searchParams.get("segment_status_hint")
+    })
+    .toBe("attention")
+
   const href = await reviewLink.getAttribute("href")
   expect(href).toBeTruthy()
   const nextURL = new URL(href ?? "", "http://localhost")
@@ -1391,7 +1399,6 @@ test("wallet receipt recovery review link should carry enterprise segment hints"
   expect(nextURL.searchParams.get("tenant_id")).toBe("tenant-sudirman")
   expect(nextURL.searchParams.get("alerts_view_hint")).toBe("directory_exceptions")
   expect(nextURL.searchParams.get("segment_hint")).toBe("receipt_recovery")
-  expect(nextURL.searchParams.get("segment_status_hint")).toBe("attention")
   expect(nextURL.searchParams.get("approval_query_hint")).toBe("emp-recovery-link-1")
   expect(nextURL.searchParams.get("target_hint")).toBe("emp-recovery-link-1")
 })
