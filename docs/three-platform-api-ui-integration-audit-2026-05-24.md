@@ -112,8 +112,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P0 已完成 | `Constants.API.walletPassSuspendPath/ActivatePath/RevokePath` | 调 `/api/v1/wallet/passes/{id}/...` 时没有带 `tenant_id`；后端 `changeWalletPassStatus` 从 query 解析 tenant | 方法已增加 `tenantId` 参数，并改为 `...?tenant_id=` |
 | P1 | `APIService.exportReport` | 默认 `format = "csv"`，但新 PDF 报表已成为主路径 | Admin Export UI 若用于 PDF，默认改为 `pdf` 或明确格式选择 |
 | P1 | `Constants.API` | 大量路径手写，且有些常量未被 UI 调用 | 等 mobile OpenAPI 补齐后生成 typed client 或生成常量 |
-| P1 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，iOS 未接 | 放入 Camera 真实集成排期 |
-| P2 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access 已补 API smoke；zone detail 仍需 App UI 接线 | 已启动 iOS 仓库联调；按移动端 Admin 权限产品范围逐步补 |
+| P1 部分推进 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，已补 mock-backed 成功路径测试；iOS UI 未接 | 放入 Camera 真实集成排期 |
+| P2 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke | 已启动 iOS 仓库联调；按移动端 Admin 权限产品范围逐步补 |
 
 ## 5. Android API 审计
 
@@ -129,15 +129,15 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 |---:|---|---|---|
 | P0 已完成 | `app/build.gradle.kts` debug `API_BASE_URL` | `http://localhost:8081/api/v1/` 在 Android 模拟器里通常指向模拟器自身，不是 Mac host | 已改为 `http://10.0.2.2:8080/api/v1/` |
 | P1 | Device push | Android 只有 `POST /app/devices/register`，后端另有 iOS APNS `/app/devices/apns`；FCM token 注册语义需确认 | 明确 Android FCM 是否复用 register，或新增 `/app/devices/fcm` |
-| P1 | Camera cloud token/recordings | 后端存在但 Android 未接 | Camera 真实集成阶段补 UI |
-| P1 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access 已补 API smoke；详情页 UI 仍需 App 接线 | 已启动 Android 仓库联调；按运营场景补详情页 |
+| P1 部分推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android UI 未接 | Camera 真实集成阶段补 UI |
+| P1 部分推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；详情页 UI 仍需 App 接线 | 已启动 Android 仓库联调；按运营场景补详情页 |
 | P2 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | mobile OpenAPI 完成后生成 Retrofit interface 或至少生成 path constants |
 
 ## 6. 三端不一致清单
 
 | 领域 | 后端 | Web Admin | iOS | Android | 结论 |
 |---|---|---|---|---|---|
-| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents/users deep routes 已接 API Smoke | 不依赖 | 依赖手写常量，联调中 | 依赖手写 Retrofit，联调中 | P0 已完成，后续推进 generated client |
+| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents/users/zones/holiday deep routes 已接 API Smoke，camera cloud 已接 mock-backed API test | 不依赖 | 依赖手写常量，联调中 | 依赖手写 Retrofit，联调中 | P0 已完成，后续推进 generated client |
 | Wallet pass status | 需要 `tenant_id` query | 已带 tenant query | 已修 | 移动端暂未主路径调用 | P0 已完成 |
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
@@ -145,7 +145,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Admin extension OpenAPI | 已补 SCIM、southbound、Lark、Google Workspace、event snapshots 合同 | 相关页面已调用 | N/A | N/A | P1 已推进 |
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | export 默认值需确认 | Android spec 显示兼容 | P1 修移动端默认/文案 |
-| Camera cloud | API 已有 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
+| Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
 | Email provider | 已新增统一 `MailProvider` + Resend provider | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 DNS/回执 |
 
 ## 7. 推进计划
@@ -175,8 +175,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 - [x] events/incidents detail + related/occurrences 后端 API smoke；iOS/Android 仓库已启动真实 App 联调。
 - [x] user detail/logins/access-rights/share-access 后端 API smoke；iOS/Android 仓库已启动真实 App 联调。
-- camera cloud token/recordings。
-- zone detail、holiday regions。
+- [x] camera cloud token/recordings mock-backed API test。
+- [x] zone detail、holiday regions 后端 API smoke。
 - 统一 report export 格式选择和 PDF 下载体验。
 
 ### Batch D：邮件与回执（已启动）

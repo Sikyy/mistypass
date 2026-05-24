@@ -113,6 +113,9 @@ jobs:
       - name: Mobile Admin Users Regression
         run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18192 API_BASE_URL=http://localhost:18192 ./docs/testing/curl-mobile-admin-users.zsh
 
+      - name: Mobile Admin Resources Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18193 API_BASE_URL=http://localhost:18193 ./docs/testing/curl-mobile-admin-resources.zsh
+
       - name: Gateway Serial + Protocol Regression
         run: ./docs/testing/curl-gateway-serial-protocol.zsh
 
@@ -209,6 +212,7 @@ jobs:
             /tmp/mp_email_inbound_webhook_api.log
             /tmp/mp_mobile_admin_events_incidents_api.log
             /tmp/mp_mobile_admin_users_api.log
+            /tmp/mp_mobile_admin_resources_api.log
             /tmp/mp_wallet_queue_process_api.log
             /tmp/mp_wallet_dlq_requeue_api.log
             /tmp/mp_wallet_dlq_governance_api.log
