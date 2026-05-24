@@ -10,6 +10,8 @@ SERVER_LOG="${SERVER_LOG:-/tmp/mp_pg_replay_curve_api.log}"
 RESULT_CSV="${RESULT_CSV:-}"
 API_STARTUP_ATTEMPTS="${API_STARTUP_ATTEMPTS:-240}"
 API_STARTUP_SLEEP_SECONDS="${API_STARTUP_SLEEP_SECONDS:-0.5}"
+CATCHUP_RETRY_ATTEMPTS="${CATCHUP_RETRY_ATTEMPTS:-5}"
+CATCHUP_RETRY_SLEEP_SECONDS="${CATCHUP_RETRY_SLEEP_SECONDS:-0.75}"
 
 LEVEL_TENANT_WRITES="${LEVEL_TENANT_WRITES:-10,20,40}"
 LEVEL_BUILDINGS_PER_TENANT="${LEVEL_BUILDINGS_PER_TENANT:-1,1,1}"
@@ -191,17 +193,18 @@ function benchmark_state_key() {
   replay_payload="$(jq -nc --arg sk "${state_key}" --argjson limit "${effective_limit}" '{state_key:$sk,limit:$limit}')"
 
   local catchup_start_ms catchup_raw catchup_latency_ms catchup_applied catchup_last_change_id catchup_throughput
-  catchup_start_ms="$(now_ms)"
-  catchup_raw="$(api_with_auth POST "/api/v1/state/change-log/replay/checkpoint" "${replay_payload}")"
-  catchup_latency_ms="$(elapsed_ms "${catchup_start_ms}")"
-  split_response "${catchup_raw}"
-  if [[ "${HTTP_CODE}" == "500" && ("${HTTP_BODY}" == *"bad connection"* || "${HTTP_BODY}" == *"context deadline exceeded"*) ]]; then
-    sleep 0.5
+  local catchup_attempt
+  for (( catchup_attempt = 1; catchup_attempt <= CATCHUP_RETRY_ATTEMPTS; catchup_attempt++ )); do
     catchup_start_ms="$(now_ms)"
     catchup_raw="$(api_with_auth POST "/api/v1/state/change-log/replay/checkpoint" "${replay_payload}")"
     catchup_latency_ms="$(elapsed_ms "${catchup_start_ms}")"
     split_response "${catchup_raw}"
-  fi
+    if [[ "${HTTP_CODE}" != "500" || ("${HTTP_BODY}" != *"bad connection"* && "${HTTP_BODY}" != *"context deadline exceeded"*) || "${catchup_attempt}" -eq "${CATCHUP_RETRY_ATTEMPTS}" ]]; then
+      break
+    fi
+    echo "warn ${level_name}/${state_key}: transient replay error on attempt ${catchup_attempt}/${CATCHUP_RETRY_ATTEMPTS}; retrying"
+    sleep "${CATCHUP_RETRY_SLEEP_SECONDS}"
+  done
   require_http_code "200" "${level_name}/${state_key} catch-up replay"
   catchup_applied="$(echo "${HTTP_BODY}" | jq -r '.applied')"
   catchup_last_change_id="$(echo "${HTTP_BODY}" | jq -r '.last_change_id')"
