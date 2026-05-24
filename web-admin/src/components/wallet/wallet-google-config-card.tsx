@@ -130,9 +130,9 @@ export function WalletGoogleConfigCard({
       return
     }
     setDraft({
-      issuer_id: config.issuer_id,
-      service_account_email: config.service_account_email,
-      key_ref: config.key_ref,
+      issuer_id: config.issuer_id ?? "",
+      service_account_email: config.service_account_email ?? "",
+      key_ref: config.key_ref ?? "",
       status: config.status === "active" ? "active" : "inactive",
     })
   }, [config])

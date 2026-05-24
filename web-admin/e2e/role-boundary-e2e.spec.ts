@@ -171,6 +171,11 @@ async function setupApiMocks(page: Page, viewer: MockViewer, options?: { wallet?
       return
     }
 
+    if (path === "/api/v1/wallet/google/config" && method === "GET") {
+      await fulfillJson(route, { message: "not found" }, 404)
+      return
+    }
+
     if (path === "/api/v1/wallet/jobs" && method === "GET") {
       await fulfillJson(route, { items: options?.wallet?.jobs ?? [] })
       return
