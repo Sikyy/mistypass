@@ -53,6 +53,7 @@ jobs:
           SOAK_INTERVAL_SECONDS=20 \
           SOAK_WORKDIR=/tmp/mp_pg_replay_soak \
           SOAK_LOG_CSV=/tmp/mp_pg_replay_soak/metrics.csv \
+          LEVEL_TENANT_WRITES=8,16,24 \
           LEVEL_CONCURRENT_NOOP=4,4,4 \
           LEVEL_MIN_OPS=5,5,5 \
           /bin/zsh ./docs/testing/curl-pg-replay-multi-state-soak.zsh | tee /tmp/mp_pg_replay_soak.log
