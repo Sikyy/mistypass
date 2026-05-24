@@ -72,11 +72,11 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 | 优先级 | API | 当前证据 | 建议 |
 |---:|---|---|---|
-| P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在；已补 `docs/testing/curl-audit-webhook-receiver.zsh` 并接入 API Smoke，覆盖真实 receiver 成功投递、签名校验、delivery 列表和 500→重试→202 成功闭环 | 下一步补失败重试可视化细节或转 Resend 真实 DNS/key smoke |
-| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload；已补 `docs/testing/curl-oauth2-protocol.zsh` 覆盖 authorize、JSON/form token、code replay、revoke、scope guard、disabled client guard | 下一步转 Resend 真实 DNS/key smoke |
+| P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在；已补 `docs/testing/curl-audit-webhook-receiver.zsh` 并接入 API Smoke，覆盖真实 receiver 成功投递、签名校验、delivery 列表和 500→重试→202 成功闭环 | 下一步补失败重试可视化细节或转 Cloudflare Email Service 真实 DNS/API token smoke |
+| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload；已补 `docs/testing/curl-oauth2-protocol.zsh` 覆盖 authorize、JSON/form token、code replay、revoke、scope guard、disabled client guard | 下一步转 Cloudflare Email Service 真实 DNS/API token smoke |
 | P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
-| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Resend 真实 smoke |
-| P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条；已补 `docs/testing/curl-report-schedule-resend.zsh` 并接入 API Smoke，覆盖 provider status、send now、Gotenberg PDF、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
+| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Cloudflare Email Service 真实 smoke |
+| P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条；已补 `docs/testing/curl-report-schedule-resend.zsh` 并接入 API Smoke，覆盖 provider status、send now、Gotenberg PDF、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计 | 下一步接 Cloudflare Email Service provider、真实 DNS/API token smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
 
@@ -146,7 +146,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | 默认 PDF 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | 默认 PDF 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P1 已完成，后续只剩模拟器/真机下载体验验收 |
 | Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 已接 cloud token/recordings UI，真实设备待验收 | 已接 cloud token/recordings UI，真实设备待验收 | P1/P2 与真实摄像头 staging 验收合并 |
-| Email provider | 已新增统一 `MailProvider` + Resend provider | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 DNS/回执 |
+| Email provider | 已新增统一 `MailProvider` + Resend provider；路线调整为 Cloudflare Email Service 主通道、Resend fallback | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步实现 Cloudflare provider、接 DNS/API token 与回执 |
 
 ## 7. 推进计划
 
@@ -157,6 +157,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] 修 iOS Wallet pass status tenant query。
 - [x] 修 Android debug base URL。
 - [x] 生成 Swift/Kotlin typed mobile route constants，并让 route drift guard 校验生成物、路径和 Android Retrofit method。
+- [x] route drift guard 已升级为禁止 iOS/Android 生产源码新增手写 `/app/*` route literal，必须经 generated constants / `Constants.API` 使用。
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [ ] Android emulator/device install smoke：当前本机没有 `emulator` 命令、无 AVD、`adb devices` 无设备，需补 Android Studio emulator/AVD 或 USB 真机后跑。
@@ -192,12 +193,12 @@ cd /Users/siky/code/MistyPass
 - [x] zone detail、holiday regions 后端 API smoke；iOS/Android App 接线已完成。
 - [x] 统一 report export 默认 PDF：[iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5)、[Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) 已接；下载体验待模拟器/真机验收。
 
-### Batch D：邮件与回执（已启动）
+### Batch D：邮件与回执（已启动，Cloudflare-first）
 
 - [x] `MailProvider` 抽象。
-- [x] Resend provider 统一到 report schedule 与 Wallet alert sender。
+- [x] Resend provider 统一到 report schedule 与 Wallet alert sender，保留为 fallback。
 - [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
-- [ ] Resend 生产配置与 DNS 验收。
+- [ ] Cloudflare Email Service provider、生产 DNS/API token 与真实发信 smoke。
 - Cloudflare Email Routing/Workers 生产转发。
 - 邮件回执关联 report schedule / wallet delivery / enterprise alert。
