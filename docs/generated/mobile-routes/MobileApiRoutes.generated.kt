@@ -507,14 +507,14 @@ object MobileApiRoutes {
     const val deleteAppPlacesPlaceIdTeamsTeamIdMembersMemberIdRetrofitPath: String = "app/places/{placeId}/teams/{teamId}/members/{memberId}"
     fun deleteAppPlacesPlaceIdTeamsTeamIdMembersMemberId(placeId: String, teamId: String, memberId: String): MobileApiRoute =
         MobileApiRoute(MobileApiHttpMethod.DELETE, "/app/places/${placeId}/teams/${teamId}/members/${memberId}")
-    const val getAppPlacesPlaceIdUsersPath: String = "/app/places/{placeId}/users/"
-    const val getAppPlacesPlaceIdUsersRetrofitPath: String = "app/places/{placeId}/users/"
+    const val getAppPlacesPlaceIdUsersPath: String = "/app/places/{placeId}/users"
+    const val getAppPlacesPlaceIdUsersRetrofitPath: String = "app/places/{placeId}/users"
     fun getAppPlacesPlaceIdUsers(placeId: String): MobileApiRoute =
-        MobileApiRoute(MobileApiHttpMethod.GET, "/app/places/${placeId}/users/")
-    const val postAppPlacesPlaceIdUsersPath: String = "/app/places/{placeId}/users/"
-    const val postAppPlacesPlaceIdUsersRetrofitPath: String = "app/places/{placeId}/users/"
+        MobileApiRoute(MobileApiHttpMethod.GET, "/app/places/${placeId}/users")
+    const val postAppPlacesPlaceIdUsersPath: String = "/app/places/{placeId}/users"
+    const val postAppPlacesPlaceIdUsersRetrofitPath: String = "app/places/{placeId}/users"
     fun postAppPlacesPlaceIdUsers(placeId: String): MobileApiRoute =
-        MobileApiRoute(MobileApiHttpMethod.POST, "/app/places/${placeId}/users/")
+        MobileApiRoute(MobileApiHttpMethod.POST, "/app/places/${placeId}/users")
     const val postAppPlacesPlaceIdUsersInvitePath: String = "/app/places/{placeId}/users/invite"
     const val postAppPlacesPlaceIdUsersInviteRetrofitPath: String = "app/places/{placeId}/users/invite"
     fun postAppPlacesPlaceIdUsersInvite(placeId: String): MobileApiRoute =

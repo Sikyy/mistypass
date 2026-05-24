@@ -75,6 +75,16 @@ func mobileRouteSetFromRouter(handler http.Handler) (map[string]struct{}, error)
 	if err != nil {
 		return nil, err
 	}
+	for route := range routeSet {
+		method, path, ok := strings.Cut(route, " ")
+		if !ok || !strings.HasSuffix(path, "/") || path == "/" {
+			continue
+		}
+		canonicalRoute := method + " " + strings.TrimSuffix(path, "/")
+		if _, exists := routeSet[canonicalRoute]; exists {
+			delete(routeSet, route)
+		}
+	}
 	return routeSet, nil
 }
 

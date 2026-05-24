@@ -335,10 +335,10 @@ enum MobileAPIRoutes {
         MobileAPIRoute(method: .delete, path: "/app/places/\(placeId)/teams/\(teamId)/members/\(memberId)")
     }
     static func getAppPlacesPlaceIdUsers(placeId: String) -> MobileAPIRoute {
-        MobileAPIRoute(method: .get, path: "/app/places/\(placeId)/users/")
+        MobileAPIRoute(method: .get, path: "/app/places/\(placeId)/users")
     }
     static func postAppPlacesPlaceIdUsers(placeId: String) -> MobileAPIRoute {
-        MobileAPIRoute(method: .post, path: "/app/places/\(placeId)/users/")
+        MobileAPIRoute(method: .post, path: "/app/places/\(placeId)/users")
     }
     static func postAppPlacesPlaceIdUsersInvite(placeId: String) -> MobileAPIRoute {
         MobileAPIRoute(method: .post, path: "/app/places/\(placeId)/users/invite")
