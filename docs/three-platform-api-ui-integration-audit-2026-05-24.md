@@ -156,7 +156,19 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] 新增 route coverage test，防止 OpenAPI 再次落后。
 - [x] 修 iOS Wallet pass status tenant query。
 - [x] 修 Android debug base URL。
-- [ ] 对 iOS/Android 登录、门点、开门、报表导出跑一次 simulator/emulator smoke。
+- [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
+- [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
+- [ ] Android emulator/device install smoke：当前本机没有 `emulator` 命令、无 AVD、`adb devices` 无设备，需补 Android Studio emulator/AVD 或 USB 真机后跑。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查。
+
+本地可重复脚本：
+
+```bash
+cd /Users/siky/code/MistyPass
+./docs/testing/mobile-app-smoke.zsh
+```
+
+注意：iOS simulator smoke 不要传 `CODE_SIGNING_ALLOWED=NO`。该参数会让 Keychain 测试在模拟器里触发 `OSStatus -34018`，默认 `Sign to Run Locally` 签名下测试可正常通过。
 
 ### Batch B：后台 UI 补洞（推荐本周做，2-3 天）
 
