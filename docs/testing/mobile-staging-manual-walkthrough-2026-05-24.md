@@ -15,6 +15,70 @@ curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-
 
 Because DNS fails before authentication, the iOS/Android staging walkthrough for login, doors, unlock, report export, and camera cloud recordings cannot be completed yet.
 
+## Mac Mini Staging API Deployment
+
+Recommended topology:
+
+```text
+staging-api.mistyislet.com
+  -> Cloudflare Tunnel
+  -> Mac mini http://127.0.0.1:8080
+  -> MistyPass API container
+```
+
+Use this default Compose flow when the Mac mini is dedicated to staging or does not already run another MistyPass Compose stack with the same container names/ports. Do not point `staging-api.mistyislet.com` at production unless staging app traffic is intentionally allowed to touch production data.
+
+On the Mac mini:
+
+```bash
+cd /Users/siky/code/MistyPass
+git pull --ff-only github main
+
+cat > .env.staging <<'EOF'
+APP_ENV=staging
+TZ=Asia/Jakarta
+DEFAULT_TIMEZONE=Asia/Jakarta
+ENABLE_DEMO_USERS=true
+POSTGRES_PASSWORD=replace-with-strong-staging-password
+REDIS_PASSWORD=replace-with-strong-staging-password
+JWT_SECRET=replace-with-fixed-random-long-secret
+GATEWAY_BOOTSTRAP_TOKEN=replace-with-fixed-random-token
+CORS_ORIGIN=https://staging-admin.mistyislet.com
+EOF
+
+docker compose --env-file .env.staging up -d --build
+curl -i http://127.0.0.1:8080/healthz
+```
+
+`.env.staging` is ignored by `.gitignore`; keep real secrets only on the Mac mini.
+
+Cloudflare Zero Trust setup:
+
+1. Create a Cloudflare Tunnel for the Mac mini.
+2. Install and run `cloudflared` on the Mac mini using the token Cloudflare provides.
+3. Add a public hostname:
+   - Hostname: `staging-api.mistyislet.com`
+   - Service: `http://localhost:8080`
+4. Cloudflare should create the DNS record automatically. If creating it manually, use:
+   - Type: `CNAME`
+   - Name: `staging-api`
+   - Target: `<tunnel-id>.cfargotunnel.com`
+   - Proxy: on
+
+External readiness check:
+
+```bash
+curl -i https://staging-api.mistyislet.com/healthz
+```
+
+Expected result: `200 OK`. After that, iOS/Android staging base URL is ready at:
+
+```text
+https://staging-api.mistyislet.com/api/v1
+```
+
+If the same Mac mini later runs both production and staging, add a dedicated staging Compose override first so container names, volumes, ports, Redis key prefix, NATS subject prefix, and databases are isolated.
+
 ## Minimum Inputs
 
 - Staging API DNS reachable for `https://staging-api.mistyislet.com/api/v1`.
