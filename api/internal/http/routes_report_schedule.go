@@ -747,14 +747,14 @@ func (s *server) reportMailProvider() (mail.Provider, error) {
 			Endpoint:  strings.TrimSpace(s.cfg.CloudflareEmailEndpoint),
 			AccountID: strings.TrimSpace(s.cfg.CloudflareEmailAccountID),
 			APIToken:  strings.TrimSpace(s.cfg.CloudflareEmailAPIToken),
-			From:      firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
+			From:      s.reportMailFrom(),
 			Timeout:   s.reportMailTimeout(),
 		})
 	default:
 		return mail.NewResendProvider(mail.ResendOptions{
 			Endpoint: strings.TrimSpace(s.cfg.UserInvitationResendEndpoint),
 			APIKey:   strings.TrimSpace(s.cfg.UserInvitationResendAPIKey),
-			From:     firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
+			From:     s.reportMailFrom(),
 			Timeout:  s.reportMailTimeout(),
 		})
 	}
@@ -762,14 +762,14 @@ func (s *server) reportMailProvider() (mail.Provider, error) {
 
 func (s *server) reportMailProviderStatus() reportScheduleProviderStatus {
 	provider := s.reportMailProviderName()
-	from := firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local")
+	from := s.reportMailFrom()
 	timeout := s.reportMailTimeout()
 	missing := make([]string, 0, 4)
 	if !s.cfg.ReportEmailEnabled {
 		missing = append(missing, "REPORT_EMAIL_ENABLED")
 	}
 	if from == "" {
-		missing = append(missing, "USER_INVITATION_EMAIL_FROM")
+		missing = append(missing, "REPORT_EMAIL_FROM")
 	}
 
 	endpoint := ""
@@ -833,6 +833,14 @@ func (s *server) reportMailProviderName() string {
 	default:
 		return "resend"
 	}
+}
+
+func (s *server) reportMailFrom() string {
+	return firstNonEmptyString(
+		strings.TrimSpace(s.cfg.ReportEmailFrom),
+		strings.TrimSpace(s.cfg.UserInvitationEmailFrom),
+		"no-reply@mistypass.local",
+	)
 }
 
 func (s *server) reportMailTimeout() time.Duration {

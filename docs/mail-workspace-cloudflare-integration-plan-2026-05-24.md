@@ -52,7 +52,9 @@
   - `CLOUDFLARE_ACCOUNT_ID=...`
   - `CLOUDFLARE_EMAIL_API_TOKEN=...`
   - `CLOUDFLARE_EMAIL_ENDPOINT=https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`
-  - `USER_INVITATION_EMAIL_FROM=reports@mistyislet.com`
+  - `REPORT_EMAIL_FROM=reports@mistyislet.com`
+  - `USER_INVITATION_EMAIL_PROVIDER=cloudflare`
+  - `USER_INVITATION_EMAIL_FROM=no-reply@mistyislet.com`
   - `WALLET_ALERT_EMAIL_PROVIDER=cloudflare`
   - `WALLET_ALERT_EMAIL_FROM=no-reply@mistyislet.com`
   - `EMAIL_INBOUND_WEBHOOK_SECRET=...`
@@ -135,7 +137,7 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 | 优先级 | 事项 | 说明 |
 |---:|---|---|
 | P0 | 配置 Cloudflare Email Service 生产发信 DNS | 完成 Email Sending onboarding，确认 SPF/DKIM/DMARC 与 from 域名 |
-| P0 | 在 mac mini `.env` 接入 Cloudflare Email token | 先让 PDF report 和告警真实可发；Resend key 降级为 fallback |
+| P0 | 在 mac mini `.env` 接入 Cloudflare Email token | 从 `deploy/env/cloudflare-email.example.env` 复制模板，只在 macmini 本机填真实 token；先让 PDF report 和告警真实可发，Resend key 降级为 fallback |
 | P1 | 生产真实 Cloudflare smoke | 用 `reports@mistyislet.com` / `no-reply@mistyislet.com` 验证 report PDF 与 Wallet alert 真收件 |
 | P1 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，下一步部署 Worker 和 allowlist/HMAC |
 | P1 | 邮件回执关联业务对象 | 把 `report_schedule_id` / `wallet_delivery_id` / provider delivery id 关联到对应发送记录 |
