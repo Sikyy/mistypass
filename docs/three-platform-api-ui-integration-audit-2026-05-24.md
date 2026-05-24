@@ -160,7 +160,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [ ] Android emulator/device install smoke：当前本机没有 `emulator` 命令、无 AVD、`adb devices` 无设备，需补 Android Studio emulator/AVD 或 USB 真机后跑。
-- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-24 22:36 WIB 复测 `staging-api.mistyislet.com` DNS 解析失败，见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-24 22:36 WIB 复测 `staging-api.mistyislet.com` DNS 解析失败。下一步在 Mac mini 用 Docker Compose 启动 staging API，并通过 Cloudflare Tunnel 绑定 `staging-api.mistyislet.com`，具体步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
 
 本地可重复脚本：
 

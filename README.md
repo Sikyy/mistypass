@@ -63,6 +63,7 @@ The default Compose stack now binds service ports to `127.0.0.1`, disables demo 
 - `REDIS_PASSWORD`
 - `EMQX_DASHBOARD_USERNAME`
 - `EMQX_DASHBOARD_PASSWORD`
+- `APP_ENV` (default in Compose: `development`; use `staging` for the Mac mini staging API)
 - `GATEWAY_BOOTSTRAP_TOKEN`
 - `ENABLE_DEMO_USERS` (default in Compose: `false`)
 - `JWT_SECRET` and `HRIS_VAULT_MASTER_KEY` (recommended if you need stable auth tokens or HRIS secret decryption across container restarts)

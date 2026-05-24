@@ -19,7 +19,7 @@ services:
     environment:
       TZ: "${TZ:-Asia/Jakarta}"
       DEFAULT_TIMEZONE: "${DEFAULT_TIMEZONE:-Asia/Jakarta}"
-      APP_ENV: development
+      APP_ENV: "${APP_ENV:-development}"
       ENABLE_DEMO_USERS: "${ENABLE_DEMO_USERS:-false}"
       PORT: "8080"
       CORS_ORIGIN: "${CORS_ORIGIN:-http://localhost:5173}"
