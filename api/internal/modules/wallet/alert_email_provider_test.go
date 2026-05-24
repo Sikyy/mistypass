@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -232,5 +233,64 @@ func TestResendSenderConfirmRejectedStatusDoesNotConfirm(t *testing.T) {
 	}
 	if result.ProviderDeliveryStatus != "bounced" {
 		t.Fatalf("unexpected rejected confirm result: %+v", result)
+	}
+}
+
+func TestCloudflareSenderSend(t *testing.T) {
+	var capturedAuth string
+	var capturedIdempotencyKey string
+	var capturedPayload struct {
+		From    string            `json:"from"`
+		To      []string          `json:"to"`
+		Subject string            `json:"subject"`
+		Text    string            `json:"text"`
+		Headers map[string]string `json:"headers"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		capturedIdempotencyKey = r.Header.Get("Idempotency-Key")
+		if err := json.NewDecoder(r.Body).Decode(&capturedPayload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":true,"result":{"delivered":[],"permanent_bounces":[],"queued":["ops@sudirman.co"]}}`))
+	}))
+	defer server.Close()
+
+	sender, err := newCloudflareSender(
+		server.URL,
+		"",
+		"cf_email_token",
+		"alerts@mistypass.test",
+		3*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("new cloudflare sender failed: %v", err)
+	}
+
+	result, err := sender.Send(context.Background(), AlertEmailSendInput{
+		TenantID:       "tenant_demo_jakarta",
+		To:             []string{"ops@sudirman.co"},
+		IdempotencyKey: "wallet-email-idem-001",
+		Subject:        "wallet alert",
+		Text:           "provider smoke",
+	})
+	if err != nil {
+		t.Fatalf("cloudflare sender send failed: %v", err)
+	}
+	if capturedAuth != "Bearer cf_email_token" {
+		t.Fatalf("unexpected auth header: %s", capturedAuth)
+	}
+	if capturedIdempotencyKey != "wallet-email-idem-001" {
+		t.Fatalf("unexpected idempotency header: %s", capturedIdempotencyKey)
+	}
+	if capturedPayload.From != "alerts@mistypass.test" || len(capturedPayload.To) != 1 || capturedPayload.To[0] != "ops@sudirman.co" {
+		t.Fatalf("unexpected payload: %+v", capturedPayload)
+	}
+	if capturedPayload.Headers["X-MistyPass-Tenant-ID"] != "tenant_demo_jakarta" {
+		t.Fatalf("expected tenant header, got %+v", capturedPayload.Headers)
+	}
+	if result.ProviderDeliveryID != "wallet-email-idem-001" || result.ProviderDeliveryStatus != "queued" {
+		t.Fatalf("unexpected send result: %+v", result)
 	}
 }

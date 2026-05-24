@@ -89,6 +89,86 @@ func TestUserInvitationResendProviderDispatchesAndRecordsReceipt(t *testing.T) {
 	assertReferenceAuditLog(t, router, token, "reference_user_invitation_receipt", "user_id="+createdUser.ID, "status=sent", "provider=resend", "provider_delivery_id=re_invite_001")
 }
 
+func TestUserInvitationCloudflareProviderDispatchesAndRecordsReceipt(t *testing.T) {
+	var providerRequest struct {
+		Authorization  string
+		IdempotencyKey string
+		To             []string          `json:"to"`
+		From           string            `json:"from"`
+		Subject        string            `json:"subject"`
+		Text           string            `json:"text"`
+		Headers        map[string]string `json:"headers"`
+	}
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		providerRequest.Authorization = r.Header.Get("Authorization")
+		providerRequest.IdempotencyKey = r.Header.Get("Idempotency-Key")
+		if err := json.NewDecoder(r.Body).Decode(&providerRequest); err != nil {
+			t.Fatalf("decode provider payload: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":true,"result":{"delivered":[],"permanent_bounces":[],"queued":["provider.invite.user@example.com"]}}`))
+	}))
+	defer provider.Close()
+
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:                   "user-invitation-cloudflare-test-secret",
+		EnableDemoUsers:             true,
+		UserInvitationEmailProvider: "cloudflare",
+		UserInvitationEmailFrom:     "invites@mistypass.local",
+		CloudflareEmailEndpoint:     provider.URL,
+		CloudflareEmailAPIToken:     "cf_invite_test_token",
+		CloudflareEmailTimeout:      5 * time.Second,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	createUserBody := []byte(`{"tenant_id":"tenant_demo_jakarta","building_id":"building_demo_001","name":"Cloudflare Invite User","email":"provider.invite.user@example.com","role":"employee","status":"inactive"}`)
+	createUserRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/users", token, createUserBody)
+	if createUserRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected user create status 201, got %d body=%s", createUserRecorder.Code, createUserRecorder.Body.String())
+	}
+	var createdUser struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createUserRecorder.Body.Bytes(), &createdUser); err != nil {
+		t.Fatalf("decode created user: %v", err)
+	}
+
+	inviteRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/users/"+createdUser.ID+"/invite", token, []byte(`{"tenant_id":"tenant_demo_jakarta","delivery_method":"email"}`))
+	if inviteRecorder.Code != http.StatusAccepted {
+		t.Fatalf("expected invitation status 202, got %d body=%s", inviteRecorder.Code, inviteRecorder.Body.String())
+	}
+	var invitation struct {
+		ID                 string `json:"id"`
+		Status             string `json:"status"`
+		Provider           string `json:"provider"`
+		ProviderDeliveryID string `json:"provider_delivery_id"`
+		DeliveredAt        string `json:"delivered_at"`
+	}
+	if err := json.Unmarshal(inviteRecorder.Body.Bytes(), &invitation); err != nil {
+		t.Fatalf("decode invitation: %v", err)
+	}
+	if invitation.ID == "" || invitation.Status != "sent" || invitation.Provider != "cloudflare" || invitation.ProviderDeliveryID != invitation.ID || invitation.DeliveredAt == "" {
+		t.Fatalf("expected cloudflare receipt fields, got %#v body=%s", invitation, inviteRecorder.Body.String())
+	}
+	if providerRequest.Authorization != "Bearer cf_invite_test_token" {
+		t.Fatalf("expected cloudflare authorization header, got %q", providerRequest.Authorization)
+	}
+	if providerRequest.IdempotencyKey != invitation.ID {
+		t.Fatalf("expected idempotency key to match invitation id, got %q", providerRequest.IdempotencyKey)
+	}
+	if providerRequest.Headers["X-MistyPass-Idempotency-Key"] != invitation.ID {
+		t.Fatalf("expected cloudflare idempotency payload header, got %#v", providerRequest.Headers)
+	}
+	if providerRequest.From != "invites@mistypass.local" || len(providerRequest.To) != 1 || providerRequest.To[0] != "provider.invite.user@example.com" {
+		t.Fatalf("unexpected provider email payload: %#v", providerRequest)
+	}
+
+	assertReferenceAuditLog(t, router, token, "reference_user_invitation_receipt", "user_id="+createdUser.ID, "status=sent", "provider=cloudflare", "provider_delivery_id="+invitation.ID)
+}
+
 func TestUserInvitationProviderWebhookRecordsSignedReceipt(t *testing.T) {
 	const webhookSecret = "provider-webhook-secret-001"
 	router, _, err := NewRouter(config.Config{

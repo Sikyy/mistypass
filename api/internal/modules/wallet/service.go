@@ -281,6 +281,10 @@ type JobAlertEmailDeliveryOptions struct {
 	ResendEndpoint        string
 	ResendAPIKey          string
 	ResendTimeout         time.Duration
+	CloudflareEndpoint    string
+	CloudflareAccountID   string
+	CloudflareAPIToken    string
+	CloudflareTimeout     time.Duration
 	WhatsAppProvider      string
 	WhatsAppReceiverMap   map[string][]string
 	WhatsAppEndpoint      string
@@ -742,6 +746,18 @@ func (s *Service) SetJobAlertEmailDeliveryOptions(options JobAlertEmailDeliveryO
 			return err
 		}
 		sender = resendSender
+	case "cloudflare":
+		cloudflareSender, err := newCloudflareSender(
+			options.CloudflareEndpoint,
+			options.CloudflareAccountID,
+			options.CloudflareAPIToken,
+			nextEmailFrom,
+			options.CloudflareTimeout,
+		)
+		if err != nil {
+			return err
+		}
+		sender = cloudflareSender
 	default:
 		return ErrInvalidJobAlertEmailProvider
 	}
@@ -937,7 +953,6 @@ func (s *Service) ValidateGoogleConfig(tenantID, issuerID, serviceAccountEmail, 
 
 	return result
 }
-
 
 func buildJobAlertNotificationIdempotencyKey(tenantID, alertType, errorCode string, threshold int) string {
 	return alertdispatch.BuildNotificationIdempotencyKey(tenantID, alertType, errorCode, threshold)

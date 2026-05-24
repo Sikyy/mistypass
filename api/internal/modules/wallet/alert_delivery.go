@@ -226,15 +226,17 @@ func (s *Service) dispatchAlertEmailMessageLocked(
 		}
 	}
 
-	if nextProvider == "resend" || nextProvider == "spaceemail" {
+	if nextProvider == "spaceemail" {
 		nextProvider = "resend"
+	}
+	if nextProvider == "resend" || nextProvider == "cloudflare" {
 		if s.jobAlertEmailSender == nil {
 			return JobAlertChannelResult{
 				Channel:       "email",
 				Status:        "failed",
 				Reason:        "provider_not_configured",
 				Provider:      nextProvider,
-				ProviderError: "resend sender is not configured",
+				ProviderError: nextProvider + " sender is not configured",
 				Retryable:     false,
 				Receivers:     recipients,
 			}

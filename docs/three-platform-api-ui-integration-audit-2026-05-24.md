@@ -146,7 +146,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | 默认 PDF 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | 默认 PDF 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P1 已完成，后续只剩模拟器/真机下载体验验收 |
 | Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 已接 cloud token/recordings UI，真实设备待验收 | 已接 cloud token/recordings UI，真实设备待验收 | P1/P2 与真实摄像头 staging 验收合并 |
-| Email provider | 已新增统一 `MailProvider` + Resend provider；路线调整为 Cloudflare Email Service 主通道、Resend fallback | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步实现 Cloudflare provider、接 DNS/API token 与回执 |
+| Email provider | 已新增统一 `MailProvider` + Resend/Cloudflare provider；路线调整为 Cloudflare Email Service 主通道、Resend fallback | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 Cloudflare DNS/API token 与回执 |
 
 ## 7. 推进计划
 
@@ -197,8 +197,9 @@ cd /Users/siky/code/MistyPass
 
 - [x] `MailProvider` 抽象。
 - [x] Resend provider 统一到 report schedule 与 Wallet alert sender，保留为 fallback。
+- [x] Cloudflare Email Service provider 接入 report schedule、Wallet alert 与 invitation email。
 - [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
-- [ ] Cloudflare Email Service provider、生产 DNS/API token 与真实发信 smoke。
+- [ ] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke。
 - Cloudflare Email Routing/Workers 生产转发。
 - 邮件回执关联 report schedule / wallet delivery / enterprise alert。

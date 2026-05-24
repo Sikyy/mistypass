@@ -374,7 +374,19 @@ Wallet remote validation env vars (optional):
 
 Wallet alert dispatch provider env vars (optional):
 
-- `WALLET_ALERT_EMAIL_PROVIDER` (`mock` | `resend`, default: `mock`)
+Shared email provider env vars (optional):
+
+- `MAIL_PROVIDER` (`resend` | `cloudflare`; report email defaults to `resend` for backward compatibility)
+- `CLOUDFLARE_ACCOUNT_ID` (required for default Cloudflare Email Service endpoint)
+- `CLOUDFLARE_EMAIL_API_TOKEN` (required when using Cloudflare Email Service)
+- `CLOUDFLARE_EMAIL_ENDPOINT` (default: `https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`)
+- `CLOUDFLARE_EMAIL_TIMEOUT` (duration, default: `5s`)
+- `USER_INVITATION_EMAIL_PROVIDER` (`queue` | `mock` | `resend` | `cloudflare`, default: `queue`)
+- `USER_INVITATION_EMAIL_FROM` (default: `no-reply@mistypass.local`; also used by report schedule email)
+
+Wallet alert dispatch provider env vars (optional):
+
+- `WALLET_ALERT_EMAIL_PROVIDER` (`mock` | `resend` | `cloudflare`, default: `mock`)
 - `WALLET_ALERT_EMAIL_FROM` (default: `no-reply@mistypass.local`)
 - `WALLET_ALERT_EMAIL_RECEIVER_MAP` (group-to-email mapping, format: `security=sec@example.com,sec2@example.com;ops=ops@example.com`)
 - `WALLET_ALERT_RESEND_ENDPOINT` (default: `https://api.resend.com/emails`)
@@ -386,7 +398,7 @@ Wallet alert dispatch provider env vars (optional):
 - `WALLET_ALERT_WHATSAPP_API_KEY` (required when `WALLET_ALERT_WHATSAPP_PROVIDER=meta`)
 - `WALLET_ALERT_WHATSAPP_PHONE_NUMBER_ID` (required when `WALLET_ALERT_WHATSAPP_PROVIDER=meta`)
 - `WALLET_ALERT_WHATSAPP_TIMEOUT` (duration, default: `5s`)
-- Current plan: until Meta enterprise API approval is completed, keep `WALLET_ALERT_WHATSAPP_PROVIDER=mock`; production notifications use email via `resend`.
+- Current plan: until Meta enterprise API approval is completed, keep `WALLET_ALERT_WHATSAPP_PROVIDER=mock`; production notifications use email via `cloudflare`.
 - Backward compatibility: `WALLET_ALERT_EMAIL_PROVIDER=spaceemail` and `WALLET_ALERT_SPACEEMAIL_*` env vars will be mapped to `resend`.
 - `GET /api/v1/wallet/jobs/alert-notifications` and `POST /api/v1/wallet/jobs/alerts/dispatch` now return `channel_results` for unified per-channel delivery receipts.
 - `WALLET_ALERT_DISPATCH_MOCK_TRANSIENT_FAIL_COUNT` (int, default: `0`, testing only)

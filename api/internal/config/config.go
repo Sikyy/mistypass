@@ -55,6 +55,11 @@ type Config struct {
 	UserInvitationResendTimeout                                  time.Duration
 	UserInvitationProviderWebhookSecret                          string
 	EmailInboundWebhookSecret                                    string
+	MailProvider                                                 string
+	CloudflareEmailAccountID                                     string
+	CloudflareEmailEndpoint                                      string
+	CloudflareEmailAPIToken                                      string
+	CloudflareEmailTimeout                                       time.Duration
 	TrustedProxyCIDRs                                            []string
 	DatabaseURL                                                  string
 	DatabaseAutoMigrate                                          bool
@@ -176,6 +181,7 @@ func FromEnv() Config {
 	loadAuthConfig(&cfg)
 	loadUserInvitationConfig(&cfg)
 	loadEmailInboundWebhookConfig(&cfg)
+	loadMailProviderConfig(&cfg)
 	loadDatabaseConfig(&cfg)
 	loadEnterpriseConfig(&cfg)
 	loadGatewayConfig(&cfg)
@@ -286,7 +292,7 @@ func loadAuthConfig(cfg *Config) {
 func loadUserInvitationConfig(cfg *Config) {
 	cfg.UserInvitationEmailProvider = envLowerOrDefault("USER_INVITATION_EMAIL_PROVIDER", "queue")
 	switch cfg.UserInvitationEmailProvider {
-	case "queue", "mock", "resend":
+	case "queue", "mock", "resend", "cloudflare":
 	default:
 		cfg.UserInvitationEmailProvider = "queue"
 	}
@@ -305,6 +311,22 @@ func loadUserInvitationConfig(cfg *Config) {
 
 func loadEmailInboundWebhookConfig(cfg *Config) {
 	cfg.EmailInboundWebhookSecret = envString("EMAIL_INBOUND_WEBHOOK_SECRET")
+}
+
+func loadMailProviderConfig(cfg *Config) {
+	cfg.MailProvider = envLowerOrDefault("MAIL_PROVIDER", "")
+	switch cfg.MailProvider {
+	case "", "resend", "cloudflare":
+	default:
+		cfg.MailProvider = ""
+	}
+	cfg.CloudflareEmailAccountID = envString("CLOUDFLARE_ACCOUNT_ID")
+	cfg.CloudflareEmailEndpoint = envString("CLOUDFLARE_EMAIL_ENDPOINT")
+	cfg.CloudflareEmailAPIToken = envString("CLOUDFLARE_EMAIL_API_TOKEN")
+	cfg.CloudflareEmailTimeout = parseDurationOrFallback(envString("CLOUDFLARE_EMAIL_TIMEOUT"), 5*time.Second)
+	if cfg.CloudflareEmailTimeout < time.Second {
+		cfg.CloudflareEmailTimeout = 5 * time.Second
+	}
 }
 
 func loadDatabaseConfig(cfg *Config) {
@@ -754,7 +776,7 @@ func loadWalletConfig(cfg *Config) {
 func loadWalletEmailAlertConfig(cfg *Config) {
 	cfg.WalletAlertEmailProvider = envLowerOrDefault("WALLET_ALERT_EMAIL_PROVIDER", "mock")
 	switch cfg.WalletAlertEmailProvider {
-	case "mock", "resend":
+	case "mock", "resend", "cloudflare":
 	case "spaceemail":
 		cfg.WalletAlertEmailProvider = "resend"
 	default:

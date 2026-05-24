@@ -150,3 +150,184 @@ func TestResendProviderConfirm(t *testing.T) {
 		t.Fatalf("unexpected status: %+v", confirmation)
 	}
 }
+
+func TestNewCloudflareProviderValidation(t *testing.T) {
+	if _, err := NewCloudflareProvider(CloudflareOptions{APIToken: "", From: "reports@mistypass.test", AccountID: "acc_123"}); err == nil {
+		t.Fatal("expected error when api token is missing")
+	}
+	if _, err := NewCloudflareProvider(CloudflareOptions{APIToken: "cf_token", From: "", AccountID: "acc_123"}); err == nil {
+		t.Fatal("expected error when from address is missing")
+	}
+	if _, err := NewCloudflareProvider(CloudflareOptions{APIToken: "cf_token", From: "reports@mistypass.test"}); err == nil {
+		t.Fatal("expected error when account id is missing for default endpoint")
+	}
+}
+
+func TestCloudflareProviderSend(t *testing.T) {
+	var capturedAuth string
+	var capturedContentType string
+	var capturedIdempotencyKey string
+	var capturedPayload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		capturedContentType = r.Header.Get("Content-Type")
+		capturedIdempotencyKey = r.Header.Get("Idempotency-Key")
+		if err := json.NewDecoder(r.Body).Decode(&capturedPayload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":true,"errors":[],"messages":[],"result":{"delivered":["ops@sudirman.co"],"permanent_bounces":[],"queued":[]}}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewCloudflareProvider(CloudflareOptions{
+		Endpoint: server.URL,
+		APIToken: "cf_email_token",
+		From:     "reports@mistypass.test",
+		Timeout:  3 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("new cloudflare provider: %v", err)
+	}
+
+	receipt, err := provider.Send(context.Background(), Message{
+		TenantID:       "tenant_demo_jakarta",
+		To:             []string{"ops@sudirman.co"},
+		IdempotencyKey: "report-email-001",
+		Subject:        "weekly report",
+		HTML:           "<p>attached</p>",
+		Attachments: []Attachment{{
+			Filename: "weekly.pdf",
+			Content:  "JVBERi0x",
+		}},
+		Metadata: map[string]string{"schedule_id": "rs_000001"},
+	})
+	if err != nil {
+		t.Fatalf("send failed: %v", err)
+	}
+	if capturedAuth != "Bearer cf_email_token" {
+		t.Fatalf("unexpected auth header: %s", capturedAuth)
+	}
+	if capturedContentType != "application/json" {
+		t.Fatalf("unexpected content type: %s", capturedContentType)
+	}
+	if capturedIdempotencyKey != "report-email-001" {
+		t.Fatalf("unexpected idempotency key: %s", capturedIdempotencyKey)
+	}
+	if capturedPayload["from"] != "reports@mistypass.test" {
+		t.Fatalf("unexpected from payload: %#v", capturedPayload["from"])
+	}
+	headers, ok := capturedPayload["headers"].(map[string]any)
+	if !ok || headers["X-MistyPass-Idempotency-Key"] != "report-email-001" || headers["X-MistyPass-Meta-schedule-id"] != "rs_000001" {
+		t.Fatalf("unexpected headers payload: %#v", capturedPayload["headers"])
+	}
+	attachments, ok := capturedPayload["attachments"].([]any)
+	if !ok || len(attachments) != 1 {
+		t.Fatalf("expected one attachment, got %#v", capturedPayload["attachments"])
+	}
+	attachment, ok := attachments[0].(map[string]any)
+	if !ok || attachment["type"] != "application/pdf" || attachment["disposition"] != "attachment" {
+		t.Fatalf("unexpected attachment payload: %#v", attachments[0])
+	}
+	if receipt.Provider != "cloudflare" || receipt.ProviderDeliveryID != "report-email-001" || receipt.ProviderDeliveryStatus != "delivered" {
+		t.Fatalf("unexpected receipt: %+v", receipt)
+	}
+}
+
+func TestCloudflareProviderQueuedStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":true,"result":{"delivered":[],"permanent_bounces":[],"queued":["ops@sudirman.co"]}}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewCloudflareProvider(CloudflareOptions{
+		Endpoint: server.URL,
+		APIToken: "cf_email_token",
+		From:     "reports@mistypass.test",
+	})
+	if err != nil {
+		t.Fatalf("new cloudflare provider: %v", err)
+	}
+
+	receipt, err := provider.Send(context.Background(), Message{
+		To:             []string{"ops@sudirman.co"},
+		IdempotencyKey: "email-queued-001",
+		Subject:        "weekly report",
+		Text:           "attached",
+	})
+	if err != nil {
+		t.Fatalf("send failed: %v", err)
+	}
+	if receipt.ProviderDeliveryStatus != "queued" {
+		t.Fatalf("expected queued status, got %+v", receipt)
+	}
+}
+
+func TestCloudflareProviderSendRetryableFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"success":false,"errors":[{"code":10004,"message":"email.sending.error.throttled"}]}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewCloudflareProvider(CloudflareOptions{
+		Endpoint: server.URL,
+		APIToken: "cf_email_token",
+		From:     "reports@mistypass.test",
+		Timeout:  3 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("new cloudflare provider: %v", err)
+	}
+
+	_, err = provider.Send(context.Background(), Message{
+		To:      []string{"ops@sudirman.co"},
+		Subject: "weekly report",
+		Text:    "attached",
+	})
+	if err == nil {
+		t.Fatal("expected send error")
+	}
+	httpErr, ok := err.(HTTPError)
+	if !ok {
+		t.Fatalf("expected HTTPError, got %T", err)
+	}
+	if !httpErr.Retryable() {
+		t.Fatalf("expected retryable http error, got %+v", httpErr)
+	}
+}
+
+func TestCloudflareProviderSendSuccessFalse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"success":false,"errors":[{"code":10012,"message":"sender not verified"}],"result":null}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewCloudflareProvider(CloudflareOptions{
+		Endpoint: server.URL,
+		APIToken: "cf_email_token",
+		From:     "reports@mistypass.test",
+		Timeout:  3 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("new cloudflare provider: %v", err)
+	}
+
+	_, err = provider.Send(context.Background(), Message{
+		To:      []string{"ops@sudirman.co"},
+		Subject: "weekly report",
+		Text:    "attached",
+	})
+	if err == nil {
+		t.Fatal("expected send error")
+	}
+	httpErr, ok := err.(HTTPError)
+	if !ok {
+		t.Fatalf("expected HTTPError, got %T", err)
+	}
+	if httpErr.StatusCode != http.StatusOK || httpErr.Body != "10012: sender not verified" {
+		t.Fatalf("unexpected cloudflare error: %+v", httpErr)
+	}
+}

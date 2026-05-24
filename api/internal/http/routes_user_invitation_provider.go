@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mistypass/cloud/api/internal/mail"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 )
 
@@ -66,6 +67,8 @@ func (s *server) dispatchUserInvitationEmail(
 		}
 	case "resend":
 		result = s.dispatchUserInvitationResend(r, delivery, user)
+	case "cloudflare":
+		result = s.dispatchUserInvitationCloudflare(r, delivery, user)
 	default:
 		result = userInvitationProviderDispatchResult{
 			Status:        "failed",
@@ -89,6 +92,56 @@ func (s *server) dispatchUserInvitationEmail(
 	}
 	s.appendUserInvitationReceiptAudit(r, updated, "access")
 	return updated, true
+}
+
+func (s *server) dispatchUserInvitationCloudflare(
+	r *http.Request,
+	delivery access.UserInvitationDelivery,
+	user access.AccessUser,
+) userInvitationProviderDispatchResult {
+	provider, err := mail.NewCloudflareProvider(mail.CloudflareOptions{
+		Endpoint:  strings.TrimSpace(s.cfg.CloudflareEmailEndpoint),
+		AccountID: strings.TrimSpace(s.cfg.CloudflareEmailAccountID),
+		APIToken:  strings.TrimSpace(s.cfg.CloudflareEmailAPIToken),
+		From:      strings.TrimSpace(s.cfg.UserInvitationEmailFrom),
+		Timeout:   firstNonZeroDuration(s.cfg.CloudflareEmailTimeout, 5*time.Second),
+	})
+	if err != nil {
+		return userInvitationProviderDispatchResult{
+			Status:        "failed",
+			Provider:      "cloudflare",
+			ProviderError: err.Error(),
+			Retryable:     false,
+		}
+	}
+	receipt, err := provider.Send(r.Context(), mail.Message{
+		TenantID:       delivery.TenantID,
+		To:             []string{delivery.Email},
+		IdempotencyKey: delivery.ID,
+		Subject:        "You have been invited to MistyPass",
+		Text: fmt.Sprintf(
+			"You have been invited to MistyPass as %s. Sign in with %s to finish account setup.",
+			firstNonEmptyString(strings.TrimSpace(user.Name), "a user"),
+			delivery.Email,
+		),
+	})
+	if err != nil {
+		result := userInvitationProviderDispatchResult{
+			Status:        "failed",
+			Provider:      "cloudflare",
+			ProviderError: err.Error(),
+			Retryable:     true,
+		}
+		if httpErr, ok := err.(mail.HTTPError); ok {
+			result.Retryable = httpErr.Retryable()
+		}
+		return result
+	}
+	return userInvitationProviderDispatchResult{
+		Status:             "sent",
+		Provider:           receipt.Provider,
+		ProviderDeliveryID: strings.TrimSpace(receipt.ProviderDeliveryID),
+	}
 }
 
 func (s *server) dispatchUserInvitationResend(

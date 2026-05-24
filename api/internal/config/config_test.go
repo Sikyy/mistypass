@@ -55,17 +55,28 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	if cfg.EmailInboundWebhookSecret != "" {
 		t.Fatalf("default email inbound webhook secret mismatch: got %s", cfg.EmailInboundWebhookSecret)
 	}
+	if cfg.MailProvider != "" {
+		t.Fatalf("default mail provider mismatch: got %s", cfg.MailProvider)
+	}
+	if cfg.CloudflareEmailTimeout != 5*time.Second {
+		t.Fatalf("default cloudflare email timeout mismatch: got %s", cfg.CloudflareEmailTimeout)
+	}
 
-	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "resend")
+	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "cloudflare")
 	t.Setenv("USER_INVITATION_EMAIL_FROM", "invites@mistypass.local")
 	t.Setenv("USER_INVITATION_RESEND_ENDPOINT", "https://api.resend.com/emails")
 	t.Setenv("USER_INVITATION_RESEND_API_KEY", "re_invite_token")
 	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "9s")
 	t.Setenv("USER_INVITATION_PROVIDER_WEBHOOK_SECRET", "invite-webhook-secret")
 	t.Setenv("EMAIL_INBOUND_WEBHOOK_SECRET", "email-inbound-secret")
+	t.Setenv("MAIL_PROVIDER", "cloudflare")
+	t.Setenv("CLOUDFLARE_ACCOUNT_ID", "cf_account_123")
+	t.Setenv("CLOUDFLARE_EMAIL_ENDPOINT", "https://api.cloudflare.test/accounts/{account_id}/email/sending/send")
+	t.Setenv("CLOUDFLARE_EMAIL_API_TOKEN", "cf_email_token")
+	t.Setenv("CLOUDFLARE_EMAIL_TIMEOUT", "7s")
 
 	cfg = FromEnv()
-	if cfg.UserInvitationEmailProvider != "resend" {
+	if cfg.UserInvitationEmailProvider != "cloudflare" {
 		t.Fatalf("override invitation provider mismatch: got %s", cfg.UserInvitationEmailProvider)
 	}
 	if cfg.UserInvitationEmailFrom != "invites@mistypass.local" {
@@ -86,15 +97,38 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	if cfg.EmailInboundWebhookSecret != "email-inbound-secret" {
 		t.Fatalf("override email inbound webhook secret mismatch: got %s", cfg.EmailInboundWebhookSecret)
 	}
+	if cfg.MailProvider != "cloudflare" {
+		t.Fatalf("override mail provider mismatch: got %s", cfg.MailProvider)
+	}
+	if cfg.CloudflareEmailAccountID != "cf_account_123" {
+		t.Fatalf("override cloudflare account id mismatch: got %s", cfg.CloudflareEmailAccountID)
+	}
+	if cfg.CloudflareEmailEndpoint != "https://api.cloudflare.test/accounts/{account_id}/email/sending/send" {
+		t.Fatalf("override cloudflare endpoint mismatch: got %s", cfg.CloudflareEmailEndpoint)
+	}
+	if cfg.CloudflareEmailAPIToken != "cf_email_token" {
+		t.Fatalf("override cloudflare api token mismatch: got %s", cfg.CloudflareEmailAPIToken)
+	}
+	if cfg.CloudflareEmailTimeout != 7*time.Second {
+		t.Fatalf("override cloudflare timeout mismatch: got %s", cfg.CloudflareEmailTimeout)
+	}
 
 	t.Setenv("USER_INVITATION_EMAIL_PROVIDER", "invalid-provider")
 	t.Setenv("USER_INVITATION_RESEND_TIMEOUT", "500ms")
+	t.Setenv("MAIL_PROVIDER", "invalid-provider")
+	t.Setenv("CLOUDFLARE_EMAIL_TIMEOUT", "500ms")
 	cfg = FromEnv()
 	if cfg.UserInvitationEmailProvider != "queue" {
 		t.Fatalf("invalid invitation provider should fallback to queue, got %s", cfg.UserInvitationEmailProvider)
 	}
 	if cfg.UserInvitationResendTimeout != 5*time.Second {
 		t.Fatalf("sub-second invitation resend timeout should fallback, got %s", cfg.UserInvitationResendTimeout)
+	}
+	if cfg.MailProvider != "" {
+		t.Fatalf("invalid mail provider should fallback empty, got %s", cfg.MailProvider)
+	}
+	if cfg.CloudflareEmailTimeout != 5*time.Second {
+		t.Fatalf("sub-second cloudflare timeout should fallback, got %s", cfg.CloudflareEmailTimeout)
 	}
 }
 
@@ -646,6 +680,15 @@ func TestFromEnvWalletAlertProviderBackwardCompatibility(t *testing.T) {
 	}
 	if cfg.WalletAlertResendTimeout != 9*time.Second {
 		t.Fatalf("legacy timeout should map to resend timeout, got %s", cfg.WalletAlertResendTimeout)
+	}
+}
+
+func TestFromEnvWalletAlertCloudflareProvider(t *testing.T) {
+	t.Setenv("WALLET_ALERT_EMAIL_PROVIDER", "cloudflare")
+
+	cfg := FromEnv()
+	if cfg.WalletAlertEmailProvider != "cloudflare" {
+		t.Fatalf("cloudflare provider should be accepted, got %s", cfg.WalletAlertEmailProvider)
 	}
 }
 

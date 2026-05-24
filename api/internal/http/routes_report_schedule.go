@@ -427,7 +427,7 @@ func normalizeReportScheduleFormat(value string) (string, bool) {
 }
 
 // ---------------------------------------------------------------------------
-// Send report schedule — deliver report via email (Resend)
+// Send report schedule — deliver report via email provider.
 // ---------------------------------------------------------------------------
 
 func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
@@ -741,32 +741,64 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, pro
 }
 
 func (s *server) reportMailProvider() (mail.Provider, error) {
-	return mail.NewResendProvider(mail.ResendOptions{
-		Endpoint: strings.TrimSpace(s.cfg.UserInvitationResendEndpoint),
-		APIKey:   strings.TrimSpace(s.cfg.UserInvitationResendAPIKey),
-		From:     firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
-		Timeout:  s.reportMailTimeout(),
-	})
+	switch s.reportMailProviderName() {
+	case "cloudflare":
+		return mail.NewCloudflareProvider(mail.CloudflareOptions{
+			Endpoint:  strings.TrimSpace(s.cfg.CloudflareEmailEndpoint),
+			AccountID: strings.TrimSpace(s.cfg.CloudflareEmailAccountID),
+			APIToken:  strings.TrimSpace(s.cfg.CloudflareEmailAPIToken),
+			From:      firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
+			Timeout:   s.reportMailTimeout(),
+		})
+	default:
+		return mail.NewResendProvider(mail.ResendOptions{
+			Endpoint: strings.TrimSpace(s.cfg.UserInvitationResendEndpoint),
+			APIKey:   strings.TrimSpace(s.cfg.UserInvitationResendAPIKey),
+			From:     firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local"),
+			Timeout:  s.reportMailTimeout(),
+		})
+	}
 }
 
 func (s *server) reportMailProviderStatus() reportScheduleProviderStatus {
-	endpoint := firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationResendEndpoint), mail.ResendEndpointDefault)
+	provider := s.reportMailProviderName()
 	from := firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationEmailFrom), "no-reply@mistypass.local")
-	apiKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
 	timeout := s.reportMailTimeout()
-
-	missing := make([]string, 0, 3)
+	missing := make([]string, 0, 4)
 	if !s.cfg.ReportEmailEnabled {
 		missing = append(missing, "REPORT_EMAIL_ENABLED")
-	}
-	if apiKey == "" {
-		missing = append(missing, "USER_INVITATION_RESEND_API_KEY")
 	}
 	if from == "" {
 		missing = append(missing, "USER_INVITATION_EMAIL_FROM")
 	}
 
-	configured := apiKey != "" && from != ""
+	endpoint := ""
+	configured := false
+	switch provider {
+	case "cloudflare":
+		endpoint = firstNonEmptyString(strings.TrimSpace(s.cfg.CloudflareEmailEndpoint), mail.CloudflareEmailEndpointDefault)
+		apiToken := strings.TrimSpace(s.cfg.CloudflareEmailAPIToken)
+		accountID := strings.TrimSpace(s.cfg.CloudflareEmailAccountID)
+		requiresAccountID := strings.Contains(endpoint, "{account_id}")
+		if apiToken == "" {
+			missing = append(missing, "CLOUDFLARE_EMAIL_API_TOKEN")
+		}
+		if requiresAccountID && accountID == "" {
+			missing = append(missing, "CLOUDFLARE_ACCOUNT_ID")
+		}
+		if requiresAccountID && accountID != "" {
+			endpoint = strings.ReplaceAll(endpoint, "{account_id}", accountID)
+		}
+		configured = apiToken != "" && from != "" && (!requiresAccountID || accountID != "")
+	default:
+		endpoint = firstNonEmptyString(strings.TrimSpace(s.cfg.UserInvitationResendEndpoint), mail.ResendEndpointDefault)
+		apiKey := strings.TrimSpace(s.cfg.UserInvitationResendAPIKey)
+		if apiKey == "" {
+			missing = append(missing, "USER_INVITATION_RESEND_API_KEY")
+		}
+		configured = apiKey != "" && from != ""
+	}
+
 	ready := s.cfg.ReportEmailEnabled && configured
 	message := "Report email provider is ready."
 	if !s.cfg.ReportEmailEnabled {
@@ -776,7 +808,7 @@ func (s *server) reportMailProviderStatus() reportScheduleProviderStatus {
 	}
 
 	return reportScheduleProviderStatus{
-		Provider:       "resend",
+		Provider:       provider,
 		Enabled:        s.cfg.ReportEmailEnabled,
 		Configured:     configured,
 		Ready:          ready,
@@ -788,7 +820,29 @@ func (s *server) reportMailProviderStatus() reportScheduleProviderStatus {
 	}
 }
 
+func (s *server) reportMailProviderName() string {
+	provider := strings.ToLower(strings.TrimSpace(s.cfg.MailProvider))
+	if provider == "" {
+		provider = strings.ToLower(strings.TrimSpace(s.cfg.UserInvitationEmailProvider))
+	}
+	switch provider {
+	case "cloudflare":
+		return "cloudflare"
+	case "resend", "spaceemail":
+		return "resend"
+	default:
+		return "resend"
+	}
+}
+
 func (s *server) reportMailTimeout() time.Duration {
+	if s.reportMailProviderName() == "cloudflare" {
+		timeout := s.cfg.CloudflareEmailTimeout
+		if timeout < time.Second {
+			return 5 * time.Second
+		}
+		return timeout
+	}
 	timeout := s.cfg.UserInvitationResendTimeout
 	if timeout < time.Second {
 		timeout = 5 * time.Second
