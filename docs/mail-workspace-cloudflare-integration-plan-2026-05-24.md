@@ -13,6 +13,7 @@
 - 统一发送抽象：`api/internal/mail` 提供 `Provider` / `Message` / `Receipt`，当前最小实现为 Resend。
 - 报表发送：`api/internal/http/routes_report_schedule.go` 复用统一 mail provider，并继续兼容 `USER_INVITATION_RESEND_API_KEY` / `USER_INVITATION_RESEND_ENDPOINT`。
 - Web Admin：Report Schedules 页面已补 “Send now” 行操作和 provider status 状态条，provider 未启用/未配置会直接显示。
+- Report schedule 回归：`docs/testing/curl-report-schedule-resend.zsh` 已覆盖 provider status、send now、Gotenberg PDF 生成、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计。
 - Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
 - 当前缺口不是“没有邮件能力”，而是缺少域名 DNS 记录清单、真实生产 key、真实收信/回执 webhook。
 
@@ -52,8 +53,8 @@
 
 验收：
 
-- `POST /api/v1/report-schedules/{id}/send?tenant_id=...` 能收到 PDF 附件。
-- Wallet alert dispatch resend smoke 通过。
+- `POST /api/v1/report-schedules/{id}/send?tenant_id=...` mock smoke 已覆盖 PDF 附件、provider metadata 与审计；生产 DNS/key 接入后再跑一次真实收件验收。
+- Wallet alert dispatch resend smoke 已通过 CI mock；生产 DNS/key 接入后再跑一次真实收件验收。
 - DMARC aggregate 记录能看到通过率。
 
 ### Phase E1：统一 MailProvider 抽象（已启动）
@@ -126,6 +127,7 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 |---:|---|---|
 | P0 | 配置生产发信 DNS | SPF/DKIM/DMARC，确认 from 域名 |
 | P0 | 在 mac mini `.env` 接入 Resend key | 先让 PDF report 和告警真实可发 |
-| P1 | 抽 `MailProvider` 接口 | 避免后续从 Resend 换 Cloudflare 时改业务层 |
+| P1 | 生产真实 Resend smoke | 用 `reports@mistyislet.com` / `no-reply@mistyislet.com` 验证 report PDF 与 Wallet alert 真收件 |
+| P1 | 抽 `MailProvider` 接口 | 已完成第一阶段；后续 Cloudflare provider 只需补实现 |
 | P1 | 新增 Cloudflare inbound webhook | 解决回信、退信、供应商事件入库 |
 | P2 | Cloudflare Email Service 发信适配 | 等账号侧可用性、价格和限制确认后接 |

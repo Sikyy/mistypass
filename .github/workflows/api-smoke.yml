@@ -101,6 +101,9 @@ jobs:
       - name: OAuth2 Protocol Regression
         run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18187 API_BASE_URL=http://localhost:18187 ./docs/testing/curl-oauth2-protocol.zsh
 
+      - name: Report Schedule Resend Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18189 API_BASE_URL=http://localhost:18189 RESEND_PORT=19094 GOTENBERG_PORT=19095 ./docs/testing/curl-report-schedule-resend.zsh
+
       - name: Gateway Serial + Protocol Regression
         run: ./docs/testing/curl-gateway-serial-protocol.zsh
 
@@ -189,6 +192,11 @@ jobs:
             /tmp/mp_audit_webhook_receiver_api.log
             /tmp/mp_oauth2_client_crud_api.log
             /tmp/mp_oauth2_protocol_api.log
+            /tmp/mp_report_schedule_resend.log
+            /tmp/mp_report_schedule_resend.jsonl
+            /tmp/mp_report_schedule_resend_api.log
+            /tmp/mp_report_schedule_gotenberg.log
+            /tmp/mp_report_schedule_gotenberg.jsonl
             /tmp/mp_wallet_queue_process_api.log
             /tmp/mp_wallet_dlq_requeue_api.log
             /tmp/mp_wallet_dlq_governance_api.log

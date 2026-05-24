@@ -76,7 +76,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload；已补 `docs/testing/curl-oauth2-protocol.zsh` 覆盖 authorize、JSON/form token、code replay、revoke、scope guard、disabled client guard | 下一步转 Resend 真实 DNS/key smoke |
 | P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
 | P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Resend 真实 smoke |
-| P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
+| P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条；已补 `docs/testing/curl-report-schedule-resend.zsh` 并接入 API Smoke，覆盖 provider status、send now、Gotenberg PDF、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
 
@@ -182,6 +182,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 - [x] `MailProvider` 抽象。
 - [x] Resend provider 统一到 report schedule 与 Wallet alert sender。
+- [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
 - [ ] Resend 生产配置与 DNS 验收。
 - Cloudflare Email Routing/Workers 入站 webhook。
 - 邮件回执关联 report schedule / wallet delivery / enterprise alert。
