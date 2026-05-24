@@ -53,6 +53,7 @@ jobs:
           SOAK_INTERVAL_SECONDS=20 \
           SOAK_WORKDIR=/tmp/mp_pg_replay_soak \
           SOAK_LOG_CSV=/tmp/mp_pg_replay_soak/metrics.csv \
+          LEVEL_CONCURRENT_NOOP=4,4,4 \
           LEVEL_MIN_OPS=5,5,5 \
           /bin/zsh ./docs/testing/curl-pg-replay-multi-state-soak.zsh | tee /tmp/mp_pg_replay_soak.log
         shell: bash
@@ -100,7 +101,12 @@ jobs:
                 unzip -oq "${target_dir}/zip/artifact.zip" -d "${target_dir}/artifact"
                 metrics_path="$(find "${target_dir}/artifact" -type f -name 'metrics.csv' | head -n1 || true)"
                 if [[ -n "${metrics_path}" ]]; then
-                  cp "${metrics_path}" "${target_dir}/metrics.csv"
+                  if awk -F, 'NR>1 && $14 != "passed" { bad=1 } END { exit bad }' "${metrics_path}"; then
+                    cp "${metrics_path}" "${target_dir}/metrics.csv"
+                  else
+                    echo "summary: skipped_failed_history_metrics=${created_at}:${artifact_id}"
+                    rm -rf "${target_dir}"
+                  fi
                 else
                   rm -rf "${target_dir}"
                 fi

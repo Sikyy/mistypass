@@ -12,6 +12,8 @@ API_STARTUP_ATTEMPTS="${API_STARTUP_ATTEMPTS:-240}"
 API_STARTUP_SLEEP_SECONDS="${API_STARTUP_SLEEP_SECONDS:-0.5}"
 CATCHUP_RETRY_ATTEMPTS="${CATCHUP_RETRY_ATTEMPTS:-5}"
 CATCHUP_RETRY_SLEEP_SECONDS="${CATCHUP_RETRY_SLEEP_SECONDS:-0.75}"
+NOOP_RETRY_ATTEMPTS="${NOOP_RETRY_ATTEMPTS:-3}"
+NOOP_RETRY_SLEEP_SECONDS="${NOOP_RETRY_SLEEP_SECONDS:-0.5}"
 
 LEVEL_TENANT_WRITES="${LEVEL_TENANT_WRITES:-10,20,40}"
 LEVEL_BUILDINGS_PER_TENANT="${LEVEL_BUILDINGS_PER_TENANT:-1,1,1}"
@@ -132,17 +134,34 @@ function api_with_auth() {
   local method="$1"
   local endpoint_path="$2"
   local payload="${3:-}"
+  local raw rc
+  set +e
   if [[ -n "${payload}" ]]; then
-    curl -sS --connect-timeout 5 --max-time 40 -X "${method}" "${API_BASE_URL}${endpoint_path}" \
+    raw="$(curl -sS --connect-timeout 5 --max-time 40 -X "${method}" "${API_BASE_URL}${endpoint_path}" \
       -H "Authorization: Bearer ${AT}" \
       -H "Content-Type: application/json" \
       -d "${payload}" \
-      -w $'\n%{http_code}'
-    return
+      -w $'\n%{http_code}')"
+    rc="$?"
+  else
+    raw="$(curl -sS --connect-timeout 5 --max-time 40 -X "${method}" "${API_BASE_URL}${endpoint_path}" \
+      -H "Authorization: Bearer ${AT}" \
+      -w $'\n%{http_code}')"
+    rc="$?"
   fi
-  curl -sS --connect-timeout 5 --max-time 40 -X "${method}" "${API_BASE_URL}${endpoint_path}" \
-    -H "Authorization: Bearer ${AT}" \
-    -w $'\n%{http_code}'
+  set -e
+
+  if [[ "${rc}" -ne 0 ]]; then
+    printf "%s\n000" "${raw}"
+    return 0
+  fi
+  printf "%s" "${raw}"
+}
+
+function is_transient_replay_response() {
+  local code="$1"
+  local body="$2"
+  [[ "${code}" == "000" || ("${code}" == "500" && ("${body}" == *"bad connection"* || "${body}" == *"context deadline exceeded"* || "${body}" == *"empty reply"* )) ]]
 }
 
 function csv_compact() {
@@ -199,7 +218,7 @@ function benchmark_state_key() {
     catchup_raw="$(api_with_auth POST "/api/v1/state/change-log/replay/checkpoint" "${replay_payload}")"
     catchup_latency_ms="$(elapsed_ms "${catchup_start_ms}")"
     split_response "${catchup_raw}"
-    if [[ "${HTTP_CODE}" != "500" || ("${HTTP_BODY}" != *"bad connection"* && "${HTTP_BODY}" != *"context deadline exceeded"*) || "${catchup_attempt}" -eq "${CATCHUP_RETRY_ATTEMPTS}" ]]; then
+    if ! is_transient_replay_response "${HTTP_CODE}" "${HTTP_BODY}" || [[ "${catchup_attempt}" -eq "${CATCHUP_RETRY_ATTEMPTS}" ]]; then
       break
     fi
     echo "warn ${level_name}/${state_key}: transient replay error on attempt ${catchup_attempt}/${CATCHUP_RETRY_ATTEMPTS}; retrying"
@@ -229,12 +248,23 @@ function benchmark_state_key() {
   for i in $(seq 1 "${concurrent_noop}"); do
     (
       local worker_start_ms worker_raw worker_latency_ms worker_code worker_body worker_applied
-      worker_start_ms="$(now_ms)"
-      worker_raw="$(api_with_auth POST "/api/v1/state/change-log/replay/checkpoint" "${replay_payload}")"
-      worker_latency_ms="$(elapsed_ms "${worker_start_ms}")"
-      worker_code="${worker_raw##*$'\n'}"
-      worker_body="${worker_raw%$'\n'*}"
-      worker_applied="$(echo "${worker_body}" | jq -r '.applied // -1' 2>/dev/null || echo "-1")"
+      local worker_attempt
+      for (( worker_attempt = 1; worker_attempt <= NOOP_RETRY_ATTEMPTS; worker_attempt++ )); do
+        worker_start_ms="$(now_ms)"
+        worker_raw="$(api_with_auth POST "/api/v1/state/change-log/replay/checkpoint" "${replay_payload}")"
+        worker_latency_ms="$(elapsed_ms "${worker_start_ms}")"
+        worker_code="${worker_raw##*$'\n'}"
+        worker_body="${worker_raw%$'\n'*}"
+        worker_applied="$(echo "${worker_body}" | jq -r '.applied // -1' 2>/dev/null || echo "-1")"
+        if [[ "${worker_code}" == "200" && "${worker_applied}" == "0" ]]; then
+          break
+        fi
+        if ! is_transient_replay_response "${worker_code}" "${worker_body}" || [[ "${worker_attempt}" -eq "${NOOP_RETRY_ATTEMPTS}" ]]; then
+          break
+        fi
+        echo "warn ${level_name}/${state_key}: transient no-op replay error on worker ${i} attempt ${worker_attempt}/${NOOP_RETRY_ATTEMPTS}; retrying"
+        sleep "${NOOP_RETRY_SLEEP_SECONDS}"
+      done
       echo "${i},${worker_code},${worker_latency_ms},${worker_applied}" >>"${tmp_result_file}"
     ) &
     worker_pids+=($!)
