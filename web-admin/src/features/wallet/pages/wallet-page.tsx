@@ -1390,6 +1390,41 @@ export function WalletPage({ token, viewer }: WalletPageProps) {
             },
             formatDateTime,
           }}
+          dlqGovernanceCardProps={{
+            writable,
+            readOnlyBoundaryHint,
+            loading,
+            refreshing,
+            jobSummary: alerts.jobSummary,
+            processLimit: alerts.processLimit,
+            onProcessLimitChange: alerts.setProcessLimit,
+            processWorkerCount: alerts.processWorkerCount,
+            onProcessWorkerCountChange: alerts.setProcessWorkerCount,
+            processMaxRetry: alerts.processMaxRetry,
+            onProcessMaxRetryChange: alerts.setProcessMaxRetry,
+            dlqLimit: alerts.dlqLimit,
+            onDLQLimitChange: alerts.setDLQLimit,
+            dlqErrorCode: alerts.dlqErrorCode,
+            onDLQErrorCodeChange: alerts.setDLQErrorCode,
+            dlqTargetIDOverride: alerts.dlqTargetIDOverride,
+            onDLQTargetIDOverrideChange: alerts.setDLQTargetIDOverride,
+            dlqOlderThanSeconds: alerts.dlqOlderThanSeconds,
+            onDLQOlderThanSecondsChange: alerts.setDLQOlderThanSeconds,
+            processingJobs: alerts.processingJobs,
+            requeueingDLQ: alerts.requeueingDLQ,
+            cleaningDLQ: alerts.cleaningDLQ,
+            governanceSummary: alerts.governanceSummary,
+            onProcessPendingJobs: () => {
+              void alerts.processPendingJobs()
+            },
+            onRequeueDLQBatch: () => {
+              void alerts.requeueDLQBatch()
+            },
+            onCleanupDLQBatch: () => {
+              void alerts.cleanupDLQBatch()
+            },
+            formatDateTime,
+          }}
           dlqCleanupArchivesCardProps={{
             loading,
             archives: alerts.archives,

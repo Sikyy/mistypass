@@ -1,12 +1,16 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import {
+  cleanupWalletDLQJobs,
   dispatchWalletJobAlerts,
   getWalletJobAlertSubscription,
   getWalletJobMetrics,
   getWalletJobMetricsTrend,
+  getWalletJobSummary,
   listWalletDLQCleanupArchives,
   listWalletJobAlertNotifications,
+  processWalletJobs,
+  requeueWalletDLQJobs,
   retryWalletJobAlertNotification,
   upsertWalletJobAlertSubscription,
   type Tenant,
@@ -16,6 +20,7 @@ import {
   type WalletJobAlertSubscription,
   type WalletJobMetrics,
   type WalletJobMetricsTrend,
+  type WalletJobSummary,
 } from "@/lib/api"
 import {
   parseNonNegativeInt,
@@ -27,6 +32,10 @@ const defaultWindowSeconds = "900"
 const defaultArchiveLimit = "20"
 const defaultTrendBucketCount = "12"
 const defaultSubscriptionCooldownSeconds = "900"
+const defaultProcessLimit = "20"
+const defaultProcessWorkerCount = "2"
+const defaultDLQLimit = "20"
+const defaultDLQOlderThanSeconds = "86400"
 
 type WalletTenantAggregateRow = {
   tenantID: string
@@ -54,6 +63,7 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
   const [trendBucketCount, setTrendBucketCount] = useState(defaultTrendBucketCount)
 
   const [metrics, setMetrics] = useState<WalletJobMetrics | null>(null)
+  const [jobSummary, setJobSummary] = useState<WalletJobSummary | null>(null)
   const [metricsTrend, setMetricsTrend] = useState<WalletJobMetricsTrend | null>(null)
   const [archives, setArchives] = useState<WalletDLQCleanupArchive[]>([])
   const [alertNotifications, setAlertNotifications] = useState<WalletJobAlertNotification[]>([])
@@ -68,10 +78,22 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
   const [subscriptionCooldownSeconds, setSubscriptionCooldownSeconds] = useState(defaultSubscriptionCooldownSeconds)
   const [subscriptionReceiverGroups, setSubscriptionReceiverGroups] = useState("security")
 
+  const [processLimit, setProcessLimit] = useState(defaultProcessLimit)
+  const [processWorkerCount, setProcessWorkerCount] = useState(defaultProcessWorkerCount)
+  const [processMaxRetry, setProcessMaxRetry] = useState("")
+  const [dlqLimit, setDLQLimit] = useState(defaultDLQLimit)
+  const [dlqErrorCode, setDLQErrorCode] = useState("")
+  const [dlqTargetIDOverride, setDLQTargetIDOverride] = useState("")
+  const [dlqOlderThanSeconds, setDLQOlderThanSeconds] = useState(defaultDLQOlderThanSeconds)
+
   const [savingSubscription, setSavingSubscription] = useState(false)
   const [dispatchingAlerts, setDispatchingAlerts] = useState(false)
+  const [processingJobs, setProcessingJobs] = useState(false)
+  const [requeueingDLQ, setRequeueingDLQ] = useState(false)
+  const [cleaningDLQ, setCleaningDLQ] = useState(false)
   const [retryingAlertNotificationID, setRetryingAlertNotificationID] = useState("")
   const [dispatchSummary, setDispatchSummary] = useState("")
+  const [governanceSummary, setGovernanceSummary] = useState("")
   const [aggregateWarning, setAggregateWarning] = useState("")
   const [error, setError] = useState("")
 
@@ -133,11 +155,15 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
     const trendQuery = buildMetricsTrendQueryOptions()
     const nextArchiveLimit = parsePositiveInt(archiveLimit) ?? 20
 
-    const [metricsData, trendData, archiveItems, notificationItems, subscriptionData] =
+    const [metricsData, jobSummaryData, trendData, archiveItems, notificationItems, subscriptionData] =
       await Promise.all([
         getWalletJobMetrics(token, {
           tenant_id: nextTenantID,
           ...metricsQuery,
+        }),
+        getWalletJobSummary(token, {
+          tenant_id: nextTenantID,
+          max_retry: metricsQuery.max_retry,
         }),
         getWalletJobMetricsTrend(token, {
           tenant_id: nextTenantID,
@@ -157,6 +183,7 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
       ])
 
     setMetrics(metricsData)
+    setJobSummary(jobSummaryData)
     setMetricsTrend(trendData)
     setArchives(archiveItems)
     setAlertNotifications(notificationItems)
@@ -166,11 +193,13 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
 
   function resetMetricsAndAlerts() {
     setMetrics(null)
+    setJobSummary(null)
     setMetricsTrend(null)
     setArchives([])
     setAlertNotifications([])
     setSubscription(null)
     setTenantAggregates([])
+    setGovernanceSummary("")
   }
 
   async function loadWalletTenantAggregates(tenantItems: Tenant[]) {
@@ -322,6 +351,109 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
     }
   }
 
+  async function processPendingJobs() {
+    const nextTenantID = tenantID.trim()
+    if (!nextTenantID) {
+      setError(t("walletPage.errors.tenantRequired"))
+      return
+    }
+
+    setProcessingJobs(true)
+    setGovernanceSummary("")
+    setError("")
+    try {
+      const result = await processWalletJobs(token, {
+        tenant_id: nextTenantID,
+        limit: parsePositiveInt(processLimit),
+        worker_count: parsePositiveInt(processWorkerCount),
+        max_retry: parseNonNegativeInt(processMaxRetry),
+        actor: "web_admin.wallet.queue.process",
+      })
+      setGovernanceSummary(
+        t("walletPage.summaries.walletJobsProcessed", {
+          claimed: result.claimed,
+          succeeded: result.succeeded,
+          failed: result.failed,
+          dlq: result.dlq,
+          pendingAfter: result.pending_after,
+        })
+      )
+      await loadMetricsAndAlerts(nextTenantID)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("walletPage.errors.processWalletJobsFailed")
+      setError(message)
+    } finally {
+      setProcessingJobs(false)
+    }
+  }
+
+  async function requeueDLQBatch() {
+    const nextTenantID = tenantID.trim()
+    if (!nextTenantID) {
+      setError(t("walletPage.errors.tenantRequired"))
+      return
+    }
+
+    setRequeueingDLQ(true)
+    setGovernanceSummary("")
+    setError("")
+    try {
+      const result = await requeueWalletDLQJobs(token, {
+        tenant_id: nextTenantID,
+        limit: parsePositiveInt(dlqLimit),
+        error_code: dlqErrorCode.trim() || undefined,
+        target_id_override: dlqTargetIDOverride.trim() || undefined,
+        actor: "web_admin.wallet.dlq.requeue",
+      })
+      setGovernanceSummary(
+        t("walletPage.summaries.walletDLQRequeued", {
+          requeued: result.requeued,
+          skipped: result.skipped,
+          remaining: result.remaining_dlq,
+        })
+      )
+      await loadMetricsAndAlerts(nextTenantID)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("walletPage.errors.requeueWalletDLQFailed")
+      setError(message)
+    } finally {
+      setRequeueingDLQ(false)
+    }
+  }
+
+  async function cleanupDLQBatch() {
+    const nextTenantID = tenantID.trim()
+    if (!nextTenantID) {
+      setError(t("walletPage.errors.tenantRequired"))
+      return
+    }
+
+    setCleaningDLQ(true)
+    setGovernanceSummary("")
+    setError("")
+    try {
+      const result = await cleanupWalletDLQJobs(token, {
+        tenant_id: nextTenantID,
+        limit: parsePositiveInt(dlqLimit),
+        error_code: dlqErrorCode.trim() || undefined,
+        older_than_seconds: parsePositiveInt(dlqOlderThanSeconds),
+        actor: "web_admin.wallet.dlq.cleanup",
+      })
+      setGovernanceSummary(
+        t("walletPage.summaries.walletDLQCleaned", {
+          removed: result.removed,
+          remaining: result.remaining_dlq,
+        })
+      )
+      await loadMetricsAndAlerts(nextTenantID)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("walletPage.errors.cleanupWalletDLQFailed")
+      setError(message)
+    } finally {
+      setCleaningDLQ(false)
+    }
+  }
+
   return {
     windowSeconds,
     setWindowSeconds,
@@ -334,6 +466,7 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
     trendBucketCount,
     setTrendBucketCount,
     metrics,
+    jobSummary,
     metricsTrend,
     archives,
     alertNotifications,
@@ -353,10 +486,28 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
     setSubscriptionCooldownSeconds,
     subscriptionReceiverGroups,
     setSubscriptionReceiverGroups,
+    processLimit,
+    setProcessLimit,
+    processWorkerCount,
+    setProcessWorkerCount,
+    processMaxRetry,
+    setProcessMaxRetry,
+    dlqLimit,
+    setDLQLimit,
+    dlqErrorCode,
+    setDLQErrorCode,
+    dlqTargetIDOverride,
+    setDLQTargetIDOverride,
+    dlqOlderThanSeconds,
+    setDLQOlderThanSeconds,
     savingSubscription,
     dispatchingAlerts,
+    processingJobs,
+    requeueingDLQ,
+    cleaningDLQ,
     retryingAlertNotificationID,
     dispatchSummary,
+    governanceSummary,
     aggregateWarning,
     error,
     setError,
@@ -370,5 +521,8 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
     saveAlertSubscription,
     dispatchAlertsNow,
     retryAlertNotification,
+    processPendingJobs,
+    requeueDLQBatch,
+    cleanupDLQBatch,
   }
 }
