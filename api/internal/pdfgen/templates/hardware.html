@@ -55,7 +55,17 @@
       labels: ['Online', 'Offline'],
       datasets: [{ data: [d.online || 0, d.offline || 0], backgroundColor: [mistyPalette.moss, mistyPalette.copper], borderColor: '#FFFDF7', borderWidth: 2 }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { left: 4, right: 4, bottom: 4 } },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 8 }
+        }
+      }
+    }
   });
 
   var battery = d.battery_dist || [];
@@ -63,9 +73,33 @@
     type: 'bar',
     data: {
       labels: battery.map(function(b) { return b.label; }),
-      datasets: [{ data: battery.map(function(b) { return b.count; }), backgroundColor: mistyPalette.teal, borderRadius: 4 }]
+      datasets: [{
+        data: battery.map(function(b) { return b.count; }),
+        backgroundColor: mistyPalette.teal,
+        borderRadius: 4,
+        barPercentage: 0.62,
+        categoryPercentage: 0.72,
+        maxBarThickness: 72
+      }]
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 28, bottom: 4 } },
+      scales: {
+        y: { beginAtZero: true },
+        x: {
+          offset: true,
+          ticks: {
+            autoSkip: false,
+            maxRotation: 0,
+            minRotation: 0,
+            font: { size: 8 }
+          }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
   });
 
   var signal = d.signal_dist || [];
@@ -73,9 +107,33 @@
     type: 'bar',
     data: {
       labels: signal.map(function(s) { return s.label; }),
-      datasets: [{ data: signal.map(function(s) { return s.count; }), backgroundColor: mistyPalette.brass, borderRadius: 4 }]
+      datasets: [{
+        data: signal.map(function(s) { return s.count; }),
+        backgroundColor: mistyPalette.brass,
+        borderRadius: 4,
+        barPercentage: 0.62,
+        categoryPercentage: 0.72,
+        maxBarThickness: 96
+      }]
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 28, bottom: 4 } },
+      scales: {
+        y: { beginAtZero: true },
+        x: {
+          offset: true,
+          ticks: {
+            autoSkip: false,
+            maxRotation: 0,
+            minRotation: 0,
+            font: { size: 8 }
+          }
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
   });
 
   var tbody = document.getElementById('devices-body');

@@ -37,7 +37,7 @@ func DefaultPDFOptions() PDFOptions {
 		MarginLeft:      0.4,
 		MarginRight:     0.4,
 		PrintBackground: true,
-		WaitDelay:       "500ms",
+		WaitDelay:       "4000ms",
 		Scale:           1.0,
 	}
 }

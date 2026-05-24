@@ -17,6 +17,12 @@ var templateFS embed.FS
 //go:embed assets/logo.png
 var logoPNG []byte
 
+//go:embed assets/hero.png
+var heroPNG []byte
+
+//go:embed assets/noise.png
+var noisePNG []byte
+
 var validReportTypes = map[string]bool{
 	"weekly_analytics": true,
 	"events":           true,
@@ -36,19 +42,25 @@ var reportTypeLabels = map[string]string{
 }
 
 type Renderer struct {
-	templates  map[string]*template.Template
-	logoBase64 string
+	templates   map[string]*template.Template
+	logoBase64  string
+	heroBase64  string
+	noiseBase64 string
 }
 
 type templateData struct {
 	Meta        ReportMeta
 	ReportLabel string
 	LogoBase64  string
+	HeroBase64  string
+	NoiseBase64 string
 	DataJSON    template.JS
 }
 
 func NewRenderer() (*Renderer, error) {
 	logoB64 := base64.StdEncoding.EncodeToString(logoPNG)
+	heroB64 := base64.StdEncoding.EncodeToString(heroPNG)
+	noiseB64 := base64.StdEncoding.EncodeToString(noisePNG)
 	templates := make(map[string]*template.Template)
 
 	for rt := range validReportTypes {
@@ -63,8 +75,10 @@ func NewRenderer() (*Renderer, error) {
 	}
 
 	return &Renderer{
-		templates:  templates,
-		logoBase64: logoB64,
+		templates:   templates,
+		logoBase64:  logoB64,
+		heroBase64:  heroB64,
+		noiseBase64: noiseB64,
 	}, nil
 }
 
@@ -83,6 +97,8 @@ func (r *Renderer) RenderHTML(reportType string, meta ReportMeta, data any) ([]b
 		Meta:        meta,
 		ReportLabel: ReportTypeLabel(reportType),
 		LogoBase64:  r.logoBase64,
+		HeroBase64:  r.heroBase64,
+		NoiseBase64: r.noiseBase64,
 		DataJSON:    template.JS(dataJSON),
 	}
 
