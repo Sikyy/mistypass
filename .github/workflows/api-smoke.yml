@@ -92,6 +92,9 @@ jobs:
         run: ./docs/testing/curl-audit-webhook-fanout.zsh | tee /tmp/mp_audit_webhook_fanout.log
         shell: bash
 
+      - name: Audit Webhook Receiver Regression
+        run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18188 API_BASE_URL=http://localhost:18188 RECEIVER_PORT=19093 ./docs/testing/curl-audit-webhook-receiver.zsh
+
       - name: OAuth2 Client CRUD Regression
         run: DATABASE_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' API_PORT=18186 API_BASE_URL=http://localhost:18186 ./docs/testing/curl-oauth2-client-crud.zsh
 
@@ -181,6 +184,9 @@ jobs:
             /tmp/mp_gateway_inventory_csv_api.log
             /tmp/mp_gateway_inventory_batch_api.log
             /tmp/mp_audit_webhook_fanout.log
+            /tmp/mp_audit_webhook_receiver.log
+            /tmp/mp_audit_webhook_receiver.jsonl
+            /tmp/mp_audit_webhook_receiver_api.log
             /tmp/mp_oauth2_client_crud_api.log
             /tmp/mp_oauth2_protocol_api.log
             /tmp/mp_wallet_queue_process_api.log

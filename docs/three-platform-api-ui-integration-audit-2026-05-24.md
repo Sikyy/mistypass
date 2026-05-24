@@ -72,10 +72,10 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 | 优先级 | API | 当前证据 | 建议 |
 |---:|---|---|---|
-| P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
-| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload；已补 `docs/testing/curl-oauth2-protocol.zsh` 覆盖 authorize、JSON/form token、code replay、revoke、scope guard、disabled client guard | 下一步转 Audit 外部 receiver smoke |
+| P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在；已补 `docs/testing/curl-audit-webhook-receiver.zsh` 并接入 API Smoke，覆盖真实 receiver 成功投递、签名校验、delivery 列表和 500→重试→202 成功闭环 | 下一步补失败重试可视化细节或转 Resend 真实 DNS/key smoke |
+| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload；已补 `docs/testing/curl-oauth2-protocol.zsh` 覆盖 authorize、JSON/form token、code replay、revoke、scope guard、disabled client guard | 下一步转 Resend 真实 DNS/key smoke |
 | P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
-| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Audit 外部 receiver / Resend 真实 smoke |
+| P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Resend 真实 smoke |
 | P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
 | P2 | `/api/v1/temporary-access` | OpenAPI/旧测试仍有痕迹，当前 UI 已避免直接调旧路径 | 若保留产品能力，应在 Access 下补正式入口；否则标记 deprecated |
@@ -160,6 +160,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 ### Batch B：后台 UI 补洞（推荐本周做，2-3 天）
 
 - [x] Audit Webhook 页面。
+- [x] Audit Webhook 外部 receiver 成功投递与重试 smoke。
 - [x] OAuth2 Clients / Developer API Clients 页面。
 - [x] OAuth2 Clients `OAUTH2_ENABLED=true` API CRUD smoke。
 - [x] OAuth2 Clients Web Admin 表单动作 e2e。
