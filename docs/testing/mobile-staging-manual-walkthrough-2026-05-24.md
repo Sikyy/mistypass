@@ -44,6 +44,37 @@ curl -i http://127.0.0.1:8080/healthz
 
 `.env.staging` is ignored by `.gitignore`; keep real secrets only on the Mac mini.
 
+### Staging Secrets
+
+Do not reuse the placeholder values from `deploy/env/macmini-staging.example.env`.
+Generate the base secrets on the Mac mini, then paste them into `.env.staging`:
+
+```bash
+printf 'POSTGRES_PASSWORD=%s\nREDIS_PASSWORD=%s\nJWT_SECRET=%s\nHRIS_VAULT_MASTER_KEY=%s\nGATEWAY_BOOTSTRAP_TOKEN=%s\n' \
+  "$(openssl rand -hex 24)" \
+  "$(openssl rand -hex 24)" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 32)"
+```
+
+Use hex-only values here because `POSTGRES_PASSWORD` is interpolated into
+`DATABASE_URL`; special characters such as `@`, `:`, `/`, `?`, `#`, and `&`
+can break URL parsing if they are not encoded.
+
+| Variable | What it controls | Rotation note |
+|---|---|---|
+| `POSTGRES_PASSWORD` | Docker Postgres password used by Postgres, pgbouncer, and the API database URL. | Rotating it requires updating the DB/pgbouncer/API configuration together. |
+| `REDIS_PASSWORD` | Redis AUTH password used by Redis and the API. | Rotating it requires updating Redis and the API together. |
+| `JWT_SECRET` | API JWT signing key for access/session tokens. | Keep stable; changing it invalidates active sessions/tokens. |
+| `HRIS_VAULT_MASTER_KEY` | Root secret for HRIS/MFA vault encryption. | Keep stable; changing it can make existing encrypted secrets unreadable unless key rotation is configured through `HRIS_VAULT_MASTER_KEY_PREVIOUS`. |
+| `GATEWAY_BOOTSTRAP_TOKEN` | Bootstrap token used when a new gateway registers with the API. | New gateway registration must use the current value; store it securely and do not put it on devices after provisioning. |
+
+Store the generated values in a password manager or secure operations note.
+The auto-update script pulls code and rebuilds containers, but it does not copy
+the example env template over `.env.staging`, so existing Mac mini secrets stay
+in place across future `git pull` updates.
+
 ## Mac Mini Auto-Update
 
 The staging guide now includes a one-shot updater that fetches `github/main`,
