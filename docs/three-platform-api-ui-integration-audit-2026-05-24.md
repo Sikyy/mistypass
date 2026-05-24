@@ -73,7 +73,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | 优先级 | API | 当前证据 | 建议 |
 |---:|---|---|---|
 | P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
-| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显 | 下一步补 Web Admin Playwright 表单动作 smoke |
+| P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面；已补 `docs/testing/curl-oauth2-client-crud.zsh` 并接入 API Smoke，覆盖 `OAUTH2_ENABLED=true` 下创建、列表、编辑、删除与 secret 不回显；已补 `web-admin/e2e/api-clients-e2e.spec.ts` 覆盖 UI 创建、编辑、禁用、删除 payload | 下一步补 OAuth2 authorize/token 协议 smoke 或转 Audit 外部 receiver smoke |
 | P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
 | P1 已推进 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary`, `/jobs/{jobID}/dlq/requeue` | API 与测试文档存在；Wallet Advanced 已补队列处理、DLQ 重排、DLQ 清理、确认提示、summary 展示、错误码 drill-down 与单条 DLQ 重排；本地 API smoke、Wallet role-boundary e2e、带 DLQ fixture 的 action e2e 通过；Wallet 表单 ref/controlled input warning 已清理 | 下一步转 Audit 外部 receiver / Resend 真实 smoke |
 | P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
@@ -162,6 +162,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] Audit Webhook 页面。
 - [x] OAuth2 Clients / Developer API Clients 页面。
 - [x] OAuth2 Clients `OAUTH2_ENABLED=true` API CRUD smoke。
+- [x] OAuth2 Clients Web Admin 表单动作 e2e。
 - [x] Wallet Google config 页面。
 - [x] Wallet DLQ batch governance、错误码 drill-down 与单条重排。
 - [x] Report schedule `Send now` provider 错误提示。

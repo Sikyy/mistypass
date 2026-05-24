@@ -228,6 +228,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
               <span className="text-sm text-content-subtle">{client.scopes.join(", ") || "read"}</span>
               <StatusDot tone={client.enabled ? "success" : "warning"} label={client.enabled ? "Enabled" : "Disabled"} />
               <RowActionsMenu
+                label={`Actions for ${client.name}`}
                 items={[
                   { id: "edit", label: "Edit", icon: PencilIcon, onSelect: () => openEdit(client) },
                   {
@@ -304,7 +305,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
             {isEditing ? (
               <div className="flex items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3">
                 <span className="text-sm font-medium text-content-heading">Enabled</span>
-                <ToggleSwitch enabled={draft.enabled} onToggle={() => updateDraft({ enabled: !draft.enabled })} />
+                <ToggleSwitch enabled={draft.enabled} label="Enabled" onToggle={() => updateDraft({ enabled: !draft.enabled })} />
               </div>
             ) : null}
             <SheetFooter>
