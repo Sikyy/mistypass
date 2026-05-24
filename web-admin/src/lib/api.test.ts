@@ -8,6 +8,7 @@ import {
   createDoor,
   createTemporaryAccess,
   createUserGroup,
+  getWalletGoogleConfig,
   listAccessEvents,
   listBuildings,
   listDoorGroups,
@@ -23,9 +24,11 @@ import {
   rebootGateway,
   restoreGatewayCertificateSerial,
   revokeGatewayCertificateSerial,
+  upsertWalletGoogleConfig,
   updateWalletPhysicalCardInventoryStatus,
   updateGatewayStatus,
   updateUserGroup,
+  validateWalletGoogleConfig,
 } from "./api"
 
 describe("api list response normalization", () => {
@@ -1002,6 +1005,73 @@ describe("legacy wallet pass helper", () => {
 
     expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/cards?tenant_id=tenant_demo"))
     expect(fetchMock.mock.calls[0][0]).not.toContain("/api/v1/wallet/passes")
+  })
+})
+
+describe("wallet google config helpers", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("reads, saves, and validates provider config through wallet google routes", async () => {
+    const config = {
+      id: "wcfg_001",
+      tenant_id: "tenant_demo",
+      provider: "google",
+      issuer_id: "issuer_001",
+      service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+      key_ref: "kms://wallet/google/issuer",
+      status: "active",
+      created_at: "2026-05-24T10:00:00Z",
+      updated_at: "2026-05-24T10:05:00Z",
+    }
+    const validation = {
+      provider: "google",
+      tenant_id: "tenant_demo",
+      valid: true,
+      items: [{ field: "issuer_id", status: "ok", message: "issuer_id looks good" }],
+      checked_at: "2026-05-24T10:10:00Z",
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(config), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(config), { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(validation), { status: 200, headers: { "Content-Type": "application/json" } }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    await expect(getWalletGoogleConfig("token", "tenant_demo")).resolves.toMatchObject({
+      issuer_id: "issuer_001",
+      status: "active",
+    })
+    await expect(
+      upsertWalletGoogleConfig("token", {
+        tenant_id: "tenant_demo",
+        issuer_id: "issuer_001",
+        service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+        key_ref: "kms://wallet/google/issuer",
+        status: "active",
+        actor: "web_admin.wallet.google_config",
+      })
+    ).resolves.toMatchObject({ id: "wcfg_001" })
+    await expect(
+      validateWalletGoogleConfig("token", {
+        tenant_id: "tenant_demo",
+        issuer_id: "issuer_001",
+        service_account_email: "wallet-issuer@example.iam.gserviceaccount.com",
+        key_ref: "kms://wallet/google/issuer",
+      })
+    ).resolves.toMatchObject({ valid: true })
+
+    expect(fetchMock.mock.calls[0][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config?tenant_id=tenant_demo"))
+    expect(fetchMock.mock.calls[1][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config"))
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("PUT")
+    expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string)).toMatchObject({
+      tenant_id: "tenant_demo",
+      status: "active",
+      actor: "web_admin.wallet.google_config",
+    })
+    expect(fetchMock.mock.calls[2][0]).toEqual(expect.stringContaining("/api/v1/wallet/google/config/validate"))
+    expect(fetchMock.mock.calls[2][1]?.method).toBe("POST")
   })
 })
 

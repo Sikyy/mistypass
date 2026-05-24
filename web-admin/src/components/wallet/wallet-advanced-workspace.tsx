@@ -8,10 +8,12 @@ import { WalletAlertNotificationRecordsCard } from "@/components/wallet/wallet-a
 import { WalletAlertSubscriptionCard } from "@/components/wallet/wallet-alert-subscription-card"
 import { WalletAlertTrendPanels } from "@/components/wallet/wallet-alert-trend-panels"
 import { WalletDlqCleanupArchivesCard } from "@/components/wallet/wallet-dlq-cleanup-archives-card"
+import { WalletGoogleConfigCard } from "@/components/wallet/wallet-google-config-card"
 import { WalletPhysicalCardTasksSection } from "@/components/wallet/wallet-physical-card-tasks-section"
 import { WalletRiskOverviewPanels } from "@/components/wallet/wallet-risk-overview-panels"
 
 type WalletAdvancedWorkspaceProps = {
+  googleConfigCardProps: ComponentProps<typeof WalletGoogleConfigCard>
   physicalCardTasksSectionProps: ComponentProps<typeof WalletPhysicalCardTasksSection>
   alertSubscriptionCardProps: ComponentProps<typeof WalletAlertSubscriptionCard>
   riskOverviewPanelsProps: ComponentProps<typeof WalletRiskOverviewPanels>
@@ -21,6 +23,7 @@ type WalletAdvancedWorkspaceProps = {
 }
 
 export function WalletAdvancedWorkspace({
+  googleConfigCardProps,
   physicalCardTasksSectionProps,
   alertSubscriptionCardProps,
   riskOverviewPanelsProps,
@@ -37,7 +40,14 @@ export function WalletAdvancedWorkspace({
   const alertItems = riskOverviewPanelsProps.alertItems ?? []
   const alertNotifications = alertNotificationRecordsCardProps.alertNotifications ?? []
   const dlqArchives = dlqCleanupArchivesCardProps.archives ?? []
+  const googleConfigStatus = googleConfigCardProps.config
+    ? t("walletPage.advanced.summary.googleConfigured")
+    : t("walletPage.advanced.summary.googleNotConfigured")
   const summaryItems = [
+    {
+      label: t("walletPage.advanced.summary.googleConfig"),
+      value: googleConfigStatus,
+    },
     {
       label: t("walletPage.advanced.summary.physicalTasks"),
       value: recentPhysicalCardTasks.length,
@@ -89,6 +99,8 @@ export function WalletAdvancedWorkspace({
 
       {open ? (
         <div className="space-y-4 border-t px-4 py-4" data-testid="wallet-advanced-content">
+          <WalletGoogleConfigCard {...googleConfigCardProps} />
+
           <WalletPhysicalCardTasksSection {...physicalCardTasksSectionProps} />
 
           <WalletAlertSubscriptionCard {...alertSubscriptionCardProps} />

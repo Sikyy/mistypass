@@ -21,6 +21,12 @@ export type WalletDLQCleanupArchive = { id: string; tenant_id: string; limit: nu
 export type WalletJobAlertSubscription = { tenant_id: string; enabled: boolean; dlq_alert_threshold: number; window_seconds: number; cooldown_seconds: number; channels: { email: boolean; whatsapp: boolean }; receiver_groups?: string[]; updated_at: string }
 export type WalletJobAlertNotification = { id: string; tenant_id: string; type: string; error_code?: string; count: number; threshold: number; channels?: string[]; receiver_groups?: string[]; status: "sent" | "skipped" | "failed"; reason?: string; idempotency_key?: string; attempt?: number; retryable: boolean; provider?: string; provider_error?: string; channel_results?: Array<{ channel: string; status: "sent" | "skipped" | "failed"; reason?: string; provider?: string; provider_error?: string; retryable: boolean; receivers?: string[] }>; source_notification_id?: string; triggered_at: string }
 export type WalletJobAlertDispatchResult = { tenant_id: string; window_seconds: number; max_retry: number; dlq_alert_threshold: number; total_alerts: number; dispatched: number; skipped: number; failed: number; items?: WalletJobAlertNotification[]; updated_at: string }
+export type WalletGoogleConfigStatus = "active" | "inactive"
+export type WalletGoogleConfig = { id: string; tenant_id: string; provider: "google" | string; issuer_id: string; service_account_email: string; key_ref: string; status: WalletGoogleConfigStatus | string; created_at: string; updated_at: string }
+export type WalletGoogleConfigValidationItem = { field: string; status: "ok" | "warn" | "error" | string; message: string }
+export type WalletGoogleConfigValidation = { provider: "google" | string; tenant_id: string; valid: boolean; items: WalletGoogleConfigValidationItem[]; checked_at: string }
+export type WalletGoogleConfigPayload = { tenant_id: string; issuer_id: string; service_account_email: string; key_ref: string; status: WalletGoogleConfigStatus; actor?: string }
+export type WalletGoogleConfigValidationPayload = Pick<WalletGoogleConfigPayload, "tenant_id" | "issuer_id" | "service_account_email" | "key_ref">
 
 // --- Wallet Pass card adapter helpers ---
 
@@ -48,6 +54,11 @@ function walletPassFromCard(card: Card): WalletPassInstance {
 export async function listWalletTemplates(token: string | undefined, tenantID?: string): Promise<WalletPassTemplate[]> { return requestItems<WalletPassTemplate>(withTenantQuery("/api/v1/wallet/templates", tenantID), token) }
 export async function createWalletTemplate(token: string | undefined, payload: { tenant_id: string; pass_type: "employee" | "visitor"; class_id?: string; name: string; style_config?: Record<string, string>; status?: "active" | "inactive"; actor?: string }): Promise<WalletPassTemplate> { return request<WalletPassTemplate>("/api/v1/wallet/templates", { method: "POST", body: JSON.stringify(payload) }, token) }
 export async function updateWalletTemplateStatus(token: string | undefined, templateID: string, payload: { tenant_id: string; status: "active" | "inactive"; actor?: string }): Promise<WalletPassTemplate> { return request<WalletPassTemplate>(withTenantQuery(`/api/v1/wallet/templates/${encodePathSegment(templateID)}/status`, payload.tenant_id), { method: "PATCH", body: JSON.stringify({ status: payload.status, actor: payload.actor }) }, token) }
+
+// --- Google Wallet provider config ---
+export async function getWalletGoogleConfig(token: string | undefined, tenantID?: string): Promise<WalletGoogleConfig> { return request<WalletGoogleConfig>(withTenantQuery("/api/v1/wallet/google/config", tenantID), { method: "GET" }, token) }
+export async function upsertWalletGoogleConfig(token: string | undefined, payload: WalletGoogleConfigPayload): Promise<WalletGoogleConfig> { return request<WalletGoogleConfig>("/api/v1/wallet/google/config", { method: "PUT", body: JSON.stringify(payload) }, token) }
+export async function validateWalletGoogleConfig(token: string | undefined, payload: WalletGoogleConfigValidationPayload): Promise<WalletGoogleConfigValidation> { return request<WalletGoogleConfigValidation>("/api/v1/wallet/google/config/validate", { method: "POST", body: JSON.stringify(payload) }, token) }
 
 // --- Passes ---
 export async function issueWalletPass(token: string | undefined, payload: { tenant_id: string; template_id: string; target_type: "user" | "visitor"; target_id: string; expires_at?: string; actor?: string }): Promise<WalletPassInstance> { return request<WalletPassInstance>("/api/v1/wallet/passes/issue", { method: "POST", body: JSON.stringify(payload) }, token) }

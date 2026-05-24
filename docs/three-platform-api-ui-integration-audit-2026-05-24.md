@@ -74,7 +74,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 |---:|---|---|---|
 | P0 已推进 | `/api/v1/audit/webhook/config`, `/deliveries`, `/dispatch` | OpenAPI、curl 文档和 `/audit` 页面业务调用已存在 | 下一步接外部 webhook receiver smoke 与失败重试可视化细节 |
 | P1 已推进 | `/api/v1/oauth2/clients` | OpenAPI 存在；Web Admin 已新增 Developer / API Clients 页面 | 下一步按 `OAUTH2_ENABLED=true` 跑创建/编辑/删除 smoke |
-| P1 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在，UI 无调用 | Wallet Advanced 中补 Google Wallet provider config |
+| P1 已推进 | `/api/v1/wallet/google/config`, `/validate` | OpenAPI 与计划文档存在；Web Admin Wallet Advanced 已新增 Google Wallet provider config 保存/验证面板 | 下一步在具备 LEI/Google Wallet 条件后跑真实 issuer/key smoke |
 | P1 | `/api/v1/wallet/jobs/dlq/requeue`, `/cleanup`, `/process`, `/summary` | API 与测试文档存在，UI 目前主要展示 archives/metrics/alerts | Wallet Queue Ops 补批量治理按钮和确认弹窗 |
 | P1 已推进 | `/api/v1/report-schedules/{id}/send`, `/api/v1/report-schedules/provider-status` | API 存在；Report schedule UI 已补 “Send now” 行操作和 provider status 状态条 | 下一步接真实 Resend DNS/key smoke 与回执入库 |
 | P2 | `/api/v1/uploads/*` | OpenAPI 存在，UI 只在局部功能使用或未形成统一入口 | 归入附件/导入控件，不单独做页面 |
@@ -142,7 +142,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
 | OAuth2 clients | API 已有 | 已补 API Clients 页面 | N/A | N/A | P1 已推进 |
-| Wallet Google config | API 已有 | 无 UI | 钱包真实发卡未接 | 未接 | P1/P2 视 LEI 和 Google Wallet 条件推进 |
+| Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | export 默认值需确认 | Android spec 显示兼容 | P1 修移动端默认/文案 |
 | Camera cloud | API 已有 | Admin camera 基础页 | 未接 cloud token/recordings | 未接 cloud token/recordings | P1/P2 与真实摄像头排期合并 |
 | Email provider | 已新增统一 `MailProvider` + Resend provider | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 DNS/回执 |
@@ -161,7 +161,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 
 - [x] Audit Webhook 页面。
 - [x] OAuth2 Clients / Developer API Clients 页面。
-- Wallet Google config 页面。
+- [x] Wallet Google config 页面。
 - Wallet DLQ batch governance 操作按钮。
 - [x] Report schedule `Send now` provider 错误提示。
 - [x] Report schedule provider health/status 只读展示。

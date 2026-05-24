@@ -118,8 +118,9 @@
 
 ### 5.1 配置与模板
 
-- `GET /wallet/google/config`
-- `PUT /wallet/google/config`
+- `GET /api/v1/wallet/google/config`
+- `PUT /api/v1/wallet/google/config`
+- `POST /api/v1/wallet/google/config/validate`
 - `GET /wallet/templates`
 - `POST /wallet/templates`
 - `PATCH /wallet/templates/{templateId}/status`
@@ -221,6 +222,11 @@
 - `GET /api/v1/wallet/jobs/{jobId}`
 - `POST /api/v1/wallet/jobs/{jobId}/retry`
 - `GET /api/v1/wallet/audit-logs`
+
+## 12. Web Admin 状态（2026-05-24）
+
+- Wallet Advanced 已接入 Google Wallet provider config 面板，支持按当前租户读取、保存 `issuer_id` / `service_account_email` / `key_ref` / `status`。
+- 同一面板已接入 `/api/v1/wallet/google/config/validate`，可先做本地格式验证；远端 Google issuer 校验仍由 `WALLET_GOOGLE_REMOTE_VALIDATE=true` 与真实 LEI/issuer 条件控制。
 
 说明：
 
