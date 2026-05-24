@@ -8,6 +8,8 @@ LOGIN_EMAIL="${LOGIN_EMAIL:-superadmin@mistypass.local}"
 LOGIN_PASSWORD="${LOGIN_PASSWORD:-admin123}"
 SERVER_LOG="${SERVER_LOG:-/tmp/mp_pg_replay_curve_api.log}"
 RESULT_CSV="${RESULT_CSV:-}"
+API_STARTUP_ATTEMPTS="${API_STARTUP_ATTEMPTS:-240}"
+API_STARTUP_SLEEP_SECONDS="${API_STARTUP_SLEEP_SECONDS:-0.5}"
 
 LEVEL_TENANT_WRITES="${LEVEL_TENANT_WRITES:-10,20,40}"
 LEVEL_BUILDINGS_PER_TENANT="${LEVEL_BUILDINGS_PER_TENANT:-1,1,1}"
@@ -88,15 +90,15 @@ function start_api() {
   API_PID="$!"
 
   local i
-  for i in {1..100}; do
+  for (( i = 1; i <= API_STARTUP_ATTEMPTS; i++ )); do
     if curl -sS "${API_BASE_URL}/healthz" >/dev/null 2>&1; then
       echo "api: started on ${API_BASE_URL}"
       return
     fi
-    sleep 0.2
+    sleep "${API_STARTUP_SLEEP_SECONDS}"
   done
 
-  echo "FAIL start_api: healthz not ready"
+  echo "FAIL start_api: healthz not ready after ${API_STARTUP_ATTEMPTS} attempts"
   if [[ -f "${SERVER_LOG}" ]]; then
     tail -n 120 "${SERVER_LOG}"
   fi
