@@ -55,6 +55,14 @@ function header() {
   echo "${YELLOW}== $1 ==${NC}"
 }
 
+header "Mobile route contract drift"
+
+if "${SCRIPT_DIR}/check-mobile-app-route-drift.zsh"; then
+  pass "iOS/Android route literals match mobile OpenAPI"
+else
+  fail "iOS/Android route literals match mobile OpenAPI"
+fi
+
 header "iOS simulator tests"
 
 if [[ ! -d "${IOS_REPO}" ]]; then
