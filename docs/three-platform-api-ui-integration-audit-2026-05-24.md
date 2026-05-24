@@ -111,8 +111,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 |---:|---|---|---|
 | P0 已完成 | `Constants.API.walletPassSuspendPath/ActivatePath/RevokePath` | 调 `/api/v1/wallet/passes/{id}/...` 时没有带 `tenant_id`；后端 `changeWalletPassStatus` 从 query 解析 tenant | 方法已增加 `tenantId` 参数，并改为 `...?tenant_id=` |
 | P1 已完成 | `APIService.exportReport` | 默认 `format = "csv"`，但新 PDF 报表已成为主路径 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `714d0f6` 已改默认 PDF，并补模型/常量测试 |
-| P1 | `Constants.API` | 大量路径手写，且有些常量未被 UI 调用 | 等 mobile OpenAPI 补齐后生成 typed client 或生成常量 |
-| P1 已推进 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，已补 mock-backed 成功路径测试；iOS 已补 cloud token/recordings 入口、空态和错误态 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `a87b1c5` 已接 UI；后续做真实设备 staging 验收 |
+| P1 已推进 | `Constants.API` | 大量路径手写，且有些常量未被 UI 调用 | 已新增 mobile route typed constants 生成器与 drift guard；后续把 iOS `Constants.API` 逐步切到生成的 `MobileAPIRoutes` |
+| P1 已推进 | 摄像头 cloud token/recordings | 后端有 `/app/cameras/{id}/cloud-token`、`cloud-recordings`，已补 mock-backed 成功路径测试；iOS 已补 cloud token/recordings 入口、空态和错误态；2026-05-24 route guard 发现 cloud-token method 漂移并在 [iOS PR #7](https://github.com/Sikyy/IOS-mistypass/pull/7) 修为 `GET` | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `a87b1c5` 已接 UI；后续做真实设备 staging 验收 |
 | P2 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) `714d0f6` 已接 event/incident detail APIs；`a87b1c5` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
 
 ## 5. Android API 审计
@@ -131,13 +131,13 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | P1 | Device push | Android 只有 `POST /app/devices/register`，后端另有 iOS APNS `/app/devices/apns`；FCM token 注册语义需确认 | 明确 Android FCM 是否复用 register，或新增 `/app/devices/fcm` |
 | P1 已推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android 已补 cloud token/recordings 入口、空态和错误态 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `aa63653` 已接 UI；后续做真实设备 staging 验收 |
 | P1 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `5b841d5` 已接 event/incident detail APIs；`aa63653` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
-| P2 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | mobile OpenAPI 完成后生成 Retrofit interface 或至少生成 path constants |
+| P2 已推进 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | 已新增 Kotlin typed route constants 与 Retrofit method/path drift guard；后续把高风险 `@GET/@POST` 注解逐步切到 `MobileApiRoutes.*RetrofitPath` |
 
 ## 6. 三端不一致清单
 
 | 领域 | 后端 | Web Admin | iOS | Android | 结论 |
 |---|---|---|---|---|---|
-| Mobile OpenAPI | 已生成 128 个 `/app` 路径；events/incidents/users/zones/holiday deep routes 已接 API Smoke，camera cloud 已接 mock-backed API test | 不依赖 | events/incidents/user/zone/camera deep UI 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | events/incidents/user/zone/camera deep UI 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P0 已完成，后续推进 generated client |
+| Mobile OpenAPI | 已生成 128 个 `/app` 路径、154 个 mobile operations；events/incidents/users/zones/holiday deep routes 已接 API Smoke，camera cloud 已接 mock-backed API test | 不依赖 | events/incidents/user/zone/camera deep UI 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5)；typed route constants 已生成待接入 | events/incidents/user/zone/camera deep UI 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11)；typed route constants 已生成待接入 | P1 已推进，route drift guard 会校验生成物、路径和 Android HTTP method |
 | Wallet pass status | 需要 `tenant_id` query | 已带 tenant query | 已修 | 移动端暂未主路径调用 | P0 已完成 |
 | Android debug base URL | 本地常用 8080/18080 | N/A | dev 可用 localhost | debug 已指向 `10.0.2.2:8080` | P0 已完成 |
 | Audit webhook | API 已有 | 已补 `/audit` 配置与投递 UI | N/A | N/A | P1 已推进 |
@@ -156,10 +156,11 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] 新增 route coverage test，防止 OpenAPI 再次落后。
 - [x] 修 iOS Wallet pass status tenant query。
 - [x] 修 Android debug base URL。
+- [x] 生成 Swift/Kotlin typed mobile route constants，并让 route drift guard 校验生成物、路径和 Android Retrofit method。
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [ ] Android emulator/device install smoke：当前本机没有 `emulator` 命令、无 AVD、`adb devices` 无设备，需补 Android Studio emulator/AVD 或 USB 真机后跑。
-- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-24 22:36 WIB 复测 `staging-api.mistyislet.com` DNS 解析失败，见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
 
 本地可重复脚本：
 

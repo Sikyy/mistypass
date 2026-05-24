@@ -1,0 +1,1826 @@
+{
+  "generatedBy": "api/cmd/openapi-extract/generate_mobile_routes.py",
+  "operationCount": 154,
+  "operations": [
+    {
+      "operationId": "fetchAppAccessBLEToken",
+      "method": "GET",
+      "apiPath": "/api/v1/app/access/ble-token",
+      "path": "/app/access/ble-token",
+      "retrofitPath": "app/access/ble-token",
+      "parameters": [],
+      "swiftName": "fetchAppAccessBLEToken",
+      "kotlinName": "fetchAppAccessBLEToken"
+    },
+    {
+      "operationId": "fetchAppAccessDoors",
+      "method": "GET",
+      "apiPath": "/api/v1/app/access/doors",
+      "path": "/app/access/doors",
+      "retrofitPath": "app/access/doors",
+      "parameters": [],
+      "swiftName": "fetchAppAccessDoors",
+      "kotlinName": "fetchAppAccessDoors"
+    },
+    {
+      "operationId": "putAppAccessDoorsDoorIdFavorite",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/access/doors/{doorId}/favorite",
+      "path": "/app/access/doors/{doorId}/favorite",
+      "retrofitPath": "app/access/doors/{doorId}/favorite",
+      "parameters": [
+        "doorId"
+      ],
+      "swiftName": "putAppAccessDoorsDoorIdFavorite",
+      "kotlinName": "putAppAccessDoorsDoorIdFavorite"
+    },
+    {
+      "operationId": "fetchAppAccessLogs",
+      "method": "GET",
+      "apiPath": "/api/v1/app/access/logs",
+      "path": "/app/access/logs",
+      "retrofitPath": "app/access/logs",
+      "parameters": [],
+      "swiftName": "fetchAppAccessLogs",
+      "kotlinName": "fetchAppAccessLogs"
+    },
+    {
+      "operationId": "fetchAppAccessMyDoors",
+      "method": "GET",
+      "apiPath": "/api/v1/app/access/my-doors",
+      "path": "/app/access/my-doors",
+      "retrofitPath": "app/access/my-doors",
+      "parameters": [],
+      "swiftName": "fetchAppAccessMyDoors",
+      "kotlinName": "fetchAppAccessMyDoors"
+    },
+    {
+      "operationId": "getAppAccessPinCode",
+      "method": "GET",
+      "apiPath": "/api/v1/app/access/pin-code",
+      "path": "/app/access/pin-code",
+      "retrofitPath": "app/access/pin-code",
+      "parameters": [],
+      "swiftName": "getAppAccessPinCode",
+      "kotlinName": "getAppAccessPinCode"
+    },
+    {
+      "operationId": "postAppAccessPinUnlock",
+      "method": "POST",
+      "apiPath": "/api/v1/app/access/pin-unlock",
+      "path": "/app/access/pin-unlock",
+      "retrofitPath": "app/access/pin-unlock",
+      "parameters": [],
+      "swiftName": "postAppAccessPinUnlock",
+      "kotlinName": "postAppAccessPinUnlock"
+    },
+    {
+      "operationId": "appQRUnlockDoor",
+      "method": "POST",
+      "apiPath": "/api/v1/app/access/qr-unlock",
+      "path": "/app/access/qr-unlock",
+      "retrofitPath": "app/access/qr-unlock",
+      "parameters": [],
+      "swiftName": "appQRUnlockDoor",
+      "kotlinName": "appQRUnlockDoor"
+    },
+    {
+      "operationId": "appUnlockDoor",
+      "method": "POST",
+      "apiPath": "/api/v1/app/access/unlock",
+      "path": "/app/access/unlock",
+      "retrofitPath": "app/access/unlock",
+      "parameters": [],
+      "swiftName": "appUnlockDoor",
+      "kotlinName": "appUnlockDoor"
+    },
+    {
+      "operationId": "getAppAlarmSchedules",
+      "method": "GET",
+      "apiPath": "/api/v1/app/alarm-schedules",
+      "path": "/app/alarm-schedules",
+      "retrofitPath": "app/alarm-schedules",
+      "parameters": [],
+      "swiftName": "getAppAlarmSchedules",
+      "kotlinName": "getAppAlarmSchedules"
+    },
+    {
+      "operationId": "getAppAlarmSchedulesCalendar",
+      "method": "GET",
+      "apiPath": "/api/v1/app/alarm-schedules/calendar",
+      "path": "/app/alarm-schedules/calendar",
+      "retrofitPath": "app/alarm-schedules/calendar",
+      "parameters": [],
+      "swiftName": "getAppAlarmSchedulesCalendar",
+      "kotlinName": "getAppAlarmSchedulesCalendar"
+    },
+    {
+      "operationId": "getAppAlarms",
+      "method": "GET",
+      "apiPath": "/api/v1/app/alarms",
+      "path": "/app/alarms",
+      "retrofitPath": "app/alarms",
+      "parameters": [],
+      "swiftName": "getAppAlarms",
+      "kotlinName": "getAppAlarms"
+    },
+    {
+      "operationId": "getAppAlarmsStream",
+      "method": "GET",
+      "apiPath": "/api/v1/app/alarms/stream",
+      "path": "/app/alarms/stream",
+      "retrofitPath": "app/alarms/stream",
+      "parameters": [],
+      "swiftName": "getAppAlarmsStream",
+      "kotlinName": "getAppAlarmsStream"
+    },
+    {
+      "operationId": "patchAppAlarmsAlarmIDStatus",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/alarms/{alarmID}/status",
+      "path": "/app/alarms/{alarmID}/status",
+      "retrofitPath": "app/alarms/{alarmID}/status",
+      "parameters": [
+        "alarmID"
+      ],
+      "swiftName": "patchAppAlarmsAlarmIDStatus",
+      "kotlinName": "patchAppAlarmsAlarmIDStatus"
+    },
+    {
+      "operationId": "postAppAuth2faBackup",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/2fa/backup",
+      "path": "/app/auth/2fa/backup",
+      "retrofitPath": "app/auth/2fa/backup",
+      "parameters": [],
+      "swiftName": "postAppAuth2faBackup",
+      "kotlinName": "postAppAuth2faBackup"
+    },
+    {
+      "operationId": "postAppAuth2faVerify",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/2fa/verify",
+      "path": "/app/auth/2fa/verify",
+      "retrofitPath": "app/auth/2fa/verify",
+      "parameters": [],
+      "swiftName": "postAppAuth2faVerify",
+      "kotlinName": "postAppAuth2faVerify"
+    },
+    {
+      "operationId": "createAppLoginSession",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/login",
+      "path": "/app/auth/login",
+      "retrofitPath": "app/auth/login",
+      "parameters": [],
+      "swiftName": "createAppLoginSession",
+      "kotlinName": "createAppLoginSession"
+    },
+    {
+      "operationId": "postAppAuthMagicLink",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/magic-link",
+      "path": "/app/auth/magic-link",
+      "retrofitPath": "app/auth/magic-link",
+      "parameters": [],
+      "swiftName": "postAppAuthMagicLink",
+      "kotlinName": "postAppAuthMagicLink"
+    },
+    {
+      "operationId": "postAppAuthMagicLinkVerify",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/magic-link/verify",
+      "path": "/app/auth/magic-link/verify",
+      "retrofitPath": "app/auth/magic-link/verify",
+      "parameters": [],
+      "swiftName": "postAppAuthMagicLinkVerify",
+      "kotlinName": "postAppAuthMagicLinkVerify"
+    },
+    {
+      "operationId": "getAppAuthOrgLookup",
+      "method": "GET",
+      "apiPath": "/api/v1/app/auth/org-lookup",
+      "path": "/app/auth/org-lookup",
+      "retrofitPath": "app/auth/org-lookup",
+      "parameters": [],
+      "swiftName": "getAppAuthOrgLookup",
+      "kotlinName": "getAppAuthOrgLookup"
+    },
+    {
+      "operationId": "getAppAuthOrgOrgIdMethods",
+      "method": "GET",
+      "apiPath": "/api/v1/app/auth/org/{orgId}/methods",
+      "path": "/app/auth/org/{orgId}/methods",
+      "retrofitPath": "app/auth/org/{orgId}/methods",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "getAppAuthOrgOrgIdMethods",
+      "kotlinName": "getAppAuthOrgOrgIdMethods"
+    },
+    {
+      "operationId": "refreshAppLoginSession",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/refresh",
+      "path": "/app/auth/refresh",
+      "retrofitPath": "app/auth/refresh",
+      "parameters": [],
+      "swiftName": "refreshAppLoginSession",
+      "kotlinName": "refreshAppLoginSession"
+    },
+    {
+      "operationId": "postAppAuthRegister",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/register",
+      "path": "/app/auth/register",
+      "retrofitPath": "app/auth/register",
+      "parameters": [],
+      "swiftName": "postAppAuthRegister",
+      "kotlinName": "postAppAuthRegister"
+    },
+    {
+      "operationId": "postAppAuthRestorePassword",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/restore-password",
+      "path": "/app/auth/restore-password",
+      "retrofitPath": "app/auth/restore-password",
+      "parameters": [],
+      "swiftName": "postAppAuthRestorePassword",
+      "kotlinName": "postAppAuthRestorePassword"
+    },
+    {
+      "operationId": "postAppAuthSsoOrgId",
+      "method": "POST",
+      "apiPath": "/api/v1/app/auth/sso/{orgId}",
+      "path": "/app/auth/sso/{orgId}",
+      "retrofitPath": "app/auth/sso/{orgId}",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "postAppAuthSsoOrgId",
+      "kotlinName": "postAppAuthSsoOrgId"
+    },
+    {
+      "operationId": "getAppBookableSpaces",
+      "method": "GET",
+      "apiPath": "/api/v1/app/bookable-spaces",
+      "path": "/app/bookable-spaces",
+      "retrofitPath": "app/bookable-spaces",
+      "parameters": [],
+      "swiftName": "getAppBookableSpaces",
+      "kotlinName": "getAppBookableSpaces"
+    },
+    {
+      "operationId": "getAppBookableSpacesSpaceIDStatus",
+      "method": "GET",
+      "apiPath": "/api/v1/app/bookable-spaces/{spaceID}/status",
+      "path": "/app/bookable-spaces/{spaceID}/status",
+      "retrofitPath": "app/bookable-spaces/{spaceID}/status",
+      "parameters": [
+        "spaceID"
+      ],
+      "swiftName": "getAppBookableSpacesSpaceIDStatus",
+      "kotlinName": "getAppBookableSpacesSpaceIDStatus"
+    },
+    {
+      "operationId": "getAppBookings",
+      "method": "GET",
+      "apiPath": "/api/v1/app/bookings",
+      "path": "/app/bookings",
+      "retrofitPath": "app/bookings",
+      "parameters": [],
+      "swiftName": "getAppBookings",
+      "kotlinName": "getAppBookings"
+    },
+    {
+      "operationId": "postAppBookings",
+      "method": "POST",
+      "apiPath": "/api/v1/app/bookings",
+      "path": "/app/bookings",
+      "retrofitPath": "app/bookings",
+      "parameters": [],
+      "swiftName": "postAppBookings",
+      "kotlinName": "postAppBookings"
+    },
+    {
+      "operationId": "postAppBookingsBookingIDCancel",
+      "method": "POST",
+      "apiPath": "/api/v1/app/bookings/{bookingID}/cancel",
+      "path": "/app/bookings/{bookingID}/cancel",
+      "retrofitPath": "app/bookings/{bookingID}/cancel",
+      "parameters": [
+        "bookingID"
+      ],
+      "swiftName": "postAppBookingsBookingIDCancel",
+      "kotlinName": "postAppBookingsBookingIDCancel"
+    },
+    {
+      "operationId": "postAppBookingsBookingIDCheckIn",
+      "method": "POST",
+      "apiPath": "/api/v1/app/bookings/{bookingID}/check-in",
+      "path": "/app/bookings/{bookingID}/check-in",
+      "retrofitPath": "app/bookings/{bookingID}/check-in",
+      "parameters": [
+        "bookingID"
+      ],
+      "swiftName": "postAppBookingsBookingIDCheckIn",
+      "kotlinName": "postAppBookingsBookingIDCheckIn"
+    },
+    {
+      "operationId": "postAppBookingsBookingIDCheckOut",
+      "method": "POST",
+      "apiPath": "/api/v1/app/bookings/{bookingID}/check-out",
+      "path": "/app/bookings/{bookingID}/check-out",
+      "retrofitPath": "app/bookings/{bookingID}/check-out",
+      "parameters": [
+        "bookingID"
+      ],
+      "swiftName": "postAppBookingsBookingIDCheckOut",
+      "kotlinName": "postAppBookingsBookingIDCheckOut"
+    },
+    {
+      "operationId": "getAppCameras",
+      "method": "GET",
+      "apiPath": "/api/v1/app/cameras",
+      "path": "/app/cameras",
+      "retrofitPath": "app/cameras",
+      "parameters": [],
+      "swiftName": "getAppCameras",
+      "kotlinName": "getAppCameras"
+    },
+    {
+      "operationId": "getAppCamerasCameraIDCloudRecordings",
+      "method": "GET",
+      "apiPath": "/api/v1/app/cameras/{cameraID}/cloud-recordings",
+      "path": "/app/cameras/{cameraID}/cloud-recordings",
+      "retrofitPath": "app/cameras/{cameraID}/cloud-recordings",
+      "parameters": [
+        "cameraID"
+      ],
+      "swiftName": "getAppCamerasCameraIDCloudRecordings",
+      "kotlinName": "getAppCamerasCameraIDCloudRecordings"
+    },
+    {
+      "operationId": "getAppCamerasCameraIDCloudToken",
+      "method": "GET",
+      "apiPath": "/api/v1/app/cameras/{cameraID}/cloud-token",
+      "path": "/app/cameras/{cameraID}/cloud-token",
+      "retrofitPath": "app/cameras/{cameraID}/cloud-token",
+      "parameters": [
+        "cameraID"
+      ],
+      "swiftName": "getAppCamerasCameraIDCloudToken",
+      "kotlinName": "getAppCamerasCameraIDCloudToken"
+    },
+    {
+      "operationId": "postAppCamerasCameraIDSnapshot",
+      "method": "POST",
+      "apiPath": "/api/v1/app/cameras/{cameraID}/snapshot",
+      "path": "/app/cameras/{cameraID}/snapshot",
+      "retrofitPath": "app/cameras/{cameraID}/snapshot",
+      "parameters": [
+        "cameraID"
+      ],
+      "swiftName": "postAppCamerasCameraIDSnapshot",
+      "kotlinName": "postAppCamerasCameraIDSnapshot"
+    },
+    {
+      "operationId": "getAppCamerasCameraIDVideoLink",
+      "method": "GET",
+      "apiPath": "/api/v1/app/cameras/{cameraID}/video-link",
+      "path": "/app/cameras/{cameraID}/video-link",
+      "retrofitPath": "app/cameras/{cameraID}/video-link",
+      "parameters": [
+        "cameraID"
+      ],
+      "swiftName": "getAppCamerasCameraIDVideoLink",
+      "kotlinName": "getAppCamerasCameraIDVideoLink"
+    },
+    {
+      "operationId": "patchAppCamerasCameraId",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/cameras/{cameraId}",
+      "path": "/app/cameras/{cameraId}",
+      "retrofitPath": "app/cameras/{cameraId}",
+      "parameters": [
+        "cameraId"
+      ],
+      "swiftName": "patchAppCamerasCameraId",
+      "kotlinName": "patchAppCamerasCameraId"
+    },
+    {
+      "operationId": "fetchAppCredentials",
+      "method": "GET",
+      "apiPath": "/api/v1/app/credentials",
+      "path": "/app/credentials",
+      "retrofitPath": "app/credentials",
+      "parameters": [],
+      "swiftName": "fetchAppCredentials",
+      "kotlinName": "fetchAppCredentials"
+    },
+    {
+      "operationId": "enrollAppApplePass",
+      "method": "POST",
+      "apiPath": "/api/v1/app/credentials/apple-pass",
+      "path": "/app/credentials/apple-pass",
+      "retrofitPath": "app/credentials/apple-pass",
+      "parameters": [],
+      "swiftName": "enrollAppApplePass",
+      "kotlinName": "enrollAppApplePass"
+    },
+    {
+      "operationId": "listMobileCredentials",
+      "method": "GET",
+      "apiPath": "/api/v1/app/credentials/mobile",
+      "path": "/app/credentials/mobile",
+      "retrofitPath": "app/credentials/mobile",
+      "parameters": [],
+      "swiftName": "listMobileCredentials",
+      "kotlinName": "listMobileCredentials"
+    },
+    {
+      "operationId": "revokeMobileCredentialSelf",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/credentials/mobile/{credentialID}",
+      "path": "/app/credentials/mobile/{credentialID}",
+      "retrofitPath": "app/credentials/mobile/{credentialID}",
+      "parameters": [
+        "credentialID"
+      ],
+      "swiftName": "revokeMobileCredentialSelf",
+      "kotlinName": "revokeMobileCredentialSelf"
+    },
+    {
+      "operationId": "refreshMobileCredential",
+      "method": "POST",
+      "apiPath": "/api/v1/app/credentials/mobile/{credentialID}/refresh",
+      "path": "/app/credentials/mobile/{credentialID}/refresh",
+      "retrofitPath": "app/credentials/mobile/{credentialID}/refresh",
+      "parameters": [
+        "credentialID"
+      ],
+      "swiftName": "refreshMobileCredential",
+      "kotlinName": "refreshMobileCredential"
+    },
+    {
+      "operationId": "getAppCredentialsNfc",
+      "method": "GET",
+      "apiPath": "/api/v1/app/credentials/nfc",
+      "path": "/app/credentials/nfc",
+      "retrofitPath": "app/credentials/nfc",
+      "parameters": [],
+      "swiftName": "getAppCredentialsNfc",
+      "kotlinName": "getAppCredentialsNfc"
+    },
+    {
+      "operationId": "postAppCredentialsNfc",
+      "method": "POST",
+      "apiPath": "/api/v1/app/credentials/nfc",
+      "path": "/app/credentials/nfc",
+      "retrofitPath": "app/credentials/nfc",
+      "parameters": [],
+      "swiftName": "postAppCredentialsNfc",
+      "kotlinName": "postAppCredentialsNfc"
+    },
+    {
+      "operationId": "deleteAppCredentialsNfcCredentialId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/credentials/nfc/{credentialId}",
+      "path": "/app/credentials/nfc/{credentialId}",
+      "retrofitPath": "app/credentials/nfc/{credentialId}",
+      "parameters": [
+        "credentialId"
+      ],
+      "swiftName": "deleteAppCredentialsNfcCredentialId",
+      "kotlinName": "deleteAppCredentialsNfcCredentialId"
+    },
+    {
+      "operationId": "registerMobileCredential",
+      "method": "POST",
+      "apiPath": "/api/v1/app/credentials/register",
+      "path": "/app/credentials/register",
+      "retrofitPath": "app/credentials/register",
+      "parameters": [],
+      "swiftName": "registerMobileCredential",
+      "kotlinName": "registerMobileCredential"
+    },
+    {
+      "operationId": "postAppDevicesApns",
+      "method": "POST",
+      "apiPath": "/api/v1/app/devices/apns",
+      "path": "/app/devices/apns",
+      "retrofitPath": "app/devices/apns",
+      "parameters": [],
+      "swiftName": "postAppDevicesApns",
+      "kotlinName": "postAppDevicesApns"
+    },
+    {
+      "operationId": "postAppDevicesRegister",
+      "method": "POST",
+      "apiPath": "/api/v1/app/devices/register",
+      "path": "/app/devices/register",
+      "retrofitPath": "app/devices/register",
+      "parameters": [],
+      "swiftName": "postAppDevicesRegister",
+      "kotlinName": "postAppDevicesRegister"
+    },
+    {
+      "operationId": "patchAppGatewaysGatewayId",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/gateways/{gatewayId}",
+      "path": "/app/gateways/{gatewayId}",
+      "retrofitPath": "app/gateways/{gatewayId}",
+      "parameters": [
+        "gatewayId"
+      ],
+      "swiftName": "patchAppGatewaysGatewayId",
+      "kotlinName": "patchAppGatewaysGatewayId"
+    },
+    {
+      "operationId": "fetchAppCurrentUser",
+      "method": "GET",
+      "apiPath": "/api/v1/app/me",
+      "path": "/app/me",
+      "retrofitPath": "app/me",
+      "parameters": [],
+      "swiftName": "fetchAppCurrentUser",
+      "kotlinName": "fetchAppCurrentUser"
+    },
+    {
+      "operationId": "patchAppMe",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/me",
+      "path": "/app/me",
+      "retrofitPath": "app/me",
+      "parameters": [],
+      "swiftName": "patchAppMe",
+      "kotlinName": "patchAppMe"
+    },
+    {
+      "operationId": "postAppMeAvatar",
+      "method": "POST",
+      "apiPath": "/api/v1/app/me/avatar",
+      "path": "/app/me/avatar",
+      "retrofitPath": "app/me/avatar",
+      "parameters": [],
+      "swiftName": "postAppMeAvatar",
+      "kotlinName": "postAppMeAvatar"
+    },
+    {
+      "operationId": "postAppMeChangePassword",
+      "method": "POST",
+      "apiPath": "/api/v1/app/me/change-password",
+      "path": "/app/me/change-password",
+      "retrofitPath": "app/me/change-password",
+      "parameters": [],
+      "swiftName": "postAppMeChangePassword",
+      "kotlinName": "postAppMeChangePassword"
+    },
+    {
+      "operationId": "getAppMeLogins",
+      "method": "GET",
+      "apiPath": "/api/v1/app/me/logins",
+      "path": "/app/me/logins",
+      "retrofitPath": "app/me/logins",
+      "parameters": [],
+      "swiftName": "getAppMeLogins",
+      "kotlinName": "getAppMeLogins"
+    },
+    {
+      "operationId": "deleteAppMeLoginsLoginId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/me/logins/{loginId}",
+      "path": "/app/me/logins/{loginId}",
+      "retrofitPath": "app/me/logins/{loginId}",
+      "parameters": [
+        "loginId"
+      ],
+      "swiftName": "deleteAppMeLoginsLoginId",
+      "kotlinName": "deleteAppMeLoginsLoginId"
+    },
+    {
+      "operationId": "postAppMePrimaryDevice",
+      "method": "POST",
+      "apiPath": "/api/v1/app/me/primary-device",
+      "path": "/app/me/primary-device",
+      "retrofitPath": "app/me/primary-device",
+      "parameters": [],
+      "swiftName": "postAppMePrimaryDevice",
+      "kotlinName": "postAppMePrimaryDevice"
+    },
+    {
+      "operationId": "getAppOrgs",
+      "method": "GET",
+      "apiPath": "/api/v1/app/orgs",
+      "path": "/app/orgs",
+      "retrofitPath": "app/orgs",
+      "parameters": [],
+      "swiftName": "getAppOrgs",
+      "kotlinName": "getAppOrgs"
+    },
+    {
+      "operationId": "getAppOrgsOrgIdPlaces",
+      "method": "GET",
+      "apiPath": "/api/v1/app/orgs/{orgId}/places",
+      "path": "/app/orgs/{orgId}/places",
+      "retrofitPath": "app/orgs/{orgId}/places",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "getAppOrgsOrgIdPlaces",
+      "kotlinName": "getAppOrgsOrgIdPlaces"
+    },
+    {
+      "operationId": "getAppOrgsOrgIdPlacesSearch",
+      "method": "GET",
+      "apiPath": "/api/v1/app/orgs/{orgId}/places/search",
+      "path": "/app/orgs/{orgId}/places/search",
+      "retrofitPath": "app/orgs/{orgId}/places/search",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "getAppOrgsOrgIdPlacesSearch",
+      "kotlinName": "getAppOrgsOrgIdPlacesSearch"
+    },
+    {
+      "operationId": "getAppOrgsOrgIdSettings",
+      "method": "GET",
+      "apiPath": "/api/v1/app/orgs/{orgId}/settings",
+      "path": "/app/orgs/{orgId}/settings",
+      "retrofitPath": "app/orgs/{orgId}/settings",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "getAppOrgsOrgIdSettings",
+      "kotlinName": "getAppOrgsOrgIdSettings"
+    },
+    {
+      "operationId": "putAppOrgsOrgIdSettings",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/orgs/{orgId}/settings",
+      "path": "/app/orgs/{orgId}/settings",
+      "retrofitPath": "app/orgs/{orgId}/settings",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "putAppOrgsOrgIdSettings",
+      "kotlinName": "putAppOrgsOrgIdSettings"
+    },
+    {
+      "operationId": "postAppOrgsOrgIdSwitch",
+      "method": "POST",
+      "apiPath": "/api/v1/app/orgs/{orgId}/switch",
+      "path": "/app/orgs/{orgId}/switch",
+      "retrofitPath": "app/orgs/{orgId}/switch",
+      "parameters": [
+        "orgId"
+      ],
+      "swiftName": "postAppOrgsOrgIdSwitch",
+      "kotlinName": "postAppOrgsOrgIdSwitch"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdActivity",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/activity",
+      "path": "/app/places/{placeId}/activity",
+      "retrofitPath": "app/places/{placeId}/activity",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdActivity",
+      "kotlinName": "getAppPlacesPlaceIdActivity"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdActivityEventId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/activity/{eventId}",
+      "path": "/app/places/{placeId}/activity/{eventId}",
+      "retrofitPath": "app/places/{placeId}/activity/{eventId}",
+      "parameters": [
+        "placeId",
+        "eventId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdActivityEventId",
+      "kotlinName": "getAppPlacesPlaceIdActivityEventId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdAnalyticsFailedAttempts",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/analytics/failed-attempts",
+      "path": "/app/places/{placeId}/analytics/failed-attempts",
+      "retrofitPath": "app/places/{placeId}/analytics/failed-attempts",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdAnalyticsFailedAttempts",
+      "kotlinName": "getAppPlacesPlaceIdAnalyticsFailedAttempts"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdAnalyticsPresence",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/analytics/presence",
+      "path": "/app/places/{placeId}/analytics/presence",
+      "retrofitPath": "app/places/{placeId}/analytics/presence",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdAnalyticsPresence",
+      "kotlinName": "getAppPlacesPlaceIdAnalyticsPresence"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdAnalyticsSummary",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/analytics/summary",
+      "path": "/app/places/{placeId}/analytics/summary",
+      "retrofitPath": "app/places/{placeId}/analytics/summary",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdAnalyticsSummary",
+      "kotlinName": "getAppPlacesPlaceIdAnalyticsSummary"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdCards",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/cards",
+      "path": "/app/places/{placeId}/cards",
+      "retrofitPath": "app/places/{placeId}/cards",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdCards",
+      "kotlinName": "getAppPlacesPlaceIdCards"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCardsAssign",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/cards/assign",
+      "path": "/app/places/{placeId}/cards/assign",
+      "retrofitPath": "app/places/{placeId}/cards/assign",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCardsAssign",
+      "kotlinName": "postAppPlacesPlaceIdCardsAssign"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCardsManualToken",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/cards/manual-token",
+      "path": "/app/places/{placeId}/cards/manual-token",
+      "retrofitPath": "app/places/{placeId}/cards/manual-token",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCardsManualToken",
+      "kotlinName": "postAppPlacesPlaceIdCardsManualToken"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdCardsCardUid",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/cards/{cardUid}",
+      "path": "/app/places/{placeId}/cards/{cardUid}",
+      "retrofitPath": "app/places/{placeId}/cards/{cardUid}",
+      "parameters": [
+        "placeId",
+        "cardUid"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdCardsCardUid",
+      "kotlinName": "deleteAppPlacesPlaceIdCardsCardUid"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdCardsCardUidStatus",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/cards/{cardUid}/status",
+      "path": "/app/places/{placeId}/cards/{cardUid}/status",
+      "retrofitPath": "app/places/{placeId}/cards/{cardUid}/status",
+      "parameters": [
+        "placeId",
+        "cardUid"
+      ],
+      "swiftName": "getAppPlacesPlaceIdCardsCardUidStatus",
+      "kotlinName": "getAppPlacesPlaceIdCardsCardUidStatus"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdCredentials",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials",
+      "path": "/app/places/{placeId}/credentials",
+      "retrofitPath": "app/places/{placeId}/credentials",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdCredentials",
+      "kotlinName": "getAppPlacesPlaceIdCredentials"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCredentials",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials",
+      "path": "/app/places/{placeId}/credentials",
+      "retrofitPath": "app/places/{placeId}/credentials",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCredentials",
+      "kotlinName": "postAppPlacesPlaceIdCredentials"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdCredentialsSearch",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials/search",
+      "path": "/app/places/{placeId}/credentials/search",
+      "retrofitPath": "app/places/{placeId}/credentials/search",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdCredentialsSearch",
+      "kotlinName": "getAppPlacesPlaceIdCredentialsSearch"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdCredentialsCredentialId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials/{credentialId}",
+      "path": "/app/places/{placeId}/credentials/{credentialId}",
+      "retrofitPath": "app/places/{placeId}/credentials/{credentialId}",
+      "parameters": [
+        "placeId",
+        "credentialId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdCredentialsCredentialId",
+      "kotlinName": "getAppPlacesPlaceIdCredentialsCredentialId"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCredentialsCredentialIdActivate",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials/{credentialId}/activate",
+      "path": "/app/places/{placeId}/credentials/{credentialId}/activate",
+      "retrofitPath": "app/places/{placeId}/credentials/{credentialId}/activate",
+      "parameters": [
+        "placeId",
+        "credentialId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCredentialsCredentialIdActivate",
+      "kotlinName": "postAppPlacesPlaceIdCredentialsCredentialIdActivate"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCredentialsCredentialIdRevoke",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials/{credentialId}/revoke",
+      "path": "/app/places/{placeId}/credentials/{credentialId}/revoke",
+      "retrofitPath": "app/places/{placeId}/credentials/{credentialId}/revoke",
+      "parameters": [
+        "placeId",
+        "credentialId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCredentialsCredentialIdRevoke",
+      "kotlinName": "postAppPlacesPlaceIdCredentialsCredentialIdRevoke"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdCredentialsCredentialIdSuspend",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/credentials/{credentialId}/suspend",
+      "path": "/app/places/{placeId}/credentials/{credentialId}/suspend",
+      "retrofitPath": "app/places/{placeId}/credentials/{credentialId}/suspend",
+      "parameters": [
+        "placeId",
+        "credentialId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdCredentialsCredentialIdSuspend",
+      "kotlinName": "postAppPlacesPlaceIdCredentialsCredentialIdSuspend"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdDoors",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/doors",
+      "path": "/app/places/{placeId}/doors",
+      "retrofitPath": "app/places/{placeId}/doors",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdDoors",
+      "kotlinName": "getAppPlacesPlaceIdDoors"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdDoorsSearch",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/search",
+      "path": "/app/places/{placeId}/doors/search",
+      "retrofitPath": "app/places/{placeId}/doors/search",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdDoorsSearch",
+      "kotlinName": "getAppPlacesPlaceIdDoorsSearch"
+    },
+    {
+      "operationId": "patchAppPlacesPlaceIdDoorsDoorId",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}",
+      "path": "/app/places/{placeId}/doors/{doorId}",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "patchAppPlacesPlaceIdDoorsDoorId",
+      "kotlinName": "patchAppPlacesPlaceIdDoorsDoorId"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdDoorsDoorIdFavorite",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/favorite",
+      "path": "/app/places/{placeId}/doors/{doorId}/favorite",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/favorite",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdDoorsDoorIdFavorite",
+      "kotlinName": "deleteAppPlacesPlaceIdDoorsDoorIdFavorite"
+    },
+    {
+      "operationId": "putAppPlacesPlaceIdDoorsDoorIdFavorite",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/favorite",
+      "path": "/app/places/{placeId}/doors/{doorId}/favorite",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/favorite",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "putAppPlacesPlaceIdDoorsDoorIdFavorite",
+      "kotlinName": "putAppPlacesPlaceIdDoorsDoorIdFavorite"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdDoorsDoorIdLockdown",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/lockdown",
+      "path": "/app/places/{placeId}/doors/{doorId}/lockdown",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/lockdown",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdDoorsDoorIdLockdown",
+      "kotlinName": "deleteAppPlacesPlaceIdDoorsDoorIdLockdown"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdDoorsDoorIdLockdown",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/lockdown",
+      "path": "/app/places/{placeId}/doors/{doorId}/lockdown",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/lockdown",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdDoorsDoorIdLockdown",
+      "kotlinName": "postAppPlacesPlaceIdDoorsDoorIdLockdown"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdDoorsDoorIdQrUnlock",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/qr-unlock",
+      "path": "/app/places/{placeId}/doors/{doorId}/qr-unlock",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/qr-unlock",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdDoorsDoorIdQrUnlock",
+      "kotlinName": "postAppPlacesPlaceIdDoorsDoorIdQrUnlock"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdDoorsDoorIdRestrictions",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/restrictions",
+      "path": "/app/places/{placeId}/doors/{doorId}/restrictions",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/restrictions",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdDoorsDoorIdRestrictions",
+      "kotlinName": "getAppPlacesPlaceIdDoorsDoorIdRestrictions"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdDoorsDoorIdSchedules",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/schedules",
+      "path": "/app/places/{placeId}/doors/{doorId}/schedules",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/schedules",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdDoorsDoorIdSchedules",
+      "kotlinName": "getAppPlacesPlaceIdDoorsDoorIdSchedules"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdDoorsDoorIdUnlock",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/doors/{doorId}/unlock",
+      "path": "/app/places/{placeId}/doors/{doorId}/unlock",
+      "retrofitPath": "app/places/{placeId}/doors/{doorId}/unlock",
+      "parameters": [
+        "placeId",
+        "doorId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdDoorsDoorIdUnlock",
+      "kotlinName": "postAppPlacesPlaceIdDoorsDoorIdUnlock"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdEvents",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/events",
+      "path": "/app/places/{placeId}/events",
+      "retrofitPath": "app/places/{placeId}/events",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdEvents",
+      "kotlinName": "getAppPlacesPlaceIdEvents"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdEventsEventId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/events/{eventId}",
+      "path": "/app/places/{placeId}/events/{eventId}",
+      "retrofitPath": "app/places/{placeId}/events/{eventId}",
+      "parameters": [
+        "placeId",
+        "eventId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdEventsEventId",
+      "kotlinName": "getAppPlacesPlaceIdEventsEventId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdEventsEventIdMedia",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/events/{eventId}/media",
+      "path": "/app/places/{placeId}/events/{eventId}/media",
+      "retrofitPath": "app/places/{placeId}/events/{eventId}/media",
+      "parameters": [
+        "placeId",
+        "eventId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdEventsEventIdMedia",
+      "kotlinName": "getAppPlacesPlaceIdEventsEventIdMedia"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdEventsEventIdRelated",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/events/{eventId}/related",
+      "path": "/app/places/{placeId}/events/{eventId}/related",
+      "retrofitPath": "app/places/{placeId}/events/{eventId}/related",
+      "parameters": [
+        "placeId",
+        "eventId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdEventsEventIdRelated",
+      "kotlinName": "getAppPlacesPlaceIdEventsEventIdRelated"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdGroups",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/groups",
+      "path": "/app/places/{placeId}/groups",
+      "retrofitPath": "app/places/{placeId}/groups",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdGroups",
+      "kotlinName": "getAppPlacesPlaceIdGroups"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdGroups",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/groups",
+      "path": "/app/places/{placeId}/groups",
+      "retrofitPath": "app/places/{placeId}/groups",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdGroups",
+      "kotlinName": "postAppPlacesPlaceIdGroups"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdGroupsGroupId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}",
+      "path": "/app/places/{placeId}/groups/{groupId}",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdGroupsGroupId",
+      "kotlinName": "deleteAppPlacesPlaceIdGroupsGroupId"
+    },
+    {
+      "operationId": "patchAppPlacesPlaceIdGroupsGroupId",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}",
+      "path": "/app/places/{placeId}/groups/{groupId}",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "patchAppPlacesPlaceIdGroupsGroupId",
+      "kotlinName": "patchAppPlacesPlaceIdGroupsGroupId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdGroupsGroupIdDoors",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/doors",
+      "path": "/app/places/{placeId}/groups/{groupId}/doors",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/doors",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdGroupsGroupIdDoors",
+      "kotlinName": "getAppPlacesPlaceIdGroupsGroupIdDoors"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdGroupsGroupIdDoors",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/doors",
+      "path": "/app/places/{placeId}/groups/{groupId}/doors",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/doors",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdGroupsGroupIdDoors",
+      "kotlinName": "postAppPlacesPlaceIdGroupsGroupIdDoors"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdGroupsGroupIdDoorsDoorId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/doors/{doorId}",
+      "path": "/app/places/{placeId}/groups/{groupId}/doors/{doorId}",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/doors/{doorId}",
+      "parameters": [
+        "placeId",
+        "groupId",
+        "doorId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdGroupsGroupIdDoorsDoorId",
+      "kotlinName": "deleteAppPlacesPlaceIdGroupsGroupIdDoorsDoorId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdGroupsGroupIdMembers",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/members",
+      "path": "/app/places/{placeId}/groups/{groupId}/members",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/members",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdGroupsGroupIdMembers",
+      "kotlinName": "getAppPlacesPlaceIdGroupsGroupIdMembers"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdGroupsGroupIdMembers",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/members",
+      "path": "/app/places/{placeId}/groups/{groupId}/members",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/members",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdGroupsGroupIdMembers",
+      "kotlinName": "postAppPlacesPlaceIdGroupsGroupIdMembers"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdGroupsGroupIdMembersMemberId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/groups/{groupId}/members/{memberId}",
+      "path": "/app/places/{placeId}/groups/{groupId}/members/{memberId}",
+      "retrofitPath": "app/places/{placeId}/groups/{groupId}/members/{memberId}",
+      "parameters": [
+        "placeId",
+        "groupId",
+        "memberId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdGroupsGroupIdMembersMemberId",
+      "kotlinName": "deleteAppPlacesPlaceIdGroupsGroupIdMembersMemberId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdGuests",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/guests",
+      "path": "/app/places/{placeId}/guests",
+      "retrofitPath": "app/places/{placeId}/guests",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdGuests",
+      "kotlinName": "getAppPlacesPlaceIdGuests"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdGuests",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/guests",
+      "path": "/app/places/{placeId}/guests",
+      "retrofitPath": "app/places/{placeId}/guests",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdGuests",
+      "kotlinName": "postAppPlacesPlaceIdGuests"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdGuestsGuestId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/guests/{guestId}",
+      "path": "/app/places/{placeId}/guests/{guestId}",
+      "retrofitPath": "app/places/{placeId}/guests/{guestId}",
+      "parameters": [
+        "placeId",
+        "guestId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdGuestsGuestId",
+      "kotlinName": "deleteAppPlacesPlaceIdGuestsGuestId"
+    },
+    {
+      "operationId": "patchAppPlacesPlaceIdGuestsGuestId",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/places/{placeId}/guests/{guestId}",
+      "path": "/app/places/{placeId}/guests/{guestId}",
+      "retrofitPath": "app/places/{placeId}/guests/{guestId}",
+      "parameters": [
+        "placeId",
+        "guestId"
+      ],
+      "swiftName": "patchAppPlacesPlaceIdGuestsGuestId",
+      "kotlinName": "patchAppPlacesPlaceIdGuestsGuestId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdHolidayRegions",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/holiday-regions",
+      "path": "/app/places/{placeId}/holiday-regions",
+      "retrofitPath": "app/places/{placeId}/holiday-regions",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdHolidayRegions",
+      "kotlinName": "getAppPlacesPlaceIdHolidayRegions"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdHolidayRegionsRegionIdHolidays",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/holiday-regions/{regionId}/holidays",
+      "path": "/app/places/{placeId}/holiday-regions/{regionId}/holidays",
+      "retrofitPath": "app/places/{placeId}/holiday-regions/{regionId}/holidays",
+      "parameters": [
+        "placeId",
+        "regionId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdHolidayRegionsRegionIdHolidays",
+      "kotlinName": "getAppPlacesPlaceIdHolidayRegionsRegionIdHolidays"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdIncidents",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/incidents",
+      "path": "/app/places/{placeId}/incidents",
+      "retrofitPath": "app/places/{placeId}/incidents",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdIncidents",
+      "kotlinName": "getAppPlacesPlaceIdIncidents"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdIncidentsIncidentId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/incidents/{incidentId}",
+      "path": "/app/places/{placeId}/incidents/{incidentId}",
+      "retrofitPath": "app/places/{placeId}/incidents/{incidentId}",
+      "parameters": [
+        "placeId",
+        "incidentId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdIncidentsIncidentId",
+      "kotlinName": "getAppPlacesPlaceIdIncidentsIncidentId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdIncidentsIncidentIdOccurrences",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/incidents/{incidentId}/occurrences",
+      "path": "/app/places/{placeId}/incidents/{incidentId}/occurrences",
+      "retrofitPath": "app/places/{placeId}/incidents/{incidentId}/occurrences",
+      "parameters": [
+        "placeId",
+        "incidentId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdIncidentsIncidentIdOccurrences",
+      "kotlinName": "getAppPlacesPlaceIdIncidentsIncidentIdOccurrences"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdLockdown",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/lockdown",
+      "path": "/app/places/{placeId}/lockdown",
+      "retrofitPath": "app/places/{placeId}/lockdown",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdLockdown",
+      "kotlinName": "deleteAppPlacesPlaceIdLockdown"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdLockdown",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/lockdown",
+      "path": "/app/places/{placeId}/lockdown",
+      "retrofitPath": "app/places/{placeId}/lockdown",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdLockdown",
+      "kotlinName": "postAppPlacesPlaceIdLockdown"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdReportsExport",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/reports/export",
+      "path": "/app/places/{placeId}/reports/export",
+      "retrofitPath": "app/places/{placeId}/reports/export",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdReportsExport",
+      "kotlinName": "postAppPlacesPlaceIdReportsExport"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdSchedules",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/schedules",
+      "path": "/app/places/{placeId}/schedules",
+      "retrofitPath": "app/places/{placeId}/schedules",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdSchedules",
+      "kotlinName": "getAppPlacesPlaceIdSchedules"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdSchedules",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/schedules",
+      "path": "/app/places/{placeId}/schedules",
+      "retrofitPath": "app/places/{placeId}/schedules",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdSchedules",
+      "kotlinName": "postAppPlacesPlaceIdSchedules"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdSchedulesScheduleId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/schedules/{scheduleId}",
+      "path": "/app/places/{placeId}/schedules/{scheduleId}",
+      "retrofitPath": "app/places/{placeId}/schedules/{scheduleId}",
+      "parameters": [
+        "placeId",
+        "scheduleId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdSchedulesScheduleId",
+      "kotlinName": "deleteAppPlacesPlaceIdSchedulesScheduleId"
+    },
+    {
+      "operationId": "putAppPlacesPlaceIdSchedulesScheduleId",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/places/{placeId}/schedules/{scheduleId}",
+      "path": "/app/places/{placeId}/schedules/{scheduleId}",
+      "retrofitPath": "app/places/{placeId}/schedules/{scheduleId}",
+      "parameters": [
+        "placeId",
+        "scheduleId"
+      ],
+      "swiftName": "putAppPlacesPlaceIdSchedulesScheduleId",
+      "kotlinName": "putAppPlacesPlaceIdSchedulesScheduleId"
+    },
+    {
+      "operationId": "putAppPlacesPlaceIdSettings",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/places/{placeId}/settings",
+      "path": "/app/places/{placeId}/settings",
+      "retrofitPath": "app/places/{placeId}/settings",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "putAppPlacesPlaceIdSettings",
+      "kotlinName": "putAppPlacesPlaceIdSettings"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdTeams",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/teams",
+      "path": "/app/places/{placeId}/teams",
+      "retrofitPath": "app/places/{placeId}/teams",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdTeams",
+      "kotlinName": "getAppPlacesPlaceIdTeams"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdTeams",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/teams",
+      "path": "/app/places/{placeId}/teams",
+      "retrofitPath": "app/places/{placeId}/teams",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdTeams",
+      "kotlinName": "postAppPlacesPlaceIdTeams"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdTeamsTeamId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}",
+      "path": "/app/places/{placeId}/teams/{teamId}",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdTeamsTeamId",
+      "kotlinName": "deleteAppPlacesPlaceIdTeamsTeamId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdTeamsTeamId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}",
+      "path": "/app/places/{placeId}/teams/{teamId}",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdTeamsTeamId",
+      "kotlinName": "getAppPlacesPlaceIdTeamsTeamId"
+    },
+    {
+      "operationId": "putAppPlacesPlaceIdTeamsTeamId",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}",
+      "path": "/app/places/{placeId}/teams/{teamId}",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "putAppPlacesPlaceIdTeamsTeamId",
+      "kotlinName": "putAppPlacesPlaceIdTeamsTeamId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdTeamsTeamIdAccessRights",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights",
+      "path": "/app/places/{placeId}/teams/{teamId}/access-rights",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/access-rights",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdTeamsTeamIdAccessRights",
+      "kotlinName": "getAppPlacesPlaceIdTeamsTeamIdAccessRights"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdTeamsTeamIdAccessRights",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights",
+      "path": "/app/places/{placeId}/teams/{teamId}/access-rights",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/access-rights",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdTeamsTeamIdAccessRights",
+      "kotlinName": "postAppPlacesPlaceIdTeamsTeamIdAccessRights"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdTeamsTeamIdAccessRightsAccessRightId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/access-rights/{accessRightId}",
+      "path": "/app/places/{placeId}/teams/{teamId}/access-rights/{accessRightId}",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/access-rights/{accessRightId}",
+      "parameters": [
+        "placeId",
+        "teamId",
+        "accessRightId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdTeamsTeamIdAccessRightsAccessRightId",
+      "kotlinName": "deleteAppPlacesPlaceIdTeamsTeamIdAccessRightsAccessRightId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdTeamsTeamIdMembers",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/members",
+      "path": "/app/places/{placeId}/teams/{teamId}/members",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/members",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdTeamsTeamIdMembers",
+      "kotlinName": "getAppPlacesPlaceIdTeamsTeamIdMembers"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdTeamsTeamIdMembers",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/members",
+      "path": "/app/places/{placeId}/teams/{teamId}/members",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/members",
+      "parameters": [
+        "placeId",
+        "teamId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdTeamsTeamIdMembers",
+      "kotlinName": "postAppPlacesPlaceIdTeamsTeamIdMembers"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdTeamsTeamIdMembersMemberId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/teams/{teamId}/members/{memberId}",
+      "path": "/app/places/{placeId}/teams/{teamId}/members/{memberId}",
+      "retrofitPath": "app/places/{placeId}/teams/{teamId}/members/{memberId}",
+      "parameters": [
+        "placeId",
+        "teamId",
+        "memberId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdTeamsTeamIdMembersMemberId",
+      "kotlinName": "deleteAppPlacesPlaceIdTeamsTeamIdMembersMemberId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdUsers",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/users/",
+      "path": "/app/places/{placeId}/users/",
+      "retrofitPath": "app/places/{placeId}/users/",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdUsers",
+      "kotlinName": "getAppPlacesPlaceIdUsers"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdUsers",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/users/",
+      "path": "/app/places/{placeId}/users/",
+      "retrofitPath": "app/places/{placeId}/users/",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdUsers",
+      "kotlinName": "postAppPlacesPlaceIdUsers"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdUsersInvite",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/users/invite",
+      "path": "/app/places/{placeId}/users/invite",
+      "retrofitPath": "app/places/{placeId}/users/invite",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdUsersInvite",
+      "kotlinName": "postAppPlacesPlaceIdUsersInvite"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdUsersSearch",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/users/search",
+      "path": "/app/places/{placeId}/users/search",
+      "retrofitPath": "app/places/{placeId}/users/search",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdUsersSearch",
+      "kotlinName": "getAppPlacesPlaceIdUsersSearch"
+    },
+    {
+      "operationId": "deleteAppPlacesPlaceIdUsersUserId",
+      "method": "DELETE",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}",
+      "path": "/app/places/{placeId}/users/{userId}",
+      "retrofitPath": "app/places/{placeId}/users/{userId}",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "deleteAppPlacesPlaceIdUsersUserId",
+      "kotlinName": "deleteAppPlacesPlaceIdUsersUserId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdUsersUserId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}",
+      "path": "/app/places/{placeId}/users/{userId}",
+      "retrofitPath": "app/places/{placeId}/users/{userId}",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdUsersUserId",
+      "kotlinName": "getAppPlacesPlaceIdUsersUserId"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdUsersUserIdAccessRights",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/access-rights",
+      "path": "/app/places/{placeId}/users/{userId}/access-rights",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/access-rights",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdUsersUserIdAccessRights",
+      "kotlinName": "getAppPlacesPlaceIdUsersUserIdAccessRights"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdUsersUserIdLogins",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/logins",
+      "path": "/app/places/{placeId}/users/{userId}/logins",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/logins",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdUsersUserIdLogins",
+      "kotlinName": "getAppPlacesPlaceIdUsersUserIdLogins"
+    },
+    {
+      "operationId": "patchAppPlacesPlaceIdUsersUserIdRole",
+      "method": "PATCH",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/role",
+      "path": "/app/places/{placeId}/users/{userId}/role",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/role",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "patchAppPlacesPlaceIdUsersUserIdRole",
+      "kotlinName": "patchAppPlacesPlaceIdUsersUserIdRole"
+    },
+    {
+      "operationId": "putAppPlacesPlaceIdUsersUserIdRole",
+      "method": "PUT",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/role",
+      "path": "/app/places/{placeId}/users/{userId}/role",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/role",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "putAppPlacesPlaceIdUsersUserIdRole",
+      "kotlinName": "putAppPlacesPlaceIdUsersUserIdRole"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdUsersUserIdShareAccess",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/share-access",
+      "path": "/app/places/{placeId}/users/{userId}/share-access",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/share-access",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdUsersUserIdShareAccess",
+      "kotlinName": "postAppPlacesPlaceIdUsersUserIdShareAccess"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdUsersUserIdSignOut",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/users/{userId}/sign-out",
+      "path": "/app/places/{placeId}/users/{userId}/sign-out",
+      "retrofitPath": "app/places/{placeId}/users/{userId}/sign-out",
+      "parameters": [
+        "placeId",
+        "userId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdUsersUserIdSignOut",
+      "kotlinName": "postAppPlacesPlaceIdUsersUserIdSignOut"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdVisitorGroups",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/visitor-groups",
+      "path": "/app/places/{placeId}/visitor-groups",
+      "retrofitPath": "app/places/{placeId}/visitor-groups",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdVisitorGroups",
+      "kotlinName": "getAppPlacesPlaceIdVisitorGroups"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdVisitorGroups",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/visitor-groups",
+      "path": "/app/places/{placeId}/visitor-groups",
+      "retrofitPath": "app/places/{placeId}/visitor-groups",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdVisitorGroups",
+      "kotlinName": "postAppPlacesPlaceIdVisitorGroups"
+    },
+    {
+      "operationId": "postAppPlacesPlaceIdVisitorGroupsGroupIdCleanupExpired",
+      "method": "POST",
+      "apiPath": "/api/v1/app/places/{placeId}/visitor-groups/{groupId}/cleanup-expired",
+      "path": "/app/places/{placeId}/visitor-groups/{groupId}/cleanup-expired",
+      "retrofitPath": "app/places/{placeId}/visitor-groups/{groupId}/cleanup-expired",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "postAppPlacesPlaceIdVisitorGroupsGroupIdCleanupExpired",
+      "kotlinName": "postAppPlacesPlaceIdVisitorGroupsGroupIdCleanupExpired"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdVisitorGroupsGroupIdMembers",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/visitor-groups/{groupId}/members",
+      "path": "/app/places/{placeId}/visitor-groups/{groupId}/members",
+      "retrofitPath": "app/places/{placeId}/visitor-groups/{groupId}/members",
+      "parameters": [
+        "placeId",
+        "groupId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdVisitorGroupsGroupIdMembers",
+      "kotlinName": "getAppPlacesPlaceIdVisitorGroupsGroupIdMembers"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdZones",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/zones",
+      "path": "/app/places/{placeId}/zones",
+      "retrofitPath": "app/places/{placeId}/zones",
+      "parameters": [
+        "placeId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdZones",
+      "kotlinName": "getAppPlacesPlaceIdZones"
+    },
+    {
+      "operationId": "getAppPlacesPlaceIdZonesZoneId",
+      "method": "GET",
+      "apiPath": "/api/v1/app/places/{placeId}/zones/{zoneId}",
+      "path": "/app/places/{placeId}/zones/{zoneId}",
+      "retrofitPath": "app/places/{placeId}/zones/{zoneId}",
+      "parameters": [
+        "placeId",
+        "zoneId"
+      ],
+      "swiftName": "getAppPlacesPlaceIdZonesZoneId",
+      "kotlinName": "getAppPlacesPlaceIdZonesZoneId"
+    },
+    {
+      "operationId": "postAppQrToken",
+      "method": "POST",
+      "apiPath": "/api/v1/app/qr-token",
+      "path": "/app/qr-token",
+      "retrofitPath": "app/qr-token",
+      "parameters": [],
+      "swiftName": "postAppQrToken",
+      "kotlinName": "postAppQrToken"
+    },
+    {
+      "operationId": "getAppVisitorPasses",
+      "method": "GET",
+      "apiPath": "/api/v1/app/visitor-passes",
+      "path": "/app/visitor-passes",
+      "retrofitPath": "app/visitor-passes",
+      "parameters": [],
+      "swiftName": "getAppVisitorPasses",
+      "kotlinName": "getAppVisitorPasses"
+    },
+    {
+      "operationId": "createAppVisitorPass",
+      "method": "POST",
+      "apiPath": "/api/v1/app/visitor-passes",
+      "path": "/app/visitor-passes",
+      "retrofitPath": "app/visitor-passes",
+      "parameters": [],
+      "swiftName": "createAppVisitorPass",
+      "kotlinName": "createAppVisitorPass"
+    }
+  ]
+}
