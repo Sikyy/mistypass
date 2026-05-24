@@ -2,6 +2,7 @@
 
 > 日期：2026-05-23
 > 状态：模板、邮件样式、Web Admin 报表类型与 Gotenberg 实渲染验证已落地
+> 能力状态：CONTRACT_READY（模板、类型映射与 Gotenberg 渲染链路已验证；真实邮件 Provider 展示仍待联调）
 > 基线：PR #93 squash commit `2af7400`
 
 ## 1. 目标
