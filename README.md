@@ -391,7 +391,7 @@ Shared email provider env vars (optional):
 - `CLOUDFLARE_ACCOUNT_ID` (required for default Cloudflare Email Service endpoint)
 - `CLOUDFLARE_EMAIL_API_TOKEN` (required when using Cloudflare Email Service)
 - `CLOUDFLARE_EMAIL_ENDPOINT` (default: `https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`)
-- `CLOUDFLARE_EMAIL_TIMEOUT` (duration, default: `5s`)
+- `CLOUDFLARE_EMAIL_TIMEOUT` (duration, default: `15s`)
 - `USER_INVITATION_EMAIL_PROVIDER` (`queue` | `mock` | `resend` | `cloudflare`, default: `queue`)
 - `USER_INVITATION_EMAIL_FROM` (default: `no-reply@mistypass.local`)
 - `REPORT_EMAIL_FROM` (report schedule sender; falls back to `USER_INVITATION_EMAIL_FROM` for backward compatibility)
