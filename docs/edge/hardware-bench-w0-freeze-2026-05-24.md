@@ -13,6 +13,7 @@ This note freezes the W0 bench baseline for the first physical gateway and door 
   - [MVP device validation runbook](mvp-device-validation-runbook.md)
   - [MVP device validation plan](mvp-device-validation-plan.md)
   - [Hardware delivery schedule](hardware-delivery-schedule-2026-05-24.md)
+  - [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)
 
 ## Frozen Resource IDs
 
@@ -28,6 +29,26 @@ This note freezes the W0 bench baseline for the first physical gateway and door 
 | Wiegand reader label | `reader_wiegand_w0_001` | Bench label; exact vendor model to be recorded on arrival. |
 | OSDP/RS485 reader label | `reader_osdp_w0_001` | Bench label; exact vendor model to be recorded on arrival. |
 | Relay/load label | `relay_door_jkt_001_w0` | Lamp or buzzer load only during W0. |
+
+## Roaming-Test Physical Overlay - 2026-05-25
+
+The first real mounting candidate is tracked as an overlay on the W0 baseline.
+It should not replace the seeded Jakarta demo IDs until the generated staging
+IDs are recorded.
+
+| Resource | Value | Notes |
+| --- | --- | --- |
+| Building display name | `Roaming Building` | Create through Admin/API and record generated `building_id`. |
+| Door display name | `Roaming-Test` | Create under `Roaming Building`; record generated `door_id`. |
+| Gateway serial | `MP-GW-W0-20260524-001` | Provisional label while the Orange Pi serial is unknown. |
+| Wiegand reader | ZKTeco `PROID10BM 13.56MHz` | Use the Wiegand GPIO baseline; measure D0/D1 before connection. |
+| Camera | Hikvision `DS-2CD1023G2-LIU-LIUF` | Needs LAN IP/credentials or Hik-Connect serial/verification code before API registration. |
+| Lock | Type B EM Lock 600 LBS, 12VDC, 400mA | `V+`/`V-` power the lock; `NO`/`NC`/`COM` are status/feedback contacts. |
+| Lock power | 12V 3A switching PSU, 36W max | Enough for one 400mA maglock; keep SBC power separate. |
+| Relay module | Missing | Required before any software unlock can switch lock power. |
+
+The detailed onboarding checklist is in
+[Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md).
 
 ## Bench Wiring Baseline
 
@@ -77,6 +98,8 @@ The W0 run passes only when the scripts complete and the physical relay load vis
 | Relay pulse evidence |  |  | Photo or short video path. |
 | Wiegand read evidence |  |  | Record card UID format and raw event if available. |
 | RS485/OSDP read evidence |  |  | Record adapter, baud rate, and raw event if available. |
+| Roaming generated IDs |  |  | `building_id`, `floor_id`, `area_id`, `door_id`, `gateway_id`. |
+| Roaming relay model |  |  | Required before lock-body wiring. |
 
 ## W1 Entry Criteria
 
@@ -85,3 +108,4 @@ The W0 run passes only when the scripts complete and the physical relay load vis
 - Relay lamp/buzzer pulse succeeds without lock hardware attached.
 - API smoke sequence passes against `tenant_demo_jakarta` and `door_jkt_001`.
 - No GPIO line, input polarity, reader voltage, or relay active level remains unknown.
+- For Roaming-Test, the relay module model and active level are known before the 12V maglock is connected.

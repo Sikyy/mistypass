@@ -32,6 +32,15 @@
 - Credential：Mifare/IC 卡若干，至少包含白名单、黑名单、未知卡。
 - 电源与安全：独立 12V 门锁电源、3.3V/5V level shift、万用表。
 
+2026-05-25 Roaming-Test 实物更新：
+
+- 门点：`Roaming-Test`，楼宇：`Roaming Building`。
+- Gateway：Orange Pi 实际序列号未知，先按 W0 临时序列号 `MP-GW-W0-20260524-001` 登记。
+- Reader：ZKTeco `PROID10BM 13.56MHz`，走 Wiegand 26/34 台架路径。
+- Camera：Hikvision `DS-2CD1023G2-LIU-LIUF`，需要补 LAN IP/账号或 Hik-Connect 序列号/验证码后再注册。
+- Lock：B 型 600 LBS 电磁锁，12VDC 400mA；12V3A/36W 开关电源足够单锁测试。
+- Relay：当前缺口。它是 Orange Pi 控制 12V 锁电源通断的独立 1 路继电器模块，不是电磁锁自带的 `NO/NC/COM` 状态触点。
+
 ### P1 试点
 
 - 2D/4D Controller 候选板。
@@ -54,6 +63,8 @@
 目标：把台架材料、端口、接线、安全边界固定下来。
 
 2026-05-24 更新：W0 台架资源 ID、接线假设、安全门禁和冒烟脚本已冻结到 [Hardware Bench W0 Freeze](hardware-bench-w0-freeze-2026-05-24.md)。拿到硬件后按该文档补齐实测证据，再进入 W1。
+
+2026-05-25 更新：Roaming-Test 实物门点、读头、摄像头、电锁和 12V3A 电源已记录到 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)。进入真实锁体测试前仍需补 1 路继电器模块型号/照片，并先完成灯/蜂鸣器 relay pulse。
 
 任务：
 
@@ -189,6 +200,7 @@
 | 阻塞 | 影响 | 处理 |
 |---|---|---|
 | 没有真实 reader/lock | 不能完成 P0 验收 | 先用 relay + 灯验证输出，但 Wiegand 仍需读头 |
+| 缺少 relay 模块 | API/app unlock 不能安全切换 12V 电锁电源 | 采购/确认 1 路 3.3V GPIO 兼容继电器模块，先接灯/蜂鸣器 |
 | 不确定 GPIO 电平 | 可能损坏 SBC | 上电前用万用表确认，必要时加 level shifter |
 | 没有固定 resource ID | 事件和配置难以追踪 | W0 冻结 ID 并写入台架文档 |
 | Mobile OpenAPI 缺失 | 三端 smoke 依赖手写路径 | 与 API 审计 Batch A 并行推进 |
