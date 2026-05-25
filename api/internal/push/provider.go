@@ -224,6 +224,7 @@ func serviceAccountPayload(filePath, raw string) ([]byte, error) {
 	if filePath == "" {
 		return nil, nil
 	}
+	// #nosec G304 -- service account path is deployment-controlled configuration, not request/user input.
 	payload, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("read fcm service account file: %w", err)
