@@ -162,7 +162,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [x] Android real-device install smoke：2026-05-25 Xiaomi 15 (`d766dd19`, `24129PN74C/dada`) 已安装 staging APK；首次因旧包签名不一致失败，卸载旧 `com.mistyislet.app` 后安装成功。
-- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；Android Xiaomi 15 登录/门点/报表导出已跑通，camera list 当前为空，开门需确认安全门点后再触发；iOS 已开 [IOS-mistypass PR #12](https://github.com/Sikyy/IOS-mistypass/pull/12) 补 `MistyisletPass-Staging` scheme、APP_ENV 解析和 Debug staging widget Bundle ID，simulator 179 tests / 0 failure，`Siky的iPhone` 真机构建、安装、启动已通过，等待登录/门点/报表/camera/安全开门人工确认。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；Android Xiaomi 15 登录/门点/报表导出已跑通，camera list 当前为空，开门需确认安全门点后再触发；iOS 已开 [IOS-mistypass PR #12](https://github.com/Sikyy/IOS-mistypass/pull/12) 补 `MistyisletPass-Staging` scheme、APP_ENV 解析和 Debug staging widget Bundle ID，simulator 180 tests / 0 failure，`Siky的iPhone` 真机构建、安装、启动已通过。iOS 人工走查已确认门点列表、报表导出 URL 与 camera recordings staging/demo 数据；移动端报表导出不发邮件，邮件发送属于 report schedule send path；iOS 通行证误显示 Xiaomi 15 Android BLE 凭证的问题已在 PR #12 中按平台过滤并重新安装真机包。剩余是确认通行证刷新后不再显示 Xiaomi 15，并选择安全门点测试一次开门。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
 
 本地可重复脚本：
 

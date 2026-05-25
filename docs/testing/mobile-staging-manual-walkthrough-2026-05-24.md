@@ -24,22 +24,31 @@ Completed on 2026-05-25:
 - `/api/v1/app/cameras` returned an empty list; cloud recordings UI should show the empty state until staging has a camera with recordings.
 - iOS staging scheme PR opened: [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12).
   `MistyisletPass-Staging` simulator tests passed on iPhone 17 Pro simulator
-  with 179 tests and 0 failures.
+  with 180 tests and 0 failures after adding the platform-credential regression
+  case.
 - iOS real device was detected as `Siky的iPhone` (`iPhone18,1`, id
   `5AE18EEF-4212-5F2A-B362-11009B9043F1`).
 - iOS true-device staging build/install/launch passed after setting the Debug
   app `APP_ENV` to `staging` and using `com.mistyislet.pass.staging.widget`
   for the Debug widget Bundle ID. The main app Bundle ID remains
   `com.mistyislet.pass`.
+- iOS manual walkthrough confirmed places/doors are listed. Report export
+  presents an exportable file URL; this mobile export path does not send email.
+  Cloudflare email delivery is covered by the report schedule send path instead.
+- iOS camera cloud recordings rendered staging/demo data. A Xiaomi 15 Android
+  BLE credential was incorrectly shown in the iOS pass list; [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12)
+  now filters mobile credentials to the current iOS platform for profile, wallet,
+  and credential-renewal checks, and the fixed build was installed on the real
+  device.
 
 ```bash
 curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-api.mistyislet.com/healthz
 # 200
 ```
 
-Remaining manual device checks: open the installed app, log in with the staging
-account, verify the doors/report/camera screens render the API states above, and
-trigger one unlock only after choosing a safe staging door.
+Remaining manual device checks: reopen the installed iOS app and confirm the
+Xiaomi 15 BLE pass is gone, then trigger one unlock only after choosing a safe
+staging door.
 
 ## Mac Mini Staging API Deployment
 
