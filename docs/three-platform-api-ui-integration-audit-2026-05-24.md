@@ -203,6 +203,7 @@ cd /Users/siky/code/MistyPass
 - [x] Mac mini staging env 模板与 Compose env 透传已补齐；`deploy/macmini/update-and-redeploy.zsh` 与 launchd 模板可从 `github/main` 自动 fast-forward 后重部署。
 - [x] Report schedule Resend mock smoke 覆盖 PDF 附件、metadata、idempotency key 与发送审计。
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
-- [ ] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke。
-- Cloudflare Email Routing/Workers 生产转发。
-- 邮件回执关联 report schedule / wallet delivery / enterprise alert。
+- [x] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke：2026-05-25 Mac mini staging 已完成 Cloudflare Email Sending 启用、普通邀请邮件 smoke 和 report PDF smoke，并确认真实收件。
+- [ ] Wallet alert Cloudflare 真收件 smoke。
+- [ ] Cloudflare Email Routing/Workers 生产转发。
+- [ ] 邮件回执关联 report schedule / wallet delivery / enterprise alert。
