@@ -91,12 +91,16 @@ OpenAPI 3.0.3 spec generated at runtime (`/api/v1/openapi.json`). Static extract
 cd api && make openapi-mobile
 ```
 
-Produces `docs/openapi-mobile.json` (16 mobile endpoints). Codegen targets:
+Produces `docs/openapi-mobile.json` (128 `/app` paths / 154 mobile operations as of 2026-05-25). Route constant and client codegen targets:
 
 ```bash
+make mobile-route-constants        # generated Swift/Kotlin typed route constants
+make mobile-route-constants-check  # verify generated constants are current
 make openapi-swift   # swift6 + async/await
 make openapi-kotlin  # retrofit2 + kotlinx.serialization
 ```
+
+`docs/testing/check-mobile-app-route-drift.zsh` also compares the generated Swift/Kotlin route copies in the iOS and Android app repositories against `docs/generated/mobile-routes/`, then scans app source for method/path drift and hand-written `/app/*` route literals.
 
 ### Mobile Endpoints (`/api/v1/app/`)
 
