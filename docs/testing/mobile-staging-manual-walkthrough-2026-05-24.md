@@ -1,19 +1,33 @@
 # Mobile Staging Manual Walkthrough
 
-> Capability status: BLOCKED_EXTERNAL
+> Capability status: IN_PROGRESS
 
-Date: 2026-05-24 22:36:44 WIB
+Date: 2026-05-25 WIB
 
 ## Status
 
-Blocked before app login. The configured staging host does not resolve from this machine:
+Staging API is reachable, Android staging install smoke passed on a Xiaomi 15,
+and the main app-facing API paths have been smoke tested from this machine.
+
+Completed on 2026-05-25:
+
+- `https://staging-api.mistyislet.com/healthz` returns `200`.
+- Xiaomi 15 real device was detected by `adb` as `d766dd19` (`24129PN74C/dada`).
+- `./gradlew app:installStaging` installed the staging APK after removing an older package signed with a different key.
+- Staging app auth login returned `200` for `tenant.admin@sudirman.co`.
+- `/api/v1/app/orgs/tenant_demo_jakarta/places` returned two demo places.
+- `/api/v1/app/places/building_demo_001/doors` returned six demo doors.
+- `/api/v1/app/places/building_demo_001/reports/export` returned a PDF export URL.
+- `/api/v1/app/cameras` returned an empty list; cloud recordings UI should show the empty state until staging has a camera with recordings.
 
 ```bash
 curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-api.mistyislet.com/healthz
-# curl: (6) Could not resolve host: staging-api.mistyislet.com
+# 200
 ```
 
-Because DNS fails before authentication, the iOS/Android staging walkthrough for login, doors, unlock, report export, and camera cloud recordings cannot be completed yet.
+Remaining manual device checks: open the installed app, log in with the staging
+account, verify the doors/report/camera screens render the API states above, and
+trigger one unlock only after choosing a safe staging door.
 
 ## Mac Mini Staging API Deployment
 
@@ -147,15 +161,14 @@ If the same Mac mini later runs both production and staging, add a dedicated sta
 
 ## Android Steps
 
-Android real-device install is intentionally deferred. When ready:
+Android real-device install passed on Xiaomi 15. Continue with the installed
+staging app:
 
-1. Ensure a device or emulator is attached.
-2. Build/run staging, noting that current `staging` build type uses release signing.
-3. Log in with the staging account.
-4. Open place doors and verify the list loads from `/app/places/{placeId}/doors`.
-5. Perform one approved unlock and verify success/error feedback.
-6. Open Admin export, export PDF, and verify response state.
-7. Open Cameras, select a camera, and verify cloud token plus recordings states.
+1. Log in with `tenant.admin@sudirman.co / admin123`.
+2. Open place doors and verify the list loads from `/app/places/{placeId}/doors`.
+3. Perform one approved unlock and verify success/error feedback.
+4. Open Admin export, export PDF, and verify response state.
+5. Open Cameras and verify the current empty state, or verify cloud token plus recordings after a staging camera is enabled.
 
 ## Recheck
 
