@@ -460,19 +460,25 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build the report PDF and attach it.
 	now := time.Now().UTC()
+	go s.executeManualReportSchedule(schedule, now, provider)
+	writeJSON(w, http.StatusAccepted, schedule)
+}
+
+func (s *server) executeManualReportSchedule(schedule reportSchedule, now time.Time, provider mail.Provider) {
+	// Build the report PDF and attach it outside the request path. PDF rendering
+	// can take long enough for Cloudflare Tunnel to drop synchronous responses.
 	periodEnd := now.Truncate(time.Second)
 	periodStart := periodEnd.Add(-24 * time.Hour)
 
 	reportType, ok := normalizeReportScheduleReportType(schedule.ReportType)
 	if !ok {
-		writeError(w, http.StatusBadRequest, "unknown report type: "+schedule.ReportType)
+		s.logger.Error("manual report has unknown type", "schedule_id", schedule.ID, "report_type", schedule.ReportType)
 		return
 	}
 	data, err := s.buildReportData(reportType, schedule.TenantID, "", periodStart, periodEnd)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "failed to build report data: "+err.Error())
+		s.logger.Error("manual report data build failed", "error", err, "schedule_id", schedule.ID)
 		return
 	}
 	meta := pdfgen.ReportMeta{
@@ -484,8 +490,7 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	pdfBytes, err := s.pdfRenderer.RenderPDF(s.gotenbergClient, reportType, meta, data)
 	if err != nil {
-		s.logger.Error("pdf render failed for schedule", "error", err, "schedule_id", scheduleID)
-		writeError(w, http.StatusBadGateway, "PDF rendering failed: "+err.Error())
+		s.logger.Error("pdf render failed for schedule", "error", err, "schedule_id", schedule.ID)
 		return
 	}
 
@@ -515,24 +520,22 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		s.logger.Error("failed to send report email", "error", err, "schedule_id", scheduleID)
-		writeError(w, http.StatusBadGateway, "failed to send report email: "+err.Error())
+		s.logger.Error("failed to send report email", "error", err, "schedule_id", schedule.ID)
 		return
 	}
 
 	// Update last_sent_at.
 	s.reportScheduleMu.Lock()
-	if current, ok := s.reportSchedules[scheduleID]; ok {
+	if current, ok := s.reportSchedules[schedule.ID]; ok {
 		current.LastSentAt = now.Truncate(time.Second).Format(time.RFC3339)
 		current.UpdatedAt = now.Truncate(time.Second).Format(time.RFC3339)
-		s.reportSchedules[scheduleID] = current
+		s.reportSchedules[schedule.ID] = current
 		schedule = current
 		s.persistReportSchedulesLocked()
 	}
 	s.reportScheduleMu.Unlock()
 
-	s.appendAuditLog(r, tenantID, "report_schedule_sent", fmt.Sprintf("schedule_id=%s,report_type=%s,recipients=%d,provider=%s,provider_delivery_id=%s", schedule.ID, schedule.ReportType, len(schedule.Recipients), receipt.Provider, receipt.ProviderDeliveryID), "report_schedule")
-	writeJSON(w, http.StatusOK, schedule)
+	s.appendAuditLog(nil, schedule.TenantID, "report_schedule_sent", fmt.Sprintf("schedule_id=%s,report_type=%s,recipients=%d,provider=%s,provider_delivery_id=%s", schedule.ID, schedule.ReportType, len(schedule.Recipients), receipt.Provider, receipt.ProviderDeliveryID), "report_schedule")
 }
 
 // buildReportEmailHTML generates a branded HTML email body for a report schedule.

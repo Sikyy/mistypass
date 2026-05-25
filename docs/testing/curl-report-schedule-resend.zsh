@@ -345,16 +345,62 @@ require_equals "${SCHEDULE_FORMAT}" "pdf" "report schedule.format"
 echo "== send report schedule =="
 SEND_RAW="$(api_with_auth POST "/api/v1/report-schedules/${SCHEDULE_ID}/send?tenant_id=${TENANT_ID}")"
 split_response "${SEND_RAW}"
-require_http_code "200" "send report schedule"
+if [[ "${HTTP_CODE}" != "200" && "${HTTP_CODE}" != "202" ]]; then
+  echo "FAIL send report schedule: expected HTTP 200/202, got ${HTTP_CODE}"
+  echo "${HTTP_BODY}"
+  exit 1
+fi
 LAST_SENT_AT="$(echo "${HTTP_BODY}" | jq -r '.last_sent_at')"
+
+echo "== wait for report schedule delivery =="
+AUDIT_MATCH="false"
+for attempt in {1..18}; do
+  GET_RAW="$(api_with_auth GET "/api/v1/report-schedules/${SCHEDULE_ID}?tenant_id=${TENANT_ID}")"
+  split_response "${GET_RAW}"
+  if [[ "${HTTP_CODE}" == "200" ]]; then
+    LAST_SENT_AT="$(echo "${HTTP_BODY}" | jq -r '.last_sent_at')"
+  fi
+
+  AUDIT_RAW="$(api_with_auth GET "/api/v1/audit-logs?tenant_id=${TENANT_ID}&action=report_schedule_sent&source=report_schedule&limit=10")"
+  split_response "${AUDIT_RAW}"
+  require_http_code "200" "report schedule audit log"
+  if jq -e \
+    --arg schedule_id "${SCHEDULE_ID}" \
+    '
+    (.items // [])
+    | any(
+        .action == "report_schedule_sent"
+        and .source == "report_schedule"
+        and (.target // "" | contains("schedule_id=" + $schedule_id))
+        and (.target // "" | contains("provider=resend"))
+        and (.target // "" | contains("provider_delivery_id=email_report_mock_1"))
+      )
+    ' <<<"${HTTP_BODY}" >/dev/null; then
+    AUDIT_MATCH="true"
+  fi
+
+  if [[ -n "${LAST_SENT_AT}" && "${LAST_SENT_AT}" != "null" && "${AUDIT_MATCH}" == "true" ]]; then
+    break
+  fi
+  sleep 1
+done
 require_non_empty "${LAST_SENT_AT}" "report schedule.last_sent_at"
+require_equals "${AUDIT_MATCH}" "true" "report schedule audit log"
 
 echo "== verify gotenberg mock received render =="
-GOTENBERG_COUNT="$(jq -sr '[.[] | select(.method == "POST" and .url == "/forms/chromium/convert/html")] | length' "${GOTENBERG_LOG}")"
+for attempt in {1..10}; do
+  GOTENBERG_COUNT="$(jq -sr '[.[] | select(.method == "POST" and .url == "/forms/chromium/convert/html")] | length' "${GOTENBERG_LOG}")"
+  [[ "${GOTENBERG_COUNT}" == "1" ]] && break
+  sleep 1
+done
 require_equals "${GOTENBERG_COUNT}" "1" "gotenberg render count"
 
 echo "== verify resend mock received PDF attachment =="
-RESEND_COUNT="$(jq -sr '[.[] | select(.method == "POST" and .url == "/emails")] | length' "${RESEND_LOG}")"
+for attempt in {1..10}; do
+  RESEND_COUNT="$(jq -sr '[.[] | select(.method == "POST" and .url == "/emails")] | length' "${RESEND_LOG}")"
+  [[ "${RESEND_COUNT}" == "1" ]] && break
+  sleep 1
+done
 require_equals "${RESEND_COUNT}" "1" "resend send count"
 
 jq -es \
@@ -385,23 +431,6 @@ split_response "${GET_RAW}"
 require_http_code "200" "get report schedule"
 GET_LAST_SENT_AT="$(echo "${HTTP_BODY}" | jq -r '.last_sent_at')"
 require_equals "${GET_LAST_SENT_AT}" "${LAST_SENT_AT}" "persisted last_sent_at"
-
-echo "== verify audit log =="
-AUDIT_RAW="$(api_with_auth GET "/api/v1/audit-logs?tenant_id=${TENANT_ID}&action=report_schedule_sent&source=report_schedule&limit=10")"
-split_response "${AUDIT_RAW}"
-require_http_code "200" "report schedule audit log"
-jq -e \
-  --arg schedule_id "${SCHEDULE_ID}" \
-  '
-  (.items // [])
-  | any(
-      .action == "report_schedule_sent"
-      and .source == "report_schedule"
-      and (.target // "" | contains("schedule_id=" + $schedule_id))
-      and (.target // "" | contains("provider=resend"))
-      and (.target // "" | contains("provider_delivery_id=email_report_mock_1"))
-    )
-  ' <<<"${HTTP_BODY}" >/dev/null
 
 echo "== delete report schedule =="
 DELETE_RAW="$(api_with_auth DELETE "/api/v1/report-schedules/${SCHEDULE_ID}?tenant_id=${TENANT_ID}")"
