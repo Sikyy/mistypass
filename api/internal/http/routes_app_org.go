@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
+	"github.com/mistypass/cloud/api/internal/state"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +28,15 @@ func (s *server) appListOrgs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
+	}
+	if len(memberships) == 0 && user.TenantID != "" {
+		memberships = []state.OrgMembership{
+			{
+				UserID:   user.ID,
+				TenantID: user.TenantID,
+				Role:     user.Role,
+			},
+		}
 	}
 
 	// Build a tenant lookup map from the tenant service for name resolution.
@@ -99,12 +109,21 @@ func (s *server) appSwitchOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !found {
-		writeError(w, http.StatusForbidden, "not a member of this organization")
-		return
+		if user.TenantID == "" || user.TenantID != orgID {
+			writeError(w, http.StatusForbidden, "not a member of this organization")
+			return
+		}
+		membership = state.OrgMembership{
+			UserID:   user.ID,
+			TenantID: user.TenantID,
+			Role:     user.Role,
+		}
 	}
 
 	// Update last_used_at timestamp (best-effort, do not fail the request).
-	_ = s.orgStore.UpdateOrgMembershipLastUsed(user.ID, orgID)
+	if found {
+		_ = s.orgStore.UpdateOrgMembershipLastUsed(user.ID, orgID)
+	}
 
 	// Build a new user scoped to the target org and issue fresh tokens.
 	orgUser := auth.User{
