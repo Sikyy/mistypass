@@ -46,7 +46,7 @@ IDs are recorded.
 | Camera | Hikvision `DS-2CD1023G2-LIU-LIUF` | Needs LAN IP/credentials or Hik-Connect serial/verification code before API registration. |
 | Lock | Type B EM Lock 600 LBS, 12VDC, 400mA | `V+`/`V-` power the lock; `NO`/`NC`/`COM` are status/feedback contacts. |
 | Lock power | 12V 3A switching PSU, 36W max | Enough for one 400mA maglock; keep SBC power separate. |
-| Relay module | 2-channel opto-isolated relay candidate | Required active-level verification before any software unlock can switch lock power. |
+| Relay module | 2-channel opto-isolated relay module, 3.3V control, 5V supply | No new relay purchase needed unless active-level testing fails. Verify before any software unlock can switch lock power. |
 
 The detailed onboarding checklist is in
 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md).

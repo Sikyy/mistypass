@@ -40,7 +40,7 @@ Mobile / card / admin unlock
 | Area | `Roaming Entry` | to create/record generated ID |
 | Door | `Roaming-Test` | to create/record generated ID |
 | Gateway | Orange Pi, provisional serial `MP-GW-W0-20260524-001` | serial/MAC to confirm |
-| Relay module | 2-channel opto-isolated relay shown in photo, `NO/COM/NC`, 5V supply, 3.3V control | usable candidate; active level to verify |
+| Relay module | 2-channel opto-isolated relay, `NO/COM/NC`, 5V supply, 3.3V control | usable; no new purchase needed unless active-level testing fails |
 | Reader | ZKTeco `PROID10BM 13.56MHz` | to wire and measure D0/D1 |
 | Camera | Hikvision `DS-2CD1023G2-LIU-LIUF` | LAN/cloud binding data needed |
 | Lock | Type B EM Lock 600 LBS, 12VDC 400mA | do not connect before relay lamp/buzzer pass |
@@ -91,7 +91,8 @@ For Roaming-Test:
 
 ## Relay Candidate Checks
 
-The relay board in the provided photo appears suitable only if these checks pass:
+The confirmed relay module is suitable for the 12V/0.4A lock load. These checks
+still need to pass before it is allowed to switch the lock body:
 
 | Check | Expected |
 | --- | --- |

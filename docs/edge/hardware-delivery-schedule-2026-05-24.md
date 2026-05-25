@@ -39,7 +39,7 @@
 - Reader：ZKTeco `PROID10BM 13.56MHz`，走 Wiegand 26/34 台架路径。
 - Camera：Hikvision `DS-2CD1023G2-LIU-LIUF`，需要补 LAN IP/账号或 Hik-Connect 序列号/验证码后再注册。
 - Lock：B 型 600 LBS 电磁锁，12VDC 400mA；12V3A/36W 开关电源足够单锁测试。
-- Relay：照片中的 2 路光耦继电器可作为候选板；它是 Orange Pi 控制 12V 锁电源通断的独立继电器模块，不是电磁锁自带的 `NO/NC/COM` 状态触点。进入锁体测试前必须确认 active level。
+- Relay：现有 2 路光耦隔离继电器模块可用，3.3V 控制、5V 供电、带 `NO/COM/NC` 触点；无需新增采购，除非 active level 实测失败。它是 Orange Pi 控制 12V 锁电源通断的独立继电器模块，不是电磁锁自带的 `NO/NC/COM` 状态触点。进入锁体测试前必须确认 active level。
 
 ### P1 试点
 
@@ -64,7 +64,7 @@
 
 2026-05-24 更新：W0 台架资源 ID、接线假设、安全门禁和冒烟脚本已冻结到 [Hardware Bench W0 Freeze](hardware-bench-w0-freeze-2026-05-24.md)。拿到硬件后按该文档补齐实测证据，再进入 W1。
 
-2026-05-25 更新：Roaming-Test 实物门点、读头、摄像头、电锁和 12V3A 电源已记录到 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)。链路测试顺序已整理到 [Roaming-Test link test plan](roaming-test-link-test-plan-2026-05-25.md)。进入真实锁体测试前仍需确认继电器 active level，并先完成灯/蜂鸣器 relay pulse。
+2026-05-25 更新：Roaming-Test 实物门点、读头、摄像头、电锁、12V3A 电源和 2 路光耦隔离继电器模块已记录到 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)。链路测试顺序已整理到 [Roaming-Test link test plan](roaming-test-link-test-plan-2026-05-25.md)。进入真实锁体测试前仍需确认继电器 active level，并先完成灯/蜂鸣器 relay pulse。
 
 任务：
 
@@ -200,7 +200,7 @@
 | 阻塞 | 影响 | 处理 |
 |---|---|---|
 | 没有真实 reader/lock | 不能完成 P0 验收 | 先用 relay + 灯验证输出，但 Wiegand 仍需读头 |
-| relay active level 未确认 | API/app unlock 可能在启动或触发时反向动作 | 用照片中的光耦继电器先接灯/蜂鸣器和万用表，确认 active-low/active-high 后再接锁 |
+| relay active level 未确认 | API/app unlock 可能在启动或触发时反向动作 | 用现有 2 路光耦隔离继电器先接灯/蜂鸣器和万用表，确认 active-low/active-high 后再接锁 |
 | 不确定 GPIO 电平 | 可能损坏 SBC | 上电前用万用表确认，必要时加 level shifter |
 | 没有固定 resource ID | 事件和配置难以追踪 | W0 冻结 ID 并写入台架文档 |
 | Mobile OpenAPI 缺失 | 三端 smoke 依赖手写路径 | 与 API 审计 Batch A 并行推进 |
