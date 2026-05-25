@@ -18,6 +18,24 @@ func TestNewResendProviderValidation(t *testing.T) {
 	}
 }
 
+func TestCloudflareProviderFallbackTimeout(t *testing.T) {
+	for _, timeout := range []time.Duration{0, 500 * time.Millisecond} {
+		provider, err := NewCloudflareProvider(CloudflareOptions{
+			Endpoint:  "https://api.cloudflare.test/accounts/{account_id}/email/sending/send",
+			AccountID: "cf_account_123",
+			APIToken:  "cf_email_token",
+			From:      "reports@mistypass.test",
+			Timeout:   timeout,
+		})
+		if err != nil {
+			t.Fatalf("new cloudflare provider: %v", err)
+		}
+		if provider.client.Timeout != 15*time.Second {
+			t.Fatalf("expected 15s fallback timeout, got %s", provider.client.Timeout)
+		}
+	}
+}
+
 func TestResendProviderSend(t *testing.T) {
 	var capturedAuth string
 	var capturedContentType string

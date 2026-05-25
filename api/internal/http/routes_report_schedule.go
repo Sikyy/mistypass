@@ -847,7 +847,7 @@ func (s *server) reportMailTimeout() time.Duration {
 	if s.reportMailProviderName() == "cloudflare" {
 		timeout := s.cfg.CloudflareEmailTimeout
 		if timeout < time.Second {
-			return 5 * time.Second
+			return 15 * time.Second
 		}
 		return timeout
 	}
