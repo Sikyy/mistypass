@@ -26,10 +26,11 @@ Completed on 2026-05-25:
   `MistyisletPass-Staging` simulator tests passed on iPhone 17 Pro simulator
   with 179 tests and 0 failures.
 - iOS real device was detected as `Siky的iPhone` (`iPhone18,1`, id
-  `5AE18EEF-4212-5F2A-B362-11009B9043F1`), but staging install is blocked
-  until Xcode has a logged-in enterprise team account or matching development
-  provisioning profiles for `com.mistyislet.pass` and
-  `com.mistyislet.pass.widget`.
+  `5AE18EEF-4212-5F2A-B362-11009B9043F1`).
+- iOS true-device staging build/install/launch passed after setting the Debug
+  app `APP_ENV` to `staging` and using `com.mistyislet.pass.staging.widget`
+  for the Debug widget Bundle ID. The main app Bundle ID remains
+  `com.mistyislet.pass`.
 
 ```bash
 curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-api.mistyislet.com/healthz
