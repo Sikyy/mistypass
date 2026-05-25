@@ -22,6 +22,14 @@ Completed on 2026-05-25:
 - `/api/v1/app/places/building_demo_001/doors` returned six demo doors.
 - `/api/v1/app/places/building_demo_001/reports/export` returned a PDF export URL.
 - `/api/v1/app/cameras` returned an empty list; cloud recordings UI should show the empty state until staging has a camera with recordings.
+- iOS staging scheme PR opened: [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12).
+  `MistyisletPass-Staging` simulator tests passed on iPhone 17 Pro simulator
+  with 179 tests and 0 failures.
+- iOS real device was detected as `Siky的iPhone` (`iPhone18,1`, id
+  `5AE18EEF-4212-5F2A-B362-11009B9043F1`), but staging install is blocked
+  until Xcode has a logged-in enterprise team account or matching development
+  provisioning profiles for `com.mistyislet.pass` and
+  `com.mistyislet.pass.widget`.
 
 ```bash
 curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-api.mistyislet.com/healthz
@@ -206,12 +214,18 @@ If the same Mac mini later runs both production and staging, add a dedicated sta
 
 ## iOS Steps
 
-1. Build/run with `APP_ENV=staging` on `iPhone 17 Pro` simulator or a real iPhone.
+1. Build/run with the `MistyisletPass-Staging` scheme on `iPhone 17 Pro`
+   simulator or a real iPhone.
 2. Log in with the staging account.
 3. Open place doors and verify the list loads from `/app/places/{placeId}/doors`.
 4. Perform one approved unlock and verify success/error feedback.
 5. Open Admin reports, export PDF, and verify a downloadable/export response.
 6. Open Cameras, select a camera, and verify cloud token plus recordings states.
+
+If real-device signing fails, first confirm Xcode Settings -> Accounts has the
+enterprise team logged in. The personal team cannot sign the current app because
+the app declares NFC Tag Reading; the widget target also needs a provisioning
+profile whose App Group entitlement matches `group.com.mistyislet.pass`.
 
 ## Android Steps
 
