@@ -17,6 +17,33 @@ ROUTE_SWIFT="${ROUTE_SWIFT:-${REPO_ROOT}/docs/generated/mobile-routes/MobileAPIR
 ROUTE_KOTLIN="${ROUTE_KOTLIN:-${REPO_ROOT}/docs/generated/mobile-routes/MobileApiRoutes.generated.kt}"
 IOS_REPO="${IOS_REPO:-/Users/siky/code/ios-MistyisletPass}"
 ANDROID_REPO="${ANDROID_REPO:-/Users/siky/code/android-MistyisletPass}"
+IOS_ROUTE_SWIFT="${IOS_ROUTE_SWIFT:-${IOS_REPO}/MistyisletPass/Utilities/MobileAPIRoutes.generated.swift}"
+ANDROID_ROUTE_KOTLIN="${ANDROID_ROUTE_KOTLIN:-${ANDROID_REPO}/app/src/main/java/com/mistyislet/app/data/api/MobileApiRoutes.generated.kt}"
+
+check_generated_copy() {
+  local label="$1"
+  local repo_root="$2"
+  local source="$3"
+  local target="$4"
+
+  if [[ ! -d "${repo_root}" ]]; then
+    echo "SKIP: ${label} repo not found at ${repo_root}"
+    return 0
+  fi
+
+  if [[ ! -f "${target}" ]]; then
+    echo "FAIL: ${label} generated mobile route file is missing: ${target}"
+    return 1
+  fi
+
+  if ! cmp -s "${source}" "${target}"; then
+    echo "FAIL: ${label} generated mobile route file is stale: ${target}"
+    echo "Refresh it from ${source}"
+    return 1
+  fi
+
+  echo "PASS: ${label} generated mobile route file matches ${source}"
+}
 
 python3 "${ROUTE_GENERATOR}" \
   --spec "${SPEC_MOBILE}" \
@@ -24,6 +51,9 @@ python3 "${ROUTE_GENERATOR}" \
   --kotlin-out "${ROUTE_KOTLIN}" \
   --contract-out "${ROUTE_CONTRACT}" \
   --check
+
+check_generated_copy "iOS" "${IOS_REPO}" "${ROUTE_SWIFT}" "${IOS_ROUTE_SWIFT}"
+check_generated_copy "Android" "${ANDROID_REPO}" "${ROUTE_KOTLIN}" "${ANDROID_ROUTE_KOTLIN}"
 
 python3 - "${ROUTE_CONTRACT}" "${IOS_REPO}" "${ANDROID_REPO}" <<'PY'
 import json
