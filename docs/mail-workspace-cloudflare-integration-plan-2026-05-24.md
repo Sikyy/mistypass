@@ -62,6 +62,12 @@
 
 验收：
 
+- 先跑不带 PDF 的普通邀请邮件 smoke，隔离 Cloudflare 发信通路与 PDF/Gotenberg 渲染耗时；脚本会创建临时用户、触发邀请邮件并默认清理用户：
+  ```bash
+  INVITATION_SMOKE_RECIPIENT=ops@mistyislet.com \
+    ./docs/testing/curl-user-invitation-cloudflare.zsh
+  ```
+  若返回 `email.sending.error.email.sending_disabled`，先在 Cloudflare Email Sending 完成域名/账号发信启用，再继续报表 PDF 发信验收。
 - `POST /api/v1/report-schedules/{id}/send?tenant_id=...` mock smoke 已覆盖 PDF 附件、provider metadata 与审计；Cloudflare DNS/API token 接入后再跑一次真实收件验收。
 - Mac mini staging 可用以下脚本执行 Cloudflare 真实报表发信 smoke；脚本会创建临时报表计划、触发 PDF 发信、验证审计记录并默认清理计划：
   ```bash
