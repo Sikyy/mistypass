@@ -26,7 +26,7 @@
 ### P0 台架
 
 - Edge controller：现有 Orange Pi Zero 3 或等价 Linux SBC。
-- Relay：1 路继电器模块，先接灯/蜂鸣器模拟门锁，再接锁。
+- Relay：现有 2 路光耦隔离继电器模块，先用其中 1 路接灯/蜂鸣器模拟门锁，再接锁。
 - Reader：Wiegand 26/34 读头。
 - RS485：USB to RS485，用于 OSDP 预研。
 - Credential：Mifare/IC 卡若干，至少包含白名单、黑名单、未知卡。
@@ -64,20 +64,20 @@
 
 2026-05-24 更新：W0 台架资源 ID、接线假设、安全门禁和冒烟脚本已冻结到 [Hardware Bench W0 Freeze](hardware-bench-w0-freeze-2026-05-24.md)。拿到硬件后按该文档补齐实测证据，再进入 W1。
 
-2026-05-25 更新：Roaming-Test 实物门点、读头、摄像头、电锁、12V3A 电源和 2 路光耦隔离继电器模块已记录到 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)。链路测试顺序已整理到 [Roaming-Test link test plan](roaming-test-link-test-plan-2026-05-25.md)。进入真实锁体测试前仍需确认继电器 active level，并先完成灯/蜂鸣器 relay pulse。
+2026-05-25 更新：Roaming-Test 实物门点、读头、摄像头、电锁、12V3A 电源和 2 路光耦隔离继电器模块已记录到 [Roaming-Test hardware onboarding](roaming-test-hardware-onboarding-2026-05-25.md)。链路测试顺序已整理到 [Roaming-Test link test plan](roaming-test-link-test-plan-2026-05-25.md)。进入真实锁体测试前仍需确认 2 路光耦隔离继电器模块 active level，并先完成灯/蜂鸣器 pulse。
 
 任务：
 
 - 确认现有硬件清单和照片归档。
 - 冻结第一轮 `gateway_id`, `reader_id`, `lock_id`, `tenant_id`, `place_id`。
 - 在 Web Admin 建好对应 Place / Door / Gateway / Reader / Access Rule。
-- 写一份接线表：GPIO、Wiegand D0/D1、RS485 A/B、relay NO/NC/COM。
+- 写一份接线表：GPIO、Wiegand D0/D1、RS485 A/B、2 路光耦隔离继电器模块 NO/NC/COM。
 - 确认 Cloud API 当前生产地址 `https://api.mistyislet.com/healthz` 可用。
 
 验收：
 
 - 文档里能找到每个硬件序列号、接线图、API 资源 ID。
-- 不接锁体时，继电器动作可用灯/蜂鸣器验证。
+- 不接锁体时，2 路光耦隔离继电器模块动作可用灯/蜂鸣器验证。
 
 ### W1：单门 I/O 闭环（2026-05-26 至 2026-05-31）
 
@@ -85,9 +85,9 @@
 
 任务：
 
-- Gateway agent 能拉取配置并绑定本地 lock/relay。
+- Gateway agent 能拉取配置并绑定本地 lock/2 路光耦隔离继电器模块。
 - `POST /api/v1/locks/{id}/unlock` 或 app unlock 进入 gateway command。
-- Gateway 执行 relay pulse，回传 command ack 和 access event。
+- Gateway 执行 2 路光耦隔离继电器模块 pulse，回传 command ack 和 access event。
 - Web Admin 看到最后在线时间、最后命令、最后事件。
 
 验收：
@@ -105,7 +105,7 @@
 - Wiegand D0/D1 电压确认，必要时加 level shifter。
 - 26/34 bit 解码实测，记录 facility code / card number。
 - Gateway 调 `/api/v1/gateway/verify-credential`。
-- allow -> relay unlock，deny -> 不动作并写失败事件。
+- allow -> 2 路光耦隔离继电器模块 unlock，deny -> 不动作并写失败事件。
 - 加入 unknown card、expired schedule、revoked card 三类负例。
 
 验收：
@@ -199,8 +199,8 @@
 
 | 阻塞 | 影响 | 处理 |
 |---|---|---|
-| 没有真实 reader/lock | 不能完成 P0 验收 | 先用 relay + 灯验证输出，但 Wiegand 仍需读头 |
-| relay active level 未确认 | API/app unlock 可能在启动或触发时反向动作 | 用现有 2 路光耦隔离继电器先接灯/蜂鸣器和万用表，确认 active-low/active-high 后再接锁 |
+| 没有真实 reader/lock | 不能完成 P0 验收 | 先用现有 2 路光耦隔离继电器模块 + 灯验证输出，但 Wiegand 仍需读头 |
+| 2 路光耦隔离继电器模块 active level 未确认 | API/app unlock 可能在启动或触发时反向动作 | 用现有 2 路光耦隔离继电器模块先接灯/蜂鸣器和万用表，确认 active-low/active-high 后再接锁 |
 | 不确定 GPIO 电平 | 可能损坏 SBC | 上电前用万用表确认，必要时加 level shifter |
 | 没有固定 resource ID | 事件和配置难以追踪 | W0 冻结 ID 并写入台架文档 |
 | Mobile OpenAPI 缺失 | 三端 smoke 依赖手写路径 | 与 API 审计 Batch A 并行推进 |

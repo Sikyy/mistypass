@@ -1,7 +1,7 @@
 # Roaming-Test Hardware Onboarding - 2026-05-25
 
 > 能力状态：CONTRACT_READY
-> W0 status: ready for topology/gateway registration and relay active-level verification; lock-body testing waits for lamp/buzzer relay evidence.
+> W0 status: ready for topology/gateway registration and 2-channel opto-isolated relay module active-level verification; lock-body testing waits for lamp/buzzer relay evidence.
 
 This runbook captures the first real Roaming bench door. It extends the W0
 bench freeze without changing the original Jakarta demo baseline.
@@ -31,7 +31,7 @@ The executable chain test sequence is tracked in
 | Edge controller | Orange Pi, exact serial unknown | Use provisional serial first; record `/proc/cpuinfo` serial or network MAC when available. |
 | Reader | ZKTeco PROID10BM 13.56MHz | Wire as Wiegand 26/34 after measuring D0/D1 idle voltage. |
 | Camera | Hikvision DS-2CD1023G2-LIU-LIUF | Register after LAN IP/credentials or Hik-Connect serial/verification code are known. |
-| Lock | EM Lock 600 LBS, type B, 12VDC 400mA | Do not connect in W0; first validate relay with lamp/buzzer. |
+| Lock | EM Lock 600 LBS, type B, 12VDC 400mA | Do not connect in W0; first validate the 2-channel opto-isolated relay module with lamp/buzzer. |
 | Lock status wires | `NO`, `NC`, `COM` on type B lock | Treat as lock/bond/status feedback, not as the gateway-controlled relay. |
 | Lock power | 12V 3A switching PSU, 220VAC input, 12VDC output, 36W max | Enough for one 400mA maglock and reader power, but keep SBC power separate. |
 | Relay module | 2-channel opto-isolated relay module, 3.3V control, 5V supply | Has `NO/COM/NC`; no new relay purchase needed unless active-level testing fails. |
@@ -43,7 +43,7 @@ The executable chain test sequence is tracked in
 3. Bootstrap register the gateway with `X-Bootstrap-Token`.
 4. Bind the generated gateway ID to the generated `Roaming-Test` door ID.
 5. Publish gateway config, then have the gateway pull/apply it with its device token.
-6. Only after relay lamp/buzzer output passes, move to lock-body wiring.
+6. Only after 2-channel opto-isolated relay module lamp/buzzer output passes, move to lock-body wiring.
 
 Example API order:
 
@@ -90,14 +90,14 @@ Before connecting to GPIO, measure D0/D1 idle voltage. It must be at or below
 
 ### Relay and lock
 
-The relay module is the gateway-controlled switch. The `NO/NC/COM` wires on the
+The 2-channel opto-isolated relay module is the gateway-controlled switch. The `NO/NC/COM` wires on the
 type B maglock should not be treated as a substitute relay for the Orange Pi.
 
 W0 lamp/buzzer test:
 
-| Relay terminal | Connect to |
+| 2-channel relay module terminal | Connect to |
 | --- | --- |
-| `IN` | Orange Pi relay GPIO |
+| `IN` | Orange Pi GPIO selected for the 2-channel opto-isolated relay module |
 | `VCC` | 3.3V or 5V, matching the relay module spec |
 | `GND` | Orange Pi GND |
 | `COM` / `NO` | Low-voltage lamp or buzzer test circuit |
@@ -106,12 +106,12 @@ W1 fail-safe maglock test, after W0 passes:
 
 | Power path | Connect to |
 | --- | --- |
-| 12V PSU `+` | Relay `COM` |
-| Relay `NC` | Lock `V+` |
+| 12V PSU `+` | 2-channel opto-isolated relay module `COM` |
+| 2-channel opto-isolated relay module `NC` | Lock `V+` |
 | Lock `V-` | 12V PSU `-` |
 
-Idle relay means `NC` stays closed and the maglock remains powered/locked.
-Unlock energizes the relay, opens `NC`, cuts lock power, and releases the door.
+Idle relay module means `NC` stays closed and the maglock remains powered/locked.
+Unlock energizes the 2-channel opto-isolated relay module, opens `NC`, cuts lock power, and releases the door.
 
 ## Camera Registration Notes
 
@@ -121,7 +121,7 @@ The camera can be recorded now by model, but API registration needs one of these
 - Hik-Connect/ISC mode: cloud serial, verification code, channel count, and cloud
   account/provider configuration.
 
-Do not block the first door relay run on camera cloud playback. Bind the camera
+Do not block the first door 2-channel opto-isolated relay module run on camera cloud playback. Bind the camera
 to `Roaming-Test` after the door/gateway path is stable.
 
 ## Required Next Data
@@ -129,7 +129,7 @@ to `Roaming-Test` after the door/gateway path is stable.
 | Needed | Why |
 | --- | --- |
 | Actual Orange Pi serial or MAC | Replace provisional `MP-GW-W0-20260524-001` before pilot evidence is finalized. |
-| Relay module active level | Confirm whether the relay board is active-low or active-high before connecting the lock. |
+| 2-channel opto-isolated relay module active level | Confirm whether the board is active-low or active-high before connecting the lock. |
 | D0/D1 measured idle voltage | Protect Orange Pi GPIO. |
 | Camera LAN IP or Hik-Connect serial/verification code | Register and test Hikvision camera. |
 | Lock status contact behavior | Decide whether type B `NO/NC/COM` should feed door/lock status input. |

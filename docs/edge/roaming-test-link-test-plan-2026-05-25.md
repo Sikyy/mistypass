@@ -1,7 +1,7 @@
 # Roaming-Test Link Test Plan - 2026-05-25
 
 > 能力状态：CONTRACT_READY
-> Scope: Roaming-Test first-door chain test, from Cloud API contract to real relay, reader, lock, camera, and mobile smoke.
+> Scope: Roaming-Test first-door chain test, from Cloud API contract to real 2-channel opto-isolated relay module, reader, lock, camera, and mobile smoke.
 
 This plan turns the previous hardware notes into one executable sequence. It
 keeps completed contract/dry-run evidence separate from physical tests that
@@ -24,7 +24,7 @@ Mobile / card / admin unlock
   -> MistyPass Cloud API
   -> gateway config/authz cache
   -> Orange Pi gateway-agent
-  -> relay output
+  -> 2-channel opto-isolated relay module output
   -> EM lock power cut/release
   -> event upload/checkpoint
   -> Admin/mobile/report evidence
@@ -40,10 +40,10 @@ Mobile / card / admin unlock
 | Area | `Roaming Entry` | to create/record generated ID |
 | Door | `Roaming-Test` | to create/record generated ID |
 | Gateway | Orange Pi, provisional serial `MP-GW-W0-20260524-001` | serial/MAC to confirm |
-| Relay module | 2-channel opto-isolated relay, `NO/COM/NC`, 5V supply, 3.3V control | usable; no new purchase needed unless active-level testing fails |
+| 2-channel opto-isolated relay module | `NO/COM/NC`, 5V supply, 3.3V control | usable; no new purchase needed unless active-level testing fails |
 | Reader | ZKTeco `PROID10BM 13.56MHz` | to wire and measure D0/D1 |
 | Camera | Hikvision `DS-2CD1023G2-LIU-LIUF` | LAN/cloud binding data needed |
-| Lock | Type B EM Lock 600 LBS, 12VDC 400mA | do not connect before relay lamp/buzzer pass |
+| Lock | Type B EM Lock 600 LBS, 12VDC 400mA | do not connect before 2-channel opto-isolated relay module lamp/buzzer pass |
 | Lock power | 12V 3A / 36W switching PSU | enough for one lock; keep SBC power separate |
 
 ## Completed Baseline
@@ -53,9 +53,9 @@ Mobile / card / admin unlock
 | Cloud gateway contract | `docs/testing/artifacts/edge-mvp-validation-20260417-033943-5527.md` | 7 scripts PASS, fail_count 0 | Still needs Roaming-Test resource IDs and physical output evidence. |
 | Gateway serial/protocol API | `curl-gateway-serial-protocol-20260417-033943-5527.log` | PASS | Use real/provisional Roaming serial and record generated gateway ID. |
 | Legacy Wiegand POC contract | `curl-gateway-legacy-wiegand-poc-20260417-033943-5527.log` | PASS | Real PROID10BM GPIO frame capture still pending. |
-| Door I/O event contract | `curl-gateway-door-io-loop-20260417-033943-5527.log` | PASS | Real relay/REX/tamper/door-contact inputs still pending. |
+| Door I/O event contract | `curl-gateway-door-io-loop-20260417-033943-5527.log` | PASS | Real 2-channel opto-isolated relay module/REX/tamper/door-contact inputs still pending. |
 | Event idempotency/checkpoint/retry | Edge validation artifact logs | PASS | Repeat after Roaming gateway sends real events. |
-| WalletMate II dry-run reader test | `docs/hardware-integration-guide.md` live test record | PASS with DryRunRelay | It proved PC/SC UID flow, not physical relay/lock. |
+| WalletMate II dry-run reader test | `docs/hardware-integration-guide.md` live test record | PASS with DryRunRelay | It proved PC/SC UID flow, not physical 2-channel opto-isolated relay module/lock. |
 | Camera provider code path | `docs/hardware-integration-guide.md` Hikvision section | ISAPI path documented/implemented | Real camera IP/credentials or Hik-Connect binding still pending. |
 | Mobile staging API smoke | `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md` | Android/iOS core staging paths tested | Unlock should wait until safe Roaming door output path is verified. |
 
@@ -63,16 +63,16 @@ Mobile / card / admin unlock
 
 | Phase | Test | Preconditions | Steps | Pass criteria |
 | --- | --- | --- | --- | --- |
-| T0 | Safety photo and label capture | All hardware visible on bench | Photograph Orange Pi, relay, reader, lock PSU, lock, camera labels, and wiring before power-on. | Photos stored; model/serial/MAC table filled. |
-| T1 | Relay module electrical sanity | Relay not connected to lock | Power relay module, connect Orange Pi GND, choose a GPIO not used by Wiegand, measure idle and trigger states with multimeter. | Startup default is safe/off; trigger state and active level are known. |
-| T2 | Relay lamp/buzzer pulse | T1 pass | Connect relay output to lamp/buzzer or multimeter continuity only. Run gateway-agent with `-relay-gpio <relay_gpio>` and trigger a test unlock. | Relay/load pulses for `unlock-duration`, then returns safe/off. |
+| T0 | Safety photo and label capture | All hardware visible on bench | Photograph Orange Pi, 2-channel opto-isolated relay module, reader, lock PSU, lock, camera labels, and wiring before power-on. | Photos stored; model/serial/MAC table filled. |
+| T1 | 2-channel opto-isolated relay module electrical sanity | Relay module not connected to lock | Power the 2-channel opto-isolated relay module, connect Orange Pi GND, choose a GPIO not used by Wiegand, measure idle and trigger states with multimeter. | Startup default is safe/off; trigger state and active level are known. |
+| T2 | 2-channel opto-isolated relay module lamp/buzzer pulse | T1 pass | Connect the module output to lamp/buzzer or multimeter continuity only. Run gateway-agent with `-relay-gpio <relay_gpio>` and trigger a test unlock. | 2-channel opto-isolated relay module load pulses for `unlock-duration`, then returns safe/off. |
 | T3 | Roaming topology create | Staging API healthy | Create `Roaming Building`, `Roaming F1`, `Roaming Entry`, `Roaming-Test`. | Generated IDs recorded in evidence table. |
 | T4 | Gateway inventory/register/bind | T3 pass, bootstrap token available | Import `MP-GW-W0-20260524-001`, register gateway, bind to Roaming-Test, publish config, pull/apply config. | Gateway ID/device token recorded; config pull shows Roaming-Test bound door. |
-| T5 | Gateway-agent online smoke | T4 pass | Start agent against staging with token file, relay GPIO, and short poll interval. | Heartbeat/config pull succeeds; Admin/API shows gateway online or recent status. |
+| T5 | Gateway-agent online smoke | T4 pass | Start agent against staging with token file, 2-channel opto-isolated relay module GPIO, and short poll interval. | Heartbeat/config pull succeeds; Admin/API shows gateway online or recent status. |
 | T6 | Wiegand voltage and frame test | T1/T4 pass, reader powered by external 12V | Measure D0/D1 idle voltage, wire `D0=GPIO73`, `D1=GPIO74` only if <=3.3V, then present a fixed-UID card. | Facility/card number or raw Wiegand frame is recorded without GPIO overvoltage. |
-| T7 | Credential allow/deny | T6 pass, fixed test card available | Register/activate one allowed credential, then test allowed card, unknown card, revoked/expired card. | Allow triggers relay pulse; deny does not move relay and logs denial reason. |
+| T7 | Credential allow/deny | T6 pass, fixed test card available | Register/activate one allowed credential, then test allowed card, unknown card, revoked/expired card. | Allow triggers 2-channel opto-isolated relay module pulse; deny does not move relay module and logs denial reason. |
 | T8 | Lock-body fail-safe test | T2/T7 pass | Wire `12V+ -> COM`, `NC -> lock V+`, `lock V- -> 12V-`. Trigger one unlock while physically holding door safe. | Idle state locks; unlock cuts power and releases; relock restores power. |
-| T9 | 30-cycle single-door run | T8 pass | Run 30 remote/card unlocks with event upload enabled. | 30/30 successful relay actions; no duplicate events; no stuck relay. |
+| T9 | 30-cycle single-door run | T8 pass | Run 30 remote/card unlocks with event upload enabled. | 30/30 successful 2-channel opto-isolated relay module actions; no duplicate events; no stuck relay module. |
 | T10 | Offline/reconnect recovery | T9 pass | Disconnect network for 2 minutes, perform allowed/denied tests, reconnect. | Local decision works from cache; queued events upload and checkpoint after reconnect. |
 | T11 | Hikvision bind/snapshot | Door path stable | Register camera using LAN IP/credentials or Hik-Connect data and bind to Roaming-Test. | Snapshot/video-link/cloud-recordings path returns expected real or empty state. |
 | T12 | Mobile smoke | T8 or T9 pass | Use Android/iOS staging app with safe Roaming-Test door selected. | Door appears; one unlock works; event appears; iOS pass list remains platform-filtered. |
@@ -87,19 +87,19 @@ For Roaming-Test:
 | --- | --- | --- |
 | Wiegand D0 | `73` | Planned PC9 input with 10k pull-up to 3.3V. |
 | Wiegand D1 | `74` | Planned PC10 input with 10k pull-up to 3.3V. |
-| Relay IN | TBD | Must be a separate output GPIO; verify Orange Pi header/sysfs number. |
+| 2-channel opto-isolated relay module IN | TBD | Must be a separate output GPIO; verify Orange Pi header/sysfs number. |
 
-## Relay Candidate Checks
+## 2-Channel Opto-Isolated Relay Module Checks
 
-The confirmed relay module is suitable for the 12V/0.4A lock load. These checks
+The confirmed 2-channel opto-isolated relay module is suitable for the 12V/0.4A lock load. These checks
 still need to pass before it is allowed to switch the lock body:
 
 | Check | Expected |
 | --- | --- |
-| Output terminals | `NO`, `COM`, `NC` present for each relay channel. |
+| Output terminals | `NO`, `COM`, `NC` present for each module channel. |
 | Module supply | `5V+` / `5V-`, current at least 100mA. |
 | Control input | 3.3V control input works from Orange Pi GPIO. |
-| Ground reference | Orange Pi GND and relay module `GND`/`5V-` share reference. |
+| Ground reference | Orange Pi GND and 2-channel opto-isolated relay module `GND`/`5V-` share reference. |
 | Active level | Known before connecting lock. Current gateway-agent GPIO relay is active-low by default. |
 | Load rating | At least above 12VDC 0.4A; photo indicates DC30V 10A resistive. |
 
@@ -112,11 +112,11 @@ testing.
 | Evidence | Value/path | Result | Notes |
 | --- | --- | --- | --- |
 | Bench photo |  |  | Include all powered devices before wiring lock. |
-| Relay module photo |  |  | Must show terminal labels and jumper/trigger labels. |
+| 2-channel opto-isolated relay module photo |  |  | Must show terminal labels and jumper/trigger labels. |
 | Orange Pi serial/MAC |  |  | Replace provisional serial if available. |
-| Relay GPIO |  |  | Must not be 73 or 74 when Wiegand is connected. |
-| Relay active level |  |  | active-low / active-high. |
-| T1 multimeter readings |  |  | GPIO idle/trigger, relay COM-NC/COM-NO state. |
+| 2-channel opto-isolated relay module GPIO |  |  | Must not be 73 or 74 when Wiegand is connected. |
+| 2-channel opto-isolated relay module active level |  |  | active-low / active-high. |
+| T1 multimeter readings |  |  | GPIO idle/trigger, module COM-NC/COM-NO state. |
 | T2 lamp/buzzer video |  |  | Before lock-body wiring. |
 | Roaming generated IDs |  |  | `building_id`, `floor_id`, `area_id`, `door_id`, `gateway_id`. |
 | Config pull/apply log |  |  | Include `authz_cache_version` and bound door. |
@@ -131,18 +131,18 @@ testing.
 
 ## Stop Conditions
 
-- Any GPIO, Wiegand D0/D1, or relay input line measures above 3.3V before a
+- Any GPIO, Wiegand D0/D1, or 2-channel opto-isolated relay module input line measures above 3.3V before a
   level shifter/divider is added.
-- Relay default state would unlock or energize the wrong path at boot.
-- Relay active level is unknown.
+- 2-channel opto-isolated relay module default state would unlock or energize the wrong path at boot.
+- 2-channel opto-isolated relay module active level is unknown.
 - The lock is wired before lamp/buzzer pulse evidence is captured.
-- A failed unlock leaves relay or lock power stuck in the unsafe state.
+- A failed unlock leaves the relay module or lock power stuck in the unsafe state.
 - Camera, report, or mobile demo data is mistaken for Roaming-Test physical evidence.
 
 ## Immediate Next Actions
 
-1. Confirm relay channel terminal labels and active level with no lock attached.
-2. Pick and document a relay GPIO that does not conflict with Wiegand `73/74`.
+1. Confirm 2-channel opto-isolated relay module channel terminal labels and active level with no lock attached.
+2. Pick and document a GPIO for the 2-channel opto-isolated relay module that does not conflict with Wiegand `73/74`.
 3. Create Roaming topology/resources and record generated IDs.
 4. Register/bind the gateway using provisional serial `MP-GW-W0-20260524-001`.
-5. Run relay lamp/buzzer pulse before connecting the EM lock.
+5. Run 2-channel opto-isolated relay module lamp/buzzer pulse before connecting the EM lock.
