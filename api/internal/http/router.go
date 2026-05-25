@@ -229,6 +229,7 @@ const (
 	apiRateLimitWindow                         = time.Minute
 	apiRateLimitBucketTTL                      = 10 * time.Minute
 	apiRateLimitBucketMaxKeys                  = 20000
+	httpRequestTimeout                         = 30 * time.Second
 	enterprisePublicRateLimitMaxRequests       = 60
 	enterprisePublicRateLimitWindow            = time.Minute
 	enterprisePublicRateLimitBucketTTL         = 10 * time.Minute
@@ -583,7 +584,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Recoverer)
-	router.Use(middleware.Timeout(15 * time.Second))
+	router.Use(middleware.Timeout(httpRequestTimeout))
 	router.Use(s.withCORS)
 	router.Use(s.withTrace)
 	router.Use(s.withRequestLog)
