@@ -1,6 +1,6 @@
 # Mobile Staging Manual Walkthrough
 
-> Capability status: IN_PROGRESS
+> Capability status: CONTRACT_READY
 
 Date: 2026-05-25 WIB
 
