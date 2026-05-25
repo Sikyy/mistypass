@@ -147,4 +147,33 @@ func TestReportScheduleProviderStatus(t *testing.T) {
 		cloudflareStatus.TimeoutSeconds != 7 {
 		t.Fatalf("unexpected cloudflare provider details: %+v", cloudflareStatus)
 	}
+
+	cloudflareFallbackRouter, _, err := NewRouter(config.Config{
+		JWTSecret:                "report-provider-cloudflare-fallback-test-secret",
+		EnableDemoUsers:          true,
+		MailProvider:             "cloudflare",
+		ReportEmailEnabled:       true,
+		ReportEmailFrom:          "reports@mistypass.local",
+		UserInvitationEmailFrom:  "invites@mistypass.local",
+		CloudflareEmailEndpoint:  "https://api.cloudflare.test/accounts/{account_id}/email/sending/send",
+		CloudflareEmailAccountID: "cf_account_123",
+		CloudflareEmailAPIToken:  "cf_email_token",
+		CloudflareEmailTimeout:   500 * time.Millisecond,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected cloudflare fallback router: %v", err)
+	}
+	cloudflareFallbackToken := referenceAPILogin(t, cloudflareFallbackRouter, "organization.admin@mistypass.local")
+
+	cloudflareFallbackRecorder := referenceAPIRequest(t, cloudflareFallbackRouter, http.MethodGet, "/api/v1/report-schedules/provider-status?tenant_id=tenant_demo_jakarta", cloudflareFallbackToken, nil)
+	if cloudflareFallbackRecorder.Code != http.StatusOK {
+		t.Fatalf("expected cloudflare fallback provider status 200, got %d body=%s", cloudflareFallbackRecorder.Code, cloudflareFallbackRecorder.Body.String())
+	}
+	var cloudflareFallbackStatus reportScheduleProviderStatus
+	if err := json.Unmarshal(cloudflareFallbackRecorder.Body.Bytes(), &cloudflareFallbackStatus); err != nil {
+		t.Fatalf("decode cloudflare fallback provider status: %v", err)
+	}
+	if cloudflareFallbackStatus.TimeoutSeconds != 15 {
+		t.Fatalf("expected 15s cloudflare fallback timeout, got %+v", cloudflareFallbackStatus)
+	}
 }

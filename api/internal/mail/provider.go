@@ -138,7 +138,7 @@ func NewCloudflareProvider(options CloudflareOptions) (*CloudflareProvider, erro
 	}
 	timeout := options.Timeout
 	if timeout < time.Second {
-		timeout = 5 * time.Second
+		timeout = 15 * time.Second
 	}
 	client := options.Client
 	if client == nil {
