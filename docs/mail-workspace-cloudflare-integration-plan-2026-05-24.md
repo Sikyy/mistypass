@@ -1,7 +1,8 @@
 # Mistyislet 邮件接入方案：Workspace / Cloudflare-first / Resend fallback
 
 > 日期：2026-05-24
-> 能力状态：STAGING_SMOKE_PASSED
+> 能力状态：CONTRACT_READY
+> Staging smoke：PASSED（2026-05-25 普通邀请邮件与 report PDF 已确认真实收件）
 > 范围：后台报表发送、Wallet / Enterprise 告警、邀请邮件、未来收信回执。
 
 ## 1. 结论
