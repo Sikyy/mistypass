@@ -1,6 +1,7 @@
 # Roaming-Test Hardware Onboarding - 2026-05-25
 
-> Status: W0_READY, blocked on relay module selection before lock-body testing.
+> 能力状态：CONTRACT_READY
+> W0 status: ready for topology/gateway registration, blocked on relay module selection before lock-body testing.
 
 This runbook captures the first real Roaming bench door. It extends the W0
 bench freeze without changing the original Jakarta demo baseline.
