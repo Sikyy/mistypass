@@ -324,9 +324,9 @@ func loadMailProviderConfig(cfg *Config) {
 	cfg.CloudflareEmailAccountID = envString("CLOUDFLARE_ACCOUNT_ID")
 	cfg.CloudflareEmailEndpoint = envString("CLOUDFLARE_EMAIL_ENDPOINT")
 	cfg.CloudflareEmailAPIToken = envString("CLOUDFLARE_EMAIL_API_TOKEN")
-	cfg.CloudflareEmailTimeout = parseDurationOrFallback(envString("CLOUDFLARE_EMAIL_TIMEOUT"), 5*time.Second)
+	cfg.CloudflareEmailTimeout = parseDurationOrFallback(envString("CLOUDFLARE_EMAIL_TIMEOUT"), 15*time.Second)
 	if cfg.CloudflareEmailTimeout < time.Second {
-		cfg.CloudflareEmailTimeout = 5 * time.Second
+		cfg.CloudflareEmailTimeout = 15 * time.Second
 	}
 }
 

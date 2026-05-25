@@ -52,6 +52,7 @@
   - `CLOUDFLARE_ACCOUNT_ID=...`
   - `CLOUDFLARE_EMAIL_API_TOKEN=...`
   - `CLOUDFLARE_EMAIL_ENDPOINT=https://api.cloudflare.com/client/v4/accounts/{account_id}/email/sending/send`
+  - `CLOUDFLARE_EMAIL_TIMEOUT=15s`
   - `REPORT_EMAIL_FROM=reports@mistyislet.com`
   - `USER_INVITATION_EMAIL_PROVIDER=cloudflare`
   - `USER_INVITATION_EMAIL_FROM=no-reply@mistyislet.com`

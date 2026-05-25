@@ -58,7 +58,7 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	if cfg.MailProvider != "" {
 		t.Fatalf("default mail provider mismatch: got %s", cfg.MailProvider)
 	}
-	if cfg.CloudflareEmailTimeout != 5*time.Second {
+	if cfg.CloudflareEmailTimeout != 15*time.Second {
 		t.Fatalf("default cloudflare email timeout mismatch: got %s", cfg.CloudflareEmailTimeout)
 	}
 
@@ -127,7 +127,7 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	if cfg.MailProvider != "" {
 		t.Fatalf("invalid mail provider should fallback empty, got %s", cfg.MailProvider)
 	}
-	if cfg.CloudflareEmailTimeout != 5*time.Second {
+	if cfg.CloudflareEmailTimeout != 15*time.Second {
 		t.Fatalf("sub-second cloudflare timeout should fallback, got %s", cfg.CloudflareEmailTimeout)
 	}
 }

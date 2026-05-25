@@ -104,7 +104,7 @@ func (s *server) dispatchUserInvitationCloudflare(
 		AccountID: strings.TrimSpace(s.cfg.CloudflareEmailAccountID),
 		APIToken:  strings.TrimSpace(s.cfg.CloudflareEmailAPIToken),
 		From:      strings.TrimSpace(s.cfg.UserInvitationEmailFrom),
-		Timeout:   firstNonZeroDuration(s.cfg.CloudflareEmailTimeout, 5*time.Second),
+		Timeout:   firstNonZeroDuration(s.cfg.CloudflareEmailTimeout, 15*time.Second),
 	})
 	if err != nil {
 		return userInvitationProviderDispatchResult{
