@@ -500,7 +500,9 @@ func (s *server) sendReportSchedule(w http.ResponseWriter, r *http.Request) {
 		periodStart.Format("Jan 2"), periodEnd.Format("Jan 2, 2006"))
 	htmlBody := buildReportEmailHTML(schedule.Name, reportType, meta, filename)
 
-	receipt, err := provider.Send(r.Context(), mail.Message{
+	sendCtx, cancel := context.WithTimeout(context.Background(), s.reportMailTimeout())
+	defer cancel()
+	receipt, err := provider.Send(sendCtx, mail.Message{
 		TenantID:       schedule.TenantID,
 		To:             schedule.Recipients,
 		IdempotencyKey: reportScheduleEmailIdempotencyKey(schedule.ID, periodEnd),

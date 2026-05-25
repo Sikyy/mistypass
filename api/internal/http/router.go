@@ -229,7 +229,7 @@ const (
 	apiRateLimitWindow                         = time.Minute
 	apiRateLimitBucketTTL                      = 10 * time.Minute
 	apiRateLimitBucketMaxKeys                  = 20000
-	httpRequestTimeout                         = 30 * time.Second
+	httpRequestTimeout                         = 60 * time.Second
 	enterprisePublicRateLimitMaxRequests       = 60
 	enterprisePublicRateLimitWindow            = time.Minute
 	enterprisePublicRateLimitBucketTTL         = 10 * time.Minute
