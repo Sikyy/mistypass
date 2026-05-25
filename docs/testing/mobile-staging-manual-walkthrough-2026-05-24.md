@@ -15,6 +15,9 @@ Completed on 2026-05-25:
 - Xiaomi 15 real device was detected by `adb` as `d766dd19` (`24129PN74C/dada`).
 - `./gradlew app:installStaging` installed the staging APK after removing an older package signed with a different key.
 - Staging app auth login returned `200` for `tenant.admin@sudirman.co`.
+- `/api/v1/app/orgs` currently depends on org membership rows; the API now
+  falls back to the authenticated user's `TenantID` when no membership row
+  exists, so demo/staging users do not get stuck on an empty organization list.
 - `/api/v1/app/orgs/tenant_demo_jakarta/places` returned two demo places.
 - `/api/v1/app/places/building_demo_001/doors` returned six demo doors.
 - `/api/v1/app/places/building_demo_001/reports/export` returned a PDF export URL.

@@ -164,6 +164,38 @@ func TestAppOrgList(t *testing.T) {
 	}
 }
 
+func TestAppOrgListFallsBackToAuthenticatedTenant(t *testing.T) {
+	_, handler := newOrgTestServer(t, nil)
+
+	token := referenceAPILogin(t, handler, "tenant.admin@sudirman.co")
+
+	rec := referenceAPIRequest(t, handler, http.MethodGet, "/api/v1/app/orgs", token, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var orgs []struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Role string `json:"role"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &orgs); err != nil {
+		t.Fatalf("decode orgs: %v body=%s", err, rec.Body.String())
+	}
+	if len(orgs) != 1 {
+		t.Fatalf("expected fallback org, got %d: %+v", len(orgs), orgs)
+	}
+	if orgs[0].ID != "tenant_demo_jakarta" {
+		t.Fatalf("expected tenant_demo_jakarta, got %q", orgs[0].ID)
+	}
+	if orgs[0].Role != "tenant_admin" {
+		t.Fatalf("expected tenant_admin role, got %q", orgs[0].Role)
+	}
+	if orgs[0].Name == "" {
+		t.Fatalf("expected org name to be populated")
+	}
+}
+
 // TestAppOrgSwitch verifies that POST /app/orgs/{orgId}/switch issues new tokens.
 func TestAppOrgSwitch(t *testing.T) {
 	now := time.Now().UTC()
@@ -210,6 +242,31 @@ func TestAppOrgSwitch(t *testing.T) {
 	rec2 := referenceAPIRequest(t, handler, http.MethodGet, "/api/v1/app/me", result.AccessToken, nil)
 	if rec2.Code != http.StatusOK {
 		t.Fatalf("new token should be valid for /app/me, got %d body=%s", rec2.Code, rec2.Body.String())
+	}
+}
+
+func TestAppOrgSwitchFallsBackToAuthenticatedTenant(t *testing.T) {
+	_, handler := newOrgTestServer(t, nil)
+
+	token := referenceAPILogin(t, handler, "tenant.admin@sudirman.co")
+
+	rec := referenceAPIRequest(t, handler, http.MethodPost, "/api/v1/app/orgs/tenant_demo_jakarta/switch", token, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var result struct {
+		AccessToken string `json:"access_token"`
+		OrgID       string `json:"org_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode switch response: %v", err)
+	}
+	if result.AccessToken == "" {
+		t.Fatalf("expected access_token in switch response")
+	}
+	if result.OrgID != "tenant_demo_jakarta" {
+		t.Fatalf("expected org_id=tenant_demo_jakarta, got %q", result.OrgID)
 	}
 }
 
