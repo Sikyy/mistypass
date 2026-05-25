@@ -128,7 +128,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | 优先级 | 位置 | 问题 | 建议 |
 |---:|---|---|---|
 | P0 已完成 | `app/build.gradle.kts` debug `API_BASE_URL` | `http://localhost:8081/api/v1/` 在 Android 模拟器里通常指向模拟器自身，不是 Mac host | 已改为 `http://10.0.2.2:8080/api/v1/` |
-| P1 | Device push | Android 只有 `POST /app/devices/register`，后端另有 iOS APNS `/app/devices/apns`；FCM token 注册语义需确认 | 明确 Android FCM 是否复用 register，或新增 `/app/devices/fcm` |
+| P1 已推进 | Device push | Android 统一使用 `POST /app/devices/register` 注册 FCM token；旧 `/app/devices/fcm` 文档漂移已收口 | 后端已补 FCM HTTP v1 provider、token state store 持久化、`/mobile-push/provider-status` 与 `/mobile-push/smoke`；剩余是 Firebase Console / `google-services.json` / service account 配置后跑真实 Xiaomi 15 smoke |
 | P1 已推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android 已补 cloud token/recordings 入口、空态和错误态 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `aa63653` 已接 UI；后续做真实设备 staging 验收 |
 | P1 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `5b841d5` 已接 event/incident detail APIs；`aa63653` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
 | P2 已推进 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | 已新增 Kotlin typed route constants，Android Retrofit 注解已切到 `MobileApiRoutes.*RetrofitPath`；guard 会校验 Android generated copy 同步、method/path 漂移和手写 `/app/*` literal |
@@ -162,7 +162,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [x] Android real-device install smoke：2026-05-25 Xiaomi 15 (`d766dd19`, `24129PN74C/dada`) 已安装 staging APK；首次因旧包签名不一致失败，卸载旧 `com.mistyislet.app` 后安装成功。
-- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；camera list 当前为空，开门需确认安全门点后再触发。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；Android Xiaomi 15 登录/门点/报表导出已跑通，camera list 当前为空，开门需确认安全门点后再触发；iOS staging 仍待手工走查。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
 
 本地可重复脚本：
 

@@ -92,6 +92,57 @@ The auto-update script pulls code and rebuilds containers, but it does not copy
 the example env template over `.env.staging`, so existing Mac mini secrets stay
 in place across future `git pull` updates.
 
+### Android Push / Firebase
+
+Android FCM uses the unified mobile device registration route:
+
+```http
+POST /api/v1/app/devices/register
+```
+
+Request body:
+
+```json
+{
+  "fcm_token": "...",
+  "device_id": "...",
+  "device_model": "Xiaomi 15",
+  "platform": "android"
+}
+```
+
+Production/staging FCM enablement needs both sides configured:
+
+1. Android repo: add Firebase `google-services.json` for package
+   `com.mistyislet.app` at `app/google-services.json`, then build/install the
+   staging APK.
+2. Mac mini API: put the Firebase service account JSON at
+   `/Users/siky/code/MistyPass/secrets/firebase-service-account.json`.
+3. In `/Users/siky/code/MistyPass/.env.staging`, set:
+
+```env
+FCM_ENABLED=true
+FCM_PROJECT_ID=<firebase-project-id>
+FCM_SERVICE_ACCOUNT_FILE=/run/secrets/mistypass/firebase-service-account.json
+FCM_TIMEOUT=10s
+```
+
+`docker-compose.yml` mounts `./secrets` into the API container read-only at
+`/run/secrets/mistypass`; `secrets/` is gitignored, so future git pulls do not
+overwrite the service account file.
+
+After the Xiaomi 15 logs in and registers its token, verify:
+
+```bash
+curl -sS "$API_BASE_URL/api/v1/mobile-push/provider-status?tenant_id=tenant_demo_jakarta" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -sS -X POST "$API_BASE_URL/api/v1/mobile-push/smoke" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_id":"tenant_demo_jakarta","title":"MistyPass staging push","body":"FCM smoke from Mac mini"}'
+```
+
 ## Mac Mini Auto-Update
 
 The staging guide now includes a one-shot updater that fetches `github/main`,

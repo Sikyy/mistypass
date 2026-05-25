@@ -236,24 +236,13 @@ func (s *server) appRegisterAPNSDevice(w http.ResponseWriter, r *http.Request) {
 		req.Platform = "ios"
 	}
 
-	s.pushDeviceMu.Lock()
-	s.pushDevices[req.DeviceToken] = pushDevice{
+	s.upsertPushDevice(pushDevice{
 		UserID:       user.ID,
 		TenantID:     user.TenantID,
 		FCMToken:     req.DeviceToken,
 		Platform:     req.Platform,
-		RegisteredAt: time.Now(),
-	}
-	// Evict stale device registrations (older than 90 days) to prevent unbounded growth.
-	if len(s.pushDevices) > 1000 {
-		cutoff := time.Now().Add(-90 * 24 * time.Hour)
-		for k, v := range s.pushDevices {
-			if v.RegisteredAt.Before(cutoff) {
-				delete(s.pushDevices, k)
-			}
-		}
-	}
-	s.pushDeviceMu.Unlock()
+		RegisteredAt: time.Now().UTC(),
+	})
 
 	writeJSON(w, http.StatusOK, map[string]any{"status": "registered"})
 }

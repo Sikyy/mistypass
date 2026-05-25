@@ -32,6 +32,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
 	"github.com/mistypass/cloud/api/internal/pdfgen"
+	"github.com/mistypass/cloud/api/internal/push"
 	"github.com/mistypass/cloud/api/internal/redistore"
 	"github.com/mistypass/cloud/api/internal/state"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -130,18 +131,25 @@ type server struct {
 	doorFavorites                 map[string]map[string]bool // userID → doorID → true
 	orgStore                      orgMembershipStore
 	magicLinkStore                magicLinkStore
+	mobilePushProvider            push.Provider
 	pdfRenderer                   *pdfgen.Renderer
 	gotenbergClient               *pdfgen.GotenbergClient
 	quit                          chan struct{}
 }
 
 type pushDevice struct {
-	UserID       string
-	TenantID     string
-	FCMToken     string
-	DeviceID     string
-	Platform     string
-	RegisteredAt time.Time
+	UserID       string    `json:"user_id"`
+	TenantID     string    `json:"tenant_id"`
+	FCMToken     string    `json:"fcm_token"`
+	DeviceID     string    `json:"device_id"`
+	DeviceModel  string    `json:"device_model,omitempty"`
+	Platform     string    `json:"platform"`
+	RegisteredAt time.Time `json:"registered_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type pushDeviceStateSnapshot struct {
+	Devices []pushDevice `json:"devices"`
 }
 
 type enterpriseHRISWebhookReceiptQueuedTask struct {
@@ -476,6 +484,20 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			s.loggerOrDefault().Warn("gateway websocket push subscriber failed to start", "error", err)
 		}
 	}
+	if cfg.FCMEnabled {
+		mobilePushProvider, err := push.NewFCMProvider(push.FCMOptions{
+			ProjectID:          cfg.FCMProjectID,
+			Endpoint:           cfg.FCMEndpoint,
+			ServiceAccountFile: cfg.FCMServiceAccountFile,
+			ServiceAccountJSON: cfg.FCMServiceAccountJSON,
+			Timeout:            cfg.FCMTimeout,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("fcm provider init: %w", err)
+		}
+		s.mobilePushProvider = mobilePushProvider
+		s.loggerOrDefault().Info("fcm mobile push provider enabled", "project_id", cfg.FCMProjectID)
+	}
 	if authPersistence, ok := stateStore.(auth.Persistence); ok {
 		if err := s.authService.SetPersistence(authPersistence); err != nil {
 			return nil, nil, err
@@ -579,6 +601,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	s.restoreAlertPoliciesFromState()
 	s.restoreReportSchedulesFromState()
 	s.restoreEmailInboundEventsFromState()
+	s.restorePushDevicesFromState()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -1257,6 +1280,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Delete("/report-schedules/{scheduleID}", s.deleteReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules/{scheduleID}/send", s.sendReportSchedule)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/webhooks/email/inbound/events", s.listEmailInboundEvents)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/mobile-push/provider-status", s.getMobilePushProviderStatus)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/mobile-push/smoke", s.sendMobilePushSmoke)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator")).Get("/audit-logs", s.listAuditLogs)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/audit/webhook/config", s.getAuditWebhookConfig)
@@ -1798,16 +1823,15 @@ func (s *server) appRegisterDevice(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "fcm_token is required")
 		return
 	}
-	s.pushDeviceMu.Lock()
-	s.pushDevices[request.FCMToken] = pushDevice{
+	s.upsertPushDevice(pushDevice{
 		UserID:       user.ID,
 		TenantID:     user.TenantID,
 		FCMToken:     request.FCMToken,
 		DeviceID:     request.DeviceID,
+		DeviceModel:  request.DeviceModel,
 		Platform:     request.Platform,
-		RegisteredAt: time.Now(),
-	}
-	s.pushDeviceMu.Unlock()
+		RegisteredAt: time.Now().UTC(),
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"status": "registered"})
 }
 

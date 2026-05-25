@@ -367,10 +367,10 @@ paths:
         '200':
           description: Token 已注册
 
-  /app/devices/fcm:
+  /app/devices/register:
     post:
       tags: [Profile]
-      summary: 注册 FCM 推送 Token (Android)
+      summary: 注册移动端推送 Token（Android 使用 FCM）
       security:
         - bearerAuth: []
       requestBody:
@@ -378,9 +378,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [device_token, platform]
+              required: [fcm_token, device_id, device_model, platform]
               properties:
-                device_token:
+                fcm_token:
+                  type: string
+                device_id:
+                  type: string
+                device_model:
                   type: string
                 platform:
                   type: string
