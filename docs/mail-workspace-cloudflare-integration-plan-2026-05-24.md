@@ -57,11 +57,16 @@
   - `USER_INVITATION_EMAIL_FROM=no-reply@mistyislet.com`
   - `WALLET_ALERT_EMAIL_PROVIDER=cloudflare`
   - `WALLET_ALERT_EMAIL_FROM=no-reply@mistyislet.com`
-  - `EMAIL_INBOUND_WEBHOOK_SECRET=...`
+  - `EMAIL_INBOUND_WEBHOOK_SECRET=...`（仅启用 Cloudflare Email Worker 入站转发时需要）
 
 验收：
 
 - `POST /api/v1/report-schedules/{id}/send?tenant_id=...` mock smoke 已覆盖 PDF 附件、provider metadata 与审计；Cloudflare DNS/API token 接入后再跑一次真实收件验收。
+- Mac mini staging 可用以下脚本执行 Cloudflare 真实报表发信 smoke；脚本会创建临时报表计划、触发 PDF 发信、验证审计记录并默认清理计划：
+  ```bash
+  REPORT_SMOKE_RECIPIENTS=ops@mistyislet.com \
+    ./docs/testing/curl-report-schedule-cloudflare.zsh
+  ```
 - Wallet alert dispatch smoke 已通过 CI mock；Cloudflare DNS/API token 接入后再跑一次真实收件验收。
 - DMARC aggregate 记录能看到通过率。
 - 若 report PDF 可能超过 Cloudflare 普通发信 5 MiB 限制，改为邮件内安全下载链接，附件只用于小文件。
@@ -138,7 +143,7 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 |---:|---|---|
 | P0 | 配置 Cloudflare Email Service 生产发信 DNS | 完成 Email Sending onboarding，确认 SPF/DKIM/DMARC 与 from 域名 |
 | P0 | 在 mac mini `.env` 接入 Cloudflare Email token | 从 `deploy/env/macmini-staging.example.env` 复制完整模板，只在 macmini 本机填真实 token；`docker-compose.yml` 已透传 Cloudflare/report/wallet env 到 API 容器 |
-| P1 | 生产真实 Cloudflare smoke | 用 `reports@mistyislet.com` / `no-reply@mistyislet.com` 验证 report PDF 与 Wallet alert 真收件 |
+| P1 | 生产真实 Cloudflare smoke | 用 `docs/testing/curl-report-schedule-cloudflare.zsh` 验证 report PDF 真收件；Wallet alert 真收件另跑告警派发 smoke |
 | P1 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，下一步部署 Worker 和 allowlist/HMAC |
 | P1 | 邮件回执关联业务对象 | 把 `report_schedule_id` / `wallet_delivery_id` / provider delivery id 关联到对应发送记录 |
 | P2 | Resend fallback smoke | 仅在 Cloudflare 账号额度、beta 限制或附件限制不满足时启用 |

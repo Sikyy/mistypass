@@ -73,6 +73,23 @@ if [[ ! -f "${APP_FILE}" ]]; then
   echo "FAIL web-admin smoke: missing app file ${APP_FILE}"
   exit 1
 fi
+ROUTES_FILE="${WEB_ADMIN_DIR}/src/features/mistyislet-shell/routes.tsx"
+if [[ ! -f "${ROUTES_FILE}" ]]; then
+  echo "FAIL web-admin smoke: missing shell routes file ${ROUTES_FILE}"
+  exit 1
+fi
+SHELL_FILE="${WEB_ADMIN_DIR}/src/features/mistyislet-shell/mistyislet-admin-shell.tsx"
+if [[ ! -f "${SHELL_FILE}" ]]; then
+  echo "FAIL web-admin smoke: missing shell file ${SHELL_FILE}"
+  exit 1
+fi
+NAVIGATION_FILE="${WEB_ADMIN_DIR}/src/features/mistyislet-shell/navigation.ts"
+if [[ ! -f "${NAVIGATION_FILE}" ]]; then
+  echo "FAIL web-admin smoke: missing navigation file ${NAVIGATION_FILE}"
+  exit 1
+fi
+
+typeset -a route_marker_files=("${APP_FILE}" "${ROUTES_FILE}" "${SHELL_FILE}" "${NAVIGATION_FILE}")
 
 typeset -a route_markers=(
   'path="/login"'
@@ -92,7 +109,7 @@ typeset -a route_markers=(
 
 echo "web-admin smoke: route contract markers"
 for marker in "${route_markers[@]}"; do
-  if ! rg -F -q "${marker}" "${APP_FILE}"; then
+  if ! rg -F -q "${marker}" "${route_marker_files[@]}"; then
     echo "FAIL web-admin smoke: missing route marker ${marker}"
     exit 1
   fi
@@ -100,19 +117,16 @@ for marker in "${route_markers[@]}"; do
 done
 
 typeset -a guard_markers=(
-  'canAccessEnterprisePage(viewer) ? ('
-  'canAccessSpacesPage(viewer) ? ('
-  'canAccessAccessPage(viewer) ? ('
-  'canAccessIssuancePage(viewer) ? ('
-  'canAccessGatewaysPage(viewer) ? ('
-  'canAccessEventsPage(viewer) ? ('
-  'canAccessAlarmsPage(viewer) ? ('
+  'viewer.role === "resident"'
+  '<NoPermissionPage viewer={viewer} onLogout={logout} />'
+  'resolveNavSections(viewer, location.pathname, t)'
+  'viewer.role !== "operator"'
   '<Navigate to="/access/directory" replace />'
 )
 
-echo "web-admin smoke: auth guard markers"
+echo "web-admin smoke: role boundary markers"
 for marker in "${guard_markers[@]}"; do
-  if ! rg -F -q "${marker}" "${APP_FILE}"; then
+  if ! rg -F -q "${marker}" "${route_marker_files[@]}"; then
     echo "FAIL web-admin smoke: missing guard marker ${marker}"
     exit 1
   fi
@@ -120,15 +134,13 @@ for marker in "${guard_markers[@]}"; do
 done
 
 typeset -a flow_contracts=(
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::同步来源状态总览"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::目录到策略主流程连通检查"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::title: \"凭证发放\""
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::/wallet?scenario=employee_mobile"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::/access/directory"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::/access/policies"
-  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::label: \"去员工与用户组\""
-  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::label: \"去权限策略\""
-  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::label: \"去凭证发放\""
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::smoke-contract markers: /access/directory /access/policies /wallet?scenario=employee_mobile"
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::MainflowSegmentHint"
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::WorkerReviewStageHint"
+  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::actions.importDirectory.label"
+  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::actions.seedPolicies.label"
+  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::actions.goIssuance.label"
+  "${WEB_ADMIN_DIR}/src/components/access/access-page-recommendation-utils.ts::walletEmployeeLink"
 )
 
 echo "web-admin smoke: mainflow contract markers"
@@ -147,16 +159,14 @@ for item in "${flow_contracts[@]}"; do
 done
 
 typeset -a interaction_contracts=(
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::批量批准 pending（"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::批量拒绝 pending（"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::批量标记已回写（"
-  "${WEB_ADMIN_DIR}/src/pages/wallet-page.tsx::批量重发失败通道（"
-  "${WEB_ADMIN_DIR}/src/pages/wallet-page.tsx::批量状态修复（"
-  "${WEB_ADMIN_DIR}/src/pages/alarms-page.tsx::告警通知策略"
-  "${WEB_ADMIN_DIR}/src/pages/gateways-page.tsx::导出当前筛选结果"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::处理后去员工与用户组"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::处理后去权限策略"
-  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-sync-workspace.tsx::处理后去凭证发放"
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::enterpriseAlertsWorkspace.approvalClosure.pending.batchApprove"
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::enterpriseAlertsWorkspace.approvalClosure.pending.batchReject"
+  "${WEB_ADMIN_DIR}/src/components/enterprise/enterprise-alerts-workspace.tsx::mark_pending_synced"
+  "${WEB_ADMIN_DIR}/src/features/wallet/pages/wallet-page.tsx::data-testid=\"wallet-operations-workspace\""
+  "${WEB_ADMIN_DIR}/src/features/wallet/pages/wallet-page.tsx::receiptRecoveryRetryDelivery"
+  "${WEB_ADMIN_DIR}/src/features/wallet/pages/wallet-page.tsx::receiptRecoveryRepairStatus"
+  "${WEB_ADMIN_DIR}/src/features/alarms/pages/alarms-page.tsx::alarms.notificationPolicy.title"
+  "${WEB_ADMIN_DIR}/src/features/gateways/pages/gateways-page.tsx::exportGatewaySerialInventoryCSV"
 )
 
 echo "web-admin smoke: interaction contract markers"
