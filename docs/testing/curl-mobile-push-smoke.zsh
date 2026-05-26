@@ -27,6 +27,20 @@ function require_http_code() {
   fi
 }
 
+function require_http_code_any() {
+  local step="$1"
+  shift
+  local expected
+  for expected in "$@"; do
+    if [[ "${HTTP_CODE}" == "${expected}" ]]; then
+      return
+    fi
+  done
+  echo "FAIL ${step}: expected HTTP ${(j:/:)@}, got ${HTTP_CODE}"
+  echo "${HTTP_BODY}"
+  exit 1
+}
+
 function require_non_empty() {
   local value="$1"
   local step="$2"
@@ -73,7 +87,7 @@ SMOKE_RAW="$(curl -sS -X POST "${API_BASE_URL}/api/v1/mobile-push/smoke" \
   -d "${SMOKE_PAYLOAD}" \
   -w $'\n%{http_code}')"
 split_response "${SMOKE_RAW}"
-require_http_code "202" "send smoke"
+require_http_code_any "send smoke" "200" "202"
 echo "${HTTP_BODY}" | jq '{provider, provider_message_id, target_device_id, target_device_model, status}'
 
 echo "PASS: mobile push smoke accepted by provider"

@@ -50,8 +50,8 @@ curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-
 ```
 
 Remaining manual device checks: trigger one unlock only after choosing a safe
-staging door. Android FCM true push remains blocked on Firebase
-`google-services.json`, Firebase service account JSON, and Mac mini FCM env.
+staging door. Android FCM true push passed after installing the Firebase-enabled
+staging APK on the Xiaomi 15.
 
 ## Mac Mini Staging API Deployment
 
@@ -160,10 +160,10 @@ After the Xiaomi 15 logs in and registers its token, verify:
 /bin/zsh docs/testing/curl-mobile-push-smoke.zsh
 ```
 
-2026-05-26 check: the current `https://staging-api.mistyislet.com` deployment
-returned `404` for `/api/v1/mobile-push/provider-status`, so the Mac mini must
-first pull/deploy the branch that contains `routes_mobile_push.go` before the
-real Xiaomi 15 push smoke can run.
+2026-05-26 check: after the Mac mini pulled/rebuilt the branch that contains
+`routes_mobile_push.go`, `provider-status` returned `configured=true` and
+`registered_android_tokens=1`. A real FCM smoke was accepted by Google FCM with
+`provider_status=sent` for target `Xiaomi 24129PN74C`.
 
 ## Mac Mini Auto-Update
 
