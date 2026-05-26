@@ -157,13 +157,7 @@ overwrite the service account file.
 After the Xiaomi 15 logs in and registers its token, verify:
 
 ```bash
-curl -sS "$API_BASE_URL/api/v1/mobile-push/provider-status?tenant_id=tenant_demo_jakarta" \
-  -H "Authorization: Bearer $TOKEN"
-
-curl -sS -X POST "$API_BASE_URL/api/v1/mobile-push/smoke" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"tenant_id":"tenant_demo_jakarta","title":"MistyPass staging push","body":"FCM smoke from Mac mini"}'
+/bin/zsh docs/testing/curl-mobile-push-smoke.zsh
 ```
 
 2026-05-26 check: the current `https://staging-api.mistyislet.com` deployment

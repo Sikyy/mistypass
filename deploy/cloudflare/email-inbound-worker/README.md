@@ -1,6 +1,8 @@
 # MistyPass Email Inbound Worker
 
 > Capability status: CONTRACT_READY
+> Deployed worker: `https://mistypass-email-inbound-worker.siky.workers.dev`
+> Current deployed version: `f0578b27-9803-4d2d-a8be-b4f7620477ba`
 
 Cloudflare Email Routing / Email Service can route incoming domain email to this
 Worker. The Worker converts the incoming email event into the MistyPass inbound
@@ -32,6 +34,10 @@ The secret value must match the Mac mini API `.env.staging` value:
 ```env
 EMAIL_INBOUND_WEBHOOK_SECRET=...
 ```
+
+If the Mac mini secret is not available locally, set this secret from the
+Cloudflare dashboard or run the command on the Mac mini where the `.env.staging`
+value is available.
 
 ## Deploy
 
