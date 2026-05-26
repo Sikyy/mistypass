@@ -128,8 +128,8 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | 优先级 | 位置 | 问题 | 建议 |
 |---:|---|---|---|
 | P0 已完成 | `app/build.gradle.kts` debug `API_BASE_URL` | `http://localhost:8081/api/v1/` 在 Android 模拟器里通常指向模拟器自身，不是 Mac host | 已改为 `http://10.0.2.2:8080/api/v1/` |
-| P1 已推进 | Device push | Android 统一使用 `POST /app/devices/register` 注册 FCM token；旧 `/app/devices/fcm` 文档漂移已收口 | 后端已补 FCM HTTP v1 provider、token state store 持久化、`/mobile-push/provider-status` 与 `/mobile-push/smoke`；剩余是 Firebase Console / `google-services.json` / service account 配置后跑真实 Xiaomi 15 smoke |
-| P1 已推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android 已补 cloud token/recordings 入口、空态和错误态 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `aa63653` 已接 UI；后续做真实设备 staging 验收 |
+| P1 已推进 | Device push | Android 统一使用 `POST /app/devices/register` 注册 FCM token；旧 `/app/devices/fcm` 文档漂移已收口 | 后端已补 FCM HTTP v1 provider、token state store 持久化、`/mobile-push/provider-status` 与 `/mobile-push/smoke`；Android 代码已接 Firebase token 注册，剩余是 Firebase Console / `google-services.json` / service account 配置后跑真实 Xiaomi 15 smoke |
+| P1 已推进 | Camera cloud token/recordings | 后端存在，已补 mock-backed 成功路径测试；Android 已补 cloud token/recordings 入口、空态和错误态 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `aa63653` 已接 UI；iOS 真机已看到真实 Hikvision 画面/recordings，Android 后续复用同一 staging camera 做 parity smoke |
 | P1 已推进 | Admin detail routes | events detail/related、incidents detail/occurrences、user detail/logins/access-rights/share-access、zone detail/holiday regions 已补 API smoke；events/incidents/user/zone App 接线已完成 | [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) `5b841d5` 已接 event/incident detail APIs；`aa63653` 已接 user detail/logins/access-rights/share-access、zone detail/holiday regions 和 camera cloud UI |
 | P2 已推进 | Generated client | Retrofit path 手写，和后端 route 没有编译期约束 | 已新增 Kotlin typed route constants，Android Retrofit 注解已切到 `MobileApiRoutes.*RetrofitPath`；guard 会校验 Android generated copy 同步、method/path 漂移和手写 `/app/*` literal |
 
@@ -145,7 +145,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 | Admin extension OpenAPI | 已补 SCIM、southbound、Lark、Google Workspace、event snapshots 合同 | 相关页面已调用 | N/A | N/A | P1 已推进 |
 | Wallet Google config | API 已有 | 已补 Wallet Advanced 配置/验证 UI | 钱包真实发卡未接 | 未接 | P1 已推进；真实发卡仍视 LEI 和 Google Wallet 条件推进 |
 | Report PDF export | 已合并 | 已接 schedule/export | 默认 PDF 已接 [iOS PR #5](https://github.com/Sikyy/IOS-mistypass/pull/5) | 默认 PDF 已接 [Android PR #11](https://github.com/Sikyy/Android-mistypass/pull/11) | P1 已完成，后续只剩模拟器/真机下载体验验收 |
-| Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 已接 cloud token/recordings UI，真实设备待验收 | 已接 cloud token/recordings UI，真实设备待验收 | P1/P2 与真实摄像头 staging 验收合并 |
+| Camera cloud | API 已有，mock-backed 成功路径已测 | Admin camera 基础页 | 已接 cloud token/recordings UI，真实 Hikvision 画面/recordings 已在 iOS 真机显示 | 已接 cloud token/recordings UI，待复用同一 staging camera 做 Android parity smoke | P1/P2 真摄像头主路径已通过 iOS，Android 只剩 parity |
 | Email provider | 已新增统一 `MailProvider` + Resend/Cloudflare provider；路线调整为 Cloudflare Email Service 主通道、Resend fallback | Report Schedule 已有 provider status UI | N/A | N/A | P1 已推进，下一步接 Cloudflare DNS/API token 与回执 |
 
 ## 7. 推进计划
@@ -162,7 +162,7 @@ go test ./internal/http -run TestOpenAPIMobileCoverage
 - [x] iOS simulator 自动化 smoke：`xcodebuild test` 在 iPhone 17 Pro simulator 跑完 176 个测试，0 failure。
 - [x] Android 本地 build/unit smoke：`./gradlew testDebugUnitTest` 与 `./gradlew assembleDebug` 通过。
 - [x] Android real-device install smoke：2026-05-25 Xiaomi 15 (`d766dd19`, `24129PN74C/dada`) 已安装 staging APK；首次因旧包签名不一致失败，卸载旧 `com.mistyislet.app` 后安装成功。
-- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；Android Xiaomi 15 登录/门点/报表导出已跑通，camera list 当前为空，开门需确认安全门点后再触发；iOS 已开 [IOS-mistypass PR #12](https://github.com/Sikyy/IOS-mistypass/pull/12) 补 `MistyisletPass-Staging` scheme、APP_ENV 解析和 Debug staging widget Bundle ID，simulator 180 tests / 0 failure，`Siky的iPhone` 真机构建、安装、启动已通过。iOS 人工走查已确认门点列表、报表导出 URL 与 camera recordings staging/demo 数据；移动端报表导出不发邮件，邮件发送属于 report schedule send path；iOS 通行证误显示 Xiaomi 15 Android BLE 凭证的问题已在 PR #12 中按平台过滤并重新安装真机包。剩余是确认通行证刷新后不再显示 Xiaomi 15，并选择安全门点测试一次开门。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
+- [ ] iOS/Android 登录、门点、开门、报表导出做一次 staging 手工走查；2026-05-25 `staging-api.mistyislet.com` healthz、移动端登录、places、doors、PDF report export API smoke 已通过；Android Xiaomi 15 登录/门点/报表导出已跑通，开门需确认安全门点后再触发；iOS 已开 [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12) 补 `MistyisletPass-Staging` scheme、APP_ENV 解析和 Debug staging widget Bundle ID，simulator 180 tests / 0 failure，`Siky的iPhone` 真机构建、安装、启动已通过。iOS 人工走查已确认门点列表、报表导出 URL 与真实 Hikvision 画面/recordings；移动端报表导出不发邮件，邮件发送属于 report schedule send path；iOS 通行证误显示 Xiaomi 15 Android BLE 凭证的问题已在 PR #12 中按平台过滤并重新安装真机包，2026-05-26 复开已确认 Xiaomi 15 BLE 通行证不再显示。剩余是选择安全门点测试一次开门、Android FCM 真推送 smoke、Android camera parity smoke。步骤见 `docs/testing/mobile-staging-manual-walkthrough-2026-05-24.md`。
 
 本地可重复脚本：
 
@@ -205,5 +205,5 @@ cd /Users/siky/code/MistyPass
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
 - [x] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke：2026-05-25 Mac mini staging 已完成 Cloudflare Email Sending 启用、普通邀请邮件 smoke 和 report PDF smoke，并确认真实收件。
 - [ ] Wallet alert Cloudflare 真收件 smoke。
-- [ ] Cloudflare Email Routing/Workers 生产转发。
+- [ ] Cloudflare Email Routing/Workers 生产转发：Worker scaffold 已补到 `deploy/cloudflare/email-inbound-worker/`，剩余 Cloudflare Dashboard 配 secret、部署并绑定 Email Routing 地址。
 - [ ] 邮件回执关联 report schedule / wallet delivery / enterprise alert。

@@ -35,20 +35,23 @@ Completed on 2026-05-25:
 - iOS manual walkthrough confirmed places/doors are listed. Report export
   presents an exportable file URL; this mobile export path does not send email.
   Cloudflare email delivery is covered by the report schedule send path instead.
-- iOS camera cloud recordings rendered staging/demo data. A Xiaomi 15 Android
-  BLE credential was incorrectly shown in the iOS pass list; [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12)
+- iOS camera cloud recordings rendered successfully with the real Hikvision
+  camera path visible in the app. A Xiaomi 15 Android BLE credential was
+  incorrectly shown in the iOS pass list; [IOS-mistypass #12](https://github.com/Sikyy/IOS-mistypass/pull/12)
   now filters mobile credentials to the current iOS platform for profile, wallet,
   and credential-renewal checks, and the fixed build was installed on the real
   device.
+- 2026-05-26 update: reopening the installed iOS staging app confirmed the
+  Xiaomi 15 BLE pass no longer appears.
 
 ```bash
 curl -sS -o /tmp/mistypass-staging-health.txt -w "%{http_code}" https://staging-api.mistyislet.com/healthz
 # 200
 ```
 
-Remaining manual device checks: reopen the installed iOS app and confirm the
-Xiaomi 15 BLE pass is gone, then trigger one unlock only after choosing a safe
-staging door.
+Remaining manual device checks: trigger one unlock only after choosing a safe
+staging door. Android FCM true push remains blocked on Firebase
+`google-services.json`, Firebase service account JSON, and Mac mini FCM env.
 
 ## Mac Mini Staging API Deployment
 
@@ -133,7 +136,9 @@ Production/staging FCM enablement needs both sides configured:
 
 1. Android repo: add Firebase `google-services.json` for package
    `com.mistyislet.app` at `app/google-services.json`, then build/install the
-   staging APK.
+   staging APK. The Android code path already applies the Google Services plugin
+   when the file exists, fetches an FCM token, and registers it through
+   `/api/v1/app/devices/register`.
 2. Mac mini API: put the Firebase service account JSON at
    `/Users/siky/code/MistyPass/secrets/firebase-service-account.json`.
 3. In `/Users/siky/code/MistyPass/.env.staging`, set:
@@ -160,6 +165,11 @@ curl -sS -X POST "$API_BASE_URL/api/v1/mobile-push/smoke" \
   -H "Content-Type: application/json" \
   -d '{"tenant_id":"tenant_demo_jakarta","title":"MistyPass staging push","body":"FCM smoke from Mac mini"}'
 ```
+
+2026-05-26 check: the current `https://staging-api.mistyislet.com` deployment
+returned `404` for `/api/v1/mobile-push/provider-status`, so the Mac mini must
+first pull/deploy the branch that contains `routes_mobile_push.go` before the
+real Xiaomi 15 push smoke can run.
 
 ## Mac Mini Auto-Update
 
@@ -246,7 +256,9 @@ staging app:
 2. Open place doors and verify the list loads from `/app/places/{placeId}/doors`.
 3. Perform one approved unlock and verify success/error feedback.
 4. Open Admin export, export PDF, and verify response state.
-5. Open Cameras and verify the current empty state, or verify cloud token plus recordings after a staging camera is enabled.
+5. Open Cameras and verify cloud token plus recordings. The iOS path has already
+   shown the real Hikvision feed/recordings; Android can reuse the same enabled
+   staging camera for parity.
 
 ## Recheck
 
