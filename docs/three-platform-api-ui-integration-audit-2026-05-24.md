@@ -205,5 +205,5 @@ cd /Users/siky/code/MistyPass
 - [x] Email inbound webhook 后端入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、事件列表、state store 落库与 `email_inbound_event_received` 审计，`docs/testing/curl-email-inbound-webhook.zsh` 已接 API Smoke。
 - [x] Cloudflare Email Service 生产 DNS/API token 与真实发信 smoke：2026-05-25 Mac mini staging 已完成 Cloudflare Email Sending 启用、普通邀请邮件 smoke 和 report PDF smoke，并确认真实收件。
 - [ ] Wallet alert Cloudflare 真收件 smoke。
-- [ ] Cloudflare Email Routing/Workers 生产转发：Worker scaffold 已补到 `deploy/cloudflare/email-inbound-worker/`，剩余 Cloudflare Dashboard 配 secret、部署并绑定 Email Routing 地址。
+- [ ] Cloudflare Email Routing/Workers 生产转发：Worker scaffold 已补到 `deploy/cloudflare/email-inbound-worker/`，`mistypass-email-inbound-worker` 已部署并通过健康检查；`mistyislet.com` 当前存在 SpaceMail MX/SPF 记录，生产域名 Email Routing 地址绑定暂挂，避免误删现有收信记录。
 - [ ] 邮件回执关联 report schedule / wallet delivery / enterprise alert。

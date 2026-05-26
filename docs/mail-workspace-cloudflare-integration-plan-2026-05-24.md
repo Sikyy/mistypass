@@ -17,7 +17,7 @@
 - Report schedule 回归：`docs/testing/curl-report-schedule-resend.zsh` 已覆盖 provider status、send now、Gotenberg PDF 生成、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计。
 - Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
 - 入站/回执入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、state store 落库、受保护列表查询和 `email_inbound_event_received` 审计；`docs/testing/curl-email-inbound-webhook.zsh` 已接入 API Smoke。
-- 2026-05-25 staging 已完成 Cloudflare Email Sending 购买/启用、Mac mini `.env.staging` 接入、普通邀请邮件 smoke 和报表 PDF 真实收件 smoke；2026-05-26 已补 Cloudflare Email Worker 转发 scaffold。当前缺口收敛为 Cloudflare Dashboard 绑定 Email Routing -> Worker、Wallet alert 真收件 smoke 和生产回执关联。
+- 2026-05-25 staging 已完成 Cloudflare Email Sending 购买/启用、Mac mini `.env.staging` 接入、普通邀请邮件 smoke 和报表 PDF 真实收件 smoke；2026-05-26 已补 Cloudflare Email Worker 转发 scaffold 并部署 `mistypass-email-inbound-worker`。当前缺口收敛为 Wallet alert 真收件 smoke、生产回执关联；`mistyislet.com` Email Routing 因现有 SpaceMail MX/SPF 记录暂时挂起。
 
 ## 2. 三种方案对比
 
@@ -116,7 +116,7 @@ type MailProvider interface {
 - 三类发送都返回统一 `provider`, `provider_delivery_id`, `channel_results`。
 - provider 失败都能写审计与重试线索。
 
-### Phase E2：Cloudflare 收信入口（1 天）
+### Phase E2：Cloudflare 收信入口（1 天，暂挂生产域名）
 
 目标：处理报表回复、退信、供应商 webhook，而不是只发不收。
 
@@ -126,6 +126,14 @@ type MailProvider interface {
   - `reports-reply@mistyislet.com`
   - `bounce@mistyislet.com`
   - `security-alerts@mistyislet.com`
+- 2026-05-26 DNS 状态：Cloudflare Email Routing 启用 `mistyislet.com`
+  时提示存在不兼容记录，当前记录为：
+  - `MX mistyislet.com -> mx1.spacemail.com.`
+  - `MX mistyislet.com -> mx2.spacemail.com.`
+  - `TXT mistyislet.com -> "v=spf1 include:spf.spacemail.com ~all"`
+- 处理决策：不要删除这些 SpaceMail MX/SPF 记录，避免影响
+  `@mistyislet.com` 现有收信。`mistyislet.com` 的 Email Routing 生产接入
+  暂时挂起；如需测试入站 webhook，先使用不影响主邮箱的测试域名或子域。
 - Email Worker 做最薄转发：
   - 验签 / allowlist
   - 提取 `Message-ID`, `from`, `subject`, attachments metadata
@@ -141,7 +149,12 @@ type MailProvider interface {
 验收：
 
 - 本地/CI mock 已验证签名 webhook、事件列表和 `email_inbound_event_received` 审计。
-- Cloudflare Worker 接入后，回复报表邮件在 Admin 审计页可见 inbound event。
+- Cloudflare Worker 已部署并通过健康检查：
+  `https://mistypass-email-inbound-worker.siky.workers.dev` 返回
+  `mistypass-email-inbound-worker ok`。
+- 等测试域名或 `mistyislet.com` MX 迁移窗口确认后，把 Email Routing 地址
+  绑定到 `mistypass-email-inbound-worker`；回复报表邮件应在 Admin 审计页可见
+  inbound event。
 - 退信能关联到 report schedule / wallet delivery notification。
 
 ## 4. 不建议直接用 Workspace SMTP 的原因
@@ -164,6 +177,7 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 | P0 完成 | 配置 Cloudflare Email Service 生产发信 DNS | 2026-05-25 Email Sending 已购买/启用，普通发信与报表 PDF 发信不再被 `email.sending_disabled` 阻塞 |
 | P0 完成 | 在 mac mini `.env` 接入 Cloudflare Email token | Mac mini `.env.staging` 已配置 Cloudflare token/from/provider env；`docker-compose.yml` 已透传 Cloudflare/report/wallet env 到 API 容器 |
 | P1 部分完成 | 生产真实 Cloudflare smoke | 普通邀请邮件与 report PDF smoke 已确认真实收件；剩余 Wallet alert 真收件 smoke |
-| P1 部分完成 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，Worker scaffold 已在 `deploy/cloudflare/email-inbound-worker/`；下一步在 Cloudflare 配 secret 并把 Email Routing 地址绑定到 Worker |
+| P1 完成 | 部署 Cloudflare Email Worker | 后端 `/webhooks/email/inbound` 已就绪，Worker scaffold 已在 `deploy/cloudflare/email-inbound-worker/`，`mistypass-email-inbound-worker` 已部署并通过健康检查 |
+| P1 挂起 | `mistyislet.com` Email Routing 地址绑定 | 当前 `mistyislet.com` 存在 SpaceMail MX/SPF：`mx1.spacemail.com`、`mx2.spacemail.com`、`include:spf.spacemail.com`；不要删除，避免影响现有收信。后续先用测试域名/子域，或等确认迁移窗口 |
 | P1 | 邮件回执关联业务对象 | 把 `report_schedule_id` / `wallet_delivery_id` / provider delivery id 关联到对应发送记录 |
 | P2 | Resend fallback smoke | 仅在 Cloudflare 账号额度、beta 限制或附件限制不满足时启用 |
