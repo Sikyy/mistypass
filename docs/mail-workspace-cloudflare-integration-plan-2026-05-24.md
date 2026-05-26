@@ -2,6 +2,7 @@
 
 > 日期：2026-05-24
 > 能力状态：CONTRACT_READY
+> Staging smoke：PASSED（2026-05-25 普通邀请邮件与 report PDF 已确认真实收件）
 > 范围：后台报表发送、Wallet / Enterprise 告警、邀请邮件、未来收信回执。
 
 ## 1. 结论
@@ -16,7 +17,7 @@
 - Report schedule 回归：`docs/testing/curl-report-schedule-resend.zsh` 已覆盖 provider status、send now、Gotenberg PDF 生成、Resend PDF 附件、metadata、idempotency key 与 `report_schedule_sent` 审计。
 - Wallet / Enterprise 告警：Wallet email sender 已通过统一 Resend provider 发送，Enterprise worker alerts 复用 Wallet 多通道 dispatch；`spaceemail` 仍映射到 `resend` 兼容模式。
 - 入站/回执入口：`POST /api/v1/webhooks/email/inbound` 已补 HMAC 验签、state store 落库、受保护列表查询和 `email_inbound_event_received` 审计；`docs/testing/curl-email-inbound-webhook.zsh` 已接入 API Smoke。
-- 当前缺口不是“没有邮件能力”，而是缺少 Cloudflare Email Service 生产账号/DNS/API token smoke、Cloudflare Worker 转发和生产回执关联。
+- 2026-05-25 staging 已完成 Cloudflare Email Sending 购买/启用、Mac mini `.env.staging` 接入、普通邀请邮件 smoke 和报表 PDF 真实收件 smoke；2026-05-26 已补 Cloudflare Email Worker 转发 scaffold。当前缺口收敛为 Cloudflare Dashboard 绑定 Email Routing -> Worker、Wallet alert 真收件 smoke 和生产回执关联。
 
 ## 2. 三种方案对比
 
@@ -61,6 +62,12 @@
   - `EMAIL_INBOUND_WEBHOOK_SECRET=...`（仅启用 Cloudflare Email Worker 入站转发时需要）
 
 验收：
+
+- 2026-05-25 已完成：
+  - Cloudflare Email Sending 已启用，Cloudflare 发信通路不再返回 `email.sending_disabled`。
+  - Mac mini staging API 已接入 Cloudflare Email Service env 并重启。
+  - 普通邀请邮件 smoke 已确认真实收件，用于隔离 Cloudflare 发信通路与 PDF/Gotenberg 渲染耗时。
+  - Report schedule PDF Cloudflare smoke 已确认真实收件；当时 PDF 生成链路耗时约 25 秒，`CLOUDFLARE_EMAIL_TIMEOUT` 已按 staging 需要从 5s 调整到 15s/更高后复测。
 
 - 先跑不带 PDF 的普通邀请邮件 smoke，隔离 Cloudflare 发信通路与 PDF/Gotenberg 渲染耗时；脚本会创建临时用户、触发邀请邮件并默认清理用户：
   ```bash
@@ -123,6 +130,12 @@ type MailProvider interface {
   - 验签 / allowlist
   - 提取 `Message-ID`, `from`, `subject`, attachments metadata
   - 调用后端 `/api/v1/webhooks/email/inbound`
+- Worker scaffold 已落地到 `deploy/cloudflare/email-inbound-worker/`：
+  - `src/index.mjs` 会按 `EMAIL_INBOUND_WEBHOOK_SECRET` 生成
+    `X-MistyPass-Email-Timestamp` / `X-MistyPass-Email-Signature`。
+  - `wrangler.jsonc` 默认指向 `https://staging-api.mistyislet.com` 和
+    `tenant_demo_jakarta`。
+  - `README.md` 记录了 secret、部署和 Email Routing 绑定步骤。
 - 后端落库：`/api/v1/webhooks/email/inbound` 已先落入 `module_email_inbound` state store，并提供 `/api/v1/webhooks/email/inbound/events` 查询；后续如需强查询和报表关联，再迁入专用表。
 
 验收：
@@ -148,9 +161,9 @@ Google Workspace 更适合作为企业办公邮箱，而不是高频事务邮件
 
 | 优先级 | 事项 | 说明 |
 |---:|---|---|
-| P0 | 配置 Cloudflare Email Service 生产发信 DNS | 完成 Email Sending onboarding，确认 SPF/DKIM/DMARC 与 from 域名 |
-| P0 | 在 mac mini `.env` 接入 Cloudflare Email token | 从 `deploy/env/macmini-staging.example.env` 复制完整模板，只在 macmini 本机填真实 token；`docker-compose.yml` 已透传 Cloudflare/report/wallet env 到 API 容器 |
-| P1 | 生产真实 Cloudflare smoke | 用 `docs/testing/curl-report-schedule-cloudflare.zsh` 验证 report PDF 真收件；Wallet alert 真收件另跑告警派发 smoke |
-| P1 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，下一步部署 Worker 和 allowlist/HMAC |
+| P0 完成 | 配置 Cloudflare Email Service 生产发信 DNS | 2026-05-25 Email Sending 已购买/启用，普通发信与报表 PDF 发信不再被 `email.sending_disabled` 阻塞 |
+| P0 完成 | 在 mac mini `.env` 接入 Cloudflare Email token | Mac mini `.env.staging` 已配置 Cloudflare token/from/provider env；`docker-compose.yml` 已透传 Cloudflare/report/wallet env 到 API 容器 |
+| P1 部分完成 | 生产真实 Cloudflare smoke | 普通邀请邮件与 report PDF smoke 已确认真实收件；剩余 Wallet alert 真收件 smoke |
+| P1 部分完成 | 接 Cloudflare Email Worker 转发 | 后端 `/webhooks/email/inbound` 已就绪，Worker scaffold 已在 `deploy/cloudflare/email-inbound-worker/`；下一步在 Cloudflare 配 secret 并把 Email Routing 地址绑定到 Worker |
 | P1 | 邮件回执关联业务对象 | 把 `report_schedule_id` / `wallet_delivery_id` / provider delivery id 关联到对应发送记录 |
 | P2 | Resend fallback smoke | 仅在 Cloudflare 账号额度、beta 限制或附件限制不满足时启用 |

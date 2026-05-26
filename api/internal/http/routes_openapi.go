@@ -800,6 +800,10 @@ func openAPIOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/users/sign_up", OperationID: "userSignUp", Tag: "Authentication", Summary: "Self-service user registration.", Public: true, Created: true},
 		{Method: http.MethodPost, Path: "/api/v1/users/password", OperationID: "changeUserPassword", Tag: "Authentication", Summary: "Change current user password."},
 
+		// Mobile push operations
+		{Method: http.MethodGet, Path: "/api/v1/mobile-push/provider-status", OperationID: "getMobilePushProviderStatus", Tag: "Mobile Push", Summary: "Get mobile push provider status."},
+		{Method: http.MethodPost, Path: "/api/v1/mobile-push/smoke", OperationID: "sendMobilePushSmoke", Tag: "Mobile Push", Summary: "Send an FCM smoke notification to a registered Android device."},
+
 		// OAuth2 client management
 		{Method: http.MethodPost, Path: "/api/v1/oauth2/clients", OperationID: "registerOAuth2Client", Tag: "OAuth2", Summary: "Register an OAuth2 client application.", Created: true},
 		{Method: http.MethodGet, Path: "/api/v1/oauth2/clients", OperationID: "listOAuth2Clients", Tag: "OAuth2", Summary: "List OAuth2 client applications.", Collection: true},

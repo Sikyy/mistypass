@@ -60,6 +60,12 @@ type Config struct {
 	CloudflareEmailEndpoint                                      string
 	CloudflareEmailAPIToken                                      string
 	CloudflareEmailTimeout                                       time.Duration
+	FCMEnabled                                                   bool
+	FCMProjectID                                                 string
+	FCMEndpoint                                                  string
+	FCMServiceAccountFile                                        string
+	FCMServiceAccountJSON                                        string
+	FCMTimeout                                                   time.Duration
 	TrustedProxyCIDRs                                            []string
 	DatabaseURL                                                  string
 	DatabaseAutoMigrate                                          bool
@@ -183,6 +189,7 @@ func FromEnv() Config {
 	loadUserInvitationConfig(&cfg)
 	loadEmailInboundWebhookConfig(&cfg)
 	loadMailProviderConfig(&cfg)
+	loadMobilePushConfig(&cfg)
 	loadDatabaseConfig(&cfg)
 	loadEnterpriseConfig(&cfg)
 	loadGatewayConfig(&cfg)
@@ -327,6 +334,18 @@ func loadMailProviderConfig(cfg *Config) {
 	cfg.CloudflareEmailTimeout = parseDurationOrFallback(envString("CLOUDFLARE_EMAIL_TIMEOUT"), 15*time.Second)
 	if cfg.CloudflareEmailTimeout < time.Second {
 		cfg.CloudflareEmailTimeout = 15 * time.Second
+	}
+}
+
+func loadMobilePushConfig(cfg *Config) {
+	cfg.FCMEnabled = parseBoolOrFallback(envString("FCM_ENABLED"), false)
+	cfg.FCMProjectID = envString("FCM_PROJECT_ID")
+	cfg.FCMEndpoint = envString("FCM_ENDPOINT")
+	cfg.FCMServiceAccountFile = envString("FCM_SERVICE_ACCOUNT_FILE")
+	cfg.FCMServiceAccountJSON = envString("FCM_SERVICE_ACCOUNT_JSON")
+	cfg.FCMTimeout = parseDurationOrFallback(envString("FCM_TIMEOUT"), 10*time.Second)
+	if cfg.FCMTimeout < time.Second {
+		cfg.FCMTimeout = 10 * time.Second
 	}
 }
 
@@ -879,6 +898,11 @@ func (cfg Config) Validate() error {
 		parsed, err := url.Parse(serverURL)
 		if err != nil || strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
 			return errors.New("NATS_SERVER_URL must be a valid URL when NATS_ENABLED is true")
+		}
+	}
+	if cfg.FCMEnabled {
+		if strings.TrimSpace(cfg.FCMServiceAccountFile) == "" && strings.TrimSpace(cfg.FCMServiceAccountJSON) == "" {
+			return errors.New("FCM_SERVICE_ACCOUNT_FILE or FCM_SERVICE_ACCOUNT_JSON is required when FCM_ENABLED is true")
 		}
 	}
 	if cfg.ExternalAuthEnabled {

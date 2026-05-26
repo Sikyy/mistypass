@@ -27236,6 +27236,93 @@
         ]
       }
     },
+    "/api/v1/mobile-push/provider-status": {
+      "get": {
+        "operationId": "getMobilePushProviderStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get mobile push provider status.",
+        "tags": [
+          "Mobile Push"
+        ]
+      }
+    },
+    "/api/v1/mobile-push/smoke": {
+      "post": {
+        "operationId": "sendMobilePushSmoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundError"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Send an FCM smoke notification to a registered Android device.",
+        "tags": [
+          "Mobile Push"
+        ]
+      }
+    },
     "/api/v1/network/topology": {
       "get": {
         "operationId": "getNetworkTopology",
@@ -36368,6 +36455,10 @@
     {
       "description": "Reference-style resource endpoints.",
       "name": "Mobile Credentials"
+    },
+    {
+      "description": "Reference-style resource endpoints.",
+      "name": "Mobile Push"
     },
     {
       "description": "Reference-style resource endpoints.",

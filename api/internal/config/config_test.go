@@ -132,6 +132,68 @@ func TestFromEnvUserInvitationProviderDefaultsAndOverrides(t *testing.T) {
 	}
 }
 
+func TestFromEnvMobilePushConfig(t *testing.T) {
+	t.Setenv("FCM_ENABLED", "")
+	t.Setenv("FCM_PROJECT_ID", "")
+	t.Setenv("FCM_ENDPOINT", "")
+	t.Setenv("FCM_SERVICE_ACCOUNT_FILE", "")
+	t.Setenv("FCM_SERVICE_ACCOUNT_JSON", "")
+	t.Setenv("FCM_TIMEOUT", "")
+
+	cfg := FromEnv()
+	if cfg.FCMEnabled {
+		t.Fatalf("expected fcm disabled by default")
+	}
+	if cfg.FCMTimeout != 10*time.Second {
+		t.Fatalf("default fcm timeout mismatch: got %s", cfg.FCMTimeout)
+	}
+
+	t.Setenv("FCM_ENABLED", "true")
+	t.Setenv("FCM_PROJECT_ID", "mistypass-staging")
+	t.Setenv("FCM_ENDPOINT", "https://fcm.test/v1/projects/{project_id}/messages:send")
+	t.Setenv("FCM_SERVICE_ACCOUNT_FILE", "/secure/firebase-service-account.json")
+	t.Setenv("FCM_SERVICE_ACCOUNT_JSON", `{"project_id":"mistypass-staging"}`)
+	t.Setenv("FCM_TIMEOUT", "12s")
+
+	cfg = FromEnv()
+	if !cfg.FCMEnabled {
+		t.Fatalf("expected fcm enabled")
+	}
+	if cfg.FCMProjectID != "mistypass-staging" {
+		t.Fatalf("project id mismatch: got %s", cfg.FCMProjectID)
+	}
+	if cfg.FCMEndpoint != "https://fcm.test/v1/projects/{project_id}/messages:send" {
+		t.Fatalf("endpoint mismatch: got %s", cfg.FCMEndpoint)
+	}
+	if cfg.FCMServiceAccountFile != "/secure/firebase-service-account.json" {
+		t.Fatalf("service account file mismatch: got %s", cfg.FCMServiceAccountFile)
+	}
+	if cfg.FCMServiceAccountJSON != `{"project_id":"mistypass-staging"}` {
+		t.Fatalf("service account json mismatch: got %s", cfg.FCMServiceAccountJSON)
+	}
+	if cfg.FCMTimeout != 12*time.Second {
+		t.Fatalf("timeout mismatch: got %s", cfg.FCMTimeout)
+	}
+
+	t.Setenv("FCM_TIMEOUT", "500ms")
+	cfg = FromEnv()
+	if cfg.FCMTimeout != 10*time.Second {
+		t.Fatalf("sub-second fcm timeout should fallback, got %s", cfg.FCMTimeout)
+	}
+}
+
+func TestConfigValidateFCMRequiresCredentialsWhenEnabled(t *testing.T) {
+	cfg := Config{FCMEnabled: true}
+	if err := cfg.Validate(); err == nil {
+		t.Fatalf("expected fcm validation error")
+	}
+
+	cfg.FCMServiceAccountFile = "/secure/firebase-service-account.json"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+}
+
 func TestFromEnvReportEmailConfig(t *testing.T) {
 	t.Setenv("REPORT_EMAIL_ENABLED", "")
 	t.Setenv("REPORT_EMAIL_FROM", "")
