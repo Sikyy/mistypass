@@ -60,11 +60,18 @@ Recommended topology:
 ```text
 staging-api.mistyislet.com
   -> Cloudflare Tunnel
-  -> Mac mini http://127.0.0.1:8080
-  -> MistyPass API container
+  -> Mac mini http://127.0.0.1:18080
+  -> MistyPass API container :8080
 ```
 
-Use this default Compose flow when the Mac mini is dedicated to staging or does not already run another MistyPass Compose stack with the same container names/ports. Do not point `staging-api.mistyislet.com` at production unless staging app traffic is intentionally allowed to touch production data.
+Use this Compose flow for the current Mac mini staging host. The base Compose
+file still maps the API to host `127.0.0.1:8080` for ordinary local
+development, but this Mac mini already has another Jetty service on `8080`.
+Keep the local override in place so staging uses host `18080` while the API
+container continues listening on internal port `8080`.
+
+Do not point `staging-api.mistyislet.com` at production unless staging app
+traffic is intentionally allowed to touch production data.
 
 On the Mac mini:
 
@@ -72,15 +79,18 @@ On the Mac mini:
 cd /Users/siky/code/MistyPass
 git pull --ff-only github main
 
-cp deploy/env/macmini-staging.example.env .env.staging
+test -f .env.staging || cp deploy/env/macmini-staging.example.env .env.staging
 # Before starting Compose, replace all change-me / replace-* values in .env.staging.
 # Keep real Cloudflare tokens and other secrets only on the Mac mini.
 
-docker compose --env-file .env.staging up -d --build
-curl -i http://127.0.0.1:8080/healthz
+test -f docker-compose.local.yml || cp deploy/macmini/docker-compose.local.yml.example docker-compose.local.yml
+docker compose --env-file .env.staging -f docker-compose.yml -f docker-compose.local.yml up -d --build
+curl -i http://127.0.0.1:18080/healthz
 ```
 
 `.env.staging` is ignored by `.gitignore`; keep real secrets only on the Mac mini.
+`docker-compose.local.yml` is also gitignored; keep it on the Mac mini so future
+pulls do not overwrite the host-port override.
 
 ### Staging Secrets
 
@@ -175,8 +185,13 @@ local health:
 cd /Users/siky/code/MistyPass
 REPO_DIR=/Users/siky/code/MistyPass \
 ENV_FILE=/Users/siky/code/MistyPass/.env.staging \
+COMPOSE_FILES=docker-compose.yml,docker-compose.local.yml \
+HEALTH_URL=http://127.0.0.1:18080/healthz \
 ./deploy/macmini/update-and-redeploy.zsh
 ```
+
+If `COMPOSE_FILES` is not set, the updater automatically includes
+`docker-compose.local.yml` when that file exists in the repository root.
 
 Optional launchd schedule:
 
@@ -197,7 +212,7 @@ Cloudflare Zero Trust setup:
 2. Install and run `cloudflared` on the Mac mini using the token Cloudflare provides.
 3. Add a public hostname:
    - Hostname: `staging-api.mistyislet.com`
-   - Service: `http://localhost:8080`
+   - Service: `http://localhost:18080`
 4. Cloudflare should create the DNS record automatically. If creating it manually, use:
    - Type: `CNAME`
    - Name: `staging-api`

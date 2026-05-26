@@ -1,0 +1,7 @@
+# Mac mini staging override for hosts where 127.0.0.1:8080 is already occupied.
+# Copy this file to the repository root as docker-compose.local.yml.
+services:
+  api:
+    ports: !override
+      - "127.0.0.1:18080:8080"
+      - "127.0.0.1:19443:9443"

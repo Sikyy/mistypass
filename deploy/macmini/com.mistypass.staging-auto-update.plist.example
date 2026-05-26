@@ -22,8 +22,10 @@
     <string>main</string>
     <key>ENV_FILE</key>
     <string>/Users/siky/code/MistyPass/.env.staging</string>
+    <key>COMPOSE_FILES</key>
+    <string>docker-compose.yml,docker-compose.local.yml</string>
     <key>HEALTH_URL</key>
-    <string>http://127.0.0.1:8080/healthz</string>
+    <string>http://127.0.0.1:18080/healthz</string>
   </dict>
 
   <key>StartInterval</key>
