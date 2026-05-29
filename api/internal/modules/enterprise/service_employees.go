@@ -611,6 +611,10 @@ func (s *Service) StartAuthStateToken(
 	if err != nil {
 		return AuthStateToken{}, err
 	}
+	nonceValue, err := randomID("non_")
+	if err != nil {
+		return AuthStateToken{}, err
+	}
 	now := time.Now().UTC()
 	record := AuthStateToken{
 		Token:       tokenValue,
@@ -618,6 +622,7 @@ func (s *Service) StartAuthStateToken(
 		Provider:    nextProvider,
 		Email:       nextEmail,
 		RedirectURI: nextRedirectURI,
+		Nonce:       nonceValue,
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(ttl),
 	}

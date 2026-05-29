@@ -92,6 +92,13 @@ func (s *server) enterpriseOIDCCallback(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Bind the ID token to the nonce issued in the authorize request. This
+	// prevents replay/injection of a captured ID token at the callback.
+	if authState.Nonce != "" && strings.TrimSpace(identity.Nonce) != authState.Nonce {
+		writeError(w, http.StatusUnauthorized, enterprise.ErrOIDCTokenNonceMismatch.Error())
+		return
+	}
+
 	loginEmail := strings.TrimSpace(expectedEmail)
 	if identity.Email != "" {
 		loginEmail = identity.Email

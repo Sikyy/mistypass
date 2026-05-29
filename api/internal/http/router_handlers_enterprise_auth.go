@@ -328,7 +328,7 @@ func samlAttributeFirst(attributes map[string][]string, keys ...string) string {
 	return ""
 }
 
-func buildEnterpriseOIDCAuthorizeURL(config enterprise.IDPConfig, stateToken, redirectURI string) (string, error) {
+func buildEnterpriseOIDCAuthorizeURL(config enterprise.IDPConfig, stateToken, redirectURI, nonce string) (string, error) {
 	baseURL := strings.TrimSpace(config.AuthURL)
 	if baseURL == "" {
 		baseURL = strings.TrimSuffix(strings.TrimSpace(config.IssuerURL), "/") + "/oauth2/auth"
@@ -351,6 +351,9 @@ func buildEnterpriseOIDCAuthorizeURL(config enterprise.IDPConfig, stateToken, re
 	query.Set("redirect_uri", redirectURI)
 	query.Set("scope", strings.Join(scopes, " "))
 	query.Set("state", stateToken)
+	if strings.TrimSpace(nonce) != "" {
+		query.Set("nonce", nonce)
+	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
 }

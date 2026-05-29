@@ -18,6 +18,7 @@ func TestBuildEnterpriseOIDCAuthorizeURL(t *testing.T) {
 		config,
 		"st_demo_001",
 		"https://admin.mistypass.local/enterprise/callback",
+		"non_demo_001",
 	)
 	if err != nil {
 		t.Fatalf("expected authorize URL build to succeed: %v", err)
@@ -35,6 +36,9 @@ func TestBuildEnterpriseOIDCAuthorizeURL(t *testing.T) {
 	}
 	if query.Get("state") != "st_demo_001" {
 		t.Fatalf("unexpected state param: %s", query.Get("state"))
+	}
+	if query.Get("nonce") != "non_demo_001" {
+		t.Fatalf("unexpected nonce param: %s", query.Get("nonce"))
 	}
 	if query.Get("scope") != "openid email" {
 		t.Fatalf("unexpected scope: %s", query.Get("scope"))

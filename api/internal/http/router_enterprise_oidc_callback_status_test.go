@@ -46,7 +46,7 @@ func TestEnterpriseOIDCCallbackJITInactiveReturnsForbidden(t *testing.T) {
 		t.Fatalf("expected start auth state token success: %v", err)
 	}
 
-	idToken := mustBuildSignedOIDCIDToken(t, signingKey, issuerURL, clientID, externalID, email)
+	idToken := mustBuildSignedOIDCIDTokenWithExtraClaims(t, signingKey, issuerURL, clientID, externalID, email, map[string]any{"nonce": stateToken.Nonce})
 	rawURL := fmt.Sprintf(
 		"/api/v1/enterprise/auth/oidc/callback?state=%s&id_token=%s",
 		url.QueryEscape(stateToken.Token),
@@ -97,7 +97,7 @@ func TestEnterpriseOIDCCallbackJITExternalIDConflictReturnsConflict(t *testing.T
 		t.Fatalf("expected start auth state token success: %v", err)
 	}
 
-	idToken := mustBuildSignedOIDCIDToken(t, signingKey, issuerURL, clientID, "sub-jit-callback-conflict-b", email)
+	idToken := mustBuildSignedOIDCIDTokenWithExtraClaims(t, signingKey, issuerURL, clientID, "sub-jit-callback-conflict-b", email, map[string]any{"nonce": stateToken.Nonce})
 	rawURL := fmt.Sprintf(
 		"/api/v1/enterprise/auth/oidc/callback?state=%s&id_token=%s",
 		url.QueryEscape(stateToken.Token),

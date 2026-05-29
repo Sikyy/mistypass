@@ -78,6 +78,7 @@ func TestEnterpriseOIDCCallbackJITEmploymentStatusTerminatedReturnsForbidden(t *
 		email,
 		map[string]any{
 			"status": "terminated",
+			"nonce":  stateToken.Nonce,
 		},
 	)
 
