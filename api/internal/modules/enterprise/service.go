@@ -500,6 +500,7 @@ type Service struct {
 	syncWorkerAlertCooldowns     []SyncWorkerAlertCooldown
 	syncWorkerAlertInFlights     []SyncWorkerAlertInFlight
 	authStateTokens              map[string]AuthStateToken
+	consumedSAMLAssertions       map[string]time.Time
 	stateStore                   StateStore
 }
 

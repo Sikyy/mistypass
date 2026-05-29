@@ -223,7 +223,8 @@ func (s *server) enterpriseSAMLCallback(w http.ResponseWriter, r *http.Request) 
 			errors.Is(err, enterprise.ErrSAMLAssertionAudienceMismatch),
 			errors.Is(err, enterprise.ErrSAMLAssertionSubjectRequired),
 			errors.Is(err, enterprise.ErrSAMLAssertionEmailRequired),
-			errors.Is(err, enterprise.ErrSAMLAssertionEmailMismatch):
+			errors.Is(err, enterprise.ErrSAMLAssertionEmailMismatch),
+			errors.Is(err, enterprise.ErrSAMLAssertionReplayed):
 			writeError(w, http.StatusUnauthorized, err.Error())
 		default:
 			writeError(w, http.StatusInternalServerError, err.Error())
