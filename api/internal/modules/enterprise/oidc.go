@@ -24,6 +24,8 @@ var ErrOIDCJWKSFetchFailed = errors.New("failed to fetch jwks")
 var ErrOIDCJWKSKeyNotFound = errors.New("jwks key not found")
 var ErrOIDCTokenIssuerMismatch = errors.New("token issuer mismatch")
 var ErrOIDCTokenAudienceMismatch = errors.New("token audience mismatch")
+var ErrOIDCIssuerNotConfigured = errors.New("oidc issuer_url is not configured")
+var ErrOIDCAudienceNotConfigured = errors.New("oidc client_id (audience) is not configured")
 var ErrOIDCTokenSubjectRequired = errors.New("token subject is required")
 var ErrOIDCTokenEmailRequired = errors.New("token email is required")
 var ErrOIDCTokenEmailMismatch = errors.New("token email mismatch")
@@ -137,12 +139,18 @@ func (s *Service) VerifyOIDCIDToken(config IDPConfig, rawToken, expectedEmail st
 	}
 
 	expectedIssuer := strings.TrimSpace(config.IssuerURL)
-	if expectedIssuer != "" && strings.TrimSpace(claims.Issuer) != expectedIssuer {
+	if expectedIssuer == "" {
+		return OIDCIdentity{}, ErrOIDCIssuerNotConfigured
+	}
+	if strings.TrimSpace(claims.Issuer) != expectedIssuer {
 		return OIDCIdentity{}, ErrOIDCTokenIssuerMismatch
 	}
 
 	expectedAudience := strings.TrimSpace(config.ClientID)
-	if expectedAudience != "" && !containsAudience(claims.Audience, expectedAudience) {
+	if expectedAudience == "" {
+		return OIDCIdentity{}, ErrOIDCAudienceNotConfigured
+	}
+	if !containsAudience(claims.Audience, expectedAudience) {
 		return OIDCIdentity{}, ErrOIDCTokenAudienceMismatch
 	}
 

@@ -1419,6 +1419,55 @@ func (s *Service) DisableUserMFA(userID string) (AdminMFAStatus, error) {
 	}, nil
 }
 
+// VerifyUserPassword confirms that password matches the user's current password
+// hash. It returns ErrUserNotFound if the user does not exist and
+// ErrInvalidCredentials on mismatch. Used for re-authentication on sensitive
+// self-service actions such as disabling MFA.
+func (s *Service) VerifyUserPassword(userID, password string) error {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return ErrUserNotFound
+	}
+	user, exists, err := s.findUserByID(nextUserID)
+	if err != nil || !exists {
+		return ErrUserNotFound
+	}
+	record, recordExists, _ := s.findUserByEmail(user.Email)
+	if !recordExists {
+		return ErrUserNotFound
+	}
+	if !verifyPassword(record.PasswordHash, password) {
+		return ErrInvalidCredentials
+	}
+	return nil
+}
+
+// VerifyUserMFACode confirms a TOTP or recovery code against the user's enabled
+// MFA. It returns ErrUserNotFound if the user does not exist and
+// ErrInvalidMFACode if MFA is not enabled or the code does not match. Used for
+// re-authentication on sensitive self-service actions such as disabling MFA.
+func (s *Service) VerifyUserMFACode(userID, code string) error {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return ErrUserNotFound
+	}
+	user, exists, err := s.findUserByID(nextUserID)
+	if err != nil || !exists {
+		return ErrUserNotFound
+	}
+	state, stateExists, err := s.findAdminMFAState(nextUserID)
+	if err != nil {
+		return err
+	}
+	if !stateExists || !state.Enabled || strings.TrimSpace(state.Secret) == "" {
+		return ErrInvalidMFACode
+	}
+	if strings.TrimSpace(code) == "" {
+		return ErrInvalidMFACode
+	}
+	return s.enforceAdminMFA(user, code)
+}
+
 func (s *Service) issueTokenPairLocked(user User) (LoginResponse, error) {
 	return s.issueTokenPairWithMetadataLocked(user, SessionMetadata{})
 }

@@ -1173,7 +1173,7 @@ func openAPIExtensionOperationDefinitions() []openAPIOperationDefinition {
 		{Method: http.MethodPost, Path: "/api/v1/gateway/cert/renew", OperationID: "renewGatewayClientCertificate", Tag: "Gateway Bootstrap", Summary: "Renew gateway mTLS client certificate.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/batch", OperationID: "submitGatewayEventsBatch", Tag: "Gateway Bootstrap", Summary: "Submit gateway events in batch.", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/events/checkpoint", OperationID: "submitGatewayEventsCheckpoint", Tag: "Gateway Bootstrap", Summary: "Submit gateway events checkpoint.", Public: true},
-		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision. Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens).", Public: true},
+		{Method: http.MethodPost, Path: "/api/v1/gateway/verify-credential", OperationID: "verifyGatewayCredential", Tag: "Gateway Bootstrap", Summary: "Verify a credential for access decision (requires gateway mTLS client certificate or device token, plus a single-use X-Request-Nonce). Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens), and ble_signature (transport-bound ECDSA over the request nonce).", Public: true},
 		{Method: http.MethodPost, Path: "/api/v1/gateway/ota/report", OperationID: "reportGatewayOTAStatus", Tag: "Gateway Bootstrap", Summary: "Report OTA firmware update result.", Public: true},
 	}
 }

@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
@@ -17,8 +18,13 @@ type verifyCredentialRequest struct {
 	ReaderID       string `json:"reader_id"`
 	LockID         string `json:"lock_id"`
 	TenantID       string `json:"tenant_id"`
-	CredentialType string `json:"credential_type"` // nfc_uid, ble_token, card_number, qr_code
+	CredentialType string `json:"credential_type"` // nfc_uid, ble_token, card_number, qr_code, ble_signature
 	CredentialData string `json:"credential_data"`
+	// ble_signature fields: a transport-bound ECDSA signature from a mobile
+	// credential over SHA256(requestNonce || user_id || transport_tag).
+	UserID       string `json:"user_id,omitempty"`
+	TransportTag string `json:"transport_tag,omitempty"` // "BLE" (default) or "NFC_HCE"
+	Signature    string `json:"signature,omitempty"`     // base64-encoded ECDSA signature
 }
 
 type verifyCredentialResponse struct {
@@ -40,7 +46,47 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	s.evaluateVerifyCredential(w, r, req)
+}
 
+// verifyCredentialGateway authenticates the calling gateway device before
+// evaluating a credential. This route is reachable on the public (non-mTLS)
+// listener, so it must establish gateway device identity (mTLS client
+// certificate or device token) and derive the tenant from the authenticated
+// gateway record rather than trusting the request body.
+func (s *server) verifyCredentialGateway(w http.ResponseWriter, r *http.Request) {
+	var req verifyCredentialRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	gatewayID := strings.TrimSpace(req.GatewayID)
+	tenantID := strings.TrimSpace(req.TenantID)
+	if gatewayID == "" || tenantID == "" {
+		writeError(w, http.StatusUnauthorized, "gateway authentication required")
+		return
+	}
+	record, ok := s.findGatewayByTenant(tenantID, gatewayID)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "gateway authentication required")
+		return
+	}
+	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
+		return
+	}
+	// The verify endpoint dispatches unlocks, so it always requires a fresh
+	// single-use request nonce (validated and de-duplicated above) even though
+	// other gateway telemetry endpoints treat the nonce as optional.
+	if strings.TrimSpace(r.Header.Get("X-Request-Nonce")) == "" {
+		writeError(w, http.StatusUnauthorized, "request nonce required")
+		return
+	}
+	req.GatewayID = record.ID
+	req.TenantID = record.TenantID
+	s.evaluateVerifyCredential(w, r, req)
+}
+
+func (s *server) evaluateVerifyCredential(w http.ResponseWriter, r *http.Request, req verifyCredentialRequest) {
 	credType := strings.TrimSpace(req.CredentialType)
 	credData := strings.TrimSpace(req.CredentialData)
 	lockID := strings.TrimSpace(req.LockID)
@@ -48,7 +94,7 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 	gatewayID := strings.TrimSpace(req.GatewayID)
 	now := time.Now().UTC()
 
-	if credData == "" {
+	if credData == "" && credType != "ble_signature" {
 		writeJSON(w, http.StatusOK, verifyCredentialResponse{
 			Decision:       "deny",
 			Reason:         "empty_credential",
@@ -70,7 +116,13 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 1: Resolve credential → user_id
-	userID, credentialFound := s.resolveCredentialToUser(tenantID, credType, credData)
+	var userID string
+	var credentialFound bool
+	if credType == "ble_signature" {
+		userID, credentialFound = s.resolveBLESignatureToUser(r, tenantID, req)
+	} else {
+		userID, credentialFound = s.resolveCredentialToUser(tenantID, credType, credData)
+	}
 	if !credentialFound {
 		resp := verifyCredentialResponse{
 			Decision:       "deny",
@@ -224,6 +276,36 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// resolveBLESignatureToUser verifies a transport-bound ECDSA signature produced
+// by a mobile credential. The signed challenge is the single-use request nonce
+// (X-Request-Nonce), so the gateway verify path's nonce de-duplication prevents
+// a captured signature from being replayed under a fresh nonce. Returns the
+// authenticated user ID on success.
+func (s *server) resolveBLESignatureToUser(r *http.Request, tenantID string, req verifyCredentialRequest) (string, bool) {
+	if s.credentialSvc == nil {
+		return "", false
+	}
+	userID := strings.TrimSpace(req.UserID)
+	transportTag := strings.TrimSpace(req.TransportTag)
+	if transportTag == "" {
+		transportTag = "BLE"
+	}
+	nonce := strings.TrimSpace(r.Header.Get("X-Request-Nonce"))
+	signatureB64 := strings.TrimSpace(req.Signature)
+	if userID == "" || nonce == "" || signatureB64 == "" {
+		return "", false
+	}
+	signature, err := base64.StdEncoding.DecodeString(signatureB64)
+	if err != nil {
+		return "", false
+	}
+	cred, err := s.credentialSvc.VerifyBLESignatureV2(tenantID, userID, []byte(nonce), transportTag, signature)
+	if err != nil || cred == nil {
+		return "", false
+	}
+	return userID, true
 }
 
 // resolveCredentialToUser maps a credential to a user ID.

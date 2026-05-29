@@ -850,7 +850,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			gatewayRouter.Post("/events/device", s.gatewayBootstrapDeviceEvent)
 			gatewayRouter.Post("/events/batch", s.gatewayBootstrapEventsBatch)
 			gatewayRouter.Post("/events/checkpoint", s.gatewayBootstrapEventsCheckpoint)
-			gatewayRouter.Post("/verify-credential", s.verifyCredential)
+			gatewayRouter.Post("/verify-credential", s.verifyCredentialGateway)
 			gatewayRouter.Post("/ota/report", s.gatewayBootstrapOTAReport)
 			gatewayRouter.Get("/credentials/sync", s.gatewayCredentialSync)
 			gatewayRouter.Post("/audit/batch", s.gatewayAuditBatch)
