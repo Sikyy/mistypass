@@ -21908,7 +21908,7 @@
             "$ref": "#/components/responses/ValidationError"
           }
         },
-        "summary": "Verify a credential for access decision. Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens).",
+        "summary": "Verify a credential for access decision (requires gateway mTLS client certificate or device token, plus a single-use X-Request-Nonce). Supports nfc_uid, card_number, ble_token, qr_code (including guest QR tokens), and ble_signature (transport-bound ECDSA over the request nonce).",
         "tags": [
           "Gateway Bootstrap"
         ]
