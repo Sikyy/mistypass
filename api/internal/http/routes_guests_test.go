@@ -99,6 +99,42 @@ func TestGuestCRUDLifecycle(t *testing.T) {
 	}
 }
 
+// TestAppAdminCreateGuestAcceptsDoorIDs verifies the mobile guest-create endpoint
+// accepts the door_ids field the mobile clients (iOS/Android) always send. The strict
+// JSON decoder (DisallowUnknownFields) previously rejected door_ids with 400, so every
+// mobile guest creation silently failed. The handler now mirrors the reference endpoint.
+func TestAppAdminCreateGuestAcceptsDoorIDs(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "guest-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "building.admin.sudirman@mistypass.local")
+
+	createBody := []byte(`{
+		"name": "Test Visitor",
+		"phone": "0812 1111 2222",
+		"host_name": "Host Person",
+		"notify_host": true,
+		"door_ids": [],
+		"access_ttl_hours": 24
+	}`)
+	rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, createBody)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 creating mobile guest with door_ids, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var created access.Guest
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created guest: %v body=%s", err, rec.Body.String())
+	}
+	if created.ID == "" || created.Name != "Test Visitor" || created.Status != "expected" {
+		t.Fatalf("unexpected guest: %+v", created)
+	}
+}
+
 func TestGuestCreateValidation(t *testing.T) {
 	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "guest-validation-test",

@@ -34,19 +34,20 @@ func (s *server) appAdminCreateGuest(w http.ResponseWriter, r *http.Request) {
 	tenantID := user.TenantID
 
 	var request struct {
-		Name             string `json:"name"`
-		Email            string `json:"email"`
-		Phone            string `json:"phone"`
-		Company          string `json:"company"`
-		Purpose          string `json:"purpose"`
-		HostName         string `json:"host_name"`
-		HostEmail        string `json:"host_email"`
-		HostPhone        string `json:"host_phone"`
-		IDDocumentType   string `json:"id_document_type"`
-		IDDocumentNumber string `json:"id_document_number"`
-		ExpectedAt       string `json:"expected_at"`
-		NotifyHost       bool   `json:"notify_host"`
-		AccessTTLHours   int    `json:"access_ttl_hours"`
+		Name             string   `json:"name"`
+		Email            string   `json:"email"`
+		Phone            string   `json:"phone"`
+		Company          string   `json:"company"`
+		Purpose          string   `json:"purpose"`
+		HostName         string   `json:"host_name"`
+		HostEmail        string   `json:"host_email"`
+		HostPhone        string   `json:"host_phone"`
+		IDDocumentType   string   `json:"id_document_type"`
+		IDDocumentNumber string   `json:"id_document_number"`
+		ExpectedAt       string   `json:"expected_at"`
+		NotifyHost       bool     `json:"notify_host"`
+		DoorIDs          []string `json:"door_ids"`
+		AccessTTLHours   int      `json:"access_ttl_hours"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -68,6 +69,7 @@ func (s *server) appAdminCreateGuest(w http.ResponseWriter, r *http.Request) {
 		IDDocumentNumber: request.IDDocumentNumber,
 		ExpectedAt:       request.ExpectedAt,
 		NotifyHost:       request.NotifyHost,
+		DoorIDs:          request.DoorIDs,
 		AccessTTLHours:   request.AccessTTLHours,
 	})
 	if err != nil {
