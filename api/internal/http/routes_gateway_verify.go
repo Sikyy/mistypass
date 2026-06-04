@@ -69,6 +69,34 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Guest QR credentials resolve to a guest (not a user) and are gated by the
+	// guest's door_ids (an empty list = building-wide within the guest's building).
+	if credType == "qr_code" {
+		if guest, ok := s.accessSvc.GetGuestByAccessToken(tenantID, credData); ok {
+			resp := verifyCredentialResponse{
+				UserID:         "guest:" + guest.ID,
+				UserName:       guest.Name,
+				LockID:         lockID,
+				GatewayID:      gatewayID,
+				CredentialType: credType,
+				EvaluatedAt:    now.Format(time.RFC3339),
+			}
+			if s.guestCanAccessDoor(tenantID, guest, lockID) {
+				resp.Decision = "allow"
+				resp.Reason = "access_granted"
+			} else {
+				resp.Decision = "deny"
+				resp.Reason = "door_not_in_guest_access"
+			}
+			eventID := s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+			if resp.Decision == "allow" {
+				s.onAccessGranted(r.Context(), tenantID, gatewayID, lockID, eventID, guest.ID, guest.Name, now)
+			}
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+	}
+
 	// Step 1: Resolve credential → user_id
 	userID, credentialFound := s.resolveCredentialToUser(tenantID, credType, credData)
 	if !credentialFound {
@@ -193,9 +221,15 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		EvaluatedAt:    now.Format(time.RFC3339),
 	}
 	eventID := s.recordVerifyEvent(tenantID, gatewayID, lockID, resp)
+	s.onAccessGranted(r.Context(), tenantID, gatewayID, lockID, eventID, userID, user.Email, now)
 
-	// Trigger camera snapshots for successful access (non-blocking).
-	if resp.Decision == "allow" && eventID != "" && lockID != "" {
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// onAccessGranted fires the post-allow side effects shared by the user and guest
+// verify paths: camera snapshots (non-blocking) + gateway auto-unlock dispatch.
+func (s *server) onAccessGranted(ctx context.Context, tenantID, gatewayID, lockID, eventID, subjectID, issuedBy string, now time.Time) {
+	if eventID != "" && lockID != "" {
 		go func() {
 			snapCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -206,24 +240,21 @@ func (s *server) verifyCredential(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	// If gateway is connected, auto-dispatch unlock
 	if gatewayID != "" && s.messageBus.Enabled() {
 		cmd := bus.GatewayCommand{
-			RequestID: fmt.Sprintf("verify:%s:%s:%d", lockID, userID, now.UnixNano()),
+			RequestID: fmt.Sprintf("verify:%s:%s:%d", lockID, subjectID, now.UnixNano()),
 			GatewayID: gatewayID,
 			Command:   "unlock",
 			LockID:    lockID,
 			TenantID:  tenantID,
-			IssuedBy:  user.Email,
+			IssuedBy:  issuedBy,
 			IssuedAt:  now.Format(time.RFC3339),
 		}
 		subject := fmt.Sprintf("gateway.%s.command", gatewayID)
-		if err := s.messageBus.PublishJSON(r.Context(), subject, cmd, nil); err != nil {
+		if err := s.messageBus.PublishJSON(ctx, subject, cmd, nil); err != nil {
 			s.logger.Warn("failed to dispatch auto-unlock after verify", "error", err)
 		}
 	}
-
-	writeJSON(w, http.StatusOK, resp)
 }
 
 // resolveCredentialToUser maps a credential to a user ID.
@@ -282,6 +313,29 @@ func (s *server) resolveCredentialToUser(tenantID, credType, credData string) (s
 	}
 
 	return "", false
+}
+
+// guestCanAccessDoor enforces a guest's door_ids: an explicit list restricts access
+// to exactly those locks; an empty list grants building-wide access within the
+// guest's building (or anywhere if no building is recorded on the guest).
+func (s *server) guestCanAccessDoor(tenantID string, guest access.Guest, lockID string) bool {
+	if len(guest.DoorIDs) > 0 {
+		for _, d := range guest.DoorIDs {
+			if strings.EqualFold(strings.TrimSpace(d), lockID) {
+				return true
+			}
+		}
+		return false
+	}
+	building := strings.TrimSpace(guest.BuildingID)
+	if building == "" {
+		return true
+	}
+	door, err := s.spaceSvc.GetDoor(tenantID, lockID)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(door.BuildingID), building)
 }
 
 // isPassExpired returns true if the pass has an expiration time that has passed.
