@@ -381,6 +381,10 @@ func (s *server) restoreReportSchedulesFromState() {
 // Normalization helpers
 // ---------------------------------------------------------------------------
 
+// normalizeReportScheduleReportType maps any accepted report-type alias — both the
+// analytics vocabulary (access_summary, door_activity, alarm_metrics) and the pdfgen
+// vocabulary — onto the canonical pdfgen report type. It is the single source of
+// truth shared by the report scheduler and the report/analytics export handlers.
 func normalizeReportScheduleReportType(value string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "weekly_analytics", "access_summary":

@@ -22,6 +22,15 @@ func (s *server) exportReport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "type query parameter is required (weekly_analytics, events, unlock_stats, user_presence, incidents, hardware)")
 		return
 	}
+	// Accept both the pdfgen vocabulary and the analytics vocabulary
+	// (access_summary, door_activity, alarm_metrics) via the shared normalizer,
+	// then operate on the canonical pdfgen type everywhere below.
+	canonicalType, ok := normalizeReportScheduleReportType(reportType)
+	if !ok {
+		writeError(w, http.StatusBadRequest, "type must be one of: weekly_analytics, events, unlock_stats, user_presence, incidents, hardware (aliases: access_summary, door_activity, alarm_metrics)")
+		return
+	}
+	reportType = canonicalType
 
 	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
 	if format == "" {
@@ -418,6 +427,14 @@ func (s *server) buildReportCSV(reportType, tenantID, placeID string, start, end
 	switch reportType {
 	case "events", "weekly_analytics":
 		_, rows := s.exportAccessSummaryRows(tenantID, start, end)
+		var sb strings.Builder
+		for _, row := range rows {
+			sb.WriteString(strings.Join(row, ","))
+			sb.WriteString("\n")
+		}
+		return sb.String()
+	case "unlock_stats":
+		_, rows := s.exportDoorActivityRows(tenantID, start, end)
 		var sb strings.Builder
 		for _, row := range rows {
 			sb.WriteString(strings.Join(row, ","))
