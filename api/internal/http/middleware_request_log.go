@@ -30,6 +30,17 @@ func (w *requestLogResponseWriter) Write(data []byte) (int, error) {
 	return w.ResponseWriter.Write(data)
 }
 
+// Flush forwards to the underlying ResponseWriter so SSE / streaming handlers
+// (which type-assert http.Flusher) keep working through this logging middleware.
+// Without it, w.(http.Flusher) fails and the alarms stream returns 500.
+var _ http.Flusher = (*requestLogResponseWriter)(nil)
+
+func (w *requestLogResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 func (s *server) withRequestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now().UTC()
