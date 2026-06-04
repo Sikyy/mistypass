@@ -507,7 +507,7 @@ type Guest struct {
 	HostName           string    `json:"host_name"`
 	HostEmail          string    `json:"host_email,omitempty"`
 	HostPhone          string    `json:"host_phone,omitempty"`
-	IDDocumentType     string    `json:"id_document_type,omitempty"`   // "KTP", "KITAS", "ITAS" or empty
+	IDDocumentType     string    `json:"id_document_type,omitempty"`   // "KTP", "KITAS", "ITAS", "SIM", "PASSPORT", "OTHER" or empty
 	IDDocumentNumber   string    `json:"id_document_number,omitempty"` // optional
 	Status             string    `json:"status"`                       // "expected", "checked_in", "checked_out", "cancelled"
 	CheckedInAt        string    `json:"checked_in_at,omitempty"`

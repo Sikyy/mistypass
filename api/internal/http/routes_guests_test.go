@@ -135,6 +135,50 @@ func TestAppAdminCreateGuestAcceptsDoorIDs(t *testing.T) {
 	}
 }
 
+// TestAppAdminCreateGuestAcceptsBroadIDTypes verifies the guest-create endpoint
+// accepts the document types the mobile/web clients actually offer (KTP / SIM /
+// Passport / Other), not just the Indonesian permits — selecting Passport/SIM/Other
+// previously returned 400 (id_document_type must be KTP, KITAS, or ITAS).
+func TestAppAdminCreateGuestAcceptsBroadIDTypes(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "guest-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "building.admin.sudirman@mistypass.local")
+
+	for _, docType := range []string{"passport", "sim", "other", "ktp"} {
+		body := []byte(`{
+			"name": "ID Type Visitor",
+			"phone": "0812 3333 4444",
+			"host_name": "Host Person",
+			"id_document_type": "` + docType + `",
+			"id_document_number": "X123",
+			"door_ids": [],
+			"access_ttl_hours": 24
+		}`)
+		rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, body)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 for id_document_type=%q, got %d body=%s", docType, rec.Code, rec.Body.String())
+		}
+	}
+
+	// A genuinely unknown type is still rejected.
+	bad := []byte(`{
+		"name": "Bad ID Visitor",
+		"phone": "0812 5555 6666",
+		"host_name": "Host Person",
+		"id_document_type": "drivers_license",
+		"door_ids": []
+	}`)
+	rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, bad)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown id_document_type, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestGuestCreateValidation(t *testing.T) {
 	router, _, err := NewRouter(config.Config{
 		JWTSecret:       "guest-validation-test",

@@ -477,7 +477,7 @@ var ErrGuestNameRequired = errors.New("guest name is required")
 var ErrGuestPhoneRequired = errors.New("guest phone is required")
 var ErrGuestHostRequired = errors.New("guest host name is required")
 var ErrGuestStatusInvalid = errors.New("guest status must be expected, checked_in, checked_out, or cancelled")
-var ErrGuestIDDocumentTypeInvalid = errors.New("id_document_type must be KTP, KITAS, or ITAS")
+var ErrGuestIDDocumentTypeInvalid = errors.New("id_document_type must be KTP, KITAS, ITAS, SIM, PASSPORT, or OTHER")
 
 var ErrSpaceNotFound = errors.New("bookable space not found")
 var ErrSpaceNameRequired = errors.New("space name is required")
@@ -591,7 +591,9 @@ func (s *Service) CreateGuest(in CreateGuestInput) (Guest, error) {
 	docType := strings.TrimSpace(strings.ToUpper(in.IDDocumentType))
 	if docType != "" {
 		switch docType {
-		case "KTP", "KITAS", "ITAS":
+		// Accept the union of document types the mobile/web clients offer (the
+		// pickers list KTP/SIM/Passport/Other; KITAS/ITAS are Indonesian permits).
+		case "KTP", "KITAS", "ITAS", "SIM", "PASSPORT", "OTHER":
 		default:
 			return Guest{}, ErrGuestIDDocumentTypeInvalid
 		}
