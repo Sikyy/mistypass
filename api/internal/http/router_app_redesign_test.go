@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/mistypass/cloud/api/internal/config"
@@ -334,5 +335,45 @@ func TestAppVisitorPassesEnhanced(t *testing.T) {
 		if listResult.Items[0].ValidFrom == "" {
 			t.Errorf("expected valid_from in list items")
 		}
+	}
+}
+
+// TestAppVisitorPassEnhancedDeliveryMethodValidation pins the delivery_method
+// contract for POST /api/v1/app/visitor-passes: supported values create a pass
+// (201) and unsupported values are rejected as a client error (400), never 500.
+func TestAppVisitorPassEnhancedDeliveryMethodValidation(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "app-visitors-delivery-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "resident.jakarta@mistypass.local")
+
+	cases := []struct {
+		name           string
+		deliveryMethod string
+		wantStatus     int
+	}{
+		{name: "email_qr is supported", deliveryMethod: "email_qr", wantStatus: http.StatusCreated},
+		{name: "wallet is supported", deliveryMethod: "wallet", wantStatus: http.StatusCreated},
+		{name: "whatsapp is rejected as bad request", deliveryMethod: "whatsapp", wantStatus: http.StatusBadRequest},
+		{name: "sms is rejected as bad request", deliveryMethod: "sms", wantStatus: http.StatusBadRequest},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"visitor":"Contract Visitor","building_id":"bld_jkt_001","delivery_method":%q,"ttl_hours":4}`, tc.deliveryMethod))
+			rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/visitor-passes", token, body)
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("delivery_method=%q: expected status %d, got %d body=%s", tc.deliveryMethod, tc.wantStatus, rec.Code, rec.Body.String())
+			}
+			if tc.wantStatus == http.StatusBadRequest {
+				if msg := rec.Body.String(); !strings.Contains(msg, "delivery method") {
+					t.Errorf("delivery_method=%q: expected a delivery-method error message, got %s", tc.deliveryMethod, msg)
+				}
+			}
+		})
 	}
 }

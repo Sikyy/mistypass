@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/bus"
+	"github.com/mistypass/cloud/api/internal/modules/access"
 	"github.com/mistypass/cloud/api/internal/modules/camera"
 )
 
@@ -1198,9 +1200,21 @@ func (s *server) appCreateVisitorPassEnhanced(w http.ResponseWriter, r *http.Req
 	}
 
 	tenantID := user.TenantID
+	// delivery_method must be one of the supported values (wallet, email_qr;
+	// empty defaults to wallet). An unsupported value is a client error, so map
+	// the service's validation sentinels to 400 rather than masking them as 500.
 	pass, err := s.accessSvc.CreateVisitorPass(tenantID, req.BuildingID, user.Email, visitor, req.DeliveryMethod, validUntil.Format(time.RFC3339))
 	if err != nil {
-		writeInternalError(w, r, err)
+		switch {
+		case errors.Is(err, access.ErrTenantIDRequired),
+			errors.Is(err, access.ErrHostRequired),
+			errors.Is(err, access.ErrVisitorRequired),
+			errors.Is(err, access.ErrDeliveryMethodInvalid),
+			errors.Is(err, access.ErrExpiresAtRequired):
+			writeError(w, http.StatusBadRequest, err.Error())
+		default:
+			writeInternalError(w, r, err)
+		}
 		return
 	}
 
