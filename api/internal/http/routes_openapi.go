@@ -1692,7 +1692,7 @@ func openAPIGuestCreateSchema() map[string]any {
 			"host_name":          map[string]any{"type": "string"},
 			"host_email":         map[string]any{"type": "string", "format": "email"},
 			"host_phone":         map[string]any{"type": "string"},
-			"id_document_type":   map[string]any{"type": "string", "enum": []string{"KTP", "KITAS", "ITAS"}},
+			"id_document_type":   map[string]any{"type": "string", "enum": []string{"KTP", "KITAS", "ITAS", "SIM", "PASSPORT", "OTHER"}},
 			"id_document_number": map[string]any{"type": "string"},
 			"expected_at":        map[string]any{"type": "string", "format": "date-time"},
 			"notify_host":        map[string]any{"type": "boolean"},

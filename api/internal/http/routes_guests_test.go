@@ -118,7 +118,7 @@ func TestAppAdminCreateGuestAcceptsDoorIDs(t *testing.T) {
 		"phone": "0812 1111 2222",
 		"host_name": "Host Person",
 		"notify_host": true,
-		"door_ids": [],
+		"door_ids": ["door_jkt_001"],
 		"access_ttl_hours": 24
 	}`)
 	rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, createBody)
@@ -132,6 +132,9 @@ func TestAppAdminCreateGuestAcceptsDoorIDs(t *testing.T) {
 	}
 	if created.ID == "" || created.Name != "Test Visitor" || created.Status != "expected" {
 		t.Fatalf("unexpected guest: %+v", created)
+	}
+	if len(created.DoorIDs) != 1 || created.DoorIDs[0] != "door_jkt_001" {
+		t.Fatalf("expected door_ids to round-trip, got %+v", created.DoorIDs)
 	}
 }
 
