@@ -676,7 +676,10 @@
             "enum": [
               "KTP",
               "KITAS",
-              "ITAS"
+              "ITAS",
+              "SIM",
+              "PASSPORT",
+              "OTHER"
             ],
             "type": "string"
           },
