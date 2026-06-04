@@ -44,7 +44,7 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
   async function handleExport() {
     setExporting(true)
     try {
-      const blob = await exportAnalytics(token, tenantID, "access", "pdf", start, end)
+      const blob = await exportAnalytics(token, tenantID, "access_summary", "pdf", start, end)
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

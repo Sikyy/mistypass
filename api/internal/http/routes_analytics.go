@@ -397,7 +397,15 @@ func (s *server) exportAnalytics(w http.ResponseWriter, r *http.Request) {
 
 	switch format {
 	case "pdf":
-		data, buildErr := s.buildReportData(reportType, tenantID, "", start, end)
+		// Map the analytics report type onto the pdfgen vocabulary via the shared
+		// normalizer BEFORE building data, so buildReportData and the renderer both
+		// receive a report type they understand.
+		pdfType, mapped := normalizeReportScheduleReportType(reportType)
+		if !mapped {
+			writeError(w, http.StatusBadRequest, "type must be one of: access_summary, door_activity, alarm_metrics")
+			return
+		}
+		data, buildErr := s.buildReportData(pdfType, tenantID, "", start, end)
 		if buildErr != nil {
 			writeError(w, http.StatusBadRequest, buildErr.Error())
 			return
@@ -408,15 +416,6 @@ func (s *server) exportAnalytics(w http.ResponseWriter, r *http.Request) {
 			PeriodStart: start,
 			PeriodEnd:   end,
 			GeneratedAt: time.Now().UTC(),
-		}
-		pdfType := reportType
-		switch reportType {
-		case "access_summary":
-			pdfType = "events"
-		case "door_activity":
-			pdfType = "weekly_analytics"
-		case "alarm_metrics":
-			pdfType = "incidents"
 		}
 		pdfBytes, pdfErr := s.pdfRenderer.RenderPDF(s.gotenbergClient, pdfType, meta, data)
 		if pdfErr != nil {
