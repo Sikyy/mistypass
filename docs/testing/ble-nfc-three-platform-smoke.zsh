@@ -40,12 +40,12 @@ fail_count=0
 
 function pass() {
   echo "${GREEN}✓ PASS${NC} $1"
-  ((pass_count++))
+  ((++pass_count))
 }
 
 function fail() {
   echo "${RED}✗ FAIL${NC} $1"
-  ((fail_count++))
+  ((++fail_count))
 }
 
 function header() {
@@ -89,7 +89,7 @@ header "Phase 2: Nonce Enforcement (requires running API)"
 API_PORT="${API_PORT:-8080}"
 API_BASE="http://localhost:${API_PORT}"
 
-if curl -sf "${API_BASE}/api/v1/health" > /dev/null 2>&1; then
+if curl -sf "${API_BASE}/healthz" > /dev/null 2>&1; then
   echo "API reachable at ${API_BASE}"
 
   # Test: request without nonce headers should be rejected (if enforcement is on)
