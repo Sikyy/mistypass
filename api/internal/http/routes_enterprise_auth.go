@@ -134,7 +134,7 @@ func (s *server) enterpriseAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	switch provider {
 	case "oidc":
-		authorizeURL, buildErr := buildEnterpriseOIDCAuthorizeURL(config, stateToken.Token, stateToken.RedirectURI)
+		authorizeURL, buildErr := buildEnterpriseOIDCAuthorizeURL(config, stateToken.Token, stateToken.RedirectURI, stateToken.Nonce)
 		if buildErr != nil {
 			writeError(w, http.StatusInternalServerError, buildErr.Error())
 			return

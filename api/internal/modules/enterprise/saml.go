@@ -17,6 +17,9 @@ var ErrInvalidSAMLResponse = errors.New("invalid saml_response")
 var ErrInvalidSAMLX509Cert = errors.New("invalid saml_x509_cert")
 var ErrSAMLAssertionIssuerMismatch = errors.New("saml assertion issuer mismatch")
 var ErrSAMLAssertionAudienceMismatch = errors.New("saml assertion audience mismatch")
+var ErrSAMLIssuerNotConfigured = errors.New("saml issuer_url is not configured")
+var ErrSAMLAudienceNotConfigured = errors.New("saml client_id (audience) is not configured")
+var ErrSAMLAssertionReplayed = errors.New("saml assertion replay detected")
 var ErrSAMLAssertionSubjectRequired = errors.New("saml assertion subject is required")
 var ErrSAMLAssertionEmailRequired = errors.New("saml assertion email is required")
 var ErrSAMLAssertionEmailMismatch = errors.New("saml assertion email mismatch")
@@ -84,12 +87,18 @@ func (s *Service) VerifySAMLResponse(config IDPConfig, rawResponse, expectedEmai
 	}
 
 	expectedIssuer := strings.TrimSpace(config.IssuerURL)
-	if expectedIssuer != "" && strings.TrimSpace(identity.Issuer) != expectedIssuer {
+	if expectedIssuer == "" {
+		return SAMLIdentity{}, ErrSAMLIssuerNotConfigured
+	}
+	if strings.TrimSpace(identity.Issuer) != expectedIssuer {
 		return SAMLIdentity{}, ErrSAMLAssertionIssuerMismatch
 	}
 
 	expectedAudience := strings.TrimSpace(config.ClientID)
-	if expectedAudience != "" && !containsAudience(identity.Audience, expectedAudience) {
+	if expectedAudience == "" {
+		return SAMLIdentity{}, ErrSAMLAudienceNotConfigured
+	}
+	if !containsAudience(identity.Audience, expectedAudience) {
 		return SAMLIdentity{}, ErrSAMLAssertionAudienceMismatch
 	}
 
@@ -98,7 +107,51 @@ func (s *Service) VerifySAMLResponse(config IDPConfig, rawResponse, expectedEmai
 		return SAMLIdentity{}, ErrSAMLAssertionEmailMismatch
 	}
 
+	// Replay protection: an assertion (keyed by its ID) may be presented only
+	// once within its validity window. This matters for IdP-initiated assertions,
+	// which carry no InResponseTo correlation to a server-issued request.
+	if assertionID := strings.TrimSpace(assertion.ID); assertionID != "" {
+		expiry := identity.ExpiresAt
+		if expiry.IsZero() {
+			expiry = time.Now().UTC().Add(defaultSAMLAssertionReplayWindow)
+		}
+		if !s.markSAMLAssertionConsumed(assertionID, expiry) {
+			return SAMLIdentity{}, ErrSAMLAssertionReplayed
+		}
+	}
+
 	return identity, nil
+}
+
+const defaultSAMLAssertionReplayWindow = 10 * time.Minute
+
+// markSAMLAssertionConsumed records assertionID as used until expiresAt and
+// returns true on first use. It returns false if the assertion ID was already
+// recorded and has not yet expired, which indicates a replay.
+func (s *Service) markSAMLAssertionConsumed(assertionID string, expiresAt time.Time) bool {
+	id := strings.TrimSpace(assertionID)
+	if id == "" {
+		return true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now().UTC()
+	if s.consumedSAMLAssertions == nil {
+		s.consumedSAMLAssertions = make(map[string]time.Time)
+	}
+	for k, exp := range s.consumedSAMLAssertions {
+		if !exp.After(now) {
+			delete(s.consumedSAMLAssertions, k)
+		}
+	}
+	if exp, exists := s.consumedSAMLAssertions[id]; exists && exp.After(now) {
+		return false
+	}
+	if !expiresAt.After(now) {
+		expiresAt = now.Add(defaultSAMLAssertionReplayWindow)
+	}
+	s.consumedSAMLAssertions[id] = expiresAt
+	return true
 }
 
 func buildSAMLServiceProvider(idpEntityID, spEntityID, acsURL, signingCert string) (saml.ServiceProvider, error) {

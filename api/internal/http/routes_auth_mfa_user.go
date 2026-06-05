@@ -113,11 +113,23 @@ func (s *server) disableUserMFA(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "current MFA code or password is required to disable MFA")
 		return
 	}
-	// Verify re-authentication
+	// Verify re-authentication: a current TOTP/recovery code or the account password.
 	if code := strings.TrimSpace(req.Code); code != "" {
-		mfaStatus, err := s.authService.GetUserMFAStatus(user.ID)
-		if err != nil || !mfaStatus.Enabled {
-			writeError(w, http.StatusBadRequest, "MFA is not enabled")
+		if err := s.authService.VerifyUserMFACode(user.ID, code); err != nil {
+			if errors.Is(err, auth.ErrUserNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+			} else {
+				writeError(w, http.StatusUnauthorized, "invalid MFA code")
+			}
+			return
+		}
+	} else {
+		if err := s.authService.VerifyUserPassword(user.ID, strings.TrimSpace(req.Password)); err != nil {
+			if errors.Is(err, auth.ErrUserNotFound) {
+				writeError(w, http.StatusNotFound, err.Error())
+			} else {
+				writeError(w, http.StatusUnauthorized, "invalid password")
+			}
 			return
 		}
 	}

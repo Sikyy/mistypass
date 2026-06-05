@@ -421,6 +421,7 @@ type AuthStateToken struct {
 	Provider    string    `json:"provider"`
 	Email       string    `json:"email,omitempty"`
 	RedirectURI string    `json:"redirect_uri"`
+	Nonce       string    `json:"-"` // OIDC nonce sent in the authorize request; never returned to clients
 	CreatedAt   time.Time `json:"created_at"`
 	ExpiresAt   time.Time `json:"expires_at"`
 }
@@ -499,6 +500,7 @@ type Service struct {
 	syncWorkerAlertCooldowns     []SyncWorkerAlertCooldown
 	syncWorkerAlertInFlights     []SyncWorkerAlertInFlight
 	authStateTokens              map[string]AuthStateToken
+	consumedSAMLAssertions       map[string]time.Time
 	stateStore                   StateStore
 }
 
