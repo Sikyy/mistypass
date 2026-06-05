@@ -2,7 +2,7 @@ module github.com/mistypass/cloud/api
 
 go 1.25.11
 
-require github.com/go-chi/chi/v5 v5.2.5
+require github.com/go-chi/chi/v5 v5.3.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
