@@ -25,8 +25,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge for patch & minor updates
+      - name: Enable auto-merge (or merge directly if already mergeable) for patch & minor updates
         if: ${{ steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor' }}
-        run: gh pr merge --auto --squash "${{ github.event.pull_request.html_url }}"
+        # `--auto` errors when the PR is already clean (no pending required check
+        # to attach to), so fall back to a direct squash merge. Branch protection
+        # still gates the direct merge on the required checks.
+        run: gh pr merge --auto --squash "$PR_URL" || gh pr merge --squash "$PR_URL"
         env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
