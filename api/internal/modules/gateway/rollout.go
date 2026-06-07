@@ -473,9 +473,7 @@ func (s *Service) findRolloutIndexLocked(id, tenantID string) int {
 // PauseRollout halts an active rollout. Only valid from "active".
 func (s *Service) PauseRollout(tenantID, id, actor string) (GatewayRollout, error) {
 	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
-		if s.rollouts[ri].State == rolloutStateActive {
-			s.advanceRolloutLocked(ri) // refresh only an active rollout (never start a scheduled one)
-		}
+		s.advanceIfActiveLocked(ri)
 		r := &s.rollouts[ri]
 		if r.State != rolloutStateActive {
 			return ErrRolloutStateConflict
@@ -538,9 +536,7 @@ func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, er
 // AbortRollout fails a non-terminal rollout; no further tasks are created.
 func (s *Service) AbortRollout(tenantID, id, actor string) (GatewayRollout, error) {
 	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
-		if s.rollouts[ri].State == rolloutStateActive {
-			s.advanceRolloutLocked(ri)
-		}
+		s.advanceIfActiveLocked(ri)
 		r := &s.rollouts[ri]
 		if r.State == rolloutStateCompleted || r.State == rolloutStateFailed {
 			return ErrRolloutStateConflict
@@ -557,6 +553,21 @@ func (s *Service) AbortRollout(tenantID, id, actor string) (GatewayRollout, erro
 func (s *Service) EvaluateGatewayScheduledRollouts(tenantID, gatewayID string) error {
 	ft := strings.TrimSpace(tenantID)
 	gw := strings.TrimSpace(gatewayID)
+
+	// Fast-path: most polls have nothing scheduled — avoid the write lock entirely.
+	s.mu.RLock()
+	hasScheduled := false
+	for i := range s.rollouts {
+		if s.rollouts[i].TenantID == ft && s.rollouts[i].State == rolloutStateScheduled {
+			hasScheduled = true
+			break
+		}
+	}
+	s.mu.RUnlock()
+	if !hasScheduled {
+		return nil
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	changed := false
@@ -577,14 +588,31 @@ func (s *Service) EvaluateGatewayScheduledRollouts(tenantID, gatewayID string) e
 	return nil
 }
 
-// rolloutTargetIncludesLocked reports whether gatewayID is in the rollout's resolved target set.
+// rolloutTargetIncludesLocked reports whether gatewayID is in the rollout's target set. Caller holds s.mu.
 func (s *Service) rolloutTargetIncludesLocked(tenantID string, target RolloutTarget, gatewayID string) bool {
+	if target.Kind == "gateways" {
+		for _, id := range target.GatewayIDs {
+			if id == gatewayID {
+				return true
+			}
+		}
+		return false
+	}
+	// "all" / "building" need the resolved (tenant-filtered) set.
 	for _, gw := range s.rolloutTargetGatewaysLocked(tenantID, target) {
 		if gw.ID == gatewayID {
 			return true
 		}
 	}
 	return false
+}
+
+// advanceIfActiveLocked refreshes an active rollout only; it never starts a scheduled one.
+// Caller holds s.mu.
+func (s *Service) advanceIfActiveLocked(ri int) {
+	if s.rollouts[ri].State == rolloutStateActive {
+		s.advanceRolloutLocked(ri)
+	}
 }
 
 // transitionRolloutIdx runs fn against a tenant-scoped rollout (by index) under the write
