@@ -170,10 +170,11 @@ func (m *DeviceMTLS) StoreCert(certPEM, caCertPEM []byte) error {
 
 // atomicWriteFile writes data to path via a temp file in the same directory
 // followed by an atomic rename, so a crash mid-write can never leave a partial
-// file at path. perm is applied to the final file.
+// file at path. perm is applied to the final file. Shared by the mTLS cert
+// store and the OTA self-update path.
 func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".ota-tmp-*")
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
 	if err != nil {
 		return err
 	}
