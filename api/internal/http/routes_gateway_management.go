@@ -32,6 +32,14 @@ func (s *server) listGateways(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) gatewayFirmwareSummary(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.gatewaySvc.FirmwareSummary(tenantID))
+}
+
 func (s *server) updateGatewayStatus(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
