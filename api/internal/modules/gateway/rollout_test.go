@@ -442,35 +442,35 @@ func TestRolloutMultiGatewayFailureGateMidPhase(t *testing.T) {
 	}
 }
 
-func TestScheduleOpenLocked(t *testing.T) {
+func TestScheduleOpen(t *testing.T) {
 	base := time.Date(2026, 6, 7, 12, 0, 0, 0, time.UTC) // 12:00 UTC = 19:00 Asia/Jakarta (UTC+7)
 	future := base.Add(time.Hour)
 	past := base.Add(-time.Hour)
 
-	if !scheduleOpenLocked(nil, base) {
+	if !scheduleOpen(nil, base) {
 		t.Fatal("nil schedule must be open")
 	}
-	if scheduleOpenLocked(&RolloutSchedule{StartAt: &future}, base) {
+	if scheduleOpen(&RolloutSchedule{StartAt: &future}, base) {
 		t.Fatal("before start_at must be closed")
 	}
-	if !scheduleOpenLocked(&RolloutSchedule{StartAt: &past}, base) {
+	if !scheduleOpen(&RolloutSchedule{StartAt: &past}, base) {
 		t.Fatal("after start_at (no window) must be open")
 	}
-	if !scheduleOpenLocked(&RolloutSchedule{WindowStart: "11:00", WindowEnd: "13:00"}, base) {
+	if !scheduleOpen(&RolloutSchedule{WindowStart: "11:00", WindowEnd: "13:00"}, base) {
 		t.Fatal("12:00 within 11:00-13:00 UTC must be open")
 	}
-	if scheduleOpenLocked(&RolloutSchedule{WindowStart: "13:00", WindowEnd: "14:00"}, base) {
+	if scheduleOpen(&RolloutSchedule{WindowStart: "13:00", WindowEnd: "14:00"}, base) {
 		t.Fatal("12:00 outside 13:00-14:00 must be closed")
 	}
 	night := time.Date(2026, 6, 7, 23, 30, 0, 0, time.UTC)
-	if !scheduleOpenLocked(&RolloutSchedule{WindowStart: "22:00", WindowEnd: "05:00"}, night) {
+	if !scheduleOpen(&RolloutSchedule{WindowStart: "22:00", WindowEnd: "05:00"}, night) {
 		t.Fatal("23:30 within overnight 22:00-05:00 must be open")
 	}
-	if scheduleOpenLocked(&RolloutSchedule{WindowStart: "22:00", WindowEnd: "05:00"}, base) {
+	if scheduleOpen(&RolloutSchedule{WindowStart: "22:00", WindowEnd: "05:00"}, base) {
 		t.Fatal("12:00 outside overnight 22:00-05:00 must be closed")
 	}
 	jkt := &RolloutSchedule{WindowStart: "18:00", WindowEnd: "20:00", Timezone: "Asia/Jakarta"}
-	if !scheduleOpenLocked(jkt, base) {
+	if !scheduleOpen(jkt, base) {
 		t.Fatal("19:00 Jakarta within 18:00-20:00 Jakarta must be open")
 	}
 }
@@ -489,6 +489,7 @@ func TestValidateRolloutSchedule(t *testing.T) {
 		{WindowStart: "24:00", WindowEnd: "05:00"},
 		{WindowStart: "02:60", WindowEnd: "05:00"},
 		{Timezone: "Mars/Olympus"},
+		{WindowStart: "09:00", WindowEnd: "09:00"}, // zero-width window
 	}
 	for i, b := range bad {
 		if err := validateRolloutSchedule(b); err != ErrRolloutScheduleInvalid {

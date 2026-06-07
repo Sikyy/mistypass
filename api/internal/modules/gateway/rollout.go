@@ -74,6 +74,9 @@ func validateRolloutSchedule(sch *RolloutSchedule) error {
 	if ws != "" && (!rolloutHHMMRe.MatchString(ws) || !rolloutHHMMRe.MatchString(we)) {
 		return ErrRolloutScheduleInvalid
 	}
+	if ws != "" && ws == we {
+		return ErrRolloutScheduleInvalid
+	}
 	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
 		if _, err := time.LoadLocation(tz); err != nil {
 			return ErrRolloutScheduleInvalid
@@ -82,8 +85,8 @@ func validateRolloutSchedule(sch *RolloutSchedule) error {
 	return nil
 }
 
-// scheduleOpenLocked reports whether a phase may start now under the schedule.
-func scheduleOpenLocked(sch *RolloutSchedule, now time.Time) bool {
+// scheduleOpen reports whether a phase may start now under the schedule. Pure (lock-free).
+func scheduleOpen(sch *RolloutSchedule, now time.Time) bool {
 	if sch == nil {
 		return true
 	}
@@ -94,8 +97,11 @@ func scheduleOpenLocked(sch *RolloutSchedule, now time.Time) bool {
 	if ws == "" || we == "" {
 		return true // no window → start_at alone gates
 	}
+	// LoadLocation per call is intentional: *time.Location can't be JSON-serialised, and the
+	// validated tz reads from embedded tzdata (fast). Cache only if profiling shows it hot.
 	loc := time.UTC
 	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
+		// err fallback to UTC is safe: validateRolloutSchedule already rejected bad tz at creation.
 		if l, err := time.LoadLocation(tz); err == nil {
 			loc = l
 		}
