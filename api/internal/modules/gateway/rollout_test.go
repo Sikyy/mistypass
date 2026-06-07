@@ -498,6 +498,69 @@ func TestValidateRolloutSchedule(t *testing.T) {
 	}
 }
 
+func TestCreateRolloutScheduledVsActive(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	future := time.Now().UTC().Add(time.Hour)
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+		Schedule: &RolloutSchedule{StartAt: &future},
+	})
+	if err != nil {
+		t.Fatalf("create scheduled: %v", err)
+	}
+	if r.State != rolloutStateScheduled {
+		t.Fatalf("want scheduled, got %s", r.State)
+	}
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_001")
+	for _, task := range tasks {
+		if task.RolloutID == r.ID {
+			t.Fatal("scheduled rollout must not create phase-0 tasks yet")
+		}
+	}
+	r2, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	if r2.State != rolloutStateActive {
+		t.Fatalf("no-schedule rollout want active, got %s", r2.State)
+	}
+}
+
+func TestScheduledRolloutStartsWhenWindowOpens(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	future := time.Now().UTC().Add(time.Hour)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+		Schedule: &RolloutSchedule{StartAt: &future},
+	})
+	past := time.Now().UTC().Add(-time.Hour)
+	svc.mu.Lock()
+	idx := svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")
+	svc.rollouts[idx].Schedule.StartAt = &past
+	svc.mu.Unlock()
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStateActive {
+		t.Fatalf("want active after window opens, got %s", got.State)
+	}
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_001")
+	found := false
+	for _, task := range tasks {
+		if task.RolloutID == r.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("phase-0 tasks should exist after the schedule opens")
+	}
+}
+
 func TestRolloutAbortFromPausedAndAwaiting(t *testing.T) {
 	// abort from paused
 	svc := NewService()

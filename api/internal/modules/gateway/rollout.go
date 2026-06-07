@@ -221,6 +221,7 @@ type CreateRolloutInput struct {
 	Phases              []RolloutPhase
 	FailureThresholdPct int
 	CreatedBy           string
+	Schedule            *RolloutSchedule
 }
 
 // CreateRollout validates, persists, and immediately starts phase 0.
@@ -239,6 +240,9 @@ func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 	}
 	if threshold < 0 || threshold > 100 {
 		return GatewayRollout{}, ErrRolloutThresholdInvalid
+	}
+	if err := validateRolloutSchedule(in.Schedule); err != nil {
+		return GatewayRollout{}, err
 	}
 
 	s.mu.Lock()
@@ -265,6 +269,7 @@ func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 		FirmwareVersion:     fw.Version,
 		Target:              in.Target,
 		Phases:              in.Phases,
+		Schedule:            in.Schedule,
 		FailureThresholdPct: threshold,
 		State:               rolloutStatePending,
 		CurrentPhase:        0,
@@ -274,7 +279,7 @@ func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 		UpdatedAt:           now,
 	}
 	s.rollouts = append([]GatewayRollout{r}, s.rollouts...)
-	s.startRolloutPhaseLocked(&s.rollouts[0], 0, all, now)
+	s.tryStartPhaseLocked(&s.rollouts[0], 0, all, now)
 	if err := s.persistLocked(); err != nil {
 		return GatewayRollout{}, err
 	}
@@ -296,6 +301,18 @@ func (s *Service) startRolloutPhaseLocked(r *GatewayRollout, phase int, all []Ga
 	r.CurrentPhase = phase
 	r.PhaseStartedAt = now
 	r.State = rolloutStateActive
+	r.UpdatedAt = now
+}
+
+// tryStartPhaseLocked starts the phase's cohort if the schedule window is open; otherwise parks
+// the rollout in "scheduled" at that phase to await the window. Caller holds s.mu.
+func (s *Service) tryStartPhaseLocked(r *GatewayRollout, phase int, all []Gateway, now time.Time) {
+	if scheduleOpen(r.Schedule, now) {
+		s.startRolloutPhaseLocked(r, phase, all, now)
+		return
+	}
+	r.CurrentPhase = phase
+	r.State = rolloutStateScheduled
 	r.UpdatedAt = now
 }
 
@@ -373,29 +390,39 @@ func (s *Service) advanceRolloutLocked(rolloutIdx int) bool {
 	now := time.Now().UTC()
 	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target) // target set is immutable under the lock
 	changed := false
-	for r.State == rolloutStateActive {
-		terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
-		if !terminal {
-			break
+	for {
+		switch r.State {
+		case rolloutStateScheduled:
+			if !scheduleOpen(r.Schedule, now) {
+				return changed // still waiting for the window
+			}
+			s.startRolloutPhaseLocked(r, r.CurrentPhase, all, now) // window open → start the parked phase
+			changed = true
+		case rolloutStateActive:
+			terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
+			if !terminal {
+				return changed
+			}
+			changed = true
+			r.UpdatedAt = now
+			if failureRate >= r.FailureThresholdPct {
+				r.State = rolloutStatePaused
+				return changed
+			}
+			if r.CurrentPhase >= len(r.Phases)-1 {
+				r.State = rolloutStateCompleted
+				return changed
+			}
+			next := r.CurrentPhase + 1
+			if r.Phases[next].RequiresApproval {
+				r.State = rolloutStateAwaitingApproval
+				return changed
+			}
+			s.tryStartPhaseLocked(r, next, all, now) // window-gated; may park in scheduled
+		default:
+			return changed
 		}
-		changed = true
-		r.UpdatedAt = now
-		if failureRate >= r.FailureThresholdPct {
-			r.State = rolloutStatePaused
-			break
-		}
-		if r.CurrentPhase >= len(r.Phases)-1 {
-			r.State = rolloutStateCompleted
-			break
-		}
-		next := r.CurrentPhase + 1
-		if r.Phases[next].RequiresApproval {
-			r.State = rolloutStateAwaitingApproval
-			break
-		}
-		s.startRolloutPhaseLocked(r, next, all, now) // creates next cohort; loop re-evaluates (empty cohort auto-skips)
 	}
-	return changed
 }
 
 // GetRollout evaluates the rollout (catches stall timeouts) then returns it, tenant-scoped.
@@ -480,7 +507,7 @@ func (s *Service) ResumeRollout(tenantID, id, actor string) (GatewayRollout, err
 			r.State = rolloutStateAwaitingApproval
 			return nil
 		}
-		s.startRolloutPhaseLocked(r, next, all, now)
+		s.tryStartPhaseLocked(r, next, all, now)
 		s.advanceRolloutLocked(ri)
 		return nil
 	})
@@ -495,7 +522,7 @@ func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, er
 		}
 		r.UpdatedBy = actor
 		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
-		s.startRolloutPhaseLocked(r, r.CurrentPhase+1, all, now)
+		s.tryStartPhaseLocked(r, r.CurrentPhase+1, all, now)
 		s.advanceRolloutLocked(ri)
 		return nil
 	})
