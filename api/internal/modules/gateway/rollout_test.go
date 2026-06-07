@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateRolloutPhases(t *testing.T) {
@@ -178,5 +179,62 @@ func TestRolloutPhaseZeroSerializes(t *testing.T) {
 	}
 	if !strings.Contains(string(b), `"rollout_phase":0`) {
 		t.Fatalf("phase-0 task must serialize rollout_phase, got %s", string(b))
+	}
+}
+
+func reportTask(t *testing.T, svc *Service, gatewayID, status string) {
+	t.Helper()
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", gatewayID)
+	if len(tasks) == 0 {
+		t.Fatalf("no tasks for %s", gatewayID)
+	}
+	if _, err := svc.UpdateOTATaskStatus("tenant_demo_jakarta", gatewayID, tasks[0].ID, status, "", "agent"); err != nil {
+		t.Fatalf("report %s=%s: %v", gatewayID, status, err)
+	}
+}
+
+func TestRolloutAutoAdvanceAndComplete(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	reportTask(t, svc, "gw_demo_001", "succeeded")
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStateCompleted {
+		t.Fatalf("want completed, got %s", got.State)
+	}
+}
+
+func TestRolloutFailureGatePauses(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}}, FailureThresholdPct: 20,
+	})
+	reportTask(t, svc, "gw_demo_001", "failed") // 100% failure ≥ 20% → paused
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStatePaused {
+		t.Fatalf("want paused, got %s", got.State)
+	}
+}
+
+func TestRolloutStallTimeoutCountsAsFailure(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	idx := svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")
+	svc.rollouts[idx].PhaseStartedAt = time.Now().UTC().Add(-2 * time.Hour)
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStatePaused {
+		t.Fatalf("want paused via stall, got %s", got.State)
 	}
 }

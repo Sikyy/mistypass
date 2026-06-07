@@ -253,14 +253,87 @@ func (s *Service) appendRolloutOTATaskLocked(gw Gateway, fw GatewayFirmware, rol
 	}}, s.otaTasks...)
 }
 
-// GetRollout returns a tenant-scoped rollout.
+// latestRolloutTaskLocked finds the newest OTA task for a rollout phase + gateway. Caller holds s.mu.
+func (s *Service) latestRolloutTaskLocked(rolloutID string, phase int, gatewayID string) (GatewayOTATask, bool) {
+	for i := range s.otaTasks {
+		if s.otaTasks[i].RolloutID == rolloutID && s.otaTasks[i].RolloutPhase == phase && s.otaTasks[i].GatewayID == gatewayID {
+			return s.otaTasks[i], true
+		}
+	}
+	return GatewayOTATask{}, false
+}
+
+// evaluateRolloutPhaseLocked reports whether the current phase is terminal and its failure rate (%).
+// A cohort gateway with no terminal task counts as failed once the stall window elapses.
+// Empty cohort → terminal with 0% failure. Caller holds s.mu.
+func (s *Service) evaluateRolloutPhaseLocked(r *GatewayRollout, all []Gateway, now time.Time) (bool, int) {
+	cohort := cohortForPhase(all, r.Phases, r.CurrentPhase)
+	total := len(cohort)
+	if total == 0 {
+		return true, 0
+	}
+	stalled := now.Sub(r.PhaseStartedAt) > rolloutStallWindow
+	failed, terminal := 0, 0
+	for _, gw := range cohort {
+		task, ok := s.latestRolloutTaskLocked(r.ID, r.CurrentPhase, gw.ID)
+		switch {
+		case ok && task.Status == gatewayOTATaskStatusSucceeded:
+			terminal++
+		case ok && task.Status == gatewayOTATaskStatusFailed:
+			terminal++
+			failed++
+		case stalled:
+			terminal++
+			failed++
+		}
+	}
+	if terminal < total {
+		return false, 0
+	}
+	return true, failed * 100 / total
+}
+
+// advanceRolloutLocked drives an active rollout forward as far as it can. Caller holds s.mu.
+func (s *Service) advanceRolloutLocked(rolloutIdx int) {
+	r := &s.rollouts[rolloutIdx]
+	now := time.Now().UTC()
+	for r.State == rolloutStateActive {
+		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+		terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
+		if !terminal {
+			return
+		}
+		r.UpdatedAt = now
+		if failureRate >= r.FailureThresholdPct {
+			r.State = rolloutStatePaused
+			return
+		}
+		if r.CurrentPhase >= len(r.Phases)-1 {
+			r.State = rolloutStateCompleted
+			return
+		}
+		next := r.CurrentPhase + 1
+		if r.Phases[next].RequiresApproval {
+			r.State = rolloutStateAwaitingApproval
+			return
+		}
+		s.startRolloutPhaseLocked(r, next, all, now) // creates next cohort; loop re-evaluates (empty cohort auto-skips)
+	}
+}
+
+// GetRollout evaluates the rollout (catches stall timeouts) then returns it, tenant-scoped.
 func (s *Service) GetRollout(tenantID, id string) (GatewayRollout, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID)); i >= 0 {
-		return s.rollouts[i], nil
+	i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if i < 0 {
+		return GatewayRollout{}, ErrRolloutNotFound
 	}
-	return GatewayRollout{}, ErrRolloutNotFound
+	s.advanceRolloutLocked(i)
+	if err := s.persistLocked(); err != nil {
+		return GatewayRollout{}, err
+	}
+	return s.rollouts[i], nil
 }
 
 // ListRollouts returns a tenant's rollouts, newest first.

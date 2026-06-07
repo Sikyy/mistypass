@@ -1993,10 +1993,17 @@ func (s *Service) UpdateOTATaskStatus(
 	}
 	s.otaTasks[idx].UpdatedAt = now
 
+	updatedTask := s.otaTasks[idx] // capture before advanceRolloutLocked may prepend new tasks
+	if updatedTask.RolloutID != "" {
+		if ri := s.findRolloutIndexLocked(updatedTask.RolloutID, ""); ri >= 0 {
+			s.advanceRolloutLocked(ri)
+		}
+	}
+
 	if err := s.persistLocked(); err != nil {
 		return GatewayOTATask{}, err
 	}
-	return s.otaTasks[idx], nil
+	return updatedTask, nil
 }
 
 func (s *Service) restoreFromStateStore() error {
