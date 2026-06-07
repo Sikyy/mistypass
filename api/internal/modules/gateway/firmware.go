@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"sort"
 	"strings"
 	"time"
 )
@@ -101,7 +100,6 @@ func (s *Service) ListFirmware(tenantID, channel string) []GatewayFirmware {
 		}
 		items = append(items, s.firmwares[i])
 	}
-	sort.Slice(items, func(a, b int) bool { return items[a].CreatedAt.After(items[b].CreatedAt) })
 	return items
 }
 
@@ -142,7 +140,7 @@ func (s *Service) findFirmwareLocked(id, tenantID string) (GatewayFirmware, bool
 }
 
 func cloneGatewayFirmwares(in []GatewayFirmware) []GatewayFirmware {
-	if in == nil {
+	if len(in) == 0 {
 		return nil
 	}
 	out := make([]GatewayFirmware, len(in))

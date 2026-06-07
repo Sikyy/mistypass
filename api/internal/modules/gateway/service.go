@@ -367,6 +367,7 @@ func NewService() *Service {
 		eventCheckpoints:       []GatewayEventCheckpoint{},
 		queueIngestTotals:      []GatewayQueueIngestTotal{},
 		otaTasks:               []GatewayOTATask{},
+		firmwares:              []GatewayFirmware{},
 	}
 }
 

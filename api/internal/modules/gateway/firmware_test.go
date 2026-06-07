@@ -47,6 +47,37 @@ func TestCreateFirmwareValidation(t *testing.T) {
 	}
 }
 
+func TestFirmwarePersistsToStateStore(t *testing.T) {
+	store := &gatewayMemoryStateStore{}
+	first, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new first service: %v", err)
+	}
+	fw, err := first.CreateFirmware(CreateFirmwareInput{
+		TenantID:  "tenant_demo_jakarta",
+		Version:   "1.4.0",
+		Channel:   "stable",
+		SHA256:    strings.Repeat("a", 64),
+		Signature: strings.Repeat("b", 128),
+		SizeBytes: 512,
+	})
+	if err != nil {
+		t.Fatalf("create firmware: %v", err)
+	}
+
+	restored, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new restored service: %v", err)
+	}
+	got, err := restored.GetFirmware("tenant_demo_jakarta", fw.ID)
+	if err != nil {
+		t.Fatalf("get firmware after restore: %v", err)
+	}
+	if got.Version != "1.4.0" {
+		t.Fatalf("unexpected restored version: %s", got.Version)
+	}
+}
+
 func TestListFirmwareByChannel(t *testing.T) {
 	svc := NewService()
 	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
