@@ -203,6 +203,32 @@ func (a *Agent) reportOTA(task otaTask, status, errMsg string) error {
 	return nil
 }
 
+// ensureOTADefaults wires the OTA test seams to their real implementations.
+// Called from Start(); unit tests set the seams directly and skip this.
+func (a *Agent) ensureOTADefaults() {
+	if a.exitFunc == nil {
+		a.exitFunc = os.Exit
+	}
+	if a.resolveSelf == nil {
+		a.resolveSelf = resolveSelfBinary
+	}
+	if a.reportOTAFn == nil {
+		a.reportOTAFn = a.reportOTA
+	}
+}
+
+// resolveSelfBinary returns the absolute, symlink-resolved path of the running binary.
+func resolveSelfBinary() (string, error) {
+	p, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(p); err == nil {
+		p = resolved
+	}
+	return p, nil
+}
+
 // maybeApplyOTA is invoked from pullConfig with the cloud's pending tasks.
 func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 	if len(a.otaPublicKeys) == 0 {
@@ -231,7 +257,7 @@ func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 			a.otaVerifyFailed[task.ID] = true
 			a.mu.Unlock()
 		}
-		_ = a.reportOTA(task, "failed", err.Error())
+		_ = a.reportOTAFn(task, "failed", err.Error())
 	}
 }
 
@@ -239,7 +265,7 @@ func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 // systemd restarts into the new binary. On any pre-install failure it returns
 // an error WITHOUT touching the running binary.
 func (a *Agent) runOTA(task otaTask) error {
-	_ = a.reportOTA(task, "dispatching", "")
+	_ = a.reportOTAFn(task, "dispatching", "")
 
 	data, err := downloadFirmware(a.newOTAHTTPClient(), task.FirmwareURL, otaMaxFirmwareBytes)
 	if err != nil {
@@ -249,12 +275,9 @@ func (a *Agent) runOTA(task otaTask) error {
 		return fmt.Errorf("%w: %v", errOTAVerifyFailed, err)
 	}
 
-	binPath, err := os.Executable()
+	binPath, err := a.resolveSelf()
 	if err != nil {
 		return fmt.Errorf("locate self: %w", err)
-	}
-	if resolved, err := filepath.EvalSymlinks(binPath); err == nil {
-		binPath = resolved
 	}
 	bakPath := binPath + ".bak"
 
@@ -277,8 +300,8 @@ func (a *Agent) runOTA(task otaTask) error {
 	}
 
 	a.logger.Info("OTA installed; exiting for systemd restart into new binary", "version", task.FirmwareVersion)
-	os.Exit(0) // systemd Restart=always relaunches the new binary
-	return nil // unreachable
+	a.exitFunc(0) // systemd Restart=always relaunches the new binary
+	return nil    // unreachable in production (exitFunc is os.Exit)
 }
 
 // confirmPendingOTA finalizes a self-update once a post-restart pullConfig
@@ -296,7 +319,7 @@ func (a *Agent) confirmPendingOTA() {
 		// success; leave the marker for the watchdog/guard to roll back.
 		return
 	}
-	if err := a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "succeeded", ""); err != nil {
+	if err := a.reportOTAFn(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "succeeded", ""); err != nil {
 		return // keep marker; retry next successful pull
 	}
 	m.Confirmed = true
@@ -321,20 +344,17 @@ func (a *Agent) otaWatchdog(timeout time.Duration) {
 	if m2, ok, _ := readOTAMarker(a.otaMarkerPath()); !ok || m2.Confirmed {
 		return // confirmed meanwhile
 	}
-	binPath, err := os.Executable()
+	binPath, err := a.resolveSelf()
 	if err != nil {
 		a.logger.Error("OTA watchdog: cannot locate self, skipping rollback", "error", err)
 		return
-	}
-	if resolved, err := filepath.EvalSymlinks(binPath); err == nil {
-		binPath = resolved
 	}
 	if err := restoreBinary(binPath, m.BakPath); err != nil {
 		a.logger.Error("OTA rollback restore failed", "error", err)
 		return
 	}
-	_ = a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "failed", "post-update health check timed out; rolled back")
+	_ = a.reportOTAFn(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "failed", "post-update health check timed out; rolled back")
 	_ = os.Remove(a.otaMarkerPath())
 	a.logger.Warn("OTA rolled back after health timeout; exiting for systemd restart into previous binary", "version", m.NewVersion)
-	os.Exit(0)
+	a.exitFunc(0)
 }

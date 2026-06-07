@@ -49,6 +49,11 @@ type Agent struct {
 	otaPublicKeys      []ed25519.PublicKey // pinned Ed25519 keys for OTA verification (empty = OTA disabled)
 	otaVerifyFailed    map[string]bool     // task IDs that failed signature verification this process lifetime (skip re-download)
 
+	// OTA test seams — default to real implementations in Start(); unit tests set them directly.
+	exitFunc    func(int)                           // process exit (os.Exit)
+	resolveSelf func() (string, error)              // path of the running binary
+	reportOTAFn func(otaTask, string, string) error // OTA status reporter
+
 	mu              sync.RWMutex
 	deviceToken     string // device-specific token obtained from registration
 	accessRules     []AccessRule
@@ -103,6 +108,7 @@ type AccessEvent struct {
 
 func (a *Agent) Start() error {
 	a.stopCh = make(chan struct{})
+	a.ensureOTADefaults()
 
 	// OTA rollback watchdog: if a pending self-update is not confirmed in time,
 	// restore the previous binary. No-op when there is no pending marker.

@@ -1,13 +1,22 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/mistypass/cloud/api/internal/otasig"
 )
+
+func otaTestLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
 func TestCompareVersions(t *testing.T) {
 	cases := []struct {
@@ -163,5 +172,169 @@ func TestOTAReportBody(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("body %s missing %s", got, want)
 		}
+	}
+}
+
+// confirmPendingOTA must only report success when the RUNNING binary is the
+// pending version; otherwise it leaves the marker for the watchdog to roll back.
+func TestConfirmPendingOTAVersionGate(t *testing.T) {
+	dir := t.TempDir()
+	bak := filepath.Join(dir, "agent.bak")
+	_ = os.WriteFile(bak, []byte("old"), 0o755)
+	var reported []string
+	a := &Agent{
+		logger:          otaTestLogger(),
+		deviceTokenFile: filepath.Join(dir, "device-token"),
+		agentVersion:    "1.3.0",
+		reportOTAFn:     func(_ otaTask, status, _ string) error { reported = append(reported, status); return nil },
+	}
+	if err := writeOTAMarker(a.otaMarkerPath(), otaMarker{TaskID: "t1", NewVersion: "1.4.0", BakPath: bak}); err != nil {
+		t.Fatal(err)
+	}
+
+	// running 1.3.0 != pending 1.4.0 → must NOT confirm, marker stays.
+	a.confirmPendingOTA()
+	if len(reported) != 0 {
+		t.Fatalf("must not report on version mismatch, got %v", reported)
+	}
+	if _, ok, _ := readOTAMarker(a.otaMarkerPath()); !ok {
+		t.Fatal("marker must remain for rollback on version mismatch")
+	}
+
+	// running version now matches → confirm + cleanup.
+	a.agentVersion = "1.4.0"
+	a.confirmPendingOTA()
+	if len(reported) != 1 || reported[0] != "succeeded" {
+		t.Fatalf("want one 'succeeded', got %v", reported)
+	}
+	if _, ok, _ := readOTAMarker(a.otaMarkerPath()); ok {
+		t.Fatal("marker should be removed after confirm")
+	}
+	if _, err := os.Stat(bak); !os.IsNotExist(err) {
+		t.Fatal("bak should be removed after confirm")
+	}
+}
+
+// A task that fails signature verification must be downloaded at most once per
+// process lifetime (in-memory skip-set), not re-fetched on every poll.
+func TestMaybeApplyOTASkipsVerifyFailedTask(t *testing.T) {
+	pub, _, _ := otasig.GenerateKey()
+	body := []byte("unsigned firmware bytes")
+	var hits int32
+	fw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		_, _ = w.Write(body)
+	}))
+	defer fw.Close()
+
+	dir := t.TempDir()
+	a := &Agent{
+		logger:          otaTestLogger(),
+		deviceTokenFile: filepath.Join(dir, "device-token"),
+		agentVersion:    "1.0.0",
+		otaPublicKeys:   []ed25519.PublicKey{pub},
+		resolveSelf:     func() (string, error) { return filepath.Join(dir, "agent"), nil },
+		exitFunc:        func(int) {},
+		reportOTAFn:     func(otaTask, string, string) error { return nil },
+	}
+	task := otaTask{
+		ID: "t1", FirmwareVersion: "1.4.0", FirmwareURL: fw.URL,
+		FirmwareSHA256:    otasig.SHA256Hex(body),   // sha matches → fails at the signature step
+		FirmwareSignature: strings.Repeat("0", 128), // valid-length but invalid Ed25519 signature
+	}
+	a.maybeApplyOTA([]otaTask{task})
+	a.maybeApplyOTA([]otaTask{task})
+	if got := atomic.LoadInt32(&hits); got != 1 {
+		t.Fatalf("verify-failed task must be downloaded once, got %d hits", got)
+	}
+}
+
+// runOTA happy path: download → verify → write marker → swap → exit, leaving the
+// new binary in place, the old one in .bak, and a marker that points to it.
+func TestRunOTAInstallsAndMarks(t *testing.T) {
+	pub, priv, _ := otasig.GenerateKey()
+	fwBytes := []byte("new agent binary 1.4.0")
+	sha := otasig.SHA256Hex(fwBytes)
+	sig := otasig.Sign(priv, "1.4.0", sha)
+	fw := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(fwBytes) }))
+	defer fw.Close()
+
+	dir := t.TempDir()
+	binPath := filepath.Join(dir, "agent")
+	_ = os.WriteFile(binPath, []byte("old binary"), 0o755)
+
+	var statuses []string
+	exited := false
+	a := &Agent{
+		logger:          otaTestLogger(),
+		deviceTokenFile: filepath.Join(dir, "device-token"),
+		agentVersion:    "1.0.0",
+		otaPublicKeys:   []ed25519.PublicKey{pub},
+		resolveSelf:     func() (string, error) { return binPath, nil },
+		exitFunc:        func(int) { exited = true },
+		reportOTAFn:     func(_ otaTask, status, _ string) error { statuses = append(statuses, status); return nil },
+	}
+	task := otaTask{ID: "t1", TenantID: "tn", GatewayID: "gw", FirmwareVersion: "1.4.0", FirmwareURL: fw.URL, FirmwareSHA256: sha, FirmwareSignature: sig}
+	if err := a.runOTA(task); err != nil {
+		t.Fatalf("runOTA: %v", err)
+	}
+	if !exited {
+		t.Fatal("expected exitFunc to be called")
+	}
+	if b, _ := os.ReadFile(binPath); string(b) != string(fwBytes) {
+		t.Fatalf("binary not swapped: %q", b)
+	}
+	if b, _ := os.ReadFile(binPath + ".bak"); string(b) != "old binary" {
+		t.Fatalf("backup not written: %q", b)
+	}
+	m, ok, _ := readOTAMarker(a.otaMarkerPath())
+	if !ok || m.NewVersion != "1.4.0" || m.BakPath != binPath+".bak" {
+		t.Fatalf("marker wrong: %+v ok=%v", m, ok)
+	}
+	if len(statuses) == 0 || statuses[0] != "dispatching" {
+		t.Fatalf("expected 'dispatching' first, got %v", statuses)
+	}
+}
+
+// otaWatchdog rolls back when a pending update is never confirmed within timeout.
+func TestOTAWatchdogRollsBackUnconfirmed(t *testing.T) {
+	dir := t.TempDir()
+	binPath := filepath.Join(dir, "agent")
+	bak := binPath + ".bak"
+	_ = os.WriteFile(binPath, []byte("new-broken"), 0o755)
+	_ = os.WriteFile(bak, []byte("old-good"), 0o755)
+
+	var failedMsg string
+	exited := false
+	a := &Agent{
+		logger:          otaTestLogger(),
+		deviceTokenFile: filepath.Join(dir, "device-token"),
+		stopCh:          make(chan struct{}),
+		resolveSelf:     func() (string, error) { return binPath, nil },
+		exitFunc:        func(int) { exited = true },
+		reportOTAFn: func(_ otaTask, status, msg string) error {
+			if status == "failed" {
+				failedMsg = msg
+			}
+			return nil
+		},
+	}
+	if err := writeOTAMarker(a.otaMarkerPath(), otaMarker{TaskID: "t1", NewVersion: "1.4.0", BakPath: bak}); err != nil {
+		t.Fatal(err)
+	}
+
+	a.otaWatchdog(10 * time.Millisecond)
+
+	if b, _ := os.ReadFile(binPath); string(b) != "old-good" {
+		t.Fatalf("binary not rolled back: %q", b)
+	}
+	if failedMsg == "" {
+		t.Fatal("expected a 'failed' rollback report")
+	}
+	if !exited {
+		t.Fatal("expected exitFunc after rollback")
+	}
+	if _, ok, _ := readOTAMarker(a.otaMarkerPath()); ok {
+		t.Fatal("marker should be removed after rollback")
 	}
 }
