@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/mistypass/cloud/api/internal/config"
 	httpx "github.com/mistypass/cloud/api/internal/http"

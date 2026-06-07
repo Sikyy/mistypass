@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +17,7 @@ var (
 	ErrRolloutPhasesInvalid    = errors.New("rollout phases must be non-empty, strictly increasing percentages ending at 100 (each 1-100)")
 	ErrRolloutThresholdInvalid = errors.New("rollout failure_threshold_pct must be 0-100")
 	ErrRolloutStateConflict    = errors.New("rollout action not allowed in current state")
+	ErrRolloutScheduleInvalid  = errors.New("rollout schedule is invalid (timezone must be a valid IANA name; window_start/window_end must both be set as HH:MM)")
 )
 
 const (
@@ -25,6 +27,7 @@ const (
 	rolloutStatePaused           = "paused"
 	rolloutStateCompleted        = "completed"
 	rolloutStateFailed           = "failed"
+	rolloutStateScheduled        = "scheduled"
 
 	// applied when a rollout's FailureThresholdPct is 0 at creation
 	defaultRolloutFailureThresholdPct = 20
@@ -48,22 +51,79 @@ type RolloutPhase struct {
 	RequiresApproval bool `json:"requires_approval"` // pause for manual approval before entering this phase
 }
 
+// RolloutSchedule defers/gates a rollout: start_at = earliest absolute start; the daily
+// local-time window [WindowStart, WindowEnd) (WindowEnd < WindowStart = overnight) gates phase starts.
+type RolloutSchedule struct {
+	StartAt     *time.Time `json:"start_at,omitempty"`
+	WindowStart string     `json:"window_start,omitempty"` // "HH:MM" local 24h
+	WindowEnd   string     `json:"window_end,omitempty"`   // "HH:MM" local 24h
+	Timezone    string     `json:"timezone,omitempty"`     // IANA, e.g. "Asia/Jakarta"; empty = UTC
+}
+
+var rolloutHHMMRe = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+
+// validateRolloutSchedule checks an optional schedule's window format + timezone.
+func validateRolloutSchedule(sch *RolloutSchedule) error {
+	if sch == nil {
+		return nil
+	}
+	ws, we := strings.TrimSpace(sch.WindowStart), strings.TrimSpace(sch.WindowEnd)
+	if (ws == "") != (we == "") {
+		return ErrRolloutScheduleInvalid
+	}
+	if ws != "" && (!rolloutHHMMRe.MatchString(ws) || !rolloutHHMMRe.MatchString(we)) {
+		return ErrRolloutScheduleInvalid
+	}
+	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
+		if _, err := time.LoadLocation(tz); err != nil {
+			return ErrRolloutScheduleInvalid
+		}
+	}
+	return nil
+}
+
+// scheduleOpenLocked reports whether a phase may start now under the schedule.
+func scheduleOpenLocked(sch *RolloutSchedule, now time.Time) bool {
+	if sch == nil {
+		return true
+	}
+	if sch.StartAt != nil && now.Before(*sch.StartAt) {
+		return false
+	}
+	ws, we := strings.TrimSpace(sch.WindowStart), strings.TrimSpace(sch.WindowEnd)
+	if ws == "" || we == "" {
+		return true // no window → start_at alone gates
+	}
+	loc := time.UTC
+	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	hhmm := now.In(loc).Format("15:04")
+	if ws <= we {
+		return ws <= hhmm && hhmm < we
+	}
+	return hhmm >= ws || hhmm < we // overnight
+}
+
 // GatewayRollout is a phased firmware rollout over a set of gateways.
 type GatewayRollout struct {
-	ID                  string         `json:"id"`
-	TenantID            string         `json:"tenant_id"`
-	FirmwareID          string         `json:"firmware_id"`
-	FirmwareVersion     string         `json:"firmware_version"`
-	Target              RolloutTarget  `json:"target"`
-	Phases              []RolloutPhase `json:"phases"`
-	FailureThresholdPct int            `json:"failure_threshold_pct"`
-	State               string         `json:"state"`
-	CurrentPhase        int            `json:"current_phase"`
-	PhaseStartedAt      time.Time      `json:"phase_started_at"`
-	CreatedBy           string         `json:"created_by,omitempty"`
-	UpdatedBy           string         `json:"updated_by,omitempty"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
+	ID                  string           `json:"id"`
+	TenantID            string           `json:"tenant_id"`
+	FirmwareID          string           `json:"firmware_id"`
+	FirmwareVersion     string           `json:"firmware_version"`
+	Target              RolloutTarget    `json:"target"`
+	Phases              []RolloutPhase   `json:"phases"`
+	Schedule            *RolloutSchedule `json:"schedule,omitempty"`
+	FailureThresholdPct int              `json:"failure_threshold_pct"`
+	State               string           `json:"state"`
+	CurrentPhase        int              `json:"current_phase"`
+	PhaseStartedAt      time.Time        `json:"phase_started_at"`
+	CreatedBy           string           `json:"created_by,omitempty"`
+	UpdatedBy           string           `json:"updated_by,omitempty"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
 }
 
 func rolloutRecordID() (string, error) {
