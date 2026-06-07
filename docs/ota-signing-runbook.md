@@ -16,24 +16,13 @@ cd api && go run ./cmd/ota-sign gen-key --out-priv ota-priv.pem --out-pub ota-pu
 - `ota-pub.hex` 填进 agent 的 `--ota-pubkey`。
 
 ## 2. agent 端固定公钥(systemd)
-`/etc/systemd/system/gateway-agent.service`:
-```ini
-[Service]
-Restart=always
-RestartSec=3
-ExecStartPre=/usr/local/bin/mistypass-ota-guard.sh
-ExecStart=/usr/local/bin/gateway-agent \
-  --api https://api.example.com \
-  --gateway gw_demo_001 --tenant tenant_demo_jakarta \
-  --ota-pubkey <ota-pub.hex 内容>
-```
-把 `docs/deployment/mistypass-ota-guard.sh` 部署到 `/usr/local/bin/mistypass-ota-guard.sh` 并 `chmod +x`。
-`Restart=always` 与 `ExecStartPre` 守护是自动回滚的前提。
+部署 `docs/deployment/gateway-agent.service`(已含 `Restart=always` + `ExecStartPre` 守护 —— 自动回滚的前提),把其中 `REPLACE_*` 占位(`--ota-pubkey` 填 `ota-pub.hex` 内容、`--gateway`、`--tenant`)改成实际值。
+再把 `docs/deployment/mistypass-ota-guard.sh` 装到 `/usr/local/bin/mistypass-ota-guard.sh` 并 `chmod +x`。安装步骤见 service 文件头部注释。
 
 ## 3. 发布一次签名更新
 ```bash
-# 构建目标平台二进制(版本号经 ldflags 注入,用于防降级)
-cd api && GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=1.4.0" -o gateway-agent-1.4.0 ./cmd/gateway-agent
+# 构建目标平台二进制(版本号经 ldflags 注入,用于防降级;不带版本会是 "dev" 导致防降级失效)
+cd api && make gateway-agent-release VERSION=1.4.0
 # 离线签名(私钥不离开本机)
 go run ./cmd/ota-sign sign --key ota-priv.pem --version 1.4.0 --in gateway-agent-1.4.0 \
   --gateway gw_demo_001 --tenant tenant_demo_jakarta \

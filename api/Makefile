@@ -1,4 +1,4 @@
-.PHONY: openapi openapi-mobile mobile-route-constants mobile-route-constants-check openapi-swift openapi-kotlin
+.PHONY: openapi openapi-mobile mobile-route-constants mobile-route-constants-check openapi-swift openapi-kotlin gateway-agent-release
 
 DOCS_DIR   := ../docs
 SPEC_FULL  := $(DOCS_DIR)/openapi.json
@@ -38,3 +38,18 @@ openapi-kotlin: openapi-mobile ## Generate Kotlin client from mobile spec
 		-g kotlin \
 		-o $(KOTLIN_OUT) \
 		--additional-properties=library=jvm-retrofit2,serializationLibrary=kotlinx_serialization,groupId=com.mistyislet,artifactId=api-client
+
+# --- Gateway agent OTA release build ---
+
+# VERSION is injected into the binary (main.version) and drives OTA anti-downgrade.
+# A binary built without it defaults to "dev", which is < any numeric release —
+# so EVERY published OTA build MUST set VERSION.
+VERSION ?= dev
+
+gateway-agent-release: ## Cross-compile gateway-agent for ARM64 with OTA version injected (make gateway-agent-release VERSION=1.4.0)
+	@test "$(VERSION)" != "dev" || { echo "refusing to publish a 'dev' build; pass VERSION=x.y.z"; exit 1; }
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build \
+		-ldflags "-X main.version=$(VERSION)" \
+		-o gateway-agent-$(VERSION) ./cmd/gateway-agent
+	@echo "Built gateway-agent-$(VERSION). Sign it OFFLINE before publishing:"
+	@echo "  go run ./cmd/ota-sign sign --key ota-priv.pem --version $(VERSION) --in gateway-agent-$(VERSION) --gateway <id> --tenant <id> --url <url>"
