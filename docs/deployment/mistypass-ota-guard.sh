@@ -14,20 +14,22 @@ MAX_ATTEMPTS="${MISTYPASS_OTA_MAX_ATTEMPTS:-3}"
 confirmed=$(grep -o '"confirmed":[^,}]*' "$MARKER" | head -1 | sed 's/.*://; s/[^a-z]//g')
 [ "$confirmed" = "true" ] && exit 0
 
-attempts=$(grep -o '"attempts":[0-9]*' "$MARKER" | head -1 | sed 's/.*://')
+attempts=$(grep -o '"attempts":[0-9][0-9]*' "$MARKER" | head -1 | sed 's/.*://')
 [ -n "$attempts" ] || attempts=0
 attempts=$((attempts + 1))
 
 bak=$(grep -o '"bak_path":"[^"]*"' "$MARKER" | head -1 | sed 's/.*:"//; s/"$//')
 
 if [ "$attempts" -ge "$MAX_ATTEMPTS" ] && [ -n "$bak" ] && [ -f "$bak" ]; then
-  cp "$bak" "$BIN"
+  cp "$bak" "${BIN}.new"
+  mv "${BIN}.new" "$BIN"
   rm -f "$MARKER"
   echo "mistypass-ota-guard: rolled back to $bak after $attempts failed boots" >&2
   exit 0
 fi
 
-tmp="$(mktemp)"
-sed "s/\"attempts\":[0-9]*/\"attempts\":$attempts/" "$MARKER" > "$tmp" && mv "$tmp" "$MARKER"
+tmp="$(mktemp "${MARKER}.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT INT TERM
+sed "s/\"attempts\":[0-9][0-9]*/\"attempts\":$attempts/" "$MARKER" > "$tmp" && mv "$tmp" "$MARKER"
 echo "mistypass-ota-guard: pending OTA boot attempt $attempts" >&2
 exit 0
