@@ -108,3 +108,35 @@ func TestRolloutAbortEndpoint(t *testing.T) {
 		t.Fatalf("want failed, got %s", aborted.State)
 	}
 }
+
+func TestRolloutActionConflictAndNotFound(t *testing.T) {
+	s, fw := rolloutTestServer(t)
+	rec := httptest.NewRecorder()
+	s.createGatewayRollout(rec, rolloutTestReq(http.MethodPost, "/api/v1/gateways/rollouts?tenant_id=tenant_demo_jakarta", map[string]any{
+		"firmware_id": fw.ID, "target": map[string]any{"kind": "all"}, "phases": []map[string]any{{"percentage": 100}},
+	}))
+	var created gateway.GatewayRollout
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+
+	abort := func() *httptest.ResponseRecorder {
+		ar := httptest.NewRecorder()
+		s.abortGatewayRollout(ar, withRolloutIDParam(rolloutTestReq(http.MethodPost, "/x?tenant_id=tenant_demo_jakarta", nil), created.ID))
+		return ar
+	}
+	abort()                                              // → failed
+	if got := abort(); got.Code != http.StatusConflict { // abort on a failed rollout → 409
+		t.Fatalf("conflict expected 409, got %d body=%s", got.Code, got.Body.String())
+	}
+
+	nf := httptest.NewRecorder()
+	s.getGatewayRollout(nf, withRolloutIDParam(rolloutTestReq(http.MethodGet, "/x?tenant_id=tenant_demo_jakarta", nil), "rollout_nope"))
+	if nf.Code != http.StatusNotFound {
+		t.Fatalf("unknown rollout expected 404, got %d", nf.Code)
+	}
+
+	lr := httptest.NewRecorder()
+	s.listGatewayRollouts(lr, rolloutTestReq(http.MethodGet, "/api/v1/gateways/rollouts?tenant_id=tenant_demo_jakarta", nil))
+	if lr.Code != http.StatusOK || !strings.Contains(lr.Body.String(), created.ID) {
+		t.Fatalf("list expected 200 containing %s, got %d %s", created.ID, lr.Code, lr.Body.String())
+	}
+}

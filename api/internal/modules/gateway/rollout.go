@@ -30,6 +30,9 @@ const (
 	defaultRolloutFailureThresholdPct = 20
 	// a cohort gateway with no terminal task past this window counts as failed
 	rolloutStallWindow = time.Hour
+
+	gatewayOTAStatusPending  = "pending"   // a target gateway not yet in any created cohort
+	gatewayOTAStatusTimedOut = "timed_out" // a non-terminal task past the stall window
 )
 
 // RolloutTarget selects which gateways a rollout covers.
@@ -473,20 +476,31 @@ type RolloutGatewayStatus struct {
 	CurrentFirmwareVersion string `json:"current_firmware_version,omitempty"`
 }
 
-// RolloutGatewayProgress returns per-gateway progress for a rollout's full target set.
-func (s *Service) RolloutGatewayProgress(tenantID, id string) ([]RolloutGatewayStatus, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	ri := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
-	if ri < 0 {
-		return nil, ErrRolloutNotFound
+// GetRolloutDetail evaluates the rollout (catching stalls) and returns it with per-gateway
+// progress under one lock, so the two views are always a consistent snapshot. Tenant-scoped.
+func (s *Service) GetRolloutDetail(tenantID, id string) (GatewayRollout, []RolloutGatewayStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if i < 0 {
+		return GatewayRollout{}, nil, ErrRolloutNotFound
 	}
-	r := s.rollouts[ri]
+	if s.advanceRolloutLocked(i) {
+		if err := s.persistLocked(); err != nil {
+			return GatewayRollout{}, nil, err
+		}
+	}
+	r := s.rollouts[i]
+	return r, s.computeGatewayProgressLocked(r), nil
+}
+
+// computeGatewayProgressLocked builds per-gateway progress for a rollout. Caller holds s.mu.
+func (s *Service) computeGatewayProgressLocked(r GatewayRollout) []RolloutGatewayStatus {
 	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
 	now := time.Now().UTC()
 	out := make([]RolloutGatewayStatus, 0, len(all))
 	for _, gw := range all {
-		st := RolloutGatewayStatus{GatewayID: gw.ID, Phase: -1, OTAStatus: "pending", CurrentFirmwareVersion: gw.CurrentFirmwareVersion}
+		st := RolloutGatewayStatus{GatewayID: gw.ID, Phase: -1, OTAStatus: gatewayOTAStatusPending, CurrentFirmwareVersion: gw.CurrentFirmwareVersion}
 		for i := range s.otaTasks {
 			if s.otaTasks[i].RolloutID == r.ID && s.otaTasks[i].GatewayID == gw.ID {
 				st.Phase = s.otaTasks[i].RolloutPhase
@@ -495,12 +509,12 @@ func (s *Service) RolloutGatewayProgress(tenantID, id string) ([]RolloutGatewayS
 					s.otaTasks[i].Status != gatewayOTATaskStatusFailed &&
 					st.Phase == r.CurrentPhase &&
 					now.Sub(r.PhaseStartedAt) > rolloutStallWindow {
-					st.OTAStatus = "timed_out"
+					st.OTAStatus = gatewayOTAStatusTimedOut
 				}
 				break
 			}
 		}
 		out = append(out, st)
 	}
-	return out, nil
+	return out
 }

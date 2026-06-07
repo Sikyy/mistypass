@@ -32,7 +32,7 @@ func (s *server) createGatewayRollout(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:           requestActor(r),
 	})
 	if err != nil {
-		writeRolloutError(w, err)
+		writeRolloutError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, rollout)
@@ -51,15 +51,9 @@ func (s *server) getGatewayRollout(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	id := chi.URLParam(r, "rolloutID")
-	rollout, err := s.gatewaySvc.GetRollout(tenantID, id)
+	rollout, progress, err := s.gatewaySvc.GetRolloutDetail(tenantID, chi.URLParam(r, "rolloutID"))
 	if err != nil {
-		writeRolloutError(w, err)
-		return
-	}
-	progress, err := s.gatewaySvc.RolloutGatewayProgress(tenantID, id)
-	if err != nil {
-		writeRolloutError(w, err)
+		writeRolloutError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"rollout": rollout, "gateways": progress})
@@ -73,7 +67,7 @@ func (s *server) rolloutAction(action func(tenantID, id, actor string) (gateway.
 		}
 		rollout, err := action(tenantID, chi.URLParam(r, "rolloutID"), requestActor(r))
 		if err != nil {
-			writeRolloutError(w, err)
+			writeRolloutError(w, r, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, rollout)
@@ -93,11 +87,10 @@ func (s *server) abortGatewayRollout(w http.ResponseWriter, r *http.Request) {
 	s.rolloutAction(s.gatewaySvc.AbortRollout)(w, r)
 }
 
-func writeRolloutError(w http.ResponseWriter, err error) {
+func writeRolloutError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, gateway.ErrRolloutNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, gateway.ErrGatewayFirmwareNotFound):
+	case errors.Is(err, gateway.ErrRolloutNotFound),
+		errors.Is(err, gateway.ErrGatewayFirmwareNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, gateway.ErrRolloutStateConflict):
 		writeError(w, http.StatusConflict, err.Error())
@@ -107,6 +100,6 @@ func writeRolloutError(w http.ResponseWriter, err error) {
 		errors.Is(err, gateway.ErrRolloutThresholdInvalid):
 		writeError(w, http.StatusBadRequest, err.Error())
 	default:
-		writeError(w, http.StatusInternalServerError, err.Error())
+		writeInternalError(w, r, err)
 	}
 }
