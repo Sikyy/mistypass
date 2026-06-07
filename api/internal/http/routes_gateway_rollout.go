@@ -18,6 +18,7 @@ func (s *server) createGatewayRollout(w http.ResponseWriter, r *http.Request) {
 		Target              gateway.RolloutTarget  `json:"target"`
 		Phases              []gateway.RolloutPhase `json:"phases"`
 		FailureThresholdPct int                    `json:"failure_threshold_pct"`
+		Schedule            *gateway.RolloutSchedule `json:"schedule,omitempty"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -29,6 +30,7 @@ func (s *server) createGatewayRollout(w http.ResponseWriter, r *http.Request) {
 		Target:              req.Target,
 		Phases:              req.Phases,
 		FailureThresholdPct: req.FailureThresholdPct,
+		Schedule:            req.Schedule,
 		CreatedBy:           requestActor(r),
 	})
 	if err != nil {
@@ -97,7 +99,8 @@ func writeRolloutError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, gateway.ErrRolloutFirmwareRequired),
 		errors.Is(err, gateway.ErrRolloutTargetEmpty),
 		errors.Is(err, gateway.ErrRolloutPhasesInvalid),
-		errors.Is(err, gateway.ErrRolloutThresholdInvalid):
+		errors.Is(err, gateway.ErrRolloutThresholdInvalid),
+		errors.Is(err, gateway.ErrRolloutScheduleInvalid):
 		writeError(w, http.StatusBadRequest, err.Error())
 	default:
 		writeInternalError(w, r, err)

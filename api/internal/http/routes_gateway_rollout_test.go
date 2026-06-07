@@ -109,6 +109,34 @@ func TestRolloutAbortEndpoint(t *testing.T) {
 	}
 }
 
+func TestCreateRolloutWithSchedule(t *testing.T) {
+	s, fw := rolloutTestServer(t)
+	rec := httptest.NewRecorder()
+	s.createGatewayRollout(rec, rolloutTestReq(http.MethodPost, "/api/v1/gateways/rollouts?tenant_id=tenant_demo_jakarta", map[string]any{
+		"firmware_id": fw.ID,
+		"target":      map[string]any{"kind": "all"},
+		"phases":      []map[string]any{{"percentage": 100}},
+		"schedule":    map[string]any{"window_start": "02:00", "window_end": "05:00", "timezone": "Asia/Jakarta"},
+	}))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create with schedule expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var created gateway.GatewayRollout
+	_ = json.Unmarshal(rec.Body.Bytes(), &created)
+	if created.Schedule == nil || created.Schedule.WindowStart != "02:00" {
+		t.Fatalf("schedule not round-tripped: %+v", created.Schedule)
+	}
+	// bad timezone → 400
+	badRec := httptest.NewRecorder()
+	s.createGatewayRollout(badRec, rolloutTestReq(http.MethodPost, "/api/v1/gateways/rollouts?tenant_id=tenant_demo_jakarta", map[string]any{
+		"firmware_id": fw.ID, "target": map[string]any{"kind": "all"}, "phases": []map[string]any{{"percentage": 100}},
+		"schedule": map[string]any{"timezone": "Mars/Olympus"},
+	}))
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("bad timezone expected 400, got %d", badRec.Code)
+	}
+}
+
 func TestRolloutActionConflictAndNotFound(t *testing.T) {
 	s, fw := rolloutTestServer(t)
 	rec := httptest.NewRecorder()
