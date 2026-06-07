@@ -593,3 +593,77 @@ func TestRolloutAbortFromPausedAndAwaiting(t *testing.T) {
 		t.Fatalf("abort from awaiting_approval: %v %+v", err, got)
 	}
 }
+
+// getRolloutForTest reads a rollout WITHOUT triggering advance (unlike GetRollout). Test-only.
+func (s *Service) getRolloutForTest(id string) (GatewayRollout, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if i := s.findRolloutIndexLocked(id, ""); i >= 0 {
+		return s.rollouts[i], true
+	}
+	return GatewayRollout{}, false
+}
+
+func TestEvaluateGatewayScheduledRollouts(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	future := time.Now().UTC().Add(time.Hour)
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+		Schedule: &RolloutSchedule{StartAt: &future},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// open the window
+	past := time.Now().UTC().Add(-time.Hour)
+	svc.mu.Lock()
+	svc.rollouts[svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")].Schedule.StartAt = &past
+	svc.mu.Unlock()
+	// a non-target gateway pull does NOT start it
+	if err := svc.EvaluateGatewayScheduledRollouts("tenant_demo_jakarta", "gw_other"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := svc.getRolloutForTest(r.ID); got.State != rolloutStateScheduled {
+		t.Fatalf("non-target pull must not start; got %s", got.State)
+	}
+	// the target gateway pull starts it
+	if err := svc.EvaluateGatewayScheduledRollouts("tenant_demo_jakarta", "gw_demo_001"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := svc.getRolloutForTest(r.ID); got.State != rolloutStateActive {
+		t.Fatalf("target pull should start; got %s", got.State)
+	}
+}
+
+func TestAbortScheduledDoesNotStartIt(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	future := time.Now().UTC().Add(time.Hour)
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+		Schedule: &RolloutSchedule{StartAt: &future},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// back-date so the window is OPEN; abort must still NOT start it (advance-only-if-active).
+	past := time.Now().UTC().Add(-time.Hour)
+	svc.mu.Lock()
+	svc.rollouts[svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")].Schedule.StartAt = &past
+	svc.mu.Unlock()
+	got, err := svc.AbortRollout("tenant_demo_jakarta", r.ID, "admin")
+	if err != nil || got.State != rolloutStateFailed {
+		t.Fatalf("abort scheduled want failed, got %v %s", err, got.State)
+	}
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_001")
+	for _, task := range tasks {
+		if task.RolloutID == r.ID {
+			t.Fatal("abort must not have started the rollout (no tasks)")
+		}
+	}
+}

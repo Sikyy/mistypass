@@ -53,6 +53,7 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 
 	// Record the gateway's reported running firmware version (empty = no-op).
 	_ = s.gatewaySvc.RecordFirmwareVersion(request.TenantID, request.GatewayID, request.FirmwareVersion)
+	_ = s.gatewaySvc.EvaluateGatewayScheduledRollouts(request.TenantID, request.GatewayID)
 
 	snapshot, err := s.gatewaySvc.PullConfig(request.TenantID, request.GatewayID)
 	if err != nil {

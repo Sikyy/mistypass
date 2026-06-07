@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mistypass/cloud/api/internal/config"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
@@ -241,5 +242,45 @@ func TestConfigPullFillsRegistryFirmwareURL(t *testing.T) {
 	}
 	if !strings.HasPrefix(url, "http://example.com/api/v1/uploads/") {
 		t.Fatalf("unexpected base in firmware_url: %q", url)
+	}
+}
+
+func TestConfigPullStartsScheduledRollout(t *testing.T) {
+	svc := gateway.NewService()
+	fw, _ := svc.CreateFirmware(gateway.CreateFirmwareInput{
+		TenantID: "tenant_demo_jakarta", Version: "1.4.0",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Signature: strings.Repeat("b", 128),
+	})
+	past := time.Now().UTC().Add(-time.Hour)
+	if _, err := svc.CreateRollout(gateway.CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: gateway.RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []gateway.RolloutPhase{{Percentage: 100}},
+		Schedule: &gateway.RolloutSchedule{StartAt: &past}, // window already open
+	}); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{
+		gatewaySvc:          svc,
+		gatewayDeviceTokens: map[string]string{"gw_demo_001": "gw_test_token_001"},
+		cfg:                 config.Config{UploadStorageDir: t.TempDir(), UploadSigningKey: "k"},
+	}
+	body, _ := json.Marshal(map[string]any{"gateway_id": "gw_demo_001", "tenant_id": "tenant_demo_jakarta"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/config/pull", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer gw_test_token_001")
+	rec := httptest.NewRecorder()
+	s.gatewayBootstrapConfigPull(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("config/pull expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		PendingOTATasks []struct {
+			FirmwareURL string `json:"firmware_url"`
+		} `json:"pending_ota_tasks"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if len(resp.PendingOTATasks) == 0 {
+		t.Fatal("config/pull should have started the scheduled rollout and returned its task")
 	}
 }
