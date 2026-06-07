@@ -16,6 +16,7 @@ func TestCompareVersions(t *testing.T) {
 		{"1.2.0", "1.10.0", -1},
 		{"v2.0.0", "1.9.9", 1},
 		{"1.2", "1.2.0", 0},
+		{"1.2.alpha", "1.2.0", 0}, // malformed segment treated as 0 (MVP scope)
 	}
 	for _, c := range cases {
 		if got := compareVersions(c.a, c.b); got != c.want {
@@ -58,5 +59,15 @@ func TestDownloadFirmware(t *testing.T) {
 	}
 	if string(data) != "firmware-bytes" {
 		t.Fatalf("unexpected body %q", data)
+	}
+}
+
+func TestDownloadFirmwareRejectsOversize(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("0123456789"))
+	}))
+	defer srv.Close()
+	if _, err := downloadFirmware(srv.Client(), srv.URL, 4); err == nil {
+		t.Fatal("expected oversize error when body exceeds cap")
 	}
 }

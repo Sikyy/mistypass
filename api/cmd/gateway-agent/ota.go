@@ -82,7 +82,14 @@ func downloadFirmware(client *http.Client, url string, maxBytes int64) ([]byte, 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("download status %d", resp.StatusCode)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, maxBytes))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("firmware exceeds %d-byte cap", maxBytes)
+	}
+	return data, nil
 }
 
 // (used by Task 5/6) keep otasig referenced so imports stay tidy across tasks.
