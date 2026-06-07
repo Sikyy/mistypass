@@ -62,6 +62,8 @@ var ErrGatewayOTAFirmwareVersionRequired = errors.New("gateway ota firmware_vers
 var ErrGatewayOTAFirmwareURLRequired = errors.New("gateway ota firmware_url is required")
 var ErrGatewayOTAFirmwareSHA256Invalid = errors.New("gateway ota firmware_sha256 is invalid")
 var ErrGatewayOTAFirmwareSignatureInvalid = errors.New("gateway ota firmware_signature is invalid (expected hex-encoded Ed25519 signature)")
+var ErrGatewayOTAFirmwareSHA256Required = errors.New("gateway ota firmware_sha256 is required")
+var ErrGatewayOTAFirmwareSignatureRequired = errors.New("gateway ota firmware_signature is required")
 var ErrGatewayOTATaskStatusInvalid = errors.New("gateway ota task status is invalid")
 var ErrGatewayOTATaskNotFound = errors.New("gateway ota task not found")
 var ErrGatewayCertificateSerialRequired = errors.New("gateway certificate serial_number is required")
@@ -1728,11 +1730,17 @@ func (s *Service) CreateOTATask(
 		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
 	}
 	nextSHA256 := strings.ToLower(strings.TrimSpace(firmwareSHA256))
-	if nextSHA256 != "" && !isValidSHA256Hex(nextSHA256) {
+	if nextSHA256 == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Required
+	}
+	if !isValidSHA256Hex(nextSHA256) {
 		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
 	}
 	nextSignature := strings.ToLower(strings.TrimSpace(firmwareSignature))
-	if nextSignature != "" && !isValidEd25519SignatureHex(nextSignature) {
+	if nextSignature == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureRequired
+	}
+	if !isValidEd25519SignatureHex(nextSignature) {
 		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
 	}
 	taskID, err := otaTaskID()

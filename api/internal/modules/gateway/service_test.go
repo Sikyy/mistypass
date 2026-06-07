@@ -3,6 +3,7 @@ package gateway
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -712,7 +713,7 @@ func TestCreateListAndUpdateOTATask(t *testing.T) {
 		"v2.4.1",
 		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"", // firmware_signature (optional)
+		strings.Repeat("b", 128), // firmware_signature (now mandatory; format-only check)
 		"tenant-admin@example.com",
 	)
 	if err != nil {
@@ -786,5 +787,37 @@ func TestCreateOTATaskValidation(t *testing.T) {
 	)
 	if err != ErrGatewayOTAFirmwareSHA256Invalid {
 		t.Fatalf("unexpected invalid sha256 error: %v", err)
+	}
+
+	// empty sha256 → required
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"", strings.Repeat("b", 128), "",
+	)
+	if err != ErrGatewayOTAFirmwareSHA256Required {
+		t.Fatalf("unexpected missing sha256 error: %v", err)
+	}
+
+	// valid sha256, empty signature → required
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"", "",
+	)
+	if err != ErrGatewayOTAFirmwareSignatureRequired {
+		t.Fatalf("unexpected missing signature error: %v", err)
+	}
+
+	// valid sha256, malformed signature → invalid
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"not-a-valid-signature", "",
+	)
+	if err != ErrGatewayOTAFirmwareSignatureInvalid {
+		t.Fatalf("unexpected invalid signature error: %v", err)
 	}
 }

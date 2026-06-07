@@ -1134,7 +1134,9 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, gateway.ErrGatewayIDRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareVersionRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareURLRequired),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Required),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Invalid),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSignatureRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareSignatureInvalid):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
