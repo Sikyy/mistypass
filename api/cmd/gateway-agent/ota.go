@@ -258,9 +258,10 @@ func (a *Agent) runOTA(task otaTask) error {
 	}
 	bakPath := binPath + ".bak"
 
-	if err := swapBinary(data, binPath, bakPath); err != nil {
-		return fmt.Errorf("install: %w", err)
-	}
+	// Persist the rollback marker BEFORE the new binary goes live, so a crash
+	// in the window right after the swap still leaves the watchdog/guard a
+	// record (+ bak path) to roll back from. A crash before the swap completes
+	// just leaves the old binary running and self-heals on the next pull.
 	if err := writeOTAMarker(a.otaMarkerPath(), otaMarker{
 		TaskID:     task.ID,
 		TenantID:   task.TenantID,
@@ -268,8 +269,11 @@ func (a *Agent) runOTA(task otaTask) error {
 		NewVersion: task.FirmwareVersion,
 		BakPath:    bakPath,
 	}); err != nil {
-		_ = restoreBinary(binPath, bakPath) // no confirm channel → abort safely
 		return fmt.Errorf("write marker: %w", err)
+	}
+	if err := swapBinary(data, binPath, bakPath); err != nil {
+		_ = os.Remove(a.otaMarkerPath()) // swap didn't take effect; drop the stale marker
+		return fmt.Errorf("install: %w", err)
 	}
 
 	a.logger.Info("OTA installed; exiting for systemd restart into new binary", "version", task.FirmwareVersion)
@@ -284,6 +288,12 @@ func (a *Agent) confirmPendingOTA() {
 	path := a.otaMarkerPath()
 	m, ok, err := readOTAMarker(path)
 	if err != nil || !ok || m.Confirmed {
+		return
+	}
+	if m.NewVersion != "" && a.agentVersion != m.NewVersion {
+		// The running binary is NOT the pending version — the swap didn't take
+		// effect (e.g. systemd relaunched the old binary). Don't falsely report
+		// success; leave the marker for the watchdog/guard to roll back.
 		return
 	}
 	if err := a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "succeeded", ""); err != nil {
