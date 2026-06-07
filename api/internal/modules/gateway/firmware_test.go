@@ -78,6 +78,24 @@ func TestFirmwarePersistsToStateStore(t *testing.T) {
 	}
 }
 
+func TestDeleteFirmware(t *testing.T) {
+	svc := NewService()
+	fw, _ := svc.CreateFirmware(CreateFirmwareInput{
+		TenantID: "t", Version: "1.0.0",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Signature: strings.Repeat("b", 128),
+	})
+	if err := svc.DeleteFirmware(fw.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, err := svc.GetFirmwareByID(fw.ID); err != ErrGatewayFirmwareNotFound {
+		t.Fatalf("want not-found after delete, got %v", err)
+	}
+	if err := svc.DeleteFirmware("fw_absent"); err != nil { // idempotent
+		t.Fatalf("delete absent should be nil, got %v", err)
+	}
+}
+
 func TestListFirmwareByChannel(t *testing.T) {
 	svc := NewService()
 	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

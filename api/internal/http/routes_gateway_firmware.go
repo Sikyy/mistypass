@@ -23,6 +23,8 @@ func (s *server) uploadGatewayFirmware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	storageDir := strings.TrimSpace(s.cfg.UploadStorageDir)
+	// signingKey isn't used to sign here, but it's required end-to-end: without it,
+	// config/pull can't mint a signed download URL, so uploaded firmware would be unservable.
 	signingKey := strings.TrimSpace(s.cfg.UploadSigningKey)
 	if storageDir == "" || signingKey == "" {
 		writeError(w, http.StatusServiceUnavailable, "file uploads are not configured")
@@ -79,10 +81,12 @@ func (s *server) uploadGatewayFirmware(w http.ResponseWriter, r *http.Request) {
 	cleanID := filepath.Base(fw.ID)
 	dir := filepath.Join(storageDir, cleanID[:2])
 	if err := os.MkdirAll(dir, 0o750); err != nil {
+		_ = s.gatewaySvc.DeleteFirmware(fw.ID)
 		writeError(w, http.StatusInternalServerError, "storage error")
 		return
 	}
 	if err := os.WriteFile(filepath.Join(dir, cleanID), data, 0o600); err != nil { // #nosec G304 -- cleanID is the minted firmware id (fw_<hex>), not user-controlled
+		_ = s.gatewaySvc.DeleteFirmware(fw.ID)
 		writeError(w, http.StatusInternalServerError, "storage error")
 		return
 	}

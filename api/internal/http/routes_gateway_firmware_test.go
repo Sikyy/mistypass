@@ -8,6 +8,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -52,6 +54,10 @@ func TestUploadGatewayFirmware(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &fw)
 	if fw.ID == "" || fw.Version != "1.4.0" || fw.SHA256 != sha {
 		t.Fatalf("unexpected fw: %+v", fw)
+	}
+	blobPath := filepath.Join(dir, fw.ID[:2], fw.ID)
+	if _, err := os.Stat(blobPath); err != nil {
+		t.Fatalf("blob not written to disk: %v", err)
 	}
 
 	// sha mismatch → 400

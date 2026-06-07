@@ -139,6 +139,21 @@ func (s *Service) findFirmwareLocked(id, tenantID string) (GatewayFirmware, bool
 	return GatewayFirmware{}, false
 }
 
+// DeleteFirmware removes a firmware record by id. Idempotent (no error if absent).
+// Used to roll back a registry record whose blob failed to store.
+func (s *Service) DeleteFirmware(id string) error {
+	nid := strings.TrimSpace(id)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.firmwares {
+		if s.firmwares[i].ID == nid {
+			s.firmwares = append(s.firmwares[:i], s.firmwares[i+1:]...)
+			return s.persistLocked()
+		}
+	}
+	return nil
+}
+
 func cloneGatewayFirmwares(in []GatewayFirmware) []GatewayFirmware {
 	if len(in) == 0 {
 		return nil
