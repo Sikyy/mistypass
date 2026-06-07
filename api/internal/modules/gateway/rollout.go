@@ -273,6 +273,7 @@ func (s *Service) evaluateRolloutPhaseLocked(r *GatewayRollout, all []Gateway, n
 		return true, 0
 	}
 	stalled := now.Sub(r.PhaseStartedAt) > rolloutStallWindow
+	// Only succeeded/failed (and stall) are terminal; queued/dispatching keep the phase in-flight.
 	failed, terminal := 0, 0
 	for _, gw := range cohort {
 		task, ok := s.latestRolloutTaskLocked(r.ID, r.CurrentPhase, gw.ID)
@@ -290,35 +291,40 @@ func (s *Service) evaluateRolloutPhaseLocked(r *GatewayRollout, all []Gateway, n
 	if terminal < total {
 		return false, 0
 	}
-	return true, failed * 100 / total
+	// Ceiling: a failure gate should err toward pausing, so round the rate up.
+	return true, (failed*100 + total - 1) / total
 }
 
-// advanceRolloutLocked drives an active rollout forward as far as it can. Caller holds s.mu.
-func (s *Service) advanceRolloutLocked(rolloutIdx int) {
+// advanceRolloutLocked drives an active rollout forward as far as it can.
+// Returns true if it changed the rollout's state/phase. Caller holds s.mu.
+func (s *Service) advanceRolloutLocked(rolloutIdx int) bool {
 	r := &s.rollouts[rolloutIdx]
 	now := time.Now().UTC()
+	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target) // target set is immutable under the lock
+	changed := false
 	for r.State == rolloutStateActive {
-		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
 		terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
 		if !terminal {
-			return
+			break
 		}
+		changed = true
 		r.UpdatedAt = now
 		if failureRate >= r.FailureThresholdPct {
 			r.State = rolloutStatePaused
-			return
+			break
 		}
 		if r.CurrentPhase >= len(r.Phases)-1 {
 			r.State = rolloutStateCompleted
-			return
+			break
 		}
 		next := r.CurrentPhase + 1
 		if r.Phases[next].RequiresApproval {
 			r.State = rolloutStateAwaitingApproval
-			return
+			break
 		}
 		s.startRolloutPhaseLocked(r, next, all, now) // creates next cohort; loop re-evaluates (empty cohort auto-skips)
 	}
+	return changed
 }
 
 // GetRollout evaluates the rollout (catches stall timeouts) then returns it, tenant-scoped.
@@ -329,9 +335,10 @@ func (s *Service) GetRollout(tenantID, id string) (GatewayRollout, error) {
 	if i < 0 {
 		return GatewayRollout{}, ErrRolloutNotFound
 	}
-	s.advanceRolloutLocked(i)
-	if err := s.persistLocked(); err != nil {
-		return GatewayRollout{}, err
+	if s.advanceRolloutLocked(i) {
+		if err := s.persistLocked(); err != nil {
+			return GatewayRollout{}, err
+		}
 	}
 	return s.rollouts[i], nil
 }

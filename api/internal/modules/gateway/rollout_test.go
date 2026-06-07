@@ -231,8 +231,10 @@ func TestRolloutStallTimeoutCountsAsFailure(t *testing.T) {
 		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
 		Phases: []RolloutPhase{{Percentage: 100}},
 	})
+	svc.mu.Lock()
 	idx := svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")
 	svc.rollouts[idx].PhaseStartedAt = time.Now().UTC().Add(-2 * time.Hour)
+	svc.mu.Unlock()
 	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
 	if got.State != rolloutStatePaused {
 		t.Fatalf("want paused via stall, got %s", got.State)
