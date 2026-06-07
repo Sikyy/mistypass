@@ -1,6 +1,9 @@
 package gateway
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateRolloutPhases(t *testing.T) {
 	ok := []RolloutPhase{{Percentage: 10}, {Percentage: 50}, {Percentage: 100}}
@@ -68,5 +71,101 @@ func TestRolloutTargetGateways(t *testing.T) {
 	cross := svc.rolloutTargetGatewaysLocked("tenant_other", RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}})
 	if len(cross) != 0 {
 		t.Fatal("cross-tenant explicit target must resolve empty")
+	}
+}
+
+func seedFirmware(t *testing.T, svc *Service) GatewayFirmware {
+	t.Helper()
+	fw, err := svc.CreateFirmware(CreateFirmwareInput{
+		TenantID:  "tenant_demo_jakarta",
+		Version:   "1.4.0",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Signature: strings.Repeat("b", 128),
+	})
+	if err != nil {
+		t.Fatalf("seed firmware: %v", err)
+	}
+	return fw
+}
+
+func TestCreateRolloutStartsPhaseZero(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID:   "tenant_demo_jakarta",
+		FirmwareID: fw.ID,
+		Target:     RolloutTarget{Kind: "all"},
+		Phases:     []RolloutPhase{{Percentage: 100}},
+		CreatedBy:  "admin@example.com",
+	})
+	if err != nil {
+		t.Fatalf("create rollout: %v", err)
+	}
+	if r.State != rolloutStateActive || r.CurrentPhase != 0 || r.FirmwareVersion != "1.4.0" {
+		t.Fatalf("unexpected rollout: %+v", r)
+	}
+	if r.FailureThresholdPct != defaultRolloutFailureThresholdPct {
+		t.Fatalf("threshold default want 20, got %d", r.FailureThresholdPct)
+	}
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_001")
+	tagged := false
+	for _, task := range tasks {
+		if task.RolloutID == r.ID && task.RolloutPhase == 0 && task.FirmwareID == fw.ID {
+			tagged = true
+		}
+	}
+	if !tagged {
+		t.Fatal("expected a phase-0 OTA task tagged with the rollout id")
+	}
+	got, err := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if err != nil || got.ID != r.ID {
+		t.Fatalf("get rollout: %v %+v", err, got)
+	}
+	if _, err := svc.GetRollout("tenant_other", r.ID); err != ErrRolloutNotFound {
+		t.Fatalf("cross-tenant get should fail, got %v", err)
+	}
+}
+
+func TestCreateRolloutValidation(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	base := CreateRolloutInput{TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID, Target: RolloutTarget{Kind: "all"}, Phases: []RolloutPhase{{Percentage: 100}}}
+	mut := func(f func(*CreateRolloutInput)) CreateRolloutInput { in := base; f(&in); return in }
+
+	if _, err := svc.CreateRollout(mut(func(in *CreateRolloutInput) { in.FirmwareID = "" })); err != ErrRolloutFirmwareRequired {
+		t.Fatalf("want firmware-required, got %v", err)
+	}
+	if _, err := svc.CreateRollout(mut(func(in *CreateRolloutInput) { in.FirmwareID = "fw_nope" })); err != ErrGatewayFirmwareNotFound {
+		t.Fatalf("want firmware-not-found, got %v", err)
+	}
+	if _, err := svc.CreateRollout(mut(func(in *CreateRolloutInput) { in.Phases = []RolloutPhase{{Percentage: 50}} })); err != ErrRolloutPhasesInvalid {
+		t.Fatalf("want phases-invalid, got %v", err)
+	}
+	if _, err := svc.CreateRollout(mut(func(in *CreateRolloutInput) { in.Target = RolloutTarget{Kind: "building", BuildingID: "nope"} })); err != ErrRolloutTargetEmpty {
+		t.Fatalf("want target-empty, got %v", err)
+	}
+	if _, err := svc.CreateRollout(mut(func(in *CreateRolloutInput) { in.FailureThresholdPct = 150 })); err != ErrRolloutThresholdInvalid {
+		t.Fatalf("want threshold-invalid, got %v", err)
+	}
+}
+
+func TestRolloutPersistsToStateStore(t *testing.T) {
+	store := &gatewayMemoryStateStore{}
+	first, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new first: %v", err)
+	}
+	fw := seedFirmware(t, first)
+	r, err := first.CreateRollout(CreateRolloutInput{TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID, Target: RolloutTarget{Kind: "all"}, Phases: []RolloutPhase{{Percentage: 100}}})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	restored, err := NewServiceWithStateStore(store)
+	if err != nil {
+		t.Fatalf("new restored: %v", err)
+	}
+	got, err := restored.GetRollout("tenant_demo_jakarta", r.ID)
+	if err != nil || got.FirmwareVersion != "1.4.0" {
+		t.Fatalf("rollout not restored: %v %+v", err, got)
 	}
 }

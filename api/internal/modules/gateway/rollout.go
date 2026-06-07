@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -25,8 +26,10 @@ const (
 	rolloutStateCompleted        = "completed"
 	rolloutStateFailed           = "failed"
 
+	// applied when a rollout's FailureThresholdPct is 0 at creation
 	defaultRolloutFailureThresholdPct = 20
-	rolloutStallWindow                = time.Hour
+	// a cohort gateway with no terminal task past this window counts as failed
+	rolloutStallWindow = time.Hour
 )
 
 // RolloutTarget selects which gateways a rollout covers.
@@ -138,4 +141,148 @@ func cloneGatewayRollouts(in []GatewayRollout) []GatewayRollout {
 	out := make([]GatewayRollout, len(in))
 	copy(out, in)
 	return out
+}
+
+// CreateRolloutInput carries a new rollout request.
+type CreateRolloutInput struct {
+	TenantID            string
+	FirmwareID          string
+	Target              RolloutTarget
+	Phases              []RolloutPhase
+	FailureThresholdPct int
+	CreatedBy           string
+}
+
+// CreateRollout validates, persists, and immediately starts phase 0.
+func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
+	tenantID := strings.TrimSpace(in.TenantID)
+	fwID := strings.TrimSpace(in.FirmwareID)
+	if fwID == "" {
+		return GatewayRollout{}, ErrRolloutFirmwareRequired
+	}
+	if !validateRolloutPhases(in.Phases) {
+		return GatewayRollout{}, ErrRolloutPhasesInvalid
+	}
+	threshold := in.FailureThresholdPct
+	if threshold == 0 {
+		threshold = defaultRolloutFailureThresholdPct
+	}
+	if threshold < 0 || threshold > 100 {
+		return GatewayRollout{}, ErrRolloutThresholdInvalid
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	fw, ok := s.findFirmwareLocked(fwID, tenantID)
+	if !ok {
+		return GatewayRollout{}, ErrGatewayFirmwareNotFound
+	}
+	all := s.rolloutTargetGatewaysLocked(tenantID, in.Target)
+	if len(all) == 0 {
+		return GatewayRollout{}, ErrRolloutTargetEmpty
+	}
+
+	id, err := rolloutRecordID()
+	if err != nil {
+		return GatewayRollout{}, err
+	}
+	now := time.Now().UTC()
+	r := GatewayRollout{
+		ID:                  id,
+		TenantID:            tenantID,
+		FirmwareID:          fwID,
+		FirmwareVersion:     fw.Version,
+		Target:              in.Target,
+		Phases:              in.Phases,
+		FailureThresholdPct: threshold,
+		State:               rolloutStatePending,
+		CurrentPhase:        0,
+		CreatedBy:           strings.TrimSpace(in.CreatedBy),
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	}
+	s.rollouts = append([]GatewayRollout{r}, s.rollouts...)
+	s.startRolloutPhaseLocked(&s.rollouts[0], 0, all, now)
+	if err := s.persistLocked(); err != nil {
+		return GatewayRollout{}, err
+	}
+	return s.rollouts[0], nil
+}
+
+// startRolloutPhaseLocked creates OTA tasks for the phase cohort and marks the rollout active.
+// Caller holds s.mu.
+func (s *Service) startRolloutPhaseLocked(r *GatewayRollout, phase int, all []Gateway, now time.Time) {
+	fw, ok := s.findFirmwareLocked(r.FirmwareID, r.TenantID)
+	if !ok {
+		r.State = rolloutStateFailed
+		r.UpdatedAt = now
+		return
+	}
+	for _, gw := range cohortForPhase(all, r.Phases, phase) {
+		s.appendRolloutOTATaskLocked(gw, fw, r.ID, phase, now)
+	}
+	r.CurrentPhase = phase
+	r.PhaseStartedAt = now
+	r.State = rolloutStateActive
+	r.UpdatedAt = now
+}
+
+// appendRolloutOTATaskLocked builds a queued OTA task attributed to a rollout phase.
+// Firmware sha/sig come from the (already-validated) registry record. Caller holds s.mu.
+func (s *Service) appendRolloutOTATaskLocked(gw Gateway, fw GatewayFirmware, rolloutID string, phase int, now time.Time) {
+	taskID, err := otaTaskID()
+	if err != nil {
+		return
+	}
+	s.otaTasks = append([]GatewayOTATask{{
+		ID:                taskID,
+		GatewayID:         gw.ID,
+		TenantID:          gw.TenantID,
+		FirmwareVersion:   fw.Version,
+		FirmwareSHA256:    fw.SHA256,
+		FirmwareSignature: fw.Signature,
+		FirmwareID:        fw.ID,
+		Status:            gatewayOTATaskStatusQueued,
+		RequestedBy:       "rollout:" + rolloutID,
+		UpdatedBy:         "rollout:" + rolloutID,
+		RolloutID:         rolloutID,
+		RolloutPhase:      phase,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}}, s.otaTasks...)
+}
+
+// GetRollout returns a tenant-scoped rollout.
+func (s *Service) GetRollout(tenantID, id string) (GatewayRollout, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID)); i >= 0 {
+		return s.rollouts[i], nil
+	}
+	return GatewayRollout{}, ErrRolloutNotFound
+}
+
+// ListRollouts returns a tenant's rollouts, newest first.
+func (s *Service) ListRollouts(tenantID string) []GatewayRollout {
+	ft := strings.TrimSpace(tenantID)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]GatewayRollout, 0, len(s.rollouts))
+	for i := range s.rollouts {
+		if ft == "" || s.rollouts[i].TenantID == ft {
+			out = append(out, s.rollouts[i])
+		}
+	}
+	return out
+}
+
+// findRolloutIndexLocked returns the index of a rollout (optionally tenant-filtered), or -1.
+func (s *Service) findRolloutIndexLocked(id, tenantID string) int {
+	for i := range s.rollouts {
+		if s.rollouts[i].ID == id && (tenantID == "" || s.rollouts[i].TenantID == tenantID) {
+			return i
+		}
+	}
+	return -1
 }

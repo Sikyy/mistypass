@@ -263,6 +263,8 @@ type GatewayOTATask struct {
 	FirmwareSHA256    string    `json:"firmware_sha256,omitempty"`
 	FirmwareSignature string    `json:"firmware_signature,omitempty"` // Ed25519 signature of firmware binary (hex-encoded)
 	FirmwareID        string    `json:"firmware_id,omitempty"`
+	RolloutID         string    `json:"rollout_id,omitempty"`
+	RolloutPhase      int       `json:"rollout_phase,omitempty"`
 	Status            string    `json:"status"`
 	ErrorMessage      string    `json:"error_message,omitempty"`
 	RequestedBy       string    `json:"requested_by,omitempty"`
@@ -287,6 +289,7 @@ type stateSnapshot struct {
 	QueueIngestTotals      []GatewayQueueIngestTotal      `json:"queue_ingest_totals,omitempty"`
 	OTATasks               []GatewayOTATask               `json:"ota_tasks,omitempty"`
 	Firmwares              []GatewayFirmware              `json:"firmwares,omitempty"`
+	Rollouts               []GatewayRollout               `json:"rollouts,omitempty"`
 }
 
 type Service struct {
@@ -299,6 +302,7 @@ type Service struct {
 	queueIngestTotals      []GatewayQueueIngestTotal
 	otaTasks               []GatewayOTATask
 	firmwares              []GatewayFirmware
+	rollouts               []GatewayRollout
 	stateStore             StateStore
 }
 
@@ -369,6 +373,7 @@ func NewService() *Service {
 		queueIngestTotals:      []GatewayQueueIngestTotal{},
 		otaTasks:               []GatewayOTATask{},
 		firmwares:              []GatewayFirmware{},
+		rollouts:               []GatewayRollout{},
 	}
 }
 
@@ -2014,6 +2019,7 @@ func (s *Service) restoreFromStateStore() error {
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(s.otaTasks),
 			Firmwares:              cloneGatewayFirmwares(s.firmwares),
+			Rollouts:               cloneGatewayRollouts(s.rollouts),
 		})
 	}
 	shouldBackfillInventory := false
@@ -2031,6 +2037,7 @@ func (s *Service) restoreFromStateStore() error {
 	s.queueIngestTotals = cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals)
 	s.otaTasks = cloneGatewayOTATasks(snapshot.OTATasks)
 	s.firmwares = cloneGatewayFirmwares(snapshot.Firmwares)
+	s.rollouts = cloneGatewayRollouts(snapshot.Rollouts)
 	s.mu.Unlock()
 
 	if shouldBackfillInventory {
@@ -2043,6 +2050,7 @@ func (s *Service) restoreFromStateStore() error {
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(snapshot.OTATasks),
 			Firmwares:              cloneGatewayFirmwares(snapshot.Firmwares),
+			Rollouts:               cloneGatewayRollouts(snapshot.Rollouts),
 		})
 	}
 	return nil
@@ -2061,6 +2069,7 @@ func (s *Service) persistLocked() error {
 		QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 		OTATasks:               cloneGatewayOTATasks(s.otaTasks),
 		Firmwares:              cloneGatewayFirmwares(s.firmwares),
+		Rollouts:               cloneGatewayRollouts(s.rollouts),
 	})
 }
 
