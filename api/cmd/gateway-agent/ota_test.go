@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -152,5 +153,15 @@ func TestSwapBinaryAbortsWhenCurrentUnreadable(t *testing.T) {
 	}
 	if err := swapBinary([]byte("NEW"), bin, bin+".bak"); err == nil {
 		t.Fatal("expected error when current binary is unreadable (not a clean first-install)")
+	}
+}
+
+func TestOTAReportBody(t *testing.T) {
+	body := otaReportBody("gw1", "t1", "task1", "failed", "boom")
+	got := string(body)
+	for _, want := range []string{`"gateway_id":"gw1"`, `"task_id":"task1"`, `"status":"failed"`, `"error_message":"boom"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("body %s missing %s", got, want)
+		}
 	}
 }

@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mistypass/cloud/api/internal/otasig"
 )
@@ -157,5 +159,145 @@ func restoreBinary(binPath, bakPath string) error {
 	return atomicWriteFile(binPath, data, 0o755)
 }
 
-// (used by Task 5/6) keep otasig referenced so imports stay tidy across tasks.
-var _ = otasig.Domain
+func (a *Agent) otaHTTPClient() *http.Client {
+	return &http.Client{Timeout: 10 * time.Minute}
+}
+
+func (a *Agent) otaMarkerPath() string {
+	return filepath.Join(filepath.Dir(a.deviceTokenFile), "ota-pending.json")
+}
+
+// otaReportBody builds the JSON for POST /api/v1/gateway/ota/report.
+// status ∈ {dispatching, succeeded, failed} (server enum has no "rolled_back";
+// a rollback is reported as failed with an explanatory error_message).
+func otaReportBody(gatewayID, tenantID, taskID, status, errMsg string) []byte {
+	b, _ := json.Marshal(map[string]string{
+		"gateway_id":    gatewayID,
+		"tenant_id":     tenantID,
+		"task_id":       taskID,
+		"status":        status,
+		"error_message": errMsg,
+	})
+	return b
+}
+
+func (a *Agent) reportOTA(task otaTask, status, errMsg string) error {
+	resp, err := a.apiRequest("POST", "/api/v1/gateway/ota/report",
+		otaReportBody(a.gatewayID, a.tenantID, task.ID, status, errMsg))
+	if err != nil {
+		a.logger.Warn("OTA report failed", "task", task.ID, "status", status, "error", err)
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		a.logger.Warn("OTA report non-200", "task", task.ID, "status", status, "code", resp.StatusCode)
+		return fmt.Errorf("report status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// maybeApplyOTA is invoked from pullConfig with the cloud's pending tasks.
+func (a *Agent) maybeApplyOTA(tasks []otaTask) {
+	if len(a.otaPublicKeys) == 0 {
+		if len(tasks) > 0 {
+			a.logger.Warn("OTA tasks present but no --ota-pubkey configured; ignoring", "count", len(tasks))
+		}
+		return
+	}
+	task, ok := selectOTATask(tasks, a.agentVersion)
+	if !ok {
+		return
+	}
+	if err := a.runOTA(task); err != nil {
+		a.logger.Error("OTA apply failed", "task", task.ID, "error", err)
+		_ = a.reportOTA(task, "failed", err.Error())
+	}
+}
+
+// runOTA downloads, verifies, and installs one firmware task, then exits so
+// systemd restarts into the new binary. On any pre-install failure it returns
+// an error WITHOUT touching the running binary.
+func (a *Agent) runOTA(task otaTask) error {
+	_ = a.reportOTA(task, "dispatching", "")
+
+	data, err := downloadFirmware(a.otaHTTPClient(), task.FirmwareURL, otaMaxFirmwareBytes)
+	if err != nil {
+		return fmt.Errorf("download: %w", err)
+	}
+	if err := otasig.VerifyArtifact(a.otaPublicKeys, task.FirmwareVersion, task.FirmwareSHA256, task.FirmwareSignature, data); err != nil {
+		return fmt.Errorf("verify: %w", err)
+	}
+
+	binPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate self: %w", err)
+	}
+	if resolved, err := filepath.EvalSymlinks(binPath); err == nil {
+		binPath = resolved
+	}
+	bakPath := binPath + ".bak"
+
+	if err := swapBinary(data, binPath, bakPath); err != nil {
+		return fmt.Errorf("install: %w", err)
+	}
+	if err := writeOTAMarker(a.otaMarkerPath(), otaMarker{
+		TaskID:     task.ID,
+		TenantID:   task.TenantID,
+		GatewayID:  task.GatewayID,
+		NewVersion: task.FirmwareVersion,
+		BakPath:    bakPath,
+	}); err != nil {
+		_ = restoreBinary(binPath, bakPath) // no confirm channel → abort safely
+		return fmt.Errorf("write marker: %w", err)
+	}
+
+	a.logger.Info("OTA installed; exiting for systemd restart into new binary", "version", task.FirmwareVersion)
+	os.Exit(0) // systemd Restart=always relaunches the new binary
+	return nil // unreachable
+}
+
+// confirmPendingOTA finalizes a self-update once a post-restart pullConfig
+// succeeds (proxy for "new binary is healthy"). Idempotent; retried each pull
+// until the success report lands.
+func (a *Agent) confirmPendingOTA() {
+	path := a.otaMarkerPath()
+	m, ok, err := readOTAMarker(path)
+	if err != nil || !ok || m.Confirmed {
+		return
+	}
+	if err := a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "succeeded", ""); err != nil {
+		return // keep marker; retry next successful pull
+	}
+	_ = os.Remove(m.BakPath)
+	_ = os.Remove(path)
+	a.logger.Info("OTA confirmed healthy", "version", m.NewVersion)
+}
+
+// otaWatchdog rolls back if a pending update is not confirmed within timeout
+// (covers "new binary starts but never reaches the cloud").
+func (a *Agent) otaWatchdog(timeout time.Duration) {
+	m, ok, err := readOTAMarker(a.otaMarkerPath())
+	if err != nil || !ok || m.Confirmed {
+		return
+	}
+	select {
+	case <-time.After(timeout):
+	case <-a.stopCh:
+		return
+	}
+	if m2, ok, _ := readOTAMarker(a.otaMarkerPath()); !ok || m2.Confirmed {
+		return // confirmed meanwhile
+	}
+	binPath, _ := os.Executable()
+	if resolved, err := filepath.EvalSymlinks(binPath); err == nil {
+		binPath = resolved
+	}
+	if err := restoreBinary(binPath, m.BakPath); err != nil {
+		a.logger.Error("OTA rollback restore failed", "error", err)
+		return
+	}
+	_ = a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "failed", "post-update health check timed out; rolled back")
+	_ = os.Remove(a.otaMarkerPath())
+	a.logger.Warn("OTA rolled back after health timeout; exiting for systemd restart into previous binary", "version", m.NewVersion)
+	os.Exit(0)
+}
