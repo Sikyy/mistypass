@@ -47,6 +47,7 @@ type Agent struct {
 	mtlsCertDir        string              // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
 	agentVersion       string              // build-time version, used for OTA anti-downgrade
 	otaPublicKeys      []ed25519.PublicKey // pinned Ed25519 keys for OTA verification (empty = OTA disabled)
+	otaVerifyFailed    map[string]bool     // task IDs that failed signature verification this process lifetime (skip re-download)
 
 	mu              sync.RWMutex
 	deviceToken     string // device-specific token obtained from registration

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,12 @@ import (
 )
 
 const otaMaxFirmwareBytes = 256 << 20 // 256 MiB download cap
+
+// errOTAVerifyFailed marks a deterministic signature/hash verification failure
+// (as opposed to a transient download error). Such a task is skipped for the
+// rest of this process lifetime to avoid re-downloading firmware that will
+// never verify.
+var errOTAVerifyFailed = errors.New("ota firmware verification failed")
 
 // otaTask mirrors gateway.GatewayOTATask as delivered in the config/pull
 // response under "pending_ota_tasks".
@@ -159,7 +166,7 @@ func restoreBinary(binPath, bakPath string) error {
 	return atomicWriteFile(binPath, data, 0o755)
 }
 
-func (a *Agent) otaHTTPClient() *http.Client {
+func (a *Agent) newOTAHTTPClient() *http.Client {
 	return &http.Client{Timeout: 10 * time.Minute}
 }
 
@@ -208,8 +215,22 @@ func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 	if !ok {
 		return
 	}
+	a.mu.RLock()
+	skip := a.otaVerifyFailed[task.ID]
+	a.mu.RUnlock()
+	if skip {
+		return // already failed verification this process lifetime; don't re-download
+	}
 	if err := a.runOTA(task); err != nil {
 		a.logger.Error("OTA apply failed", "task", task.ID, "error", err)
+		if errors.Is(err, errOTAVerifyFailed) {
+			a.mu.Lock()
+			if a.otaVerifyFailed == nil {
+				a.otaVerifyFailed = make(map[string]bool)
+			}
+			a.otaVerifyFailed[task.ID] = true
+			a.mu.Unlock()
+		}
 		_ = a.reportOTA(task, "failed", err.Error())
 	}
 }
@@ -220,12 +241,12 @@ func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 func (a *Agent) runOTA(task otaTask) error {
 	_ = a.reportOTA(task, "dispatching", "")
 
-	data, err := downloadFirmware(a.otaHTTPClient(), task.FirmwareURL, otaMaxFirmwareBytes)
+	data, err := downloadFirmware(a.newOTAHTTPClient(), task.FirmwareURL, otaMaxFirmwareBytes)
 	if err != nil {
 		return fmt.Errorf("download: %w", err)
 	}
 	if err := otasig.VerifyArtifact(a.otaPublicKeys, task.FirmwareVersion, task.FirmwareSHA256, task.FirmwareSignature, data); err != nil {
-		return fmt.Errorf("verify: %w", err)
+		return fmt.Errorf("%w: %v", errOTAVerifyFailed, err)
 	}
 
 	binPath, err := os.Executable()
@@ -268,6 +289,8 @@ func (a *Agent) confirmPendingOTA() {
 	if err := a.reportOTA(otaTask{ID: m.TaskID, TenantID: m.TenantID, GatewayID: m.GatewayID}, "succeeded", ""); err != nil {
 		return // keep marker; retry next successful pull
 	}
+	m.Confirmed = true
+	_ = writeOTAMarker(path, m) // tombstone before cleanup: a crash here must not trigger rollback of a healthy update
 	_ = os.Remove(m.BakPath)
 	_ = os.Remove(path)
 	a.logger.Info("OTA confirmed healthy", "version", m.NewVersion)
@@ -288,7 +311,11 @@ func (a *Agent) otaWatchdog(timeout time.Duration) {
 	if m2, ok, _ := readOTAMarker(a.otaMarkerPath()); !ok || m2.Confirmed {
 		return // confirmed meanwhile
 	}
-	binPath, _ := os.Executable()
+	binPath, err := os.Executable()
+	if err != nil {
+		a.logger.Error("OTA watchdog: cannot locate self, skipping rollback", "error", err)
+		return
+	}
 	if resolved, err := filepath.EvalSymlinks(binPath); err == nil {
 		binPath = resolved
 	}
