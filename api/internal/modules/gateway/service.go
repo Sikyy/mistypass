@@ -264,7 +264,7 @@ type GatewayOTATask struct {
 	FirmwareSignature string    `json:"firmware_signature,omitempty"` // Ed25519 signature of firmware binary (hex-encoded)
 	FirmwareID        string    `json:"firmware_id,omitempty"`
 	RolloutID         string    `json:"rollout_id,omitempty"`
-	RolloutPhase      int       `json:"rollout_phase,omitempty"`
+	RolloutPhase      int       `json:"rollout_phase"`
 	Status            string    `json:"status"`
 	ErrorMessage      string    `json:"error_message,omitempty"`
 	RequestedBy       string    `json:"requested_by,omitempty"`

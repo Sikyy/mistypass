@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -12,7 +13,7 @@ func TestValidateRolloutPhases(t *testing.T) {
 	}
 	bad := [][]RolloutPhase{
 		{},
-		{{Percentage: 10}, {Percentage: 50}},                    // last != 100
+		{{Percentage: 10}, {Percentage: 50}}, // last != 100
 		{{Percentage: 50}, {Percentage: 50}, {Percentage: 100}}, // not strictly increasing
 		{{Percentage: 0}, {Percentage: 100}},                    // 0 out of range
 		{{Percentage: 10}, {Percentage: 101}},                   // >100
@@ -167,5 +168,15 @@ func TestRolloutPersistsToStateStore(t *testing.T) {
 	got, err := restored.GetRollout("tenant_demo_jakarta", r.ID)
 	if err != nil || got.FirmwareVersion != "1.4.0" {
 		t.Fatalf("rollout not restored: %v %+v", err, got)
+	}
+}
+
+func TestRolloutPhaseZeroSerializes(t *testing.T) {
+	b, err := json.Marshal(GatewayOTATask{RolloutID: "rollout_x", RolloutPhase: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"rollout_phase":0`) {
+		t.Fatalf("phase-0 task must serialize rollout_phase, got %s", string(b))
 	}
 }
