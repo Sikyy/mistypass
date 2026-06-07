@@ -262,6 +262,7 @@ type GatewayOTATask struct {
 	FirmwareURL       string    `json:"firmware_url"`
 	FirmwareSHA256    string    `json:"firmware_sha256,omitempty"`
 	FirmwareSignature string    `json:"firmware_signature,omitempty"` // Ed25519 signature of firmware binary (hex-encoded)
+	FirmwareID        string    `json:"firmware_id,omitempty"`
 	Status            string    `json:"status"`
 	ErrorMessage      string    `json:"error_message,omitempty"`
 	RequestedBy       string    `json:"requested_by,omitempty"`
@@ -1799,39 +1800,18 @@ func (s *Service) CreateOTATask(
 	firmwareURL,
 	firmwareSHA256,
 	firmwareSignature,
+	firmwareID,
 	requestedBy string,
 ) (GatewayOTATask, error) {
 	gwID := strings.TrimSpace(gatewayID)
 	if gwID == "" {
 		return GatewayOTATask{}, ErrGatewayIDRequired
 	}
+	nextFirmwareID := strings.TrimSpace(firmwareID)
 	nextVersion := strings.TrimSpace(firmwareVersion)
-	if nextVersion == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareVersionRequired
-	}
 	nextURL := strings.TrimSpace(firmwareURL)
-	if nextURL == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
-	}
 	nextSHA256 := strings.ToLower(strings.TrimSpace(firmwareSHA256))
-	if nextSHA256 == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Required
-	}
-	if !isValidSHA256Hex(nextSHA256) {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
-	}
 	nextSignature := strings.ToLower(strings.TrimSpace(firmwareSignature))
-	if nextSignature == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureRequired
-	}
-	if !isValidEd25519SignatureHex(nextSignature) {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
-	}
-	taskID, err := otaTaskID()
-	if err != nil {
-		return GatewayOTATask{}, err
-	}
-
 	filterTenantID := strings.TrimSpace(tenantID)
 	now := time.Now().UTC()
 	nextRequestedBy := strings.TrimSpace(requestedBy)
@@ -1855,6 +1835,42 @@ func (s *Service) CreateOTATask(
 		return GatewayOTATask{}, ErrGatewayNotFound
 	}
 
+	if nextFirmwareID != "" {
+		fw, ok := s.findFirmwareLocked(nextFirmwareID, taskTenantID)
+		if !ok {
+			return GatewayOTATask{}, ErrGatewayFirmwareNotFound
+		}
+		nextSHA256 = fw.SHA256
+		nextSignature = fw.Signature
+		if nextVersion == "" {
+			nextVersion = fw.Version
+		}
+		nextURL = "" // firmware_url filled dynamically at config/pull for registry tasks
+	}
+
+	if nextVersion == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareVersionRequired
+	}
+	if nextFirmwareID == "" && nextURL == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
+	}
+	if nextSHA256 == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Required
+	}
+	if !isValidSHA256Hex(nextSHA256) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
+	}
+	if nextSignature == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureRequired
+	}
+	if !isValidEd25519SignatureHex(nextSignature) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
+	}
+
+	taskID, err := otaTaskID()
+	if err != nil {
+		return GatewayOTATask{}, err
+	}
 	task := GatewayOTATask{
 		ID:                taskID,
 		GatewayID:         gwID,
@@ -1863,6 +1879,7 @@ func (s *Service) CreateOTATask(
 		FirmwareURL:       nextURL,
 		FirmwareSHA256:    nextSHA256,
 		FirmwareSignature: nextSignature,
+		FirmwareID:        nextFirmwareID,
 		Status:            gatewayOTATaskStatusQueued,
 		RequestedBy:       nextRequestedBy,
 		UpdatedBy:         nextRequestedBy,

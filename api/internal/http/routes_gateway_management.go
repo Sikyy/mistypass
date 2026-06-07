@@ -1103,6 +1103,7 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		FirmwareURL       string `json:"firmware_url"`
 		FirmwareSHA256    string `json:"firmware_sha256"`
 		FirmwareSignature string `json:"firmware_signature"`
+		FirmwareID        string `json:"firmware_id"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -1133,11 +1134,13 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		request.FirmwareURL,
 		request.FirmwareSHA256,
 		request.FirmwareSignature,
+		request.FirmwareID,
 		requestActor(r),
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, gateway.ErrGatewayNotFound):
+		case errors.Is(err, gateway.ErrGatewayNotFound),
+			errors.Is(err, gateway.ErrGatewayFirmwareNotFound):
 			writeError(w, http.StatusNotFound, err.Error())
 		case errors.Is(err, gateway.ErrGatewayIDRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareVersionRequired),
