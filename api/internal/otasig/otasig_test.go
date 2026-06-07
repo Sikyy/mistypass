@@ -86,3 +86,16 @@ func TestParsePublicKeysHexMultiple(t *testing.T) {
 		t.Fatalf("want 2 keys, got %d", len(keys))
 	}
 }
+
+func TestParsePublicKeysHexRejectsEmpty(t *testing.T) {
+	if _, err := ParsePublicKeysHex("   "); err == nil {
+		t.Fatal("expected error for input with no keys")
+	}
+}
+
+func TestParsePublicKeysHexRejectsMalformedEntry(t *testing.T) {
+	p1, _, _ := GenerateKey()
+	if _, err := ParsePublicKeysHex(MarshalPublicKeyHex(p1) + ",zzzz"); err == nil {
+		t.Fatal("expected error when one entry is malformed hex")
+	}
+}

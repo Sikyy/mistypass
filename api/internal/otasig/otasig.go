@@ -44,7 +44,7 @@ func VerifyArtifact(keys []ed25519.PublicKey, version, sha256Hex, sigHex string,
 		return errors.New("no pinned public keys configured")
 	}
 	got := SHA256Hex(data)
-	if !strings.EqualFold(got, strings.TrimSpace(sha256Hex)) {
+	if got != strings.ToLower(strings.TrimSpace(sha256Hex)) {
 		return fmt.Errorf("sha256 mismatch: computed %s, task declared %s", got, sha256Hex)
 	}
 	sig, err := hex.DecodeString(strings.TrimSpace(sigHex))
@@ -98,6 +98,9 @@ func ParsePublicKeysHex(csv string) ([]ed25519.PublicKey, error) {
 		}
 		keys = append(keys, k)
 	}
+	if len(keys) == 0 {
+		return nil, errors.New("no public keys found in input")
+	}
 	return keys, nil
 }
 
@@ -118,7 +121,7 @@ func ParsePrivateKeyPEM(pemBytes []byte) (ed25519.PrivateKey, error) {
 	}
 	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse PKCS#8 private key: %w", err)
 	}
 	priv, ok := key.(ed25519.PrivateKey)
 	if !ok {
