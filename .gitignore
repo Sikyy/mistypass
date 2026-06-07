@@ -28,8 +28,14 @@ docker-compose.*.override.yml
 
 # Compiled binaries
 api/gateway-agent
+api/gateway-agent-*
 api/gateway-simulator
 api/openapi-extract
+api/ota-sign
+
+# OTA signing key material / artifacts (private key also caught by *.pem)
+ota-priv.pem
+ota-pub.hex
 
 # Screenshots / images not part of docs
 *.png
