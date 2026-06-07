@@ -31,10 +31,11 @@ const (
 
 func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		GatewayID      string `json:"gateway_id"`
-		TenantID       string `json:"tenant_id"`
-		CurrentVersion string `json:"current_version"`
-		AuthzVersion   string `json:"authz_cache_version"`
+		GatewayID       string `json:"gateway_id"`
+		TenantID        string `json:"tenant_id"`
+		CurrentVersion  string `json:"current_version"`
+		AuthzVersion    string `json:"authz_cache_version"`
+		FirmwareVersion string `json:"firmware_version"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -49,6 +50,9 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
+
+	// Record the gateway's reported running firmware version (empty = no-op).
+	_ = s.gatewaySvc.RecordFirmwareVersion(request.TenantID, request.GatewayID, request.FirmwareVersion)
 
 	snapshot, err := s.gatewaySvc.PullConfig(request.TenantID, request.GatewayID)
 	if err != nil {

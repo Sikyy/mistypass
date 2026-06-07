@@ -171,3 +171,32 @@ func testGatewayCSR(t *testing.T, commonName, organization string) []byte {
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
 }
+
+func TestGatewayConfigPullRecordsFirmwareVersion(t *testing.T) {
+	svc := gateway.NewService()
+	s := &server{
+		gatewaySvc:          svc,
+		gatewayDeviceTokens: map[string]string{"gw_demo_001": "gw_test_token_001"},
+	}
+	body, _ := json.Marshal(map[string]any{
+		"gateway_id":       "gw_demo_001",
+		"tenant_id":        "tenant_demo_jakarta",
+		"firmware_version": "1.4.0",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/config/pull", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer gw_test_token_001")
+	rec := httptest.NewRecorder()
+	s.gatewayBootstrapConfigPull(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("config/pull expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	recorded := false
+	for _, g := range svc.List("tenant_demo_jakarta") {
+		if g.ID == "gw_demo_001" && g.CurrentFirmwareVersion == "1.4.0" {
+			recorded = true
+		}
+	}
+	if !recorded {
+		t.Fatal("firmware version not recorded from config/pull")
+	}
+}

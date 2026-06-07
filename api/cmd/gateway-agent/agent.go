@@ -391,6 +391,7 @@ func (a *Agent) pullConfig() error {
 		"tenant_id":           a.tenantID,
 		"current_version":     "",
 		"authz_cache_version": a.ruleVersion,
+		"firmware_version":    a.agentVersion,
 	})
 
 	resp, err := a.apiRequest("POST", "/api/v1/gateway/config/pull", body)
