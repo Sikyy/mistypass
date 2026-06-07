@@ -997,6 +997,13 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/firmware-summary", s.gatewayFirmwareSummary)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/firmware", s.uploadGatewayFirmware)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/firmware", s.listGatewayFirmware)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/rollouts", s.createGatewayRollout)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/rollouts", s.listGatewayRollouts)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/rollouts/{rolloutID}", s.getGatewayRollout)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/rollouts/{rolloutID}/approve", s.approveGatewayRollout)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/rollouts/{rolloutID}/pause", s.pauseGatewayRollout)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/rollouts/{rolloutID}/resume", s.resumeGatewayRollout)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/rollouts/{rolloutID}/abort", s.abortGatewayRollout)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/ota/tasks/{taskID}/status", s.updateGatewayOTATaskStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/events/checkpoint", s.listGatewayEventCheckpoints)
 

@@ -464,3 +464,43 @@ func (s *Service) transitionRolloutIdx(tenantID, id string, fn func(int, time.Ti
 	}
 	return s.rollouts[ri], nil
 }
+
+// RolloutGatewayStatus is one gateway's progress within a rollout.
+type RolloutGatewayStatus struct {
+	GatewayID              string `json:"gateway_id"`
+	Phase                  int    `json:"phase"`      // -1 if not yet in any created cohort
+	OTAStatus              string `json:"ota_status"` // queued|dispatching|succeeded|failed|timed_out|pending
+	CurrentFirmwareVersion string `json:"current_firmware_version,omitempty"`
+}
+
+// RolloutGatewayProgress returns per-gateway progress for a rollout's full target set.
+func (s *Service) RolloutGatewayProgress(tenantID, id string) ([]RolloutGatewayStatus, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	ri := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if ri < 0 {
+		return nil, ErrRolloutNotFound
+	}
+	r := s.rollouts[ri]
+	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+	now := time.Now().UTC()
+	out := make([]RolloutGatewayStatus, 0, len(all))
+	for _, gw := range all {
+		st := RolloutGatewayStatus{GatewayID: gw.ID, Phase: -1, OTAStatus: "pending", CurrentFirmwareVersion: gw.CurrentFirmwareVersion}
+		for i := range s.otaTasks {
+			if s.otaTasks[i].RolloutID == r.ID && s.otaTasks[i].GatewayID == gw.ID {
+				st.Phase = s.otaTasks[i].RolloutPhase
+				st.OTAStatus = s.otaTasks[i].Status
+				if s.otaTasks[i].Status != gatewayOTATaskStatusSucceeded &&
+					s.otaTasks[i].Status != gatewayOTATaskStatusFailed &&
+					st.Phase == r.CurrentPhase &&
+					now.Sub(r.PhaseStartedAt) > rolloutStallWindow {
+					st.OTAStatus = "timed_out"
+				}
+				break
+			}
+		}
+		out = append(out, st)
+	}
+	return out, nil
+}
