@@ -897,6 +897,14 @@ func TestCreateOTATaskFromFirmwareRegistry(t *testing.T) {
 	if task.FirmwareID != fw.ID || task.FirmwareSHA256 != fw.SHA256 || task.FirmwareSignature != fw.Signature || task.FirmwareVersion != "1.4.0" {
 		t.Fatalf("task not sourced from registry: %+v", task)
 	}
+	// A caller-supplied version is overridden by the registry record (consistency).
+	overridden, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "v99-mismatch", "", "", "", fw.ID, "admin@example.com")
+	if err != nil {
+		t.Fatalf("create with mismatched version: %v", err)
+	}
+	if overridden.FirmwareVersion != "1.4.0" {
+		t.Fatalf("registry version must win, got %q", overridden.FirmwareVersion)
+	}
 	// unknown firmware_id → error
 	if _, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "", "", "", "", "fw_nope", "a"); err != ErrGatewayFirmwareNotFound {
 		t.Fatalf("want firmware-not-found, got %v", err)

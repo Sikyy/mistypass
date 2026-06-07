@@ -1842,9 +1842,7 @@ func (s *Service) CreateOTATask(
 		}
 		nextSHA256 = fw.SHA256
 		nextSignature = fw.Signature
-		if nextVersion == "" {
-			nextVersion = fw.Version
-		}
+		nextVersion = fw.Version
 		nextURL = "" // firmware_url filled dynamically at config/pull for registry tasks
 	}
 
