@@ -67,3 +67,25 @@ func TestUploadGatewayFirmware(t *testing.T) {
 		t.Fatalf("sha mismatch expected 400, got %d", badRec.Code)
 	}
 }
+
+func TestListGatewayFirmware(t *testing.T) {
+	svc := gateway.NewService()
+	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	sig := strings.Repeat("b", 128)
+	_, _ = svc.CreateFirmware(gateway.CreateFirmwareInput{TenantID: "tenant_demo_jakarta", Version: "1.4.0", Channel: "stable", SHA256: sha, Signature: sig})
+	s := &server{gatewaySvc: svc, cfg: config.Config{UploadStorageDir: t.TempDir(), UploadSigningKey: "k"}}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gateways/firmware?tenant_id=tenant_demo_jakarta", nil)
+	req = withGatewayMQTTUser(req, auth.User{ID: "u1", Role: "tenant_admin", TenantID: "tenant_demo_jakarta"})
+	rec := httptest.NewRecorder()
+	s.listGatewayFirmware(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		Items []gateway.GatewayFirmware `json:"items"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &payload)
+	if len(payload.Items) != 1 || payload.Items[0].Version != "1.4.0" {
+		t.Fatalf("unexpected items: %+v", payload.Items)
+	}
+}

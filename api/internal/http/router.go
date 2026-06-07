@@ -995,6 +995,8 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/{gatewayID}/ota/tasks", s.createGatewayOTATask)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/ota/tasks", s.listGatewayOTATasks)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/firmware-summary", s.gatewayFirmwareSummary)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/gateways/firmware", s.uploadGatewayFirmware)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/firmware", s.listGatewayFirmware)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/gateways/{gatewayID}/ota/tasks/{taskID}/status", s.updateGatewayOTATaskStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/gateways/{gatewayID}/events/checkpoint", s.listGatewayEventCheckpoints)
 

@@ -93,3 +93,12 @@ func (s *server) uploadGatewayFirmware(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusCreated, fw)
 }
+
+func (s *server) listGatewayFirmware(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	items := s.gatewaySvc.ListFirmware(tenantID, strings.TrimSpace(r.URL.Query().Get("channel")))
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
