@@ -21,3 +21,11 @@ func TestSignFileProducesAgentVerifiableSignature(t *testing.T) {
 		t.Fatalf("agent would reject CLI signature: %v", err)
 	}
 }
+
+func TestSignFileRejectsEmptyVersion(t *testing.T) {
+	_, priv, _ := otasig.GenerateKey()
+	pemBytes, _ := otasig.MarshalPrivateKeyPEM(priv)
+	if _, _, err := signFile(pemBytes, "", []byte("fw")); err == nil {
+		t.Fatal("expected error for empty version")
+	}
+}

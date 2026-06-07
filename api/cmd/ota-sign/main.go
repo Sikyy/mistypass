@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -60,14 +61,17 @@ func runGenKey(args []string) error {
 	if err := os.WriteFile(*outPub, []byte(otasig.MarshalPublicKeyHex(pub)+"\n"), 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("private key: %s  (keep OFFLINE — never copy to the API/staging server)\n", *outPriv)
-	fmt.Printf("public key:  %s\n", *outPub)
-	fmt.Printf("pin on agent: --ota-pubkey %s\n", otasig.MarshalPublicKeyHex(pub))
+	fmt.Fprintf(os.Stderr, "private key: %s  (keep OFFLINE — never copy to the API/staging server)\n", *outPriv)
+	fmt.Fprintf(os.Stderr, "public key:  %s\n", *outPub)
+	fmt.Fprintf(os.Stderr, "pin on agent: --ota-pubkey %s\n", otasig.MarshalPublicKeyHex(pub))
 	return nil
 }
 
 // signFile is the testable core: hash + sign with the PEM private key.
 func signFile(privPEM []byte, version string, data []byte) (sha, sig string, err error) {
+	if version == "" {
+		return "", "", errors.New("version must not be empty")
+	}
 	priv, err := otasig.ParsePrivateKeyPEM(privPEM)
 	if err != nil {
 		return "", "", err
@@ -109,9 +113,13 @@ func runSign(args []string) error {
 		"firmware_sha256":    sha,
 		"firmware_signature": sig,
 	}
-	body, _ := json.MarshalIndent(task, "", "  ")
-	fmt.Printf("firmware_sha256:    %s\n", sha)
-	fmt.Printf("firmware_signature: %s\n", sig)
-	fmt.Printf("\nPOST /api/v1/gateways/%s/ota/tasks\n%s\n", *gateway, string(body))
+	body, err := json.MarshalIndent(task, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal task JSON: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "firmware_sha256:    %s\n", sha)
+	fmt.Fprintf(os.Stderr, "firmware_signature: %s\n", sig)
+	fmt.Fprintf(os.Stderr, "\nPOST /api/v1/gateways/%s/ota/tasks\n", *gateway)
+	fmt.Printf("%s\n", body)
 	return nil
 }
