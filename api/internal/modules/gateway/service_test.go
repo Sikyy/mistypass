@@ -821,3 +821,55 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		t.Fatalf("unexpected invalid signature error: %v", err)
 	}
 }
+
+func TestRecordFirmwareVersion(t *testing.T) {
+	svc := NewService()
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "1.4.0"); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	// empty version must be a no-op (an older agent must not clobber a known version)
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "  "); err != nil {
+		t.Fatalf("empty record should be no-op, got %v", err)
+	}
+	found := false
+	for _, g := range svc.List("tenant_demo_jakarta") {
+		if g.ID == "gw_demo_001" {
+			found = true
+			if g.CurrentFirmwareVersion != "1.4.0" {
+				t.Fatalf("want 1.4.0, got %q", g.CurrentFirmwareVersion)
+			}
+			if g.FirmwareReportedAt.IsZero() {
+				t.Fatal("FirmwareReportedAt should be set")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("gw_demo_001 not found")
+	}
+	if err := svc.RecordFirmwareVersion("tenant_other", "gw_demo_001", "1.5.0"); err != ErrGatewayNotFound {
+		t.Fatalf("want ErrGatewayNotFound for wrong tenant, got %v", err)
+	}
+}
+
+func TestFirmwareSummary(t *testing.T) {
+	svc := NewService()
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "1.4.0"); err != nil {
+		t.Fatal(err)
+	}
+	sum := svc.FirmwareSummary("tenant_demo_jakarta")
+	if sum.Total < 1 {
+		t.Fatalf("expected total>=1, got %d", sum.Total)
+	}
+	if sum.Reported < 1 {
+		t.Fatalf("expected reported>=1, got %d", sum.Reported)
+	}
+	ok := false
+	for _, v := range sum.Versions {
+		if v.Version == "1.4.0" && v.Count >= 1 {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("expected 1.4.0 in versions, got %+v", sum.Versions)
+	}
+}

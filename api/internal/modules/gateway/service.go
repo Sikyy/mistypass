@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -183,6 +184,9 @@ type Gateway struct {
 	Status         string          `json:"status"`
 	LastSeenAt     time.Time       `json:"last_seen_at"`
 	BoundDoorIDs   []string        `json:"bound_door_ids,omitempty"`
+
+	CurrentFirmwareVersion string    `json:"current_firmware_version,omitempty"`
+	FirmwareReportedAt     time.Time `json:"firmware_reported_at,omitempty"`
 }
 
 type SerialInventoryItem struct {
@@ -463,6 +467,83 @@ func (s *Service) UpdateGatewayStatus(tenantID, gatewayID, status string) (Gatew
 	}
 
 	return Gateway{}, ErrGatewayNotFound
+}
+
+// RecordFirmwareVersion stores the running firmware version a gateway reported.
+// An empty version is ignored so an older agent that doesn't report can't clobber it.
+func (s *Service) RecordFirmwareVersion(tenantID, gatewayID, version string) error {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" {
+		return ErrGatewayIDRequired
+	}
+	nextVersion := strings.TrimSpace(version)
+	if nextVersion == "" {
+		return nil
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if s.gateways[i].ID != nextGatewayID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return ErrGatewayNotFound
+		}
+		s.gateways[i].CurrentFirmwareVersion = nextVersion
+		s.gateways[i].FirmwareReportedAt = time.Now().UTC()
+		return s.persistLocked()
+	}
+	return ErrGatewayNotFound
+}
+
+// GatewayFirmwareVersionCount is one firmware version and how many gateways run it.
+type GatewayFirmwareVersionCount struct {
+	Version string `json:"version"`
+	Count   int    `json:"count"`
+}
+
+// GatewayFirmwareSummary is the firmware-version distribution across a tenant's gateways.
+type GatewayFirmwareSummary struct {
+	Total    int                           `json:"total"`
+	Reported int                           `json:"reported"`
+	Versions []GatewayFirmwareVersionCount `json:"versions"`
+}
+
+// FirmwareSummary returns the firmware-version distribution for a tenant's gateways,
+// sorted by count desc (version asc as a stable tiebreak).
+func (s *Service) FirmwareSummary(tenantID string) GatewayFirmwareSummary {
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	counts := map[string]int{}
+	summary := GatewayFirmwareSummary{}
+	for i := range s.gateways {
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			continue
+		}
+		summary.Total++
+		v := strings.TrimSpace(s.gateways[i].CurrentFirmwareVersion)
+		if v == "" {
+			continue
+		}
+		summary.Reported++
+		counts[v]++
+	}
+	for v, c := range counts {
+		summary.Versions = append(summary.Versions, GatewayFirmwareVersionCount{Version: v, Count: c})
+	}
+	sort.Slice(summary.Versions, func(a, b int) bool {
+		if summary.Versions[a].Count != summary.Versions[b].Count {
+			return summary.Versions[a].Count > summary.Versions[b].Count
+		}
+		return summary.Versions[a].Version < summary.Versions[b].Version
+	})
+	return summary
 }
 
 func (s *Service) ListSerialInventory(tenantID, productType, status string) ([]SerialInventoryItem, error) {
