@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/config"
 	"github.com/mistypass/cloud/api/internal/modules/auth"
 	"github.com/mistypass/cloud/api/internal/modules/gateway"
@@ -87,5 +89,59 @@ func TestListGatewayFirmware(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &payload)
 	if len(payload.Items) != 1 || payload.Items[0].Version != "1.4.0" {
 		t.Fatalf("unexpected items: %+v", payload.Items)
+	}
+}
+
+func withUploadIDParam(r *http.Request, id string) *http.Request {
+	rc := chi.NewRouteContext()
+	rc.URLParams.Add("uploadID", id)
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rc))
+}
+
+func TestFirmwareSignedURLServesViaDownloadFile(t *testing.T) {
+	dir := t.TempDir()
+	s := &server{
+		gatewaySvc:          gateway.NewService(),
+		gatewayDeviceTokens: map[string]string{"gw_demo_001": "gw_test_token_001"},
+		cfg:                 config.Config{UploadStorageDir: dir, UploadSigningKey: "k"},
+	}
+	data := []byte("real firmware payload")
+	sum := sha256.Sum256(data)
+	sha := hex.EncodeToString(sum[:])
+	upRec := httptest.NewRecorder()
+	s.uploadGatewayFirmware(upRec, firmwareUploadRequest(t, "1.4.0", "", sha, strings.Repeat("b", 128), data))
+	if upRec.Code != http.StatusCreated {
+		t.Fatalf("upload: %d %s", upRec.Code, upRec.Body.String())
+	}
+	var fw gateway.GatewayFirmware
+	_ = json.Unmarshal(upRec.Body.Bytes(), &fw)
+	if _, err := s.gatewaySvc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "", "", "", "", fw.ID, "a"); err != nil {
+		t.Fatal(err)
+	}
+	pullBody, _ := json.Marshal(map[string]any{"gateway_id": "gw_demo_001", "tenant_id": "tenant_demo_jakarta"})
+	pullReq := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/config/pull", bytes.NewReader(pullBody))
+	pullReq.Header.Set("Authorization", "Bearer gw_test_token_001")
+	pullRec := httptest.NewRecorder()
+	s.gatewayBootstrapConfigPull(pullRec, pullReq)
+	var resp struct {
+		PendingOTATasks []struct {
+			FirmwareURL string `json:"firmware_url"`
+		} `json:"pending_ota_tasks"`
+	}
+	_ = json.Unmarshal(pullRec.Body.Bytes(), &resp)
+	if len(resp.PendingOTATasks) == 0 {
+		t.Fatal("no pending tasks")
+	}
+	u := resp.PendingOTATasks[0].FirmwareURL
+	q := u[strings.Index(u, "?"):]
+	dlReq := httptest.NewRequest(http.MethodGet, "/api/v1/uploads/"+fw.ID+q, nil)
+	dlReq = withUploadIDParam(dlReq, fw.ID)
+	dlRec := httptest.NewRecorder()
+	s.downloadFile(dlRec, dlReq)
+	if dlRec.Code != http.StatusOK {
+		t.Fatalf("download expected 200, got %d body=%s", dlRec.Code, dlRec.Body.String())
+	}
+	if !bytes.Equal(dlRec.Body.Bytes(), data) {
+		t.Fatal("served bytes mismatch")
 	}
 }

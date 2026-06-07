@@ -84,10 +84,18 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 	// Include pending OTA tasks so the gateway can discover firmware updates.
 	var pendingOTA []gateway.GatewayOTATask
 	if allOTA, otaErr := s.gatewaySvc.ListOTATasks(request.TenantID, request.GatewayID); otaErr == nil {
+		signingKey := strings.TrimSpace(s.cfg.UploadSigningKey)
+		base := requestBaseURL(r)
 		for _, task := range allOTA {
-			if task.Status == "queued" || task.Status == "dispatching" {
-				pendingOTA = append(pendingOTA, task)
+			if task.Status != "queued" && task.Status != "dispatching" {
+				continue
 			}
+			if task.FirmwareID != "" && signingKey != "" {
+				exp := time.Now().UTC().Add(10 * time.Minute)
+				sig := signDownload(signingKey, task.FirmwareID, exp)
+				task.FirmwareURL = fmt.Sprintf("%s/api/v1/uploads/%s?sig=%s&expires=%d", base, task.FirmwareID, sig, exp.Unix())
+			}
+			pendingOTA = append(pendingOTA, task)
 		}
 	}
 
@@ -2366,4 +2374,16 @@ func (s *server) canManageAuthUserBuildingScope(w http.ResponseWriter, r *http.R
 	}
 
 	return true
+}
+
+// requestBaseURL returns scheme://host for r, honoring X-Forwarded-Proto.
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
+		scheme = proto
+	}
+	return scheme + "://" + r.Host
 }

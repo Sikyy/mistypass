@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/mistypass/cloud/api/internal/config"
@@ -198,5 +199,44 @@ func TestGatewayConfigPullRecordsFirmwareVersion(t *testing.T) {
 	}
 	if !recorded {
 		t.Fatal("firmware version not recorded from config/pull")
+	}
+}
+
+func TestConfigPullFillsRegistryFirmwareURL(t *testing.T) {
+	svc := gateway.NewService()
+	fw, _ := svc.CreateFirmware(gateway.CreateFirmwareInput{
+		TenantID: "tenant_demo_jakarta", Version: "1.4.0",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Signature: strings.Repeat("b", 128),
+	})
+	if _, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "", "", "", "", fw.ID, "admin@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{
+		gatewaySvc:          svc,
+		gatewayDeviceTokens: map[string]string{"gw_demo_001": "gw_test_token_001"},
+		cfg:                 config.Config{UploadStorageDir: t.TempDir(), UploadSigningKey: "k"},
+	}
+	body, _ := json.Marshal(map[string]any{"gateway_id": "gw_demo_001", "tenant_id": "tenant_demo_jakarta"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/gateway/config/pull", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer gw_test_token_001")
+	rec := httptest.NewRecorder()
+	s.gatewayBootstrapConfigPull(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("config/pull expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		PendingOTATasks []struct {
+			FirmwareURL string `json:"firmware_url"`
+			FirmwareID  string `json:"firmware_id"`
+		} `json:"pending_ota_tasks"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	if len(resp.PendingOTATasks) == 0 {
+		t.Fatal("no pending tasks returned")
+	}
+	url := resp.PendingOTATasks[0].FirmwareURL
+	if !strings.Contains(url, "/api/v1/uploads/"+fw.ID) || !strings.Contains(url, "sig=") || !strings.Contains(url, "expires=") {
+		t.Fatalf("firmware_url not a signed registry URL: %q", url)
 	}
 }
