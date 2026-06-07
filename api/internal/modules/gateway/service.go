@@ -285,6 +285,7 @@ type stateSnapshot struct {
 	EventCheckpoints       []GatewayEventCheckpoint       `json:"event_checkpoints,omitempty"`
 	QueueIngestTotals      []GatewayQueueIngestTotal      `json:"queue_ingest_totals,omitempty"`
 	OTATasks               []GatewayOTATask               `json:"ota_tasks,omitempty"`
+	Firmwares              []GatewayFirmware              `json:"firmwares,omitempty"`
 }
 
 type Service struct {
@@ -296,6 +297,7 @@ type Service struct {
 	eventCheckpoints       []GatewayEventCheckpoint
 	queueIngestTotals      []GatewayQueueIngestTotal
 	otaTasks               []GatewayOTATask
+	firmwares              []GatewayFirmware
 	stateStore             StateStore
 }
 
@@ -1995,6 +1997,7 @@ func (s *Service) restoreFromStateStore() error {
 			EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(s.otaTasks),
+			Firmwares:              cloneGatewayFirmwares(s.firmwares),
 		})
 	}
 	shouldBackfillInventory := false
@@ -2011,6 +2014,7 @@ func (s *Service) restoreFromStateStore() error {
 	s.eventCheckpoints = cloneGatewayEventCheckpoints(snapshot.EventCheckpoints)
 	s.queueIngestTotals = cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals)
 	s.otaTasks = cloneGatewayOTATasks(snapshot.OTATasks)
+	s.firmwares = cloneGatewayFirmwares(snapshot.Firmwares)
 	s.mu.Unlock()
 
 	if shouldBackfillInventory {
@@ -2022,6 +2026,7 @@ func (s *Service) restoreFromStateStore() error {
 			EventCheckpoints:       cloneGatewayEventCheckpoints(snapshot.EventCheckpoints),
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(snapshot.OTATasks),
+			Firmwares:              cloneGatewayFirmwares(snapshot.Firmwares),
 		})
 	}
 	return nil
@@ -2039,6 +2044,7 @@ func (s *Service) persistLocked() error {
 		EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
 		QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 		OTATasks:               cloneGatewayOTATasks(s.otaTasks),
+		Firmwares:              cloneGatewayFirmwares(s.firmwares),
 	})
 }
 
