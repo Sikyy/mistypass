@@ -58,6 +58,7 @@ type GatewayRollout struct {
 	CurrentPhase        int            `json:"current_phase"`
 	PhaseStartedAt      time.Time      `json:"phase_started_at"`
 	CreatedBy           string         `json:"created_by,omitempty"`
+	UpdatedBy           string         `json:"updated_by,omitempty"`
 	CreatedAt           time.Time      `json:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at"`
 }
@@ -199,6 +200,7 @@ func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 		State:               rolloutStatePending,
 		CurrentPhase:        0,
 		CreatedBy:           strings.TrimSpace(in.CreatedBy),
+		UpdatedBy:           strings.TrimSpace(in.CreatedBy),
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}
@@ -369,11 +371,14 @@ func (s *Service) findRolloutIndexLocked(id, tenantID string) int {
 
 // PauseRollout halts an active rollout. Only valid from "active".
 func (s *Service) PauseRollout(tenantID, id, actor string) (GatewayRollout, error) {
-	return s.transitionRollout(tenantID, id, func(r *GatewayRollout, now time.Time) error {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		s.advanceRolloutLocked(ri) // refresh state first (a finished/stalled phase may have completed/paused it)
+		r := &s.rollouts[ri]
 		if r.State != rolloutStateActive {
 			return ErrRolloutStateConflict
 		}
 		r.State = rolloutStatePaused
+		r.UpdatedBy = actor
 		r.UpdatedAt = now
 		return nil
 	})
@@ -388,11 +393,12 @@ func (s *Service) ResumeRollout(tenantID, id, actor string) (GatewayRollout, err
 			return ErrRolloutStateConflict
 		}
 		r.State = rolloutStateActive
+		r.UpdatedBy = actor
 		r.UpdatedAt = now
 		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
 		terminal, _ := s.evaluateRolloutPhaseLocked(r, all, now)
 		if !terminal {
-			s.advanceRolloutLocked(ri) // not terminal → no-op, just keep waiting
+			s.advanceRolloutLocked(ri) // re-evaluate with a fresh clock; may detect a stall and pause
 			return nil
 		}
 		// Terminal: override the failure gate and move past the current phase.
@@ -418,6 +424,7 @@ func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, er
 		if r.State != rolloutStateAwaitingApproval {
 			return ErrRolloutStateConflict
 		}
+		r.UpdatedBy = actor
 		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
 		s.startRolloutPhaseLocked(r, r.CurrentPhase+1, all, now)
 		s.advanceRolloutLocked(ri)
@@ -427,23 +434,21 @@ func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, er
 
 // AbortRollout fails a non-terminal rollout; no further tasks are created.
 func (s *Service) AbortRollout(tenantID, id, actor string) (GatewayRollout, error) {
-	return s.transitionRollout(tenantID, id, func(r *GatewayRollout, now time.Time) error {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		s.advanceRolloutLocked(ri) // refresh state first; a just-completed rollout can't be aborted
+		r := &s.rollouts[ri]
 		if r.State == rolloutStateCompleted || r.State == rolloutStateFailed {
 			return ErrRolloutStateConflict
 		}
 		r.State = rolloutStateFailed
+		r.UpdatedBy = actor
 		r.UpdatedAt = now
 		return nil
 	})
 }
 
-// transitionRollout runs fn against a tenant-scoped rollout under lock, then persists.
-func (s *Service) transitionRollout(tenantID, id string, fn func(*GatewayRollout, time.Time) error) (GatewayRollout, error) {
-	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
-		return fn(&s.rollouts[ri], now)
-	})
-}
-
+// transitionRolloutIdx runs fn against a tenant-scoped rollout (by index) under the write
+// lock, then persists. fn assumes s.mu is held.
 func (s *Service) transitionRolloutIdx(tenantID, id string, fn func(int, time.Time) error) (GatewayRollout, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

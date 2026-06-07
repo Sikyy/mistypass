@@ -299,3 +299,52 @@ func TestRolloutResumeOverridesFailureGate(t *testing.T) {
 		t.Fatalf("resume override want completed, got %v %+v", err, got)
 	}
 }
+
+func TestRolloutApproveAdvances(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 50}, {Percentage: 100, RequiresApproval: true}},
+	})
+	reportTask(t, svc, "gw_demo_001", "succeeded") // phase 0 done → next phase requires approval
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStateAwaitingApproval {
+		t.Fatalf("want awaiting_approval, got %s", got.State)
+	}
+	approved, err := svc.ApproveRollout("tenant_demo_jakarta", r.ID, "admin")
+	if err != nil || approved.State != rolloutStateCompleted {
+		t.Fatalf("approve want completed, got %v %s", err, approved.State)
+	}
+	if approved.UpdatedBy != "admin" {
+		t.Fatalf("want UpdatedBy=admin, got %q", approved.UpdatedBy)
+	}
+}
+
+func TestRolloutAbortFromPausedAndAwaiting(t *testing.T) {
+	// abort from paused
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r1, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	if _, err := svc.PauseRollout("tenant_demo_jakarta", r1.ID, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := svc.AbortRollout("tenant_demo_jakarta", r1.ID, "admin"); err != nil || got.State != rolloutStateFailed {
+		t.Fatalf("abort from paused: %v %+v", err, got)
+	}
+	// abort from awaiting_approval
+	r2, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 50}, {Percentage: 100, RequiresApproval: true}},
+	})
+	reportTask(t, svc, "gw_demo_001", "succeeded") // → awaiting_approval
+	if got, err := svc.AbortRollout("tenant_demo_jakarta", r2.ID, "admin"); err != nil || got.State != rolloutStateFailed {
+		t.Fatalf("abort from awaiting_approval: %v %+v", err, got)
+	}
+}
