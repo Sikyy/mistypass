@@ -123,7 +123,7 @@ func writeOTAMarker(path string, m otaMarker) error {
 }
 
 func readOTAMarker(path string) (otaMarker, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- marker path is agent-controlled (deviceTokenFile dir), not user input
 	if os.IsNotExist(err) {
 		return otaMarker{}, false, nil
 	}
@@ -143,7 +143,7 @@ func readOTAMarker(path string) (otaMarker, bool, error) {
 // same directory). Replacing a running binary via rename is safe on Linux: the
 // running process keeps the old (unlinked) inode until it exits.
 func swapBinary(newData []byte, binPath, bakPath string) error {
-	cur, err := os.ReadFile(binPath)
+	cur, err := os.ReadFile(binPath) // #nosec G304 -- binPath is the agent's own executable (os.Executable), not user input
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("backup read: %w", err)
 	}
@@ -159,7 +159,7 @@ func swapBinary(newData []byte, binPath, bakPath string) error {
 // because rollback is the last line of defense — a partial write here would
 // leave no working binary at all.
 func restoreBinary(binPath, bakPath string) error {
-	data, err := os.ReadFile(bakPath)
+	data, err := os.ReadFile(bakPath) // #nosec G304 -- bakPath is the agent's own backup (binPath+".bak"), not user input
 	if err != nil {
 		return err
 	}

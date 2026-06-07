@@ -58,7 +58,7 @@ func runGenKey(args []string) error {
 	if err := os.WriteFile(*outPriv, pemBytes, 0o600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(*outPub, []byte(otasig.MarshalPublicKeyHex(pub)+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(*outPub, []byte(otasig.MarshalPublicKeyHex(pub)+"\n"), 0o600); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "private key: %s  (keep OFFLINE — never copy to the API/staging server)\n", *outPriv)
