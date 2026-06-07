@@ -240,3 +240,62 @@ func TestRolloutStallTimeoutCountsAsFailure(t *testing.T) {
 		t.Fatalf("want paused via stall, got %s", got.State)
 	}
 }
+
+func TestRolloutApproveGate(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	// approve on an active (not awaiting_approval) rollout must conflict.
+	if _, err := svc.ApproveRollout("tenant_demo_jakarta", r.ID, "admin"); err != ErrRolloutStateConflict {
+		t.Fatalf("approve on active should conflict, got %v", err)
+	}
+}
+
+func TestRolloutPauseResumeAbort(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	mkActive := func() GatewayRollout {
+		r, _ := svc.CreateRollout(CreateRolloutInput{
+			TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+			Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+			Phases: []RolloutPhase{{Percentage: 100}},
+		})
+		return r
+	}
+	r := mkActive()
+	if got, err := svc.PauseRollout("tenant_demo_jakarta", r.ID, "admin"); err != nil || got.State != rolloutStatePaused {
+		t.Fatalf("pause: %v %+v", err, got)
+	}
+	if _, err := svc.PauseRollout("tenant_demo_jakarta", r.ID, "admin"); err != ErrRolloutStateConflict {
+		t.Fatalf("double pause should conflict, got %v", err)
+	}
+	if got, err := svc.ResumeRollout("tenant_demo_jakarta", r.ID, "admin"); err != nil || got.State != rolloutStateActive {
+		t.Fatalf("resume: %v %+v", err, got)
+	}
+	if got, err := svc.AbortRollout("tenant_demo_jakarta", r.ID, "admin"); err != nil || got.State != rolloutStateFailed {
+		t.Fatalf("abort: %v %+v", err, got)
+	}
+	if _, err := svc.AbortRollout("tenant_demo_jakarta", r.ID, "admin"); err != ErrRolloutStateConflict {
+		t.Fatalf("abort on failed should conflict, got %v", err)
+	}
+}
+
+func TestRolloutResumeOverridesFailureGate(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	r, _ := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases: []RolloutPhase{{Percentage: 100}},
+	})
+	reportTask(t, svc, "gw_demo_001", "failed") // → paused (100% fail)
+	// resume on a failure-paused, single-phase rollout: terminal phase + last phase → completed (override).
+	got, err := svc.ResumeRollout("tenant_demo_jakarta", r.ID, "admin")
+	if err != nil || got.State != rolloutStateCompleted {
+		t.Fatalf("resume override want completed, got %v %+v", err, got)
+	}
+}

@@ -366,3 +366,96 @@ func (s *Service) findRolloutIndexLocked(id, tenantID string) int {
 	}
 	return -1
 }
+
+// PauseRollout halts an active rollout. Only valid from "active".
+func (s *Service) PauseRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRollout(tenantID, id, func(r *GatewayRollout, now time.Time) error {
+		if r.State != rolloutStateActive {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStatePaused
+		r.UpdatedAt = now
+		return nil
+	})
+}
+
+// ResumeRollout reactivates a paused rollout. If the current phase is already terminal
+// (e.g. it was paused by the failure gate), resume forces past it — an explicit operator override.
+func (s *Service) ResumeRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		r := &s.rollouts[ri]
+		if r.State != rolloutStatePaused {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStateActive
+		r.UpdatedAt = now
+		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+		terminal, _ := s.evaluateRolloutPhaseLocked(r, all, now)
+		if !terminal {
+			s.advanceRolloutLocked(ri) // not terminal → no-op, just keep waiting
+			return nil
+		}
+		// Terminal: override the failure gate and move past the current phase.
+		if r.CurrentPhase >= len(r.Phases)-1 {
+			r.State = rolloutStateCompleted
+			return nil
+		}
+		next := r.CurrentPhase + 1
+		if r.Phases[next].RequiresApproval {
+			r.State = rolloutStateAwaitingApproval
+			return nil
+		}
+		s.startRolloutPhaseLocked(r, next, all, now)
+		s.advanceRolloutLocked(ri)
+		return nil
+	})
+}
+
+// ApproveRollout advances an awaiting-approval rollout into its next phase.
+func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		r := &s.rollouts[ri]
+		if r.State != rolloutStateAwaitingApproval {
+			return ErrRolloutStateConflict
+		}
+		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+		s.startRolloutPhaseLocked(r, r.CurrentPhase+1, all, now)
+		s.advanceRolloutLocked(ri)
+		return nil
+	})
+}
+
+// AbortRollout fails a non-terminal rollout; no further tasks are created.
+func (s *Service) AbortRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRollout(tenantID, id, func(r *GatewayRollout, now time.Time) error {
+		if r.State == rolloutStateCompleted || r.State == rolloutStateFailed {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStateFailed
+		r.UpdatedAt = now
+		return nil
+	})
+}
+
+// transitionRollout runs fn against a tenant-scoped rollout under lock, then persists.
+func (s *Service) transitionRollout(tenantID, id string, fn func(*GatewayRollout, time.Time) error) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		return fn(&s.rollouts[ri], now)
+	})
+}
+
+func (s *Service) transitionRolloutIdx(tenantID, id string, fn func(int, time.Time) error) (GatewayRollout, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ri := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if ri < 0 {
+		return GatewayRollout{}, ErrRolloutNotFound
+	}
+	if err := fn(ri, time.Now().UTC()); err != nil {
+		return GatewayRollout{}, err
+	}
+	if err := s.persistLocked(); err != nil {
+		return GatewayRollout{}, err
+	}
+	return s.rollouts[ri], nil
+}
