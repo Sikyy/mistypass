@@ -66,6 +66,7 @@ func main() {
 	wsURL := flag.String("ws-url", "", "WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws). Empty = disabled, use HTTP polling only.")
 	mtlsCertDir := flag.String("mtls-cert-dir", "", "Directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/). Empty = disabled, use bearer token auth.")
 	otaPubKey := flag.String("ota-pubkey", "", "Comma-separated hex Ed25519 public key(s) pinned for OTA firmware verification. Empty = OTA disabled.")
+	otaURLAllowlist := flag.String("ota-url-allowlist", "", "Comma-separated host allowlist for OTA firmware download URLs. Empty = no restriction.")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -77,6 +78,13 @@ func main() {
 			logger.Error("invalid --ota-pubkey; OTA disabled (agent keeps running for door duty)", "error", err)
 		} else {
 			otaKeys = ks
+		}
+	}
+
+	var otaHosts []string
+	for _, h := range strings.Split(*otaURLAllowlist, ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			otaHosts = append(otaHosts, h)
 		}
 	}
 
@@ -106,6 +114,7 @@ func main() {
 		mtlsCertDir:        *mtlsCertDir,
 		agentVersion:       version,
 		otaPublicKeys:      otaKeys,
+		otaURLAllowlist:    otaHosts,
 	}
 
 	logger.Info("gateway agent starting",

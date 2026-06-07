@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -229,6 +230,27 @@ func resolveSelfBinary() (string, error) {
 	return p, nil
 }
 
+// otaURLAllowed reports whether rawURL's host may serve firmware. An empty
+// allowlist means no restriction; otherwise only exact host matches
+// (case-insensitive, port ignored) pass — a cheap SSRF guard for deployments
+// that pin where firmware is hosted.
+func otaURLAllowed(rawURL string, allowlist []string) bool {
+	if len(allowlist) == 0 {
+		return true
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	for _, h := range allowlist {
+		if host != "" && host == strings.ToLower(strings.TrimSpace(h)) {
+			return true
+		}
+	}
+	return false
+}
+
 // maybeApplyOTA is invoked from pullConfig with the cloud's pending tasks.
 func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 	if len(a.otaPublicKeys) == 0 {
@@ -265,6 +287,9 @@ func (a *Agent) maybeApplyOTA(tasks []otaTask) {
 // systemd restarts into the new binary. On any pre-install failure it returns
 // an error WITHOUT touching the running binary.
 func (a *Agent) runOTA(task otaTask) error {
+	if !otaURLAllowed(task.FirmwareURL, a.otaURLAllowlist) {
+		return fmt.Errorf("firmware URL host not permitted by --ota-url-allowlist: %s", task.FirmwareURL)
+	}
 	_ = a.reportOTAFn(task, "dispatching", "")
 
 	data, err := downloadFirmware(a.newOTAHTTPClient(), task.FirmwareURL, otaMaxFirmwareBytes)

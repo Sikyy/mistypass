@@ -19,6 +19,8 @@ cd api && go run ./cmd/ota-sign gen-key --out-priv ota-priv.pem --out-pub ota-pu
 部署 `docs/deployment/gateway-agent.service`(已含 `Restart=always` + `ExecStartPre` 守护 —— 自动回滚的前提),把其中 `REPLACE_*` 占位(`--ota-pubkey` 填 `ota-pub.hex` 内容、`--gateway`、`--tenant`)改成实际值。
 再把 `docs/deployment/mistypass-ota-guard.sh` 装到 `/usr/local/bin/mistypass-ota-guard.sh` 并 `chmod +x`。安装步骤见 service 文件头部注释。
 
+可选加固:`--ota-url-allowlist cdn1.example.com,cdn2.example.com` 把固件下载主机限定到白名单(默认不限制)。签名验签是完整性锚,白名单只是额外缩小 SSRF 面 —— 固件托管在局域网(如 Mac mini)时可只放该内网主机。
+
 ## 3. 发布一次签名更新
 ```bash
 # 构建目标平台二进制(版本号经 ldflags 注入,用于防降级;不带版本会是 "dev" 导致防降级失效)

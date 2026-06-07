@@ -47,6 +47,7 @@ type Agent struct {
 	mtlsCertDir        string              // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
 	agentVersion       string              // build-time version, used for OTA anti-downgrade
 	otaPublicKeys      []ed25519.PublicKey // pinned Ed25519 keys for OTA verification (empty = OTA disabled)
+	otaURLAllowlist    []string            // allowed firmware-download hosts (empty = no restriction)
 	otaVerifyFailed    map[string]bool     // task IDs that failed signature verification this process lifetime (skip re-download)
 
 	// OTA test seams — default to real implementations in Start(); unit tests set them directly.

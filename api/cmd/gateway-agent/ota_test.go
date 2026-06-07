@@ -338,3 +338,18 @@ func TestOTAWatchdogRollsBackUnconfirmed(t *testing.T) {
 		t.Fatal("marker should be removed after rollback")
 	}
 }
+
+func TestOTAURLAllowed(t *testing.T) {
+	if !otaURLAllowed("https://cdn.example.com/fw", nil) {
+		t.Fatal("empty allowlist must allow any host")
+	}
+	if !otaURLAllowed("https://cdn.example.com/fw", []string{"cdn.example.com"}) {
+		t.Fatal("listed host must be allowed")
+	}
+	if otaURLAllowed("https://evil.example.com/fw", []string{"cdn.example.com"}) {
+		t.Fatal("unlisted host must be rejected")
+	}
+	if !otaURLAllowed("https://cdn.example.com:8443/fw", []string{"cdn.example.com"}) {
+		t.Fatal("port must be ignored in host match")
+	}
+}
