@@ -127,3 +127,30 @@ func TestReadOTAMarkerAbsent(t *testing.T) {
 		t.Fatalf("expected absent marker, ok=%v err=%v", ok, err)
 	}
 }
+
+func TestSwapBinaryFirstInstall(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "agent")
+	bak := bin + ".bak"
+	// bin does not exist yet — first install, no backup expected.
+	if err := swapBinary([]byte("NEW"), bin, bak); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(bin); string(b) != "NEW" {
+		t.Fatalf("bin not written: %q", b)
+	}
+	if _, err := os.Stat(bak); !os.IsNotExist(err) {
+		t.Fatal("backup should not exist on first install")
+	}
+}
+
+func TestSwapBinaryAbortsWhenCurrentUnreadable(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "agent")
+	if err := os.Mkdir(bin, 0o755); err != nil { // bin is a directory → ReadFile fails, not ENOENT
+		t.Fatal(err)
+	}
+	if err := swapBinary([]byte("NEW"), bin, bin+".bak"); err == nil {
+		t.Fatal("expected error when current binary is unreadable (not a clean first-install)")
+	}
+}

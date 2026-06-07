@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -111,7 +110,7 @@ func writeOTAMarker(path string, m otaMarker) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	return atomicWriteFile(path, data, 0o600)
 }
 
 func readOTAMarker(path string) (otaMarker, bool, error) {
@@ -129,43 +128,33 @@ func readOTAMarker(path string) (otaMarker, bool, error) {
 	return m, true, nil
 }
 
-// swapBinary backs up binPath to bakPath, then atomically replaces binPath with
-// newData. The temp file is created in binPath's directory so rename stays on
-// one filesystem (atomic). Replacing a running binary via rename is safe on
-// Linux: the running process keeps the old (unlinked) inode until it exits.
+// swapBinary backs up the current binary at binPath to bakPath (skipping the
+// backup only when binPath does not yet exist — first install), then atomically
+// replaces binPath with newData. Both writes are atomic (temp + rename in the
+// same directory). Replacing a running binary via rename is safe on Linux: the
+// running process keeps the old (unlinked) inode until it exits.
 func swapBinary(newData []byte, binPath, bakPath string) error {
-	dir := filepath.Dir(binPath)
-	tmp, err := os.CreateTemp(dir, ".ota-*")
-	if err != nil {
-		return err
+	cur, err := os.ReadFile(binPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("backup read: %w", err)
 	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op once renamed
-	if _, err := tmp.Write(newData); err != nil {
-		tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	if err := os.Chmod(tmpName, 0o755); err != nil {
-		return err
-	}
-	if cur, err := os.ReadFile(binPath); err == nil {
-		if err := os.WriteFile(bakPath, cur, 0o755); err != nil {
-			return fmt.Errorf("backup: %w", err)
+	if cur != nil {
+		if err := atomicWriteFile(bakPath, cur, 0o755); err != nil {
+			return fmt.Errorf("backup write: %w", err)
 		}
 	}
-	return os.Rename(tmpName, binPath)
+	return atomicWriteFile(binPath, newData, 0o755)
 }
 
-// restoreBinary copies bakPath back over binPath (rollback).
+// restoreBinary atomically copies bakPath back over binPath (rollback). Atomic
+// because rollback is the last line of defense — a partial write here would
+// leave no working binary at all.
 func restoreBinary(binPath, bakPath string) error {
 	data, err := os.ReadFile(bakPath)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(binPath, data, 0o755)
+	return atomicWriteFile(binPath, data, 0o755)
 }
 
 // (used by Task 5/6) keep otasig referenced so imports stay tidy across tasks.
