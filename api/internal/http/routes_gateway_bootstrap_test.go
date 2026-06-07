@@ -239,4 +239,7 @@ func TestConfigPullFillsRegistryFirmwareURL(t *testing.T) {
 	if !strings.Contains(url, "/api/v1/uploads/"+fw.ID) || !strings.Contains(url, "sig=") || !strings.Contains(url, "expires=") {
 		t.Fatalf("firmware_url not a signed registry URL: %q", url)
 	}
+	if !strings.HasPrefix(url, "http://example.com/api/v1/uploads/") {
+		t.Fatalf("unexpected base in firmware_url: %q", url)
+	}
 }
