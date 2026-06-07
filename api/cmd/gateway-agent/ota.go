@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -90,6 +93,79 @@ func downloadFirmware(client *http.Client, url string, maxBytes int64) ([]byte, 
 		return nil, fmt.Errorf("firmware exceeds %d-byte cap", maxBytes)
 	}
 	return data, nil
+}
+
+// otaMarker records an in-flight self-update awaiting post-restart confirmation.
+type otaMarker struct {
+	TaskID     string `json:"task_id"`
+	TenantID   string `json:"tenant_id"`
+	GatewayID  string `json:"gateway_id"`
+	NewVersion string `json:"new_version"`
+	BakPath    string `json:"bak_path"`
+	Attempts   int    `json:"attempts"`
+	Confirmed  bool   `json:"confirmed"`
+}
+
+func writeOTAMarker(path string, m otaMarker) error {
+	data, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o600)
+}
+
+func readOTAMarker(path string) (otaMarker, bool, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return otaMarker{}, false, nil
+	}
+	if err != nil {
+		return otaMarker{}, false, err
+	}
+	var m otaMarker
+	if err := json.Unmarshal(data, &m); err != nil {
+		return otaMarker{}, false, err
+	}
+	return m, true, nil
+}
+
+// swapBinary backs up binPath to bakPath, then atomically replaces binPath with
+// newData. The temp file is created in binPath's directory so rename stays on
+// one filesystem (atomic). Replacing a running binary via rename is safe on
+// Linux: the running process keeps the old (unlinked) inode until it exits.
+func swapBinary(newData []byte, binPath, bakPath string) error {
+	dir := filepath.Dir(binPath)
+	tmp, err := os.CreateTemp(dir, ".ota-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // no-op once renamed
+	if _, err := tmp.Write(newData); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpName, 0o755); err != nil {
+		return err
+	}
+	if cur, err := os.ReadFile(binPath); err == nil {
+		if err := os.WriteFile(bakPath, cur, 0o755); err != nil {
+			return fmt.Errorf("backup: %w", err)
+		}
+	}
+	return os.Rename(tmpName, binPath)
+}
+
+// restoreBinary copies bakPath back over binPath (rollback).
+func restoreBinary(binPath, bakPath string) error {
+	data, err := os.ReadFile(bakPath)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(binPath, data, 0o755)
 }
 
 // (used by Task 5/6) keep otasig referenced so imports stay tidy across tasks.

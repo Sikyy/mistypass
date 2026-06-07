@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -69,5 +71,59 @@ func TestDownloadFirmwareRejectsOversize(t *testing.T) {
 	defer srv.Close()
 	if _, err := downloadFirmware(srv.Client(), srv.URL, 4); err == nil {
 		t.Fatal("expected oversize error when body exceeds cap")
+	}
+}
+
+func TestSwapBinaryBacksUpAndReplaces(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "agent")
+	bak := bin + ".bak"
+	if err := os.WriteFile(bin, []byte("OLD"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := swapBinary([]byte("NEW"), bin, bak); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(bin); string(b) != "NEW" {
+		t.Fatalf("bin not replaced: %q", b)
+	}
+	if b, _ := os.ReadFile(bak); string(b) != "OLD" {
+		t.Fatalf("backup not written: %q", b)
+	}
+}
+
+func TestRestoreBinary(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "agent")
+	bak := bin + ".bak"
+	_ = os.WriteFile(bin, []byte("NEW-BROKEN"), 0o755)
+	_ = os.WriteFile(bak, []byte("OLD-GOOD"), 0o755)
+	if err := restoreBinary(bin, bak); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(bin); string(b) != "OLD-GOOD" {
+		t.Fatalf("restore failed: %q", b)
+	}
+}
+
+func TestOTAMarkerRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "ota-pending.json")
+	in := otaMarker{TaskID: "t1", NewVersion: "1.4.0", BakPath: "/x.bak", Attempts: 1}
+	if err := writeOTAMarker(path, in); err != nil {
+		t.Fatal(err)
+	}
+	got, ok, err := readOTAMarker(path)
+	if err != nil || !ok {
+		t.Fatalf("read marker ok=%v err=%v", ok, err)
+	}
+	if got.TaskID != "t1" || got.NewVersion != "1.4.0" {
+		t.Fatalf("unexpected marker %+v", got)
+	}
+}
+
+func TestReadOTAMarkerAbsent(t *testing.T) {
+	_, ok, err := readOTAMarker(filepath.Join(t.TempDir(), "none.json"))
+	if err != nil || ok {
+		t.Fatalf("expected absent marker, ok=%v err=%v", ok, err)
 	}
 }
