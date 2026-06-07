@@ -610,8 +610,8 @@ func TestEvaluateGatewayScheduledRollouts(t *testing.T) {
 	future := time.Now().UTC().Add(time.Hour)
 	r, err := svc.CreateRollout(CreateRolloutInput{
 		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
-		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
-		Phases: []RolloutPhase{{Percentage: 100}},
+		Target:   RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases:   []RolloutPhase{{Percentage: 100}},
 		Schedule: &RolloutSchedule{StartAt: &future},
 	})
 	if err != nil {
@@ -638,14 +638,67 @@ func TestEvaluateGatewayScheduledRollouts(t *testing.T) {
 	}
 }
 
+func TestRolloutScheduledInterPhasePark(t *testing.T) {
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	seedJakartaGateway(t, svc, "gw_demo_jkt_002") // 2nd gateway; sorts after gw_demo_001
+	past := time.Now().UTC().Add(-time.Hour)
+	// 2 phases over 2 gateways; window OPEN at create (start_at past) → phase 0 starts immediately.
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target:   RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001", "gw_demo_jkt_002"}},
+		Phases:   []RolloutPhase{{Percentage: 50}, {Percentage: 100}},
+		Schedule: &RolloutSchedule{StartAt: &past},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.State != rolloutStateActive {
+		t.Fatalf("phase 0 should start with an open window, got %s", r.State)
+	}
+	// CLOSE the window before phase 0 completes.
+	future := time.Now().UTC().Add(time.Hour)
+	svc.mu.Lock()
+	svc.rollouts[svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")].Schedule.StartAt = &future
+	svc.mu.Unlock()
+	// report the phase-0 gateway (gw_demo_001, cohort 0) → advance tries phase 1 → window closed → park.
+	reportTask(t, svc, "gw_demo_001", "succeeded")
+	got, _ := svc.getRolloutForTest(r.ID)
+	if got.State != rolloutStateScheduled || got.CurrentPhase != 1 {
+		t.Fatalf("inter-phase should park at scheduled/phase 1, got %s/phase %d", got.State, got.CurrentPhase)
+	}
+	tasks, _ := svc.ListOTATasks("tenant_demo_jakarta", "gw_demo_jkt_002")
+	for _, task := range tasks {
+		if task.RolloutID == r.ID {
+			t.Fatal("phase-1 gateway must not have a task while parked")
+		}
+	}
+	// REOPEN the window → a target gateway's evaluation starts phase 1.
+	svc.mu.Lock()
+	svc.rollouts[svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")].Schedule.StartAt = &past
+	svc.mu.Unlock()
+	if err := svc.EvaluateGatewayScheduledRollouts("tenant_demo_jakarta", "gw_demo_jkt_002"); err != nil {
+		t.Fatal(err)
+	}
+	got2, _ := svc.getRolloutForTest(r.ID)
+	if got2.State != rolloutStateActive || got2.CurrentPhase != 1 {
+		t.Fatalf("after reopen, phase 1 should be active, got %s/phase %d", got2.State, got2.CurrentPhase)
+	}
+	reportTask(t, svc, "gw_demo_jkt_002", "succeeded")
+	final, _ := svc.getRolloutForTest(r.ID)
+	if final.State != rolloutStateCompleted {
+		t.Fatalf("want completed after both phases, got %s", final.State)
+	}
+}
+
 func TestAbortScheduledDoesNotStartIt(t *testing.T) {
 	svc := NewService()
 	fw := seedFirmware(t, svc)
 	future := time.Now().UTC().Add(time.Hour)
 	r, err := svc.CreateRollout(CreateRolloutInput{
 		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
-		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
-		Phases: []RolloutPhase{{Percentage: 100}},
+		Target:   RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases:   []RolloutPhase{{Percentage: 100}},
 		Schedule: &RolloutSchedule{StartAt: &future},
 	})
 	if err != nil {

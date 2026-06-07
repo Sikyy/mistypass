@@ -14,10 +14,10 @@ func (s *server) createGatewayRollout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		FirmwareID          string                 `json:"firmware_id"`
-		Target              gateway.RolloutTarget  `json:"target"`
-		Phases              []gateway.RolloutPhase `json:"phases"`
-		FailureThresholdPct int                    `json:"failure_threshold_pct"`
+		FirmwareID          string                   `json:"firmware_id"`
+		Target              gateway.RolloutTarget    `json:"target"`
+		Phases              []gateway.RolloutPhase   `json:"phases"`
+		FailureThresholdPct int                      `json:"failure_threshold_pct"`
 		Schedule            *gateway.RolloutSchedule `json:"schedule,omitempty"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
