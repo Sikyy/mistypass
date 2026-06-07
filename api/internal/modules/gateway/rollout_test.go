@@ -322,6 +322,126 @@ func TestRolloutApproveAdvances(t *testing.T) {
 	}
 }
 
+// seedJakartaGateway directly appends an extra online gateway to tenant_demo_jakarta so a
+// rollout's target can resolve to a real multi-gateway cohort. Direct seeding (mirroring how
+// NewService builds s.gateways, and how TestRolloutStallTimeoutCountsAsFailure pokes s.rollouts
+// under the lock) keeps the in-package test free of the serial-inventory provisioning that the
+// public Register path requires. The id is chosen to sort deterministically after gw_demo_001
+// so cohort slicing is predictable: cohortForPhase sorts the target set by ID.
+func seedJakartaGateway(t *testing.T, svc *Service, id string) {
+	t.Helper()
+	if id <= "gw_demo_001" {
+		t.Fatalf("seed gateway id %q must sort after gw_demo_001 for deterministic cohorts", id)
+	}
+	svc.mu.Lock()
+	svc.gateways = append(svc.gateways, Gateway{
+		ID:             id,
+		TenantID:       "tenant_demo_jakarta",
+		SerialNumber:   "MP-GW-JKT-" + id,
+		BuildingID:     "building_demo_001",
+		DeviceCapacity: 8,
+		Status:         "online",
+		LastSeenAt:     time.Now().UTC(),
+	})
+	svc.mu.Unlock()
+}
+
+func rolloutTaskFor(t *testing.T, svc *Service, rolloutID, gatewayID string) (GatewayOTATask, bool) {
+	t.Helper()
+	tasks, err := svc.ListOTATasks("tenant_demo_jakarta", gatewayID)
+	if err != nil {
+		t.Fatalf("list tasks for %s: %v", gatewayID, err)
+	}
+	for _, task := range tasks {
+		if task.RolloutID == rolloutID {
+			return task, true
+		}
+	}
+	return GatewayOTATask{}, false
+}
+
+// TestRolloutMultiGatewayPhaseProgression drives a 2-phase rollout over a real 2-gateway cohort
+// in one tenant: phase 0's cohort (gw_demo_001) must reach terminal before phase 1's cohort
+// (the second, higher-sorted gateway) is dispatched. This exercises the advance engine across
+// distinct per-phase cohorts — the committed suite otherwise only covers single-gateway (N=1)
+// rollouts where every phase shares the one gateway.
+func TestRolloutMultiGatewayPhaseProgression(t *testing.T) {
+	const second = "gw_demo_jkt_002"
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	seedJakartaGateway(t, svc, second)
+
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001", second}},
+		Phases: []RolloutPhase{{Percentage: 50}, {Percentage: 100}},
+	})
+	if err != nil {
+		t.Fatalf("create rollout: %v", err)
+	}
+
+	// Phase 0 (ceil(50%*2)=1) covers only gw_demo_001; the second gateway is gated until phase 1.
+	if _, ok := rolloutTaskFor(t, svc, r.ID, "gw_demo_001"); !ok {
+		t.Fatal("phase-0 cohort gw_demo_001 should have an OTA task at creation")
+	}
+	if task, ok := rolloutTaskFor(t, svc, r.ID, second); ok {
+		t.Fatalf("phase-1 gateway %s must not have a task before phase 0 completes, got %+v", second, task)
+	}
+
+	// Phase 0 succeeds → advance engine should open phase 1 and dispatch the second gateway.
+	reportTask(t, svc, "gw_demo_001", "succeeded")
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStateActive || got.CurrentPhase != 1 {
+		t.Fatalf("after phase-0 success want active/phase 1, got %s/phase %d", got.State, got.CurrentPhase)
+	}
+	task, ok := rolloutTaskFor(t, svc, r.ID, second)
+	if !ok {
+		t.Fatalf("phase-1 task for %s must exist after phase 0 succeeded", second)
+	}
+	if task.RolloutPhase != 1 {
+		t.Fatalf("phase-1 task for %s want RolloutPhase 1, got %d", second, task.RolloutPhase)
+	}
+
+	// Phase 1 (final) succeeds → rollout completes.
+	reportTask(t, svc, second, "succeeded")
+	done, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if done.State != rolloutStateCompleted {
+		t.Fatalf("after final phase success want completed, got %s", done.State)
+	}
+}
+
+// TestRolloutMultiGatewayFailureGateMidPhase verifies the failure gate halts a multi-gateway
+// rollout between cohorts: phase 0's gateway fails (100% of a terminal cohort, over the 20%
+// threshold) so the rollout pauses and phase 1's gateway is never dispatched.
+func TestRolloutMultiGatewayFailureGateMidPhase(t *testing.T) {
+	const second = "gw_demo_jkt_002"
+	svc := NewService()
+	fw := seedFirmware(t, svc)
+	seedJakartaGateway(t, svc, second)
+
+	r, err := svc.CreateRollout(CreateRolloutInput{
+		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
+		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001", second}},
+		Phases: []RolloutPhase{{Percentage: 50}, {Percentage: 100}}, FailureThresholdPct: 20,
+	})
+	if err != nil {
+		t.Fatalf("create rollout: %v", err)
+	}
+
+	// Phase 0's only gateway fails → terminal cohort at 100% failure ≥ 20% → paused at phase 0.
+	reportTask(t, svc, "gw_demo_001", "failed")
+	got, _ := svc.GetRollout("tenant_demo_jakarta", r.ID)
+	if got.State != rolloutStatePaused {
+		t.Fatalf("phase-0 failure want paused, got %s", got.State)
+	}
+	if got.CurrentPhase != 0 {
+		t.Fatalf("failure gate must halt at phase 0, got phase %d", got.CurrentPhase)
+	}
+	if task, ok := rolloutTaskFor(t, svc, r.ID, second); ok {
+		t.Fatalf("phase-1 gateway %s must not be dispatched once phase 0 trips the failure gate, got %+v", second, task)
+	}
+}
+
 func TestRolloutAbortFromPausedAndAwaiting(t *testing.T) {
 	// abort from paused
 	svc := NewService()
