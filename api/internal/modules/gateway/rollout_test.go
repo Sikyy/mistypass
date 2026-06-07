@@ -504,8 +504,8 @@ func TestCreateRolloutScheduledVsActive(t *testing.T) {
 	future := time.Now().UTC().Add(time.Hour)
 	r, err := svc.CreateRollout(CreateRolloutInput{
 		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
-		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
-		Phases: []RolloutPhase{{Percentage: 100}},
+		Target:   RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases:   []RolloutPhase{{Percentage: 100}},
 		Schedule: &RolloutSchedule{StartAt: &future},
 	})
 	if err != nil {
@@ -520,11 +520,14 @@ func TestCreateRolloutScheduledVsActive(t *testing.T) {
 			t.Fatal("scheduled rollout must not create phase-0 tasks yet")
 		}
 	}
-	r2, _ := svc.CreateRollout(CreateRolloutInput{
+	r2, err2 := svc.CreateRollout(CreateRolloutInput{
 		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
 		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
 		Phases: []RolloutPhase{{Percentage: 100}},
 	})
+	if err2 != nil {
+		t.Fatalf("create active rollout: %v", err2)
+	}
 	if r2.State != rolloutStateActive {
 		t.Fatalf("no-schedule rollout want active, got %s", r2.State)
 	}
@@ -534,12 +537,15 @@ func TestScheduledRolloutStartsWhenWindowOpens(t *testing.T) {
 	svc := NewService()
 	fw := seedFirmware(t, svc)
 	future := time.Now().UTC().Add(time.Hour)
-	r, _ := svc.CreateRollout(CreateRolloutInput{
+	r, err := svc.CreateRollout(CreateRolloutInput{
 		TenantID: "tenant_demo_jakarta", FirmwareID: fw.ID,
-		Target: RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
-		Phases: []RolloutPhase{{Percentage: 100}},
+		Target:   RolloutTarget{Kind: "gateways", GatewayIDs: []string{"gw_demo_001"}},
+		Phases:   []RolloutPhase{{Percentage: 100}},
 		Schedule: &RolloutSchedule{StartAt: &future},
 	})
+	if err != nil {
+		t.Fatalf("create scheduled rollout: %v", err)
+	}
 	past := time.Now().UTC().Add(-time.Hour)
 	svc.mu.Lock()
 	idx := svc.findRolloutIndexLocked(r.ID, "tenant_demo_jakarta")

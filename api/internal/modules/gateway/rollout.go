@@ -224,7 +224,8 @@ type CreateRolloutInput struct {
 	Schedule            *RolloutSchedule
 }
 
-// CreateRollout validates, persists, and immediately starts phase 0.
+// CreateRollout validates, persists, and starts phase 0 — or parks the rollout in "scheduled"
+// when a schedule window is not yet open.
 func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 	tenantID := strings.TrimSpace(in.TenantID)
 	fwID := strings.TrimSpace(in.FirmwareID)
@@ -287,6 +288,8 @@ func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
 }
 
 // startRolloutPhaseLocked creates OTA tasks for the phase cohort and marks the rollout active.
+// Schedule-respecting callers must use tryStartPhaseLocked instead; call this directly only when
+// the schedule gate has already been checked (e.g. the scheduled branch of advanceRolloutLocked).
 // Caller holds s.mu.
 func (s *Service) startRolloutPhaseLocked(r *GatewayRollout, phase int, all []Gateway, now time.Time) {
 	fw, ok := s.findFirmwareLocked(r.FirmwareID, r.TenantID)
@@ -397,6 +400,8 @@ func (s *Service) advanceRolloutLocked(rolloutIdx int) bool {
 				return changed // still waiting for the window
 			}
 			s.startRolloutPhaseLocked(r, r.CurrentPhase, all, now) // window open → start the parked phase
+			// Loop continues: state is now active (the active case will evaluate the phase), or
+			// failed if firmware was missing (the default case exits). No infinite loop either way.
 			changed = true
 		case rolloutStateActive:
 			terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
