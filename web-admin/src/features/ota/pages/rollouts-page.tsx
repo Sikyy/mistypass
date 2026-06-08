@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import type { CurrentUser } from "@/lib/api"
 import { RolloutListCard } from "../components/rollout-list-card"
-// import { RolloutCreateCard } from "../components/rollout-create-card"  // Task 5
+import { RolloutCreateCard } from "../components/rollout-create-card"
 
 const WRITE_ROLES: CurrentUser["role"][] = ["super_admin", "tenant_admin", "building_admin"]
 
@@ -9,7 +9,6 @@ export function RolloutsPage({ token, viewer }: { token: string; viewer: Current
   const { t } = useTranslation()
   const tenantID = viewer.role === "super_admin" ? undefined : viewer.tenant_id
   const canWrite = WRITE_ROLES.includes(viewer.role)
-  void canWrite // used in Task 5
   return (
     <div className="space-y-6">
       <div className="mp-page-hero">
@@ -18,7 +17,7 @@ export function RolloutsPage({ token, viewer }: { token: string; viewer: Current
         </div>
       </div>
       <div className="space-y-4">
-        {/* {canWrite ? <RolloutCreateCard token={token} tenantID={tenantID} /> : null}  // Task 5 */}
+        {canWrite ? <RolloutCreateCard token={token} tenantID={tenantID} /> : null}
         <RolloutListCard token={token} tenantID={tenantID} />
       </div>
     </div>
