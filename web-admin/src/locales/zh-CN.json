@@ -4958,7 +4958,56 @@
         "pending": "等待中",
         "aborted": "已中止"
       },
-      "errors": { "generic": "发生错误，请重试。" }
+      "errors": { "generic": "发生错误，请重试。" },
+      "create": {
+        "title": "创建发布",
+        "description": "将固件版本分阶段推送到一组网关。",
+        "firmwarePlaceholder": "选择固件版本",
+        "targetAll": "所有网关",
+        "targetBuilding": "按楼栋",
+        "targetGateways": "指定网关",
+        "buildingPlaceholder": "选择楼栋",
+        "phases": "阶段（累计百分比，最后一个必须为 100）",
+        "requiresApproval": "需要审批",
+        "addPhase": "添加阶段",
+        "removePhase": "移除",
+        "failureThreshold": "失败阈值 %",
+        "scheduleSection": "排期（可选）",
+        "timezonePlaceholder": "时区",
+        "submit": "创建",
+        "submitting": "创建中…",
+        "validation": {
+          "firmwareRequired": "请选择固件版本",
+          "phasesInvalid": "阶段百分比必须严格递增且最后一个为 100",
+          "buildingRequired": "请选择楼栋",
+          "gatewaysRequired": "请至少选择一个网关",
+          "hhmm": "请使用 HH:MM（24 小时制）"
+        }
+      },
+      "detail": {
+        "pageTitle": "推送详情",
+        "title": "推送详情",
+        "loading": "加载中…",
+        "firmware": "固件",
+        "target": "目标",
+        "phase": "阶段",
+        "threshold": "失败阈值",
+        "schedule": "排期",
+        "gatewaysTitle": "各网关进度",
+        "colGateway": "网关",
+        "colPhase": "阶段",
+        "colStatus": "状态",
+        "colVersion": "当前版本",
+        "actions": {
+          "approve": "批准",
+          "pause": "暂停",
+          "resume": "恢复",
+          "abort": "中止"
+        },
+        "confirmAbortTitle": "中止推送？",
+        "confirmAbortBody": "此操作将停止推送。已更新的网关将保留新固件。",
+        "cancel": "取消"
+      }
     },
     "firmware": {
       "pageTitle": "固件管理",

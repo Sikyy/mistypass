@@ -4845,7 +4845,56 @@
         "pending": "Tertunda",
         "aborted": "Dibatalkan"
       },
-      "errors": { "generic": "Terjadi kesalahan." }
+      "errors": { "generic": "Terjadi kesalahan." },
+      "create": {
+        "title": "Buat Peluncuran",
+        "description": "Luncurkan versi firmware ke sejumlah gateway secara bertahap.",
+        "firmwarePlaceholder": "Pilih versi firmware",
+        "targetAll": "Semua gateway",
+        "targetBuilding": "Per gedung",
+        "targetGateways": "Gateway tertentu",
+        "buildingPlaceholder": "Pilih gedung",
+        "phases": "Fase (persentase kumulatif, terakhir harus 100)",
+        "requiresApproval": "Memerlukan persetujuan",
+        "addPhase": "Tambah fase",
+        "removePhase": "Hapus",
+        "failureThreshold": "Ambang batas kegagalan %",
+        "scheduleSection": "Jadwal (opsional)",
+        "timezonePlaceholder": "Zona waktu",
+        "submit": "Buat",
+        "submitting": "Membuat…",
+        "validation": {
+          "firmwareRequired": "Pilih versi firmware",
+          "phasesInvalid": "Fase harus berupa persentase yang terus meningkat dan diakhiri dengan 100",
+          "buildingRequired": "Pilih gedung",
+          "gatewaysRequired": "Pilih setidaknya satu gateway",
+          "hhmm": "Gunakan format HH:MM (24 jam)"
+        }
+      },
+      "detail": {
+        "pageTitle": "Peluncuran",
+        "title": "Peluncuran",
+        "loading": "Memuat…",
+        "firmware": "Firmware",
+        "target": "Target",
+        "phase": "Fase",
+        "threshold": "Ambang batas kegagalan",
+        "schedule": "Jadwal",
+        "gatewaysTitle": "Progres per gateway",
+        "colGateway": "Gateway",
+        "colPhase": "Fase",
+        "colStatus": "Status",
+        "colVersion": "Versi saat ini",
+        "actions": {
+          "approve": "Setujui",
+          "pause": "Jeda",
+          "resume": "Lanjutkan",
+          "abort": "Batalkan"
+        },
+        "confirmAbortTitle": "Batalkan peluncuran?",
+        "confirmAbortBody": "Tindakan ini menghentikan peluncuran. Gateway yang sudah diperbarui tetap menggunakan firmware baru.",
+        "cancel": "Batal"
+      }
     },
     "firmware": {
       "pageTitle": "Manajemen Firmware",
