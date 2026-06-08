@@ -45,7 +45,7 @@ export function RolloutCreateCard({ token, tenantID }: { token: string | undefin
     queryFn: () => listGateways(token),
     staleTime: 30000,
   })
-  const gateways = gatewaysQ.data ?? []
+  const gateways = useMemo(() => gatewaysQ.data ?? [], [gatewaysQ.data])
   const buildings = useMemo(() => buildingOptions(gateways), [gateways])
   const create = useCreateRolloutMutation(token, tenantID)
 
@@ -280,7 +280,7 @@ export function RolloutCreateCard({ token, tenantID }: { token: string | undefin
             </Button>
             {form.formState.errors.phases && (
               <p className="text-sm text-destructive">
-                {String(form.formState.errors.phases.message ?? t("ota.rollout.create.validation.phasesInvalid"))}
+                {String(form.formState.errors.phases.root?.message ?? form.formState.errors.phases.message ?? t("ota.rollout.create.validation.phasesInvalid"))}
               </p>
             )}
           </div>
@@ -313,7 +313,7 @@ export function RolloutCreateCard({ token, tenantID }: { token: string | undefin
                       <SelectValue placeholder={t("ota.rollout.create.timezonePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      {tzOptions.slice(0, 400).map((tz) => (
+                      {tzOptions.map((tz) => (
                         <SelectItem key={tz} value={tz}>
                           {tz}
                         </SelectItem>
