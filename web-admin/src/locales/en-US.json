@@ -4818,5 +4818,48 @@
       "buildingAdmin": "Place Admin",
       "resident": "Unsupported account"
     }
+  },
+  "ota": {
+    "nav": { "firmware": "Firmware" },
+    "firmware": {
+      "pageTitle": "Firmware Management",
+      "summary": {
+        "title": "Fleet Firmware Versions",
+        "description": "Firmware version distribution across this tenant's gateways.",
+        "loading": "Loading…",
+        "empty": "No gateways have reported a firmware version yet.",
+        "fleet": "{{reported}} of {{total}} gateways have reported a version."
+      },
+      "upload": {
+        "title": "Upload Firmware",
+        "description": "Upload a signed firmware binary. Sign offline with ota-sign; the private key never enters the browser.",
+        "versionPlaceholder": "Version (e.g. 1.4.0)",
+        "channelPlaceholder": "Channel (optional: stable / beta)",
+        "signaturePlaceholder": "Ed25519 signature (hex, from ota-sign)",
+        "submit": "Upload",
+        "submitting": "Uploading…",
+        "cryptoUnavailable": "Firmware upload requires a secure context (HTTPS).",
+        "validation": {
+          "versionRequired": "Version is required",
+          "versionMax": "Version too long",
+          "signatureHex": "Signature must be 128 hex characters (Ed25519)",
+          "fileRequired": "Select a firmware file"
+        }
+      },
+      "list": {
+        "title": "Firmware Registry",
+        "description": "Uploaded firmware versions for this tenant.",
+        "loading": "Loading…",
+        "empty": "No firmware uploaded yet.",
+        "channelAll": "All channels",
+        "colVersion": "Version",
+        "colChannel": "Channel",
+        "colSha": "SHA-256",
+        "colSize": "Size",
+        "colUploadedBy": "Uploaded by",
+        "colCreated": "Created"
+      },
+      "errors": { "generic": "Something went wrong." }
+    }
   }
 }

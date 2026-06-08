@@ -4931,5 +4931,48 @@
     "network": "网络拓扑",
     "southbound": "下行设备",
     "alarmSchedules": "告警排班"
+  },
+  "ota": {
+    "nav": { "firmware": "固件" },
+    "firmware": {
+      "pageTitle": "固件管理",
+      "summary": {
+        "title": "舰队固件版本",
+        "description": "此租户网关的固件版本分布。",
+        "loading": "加载中…",
+        "empty": "暂无网关上报固件版本。",
+        "fleet": "{{total}} 台网关中已有 {{reported}} 台上报了版本。"
+      },
+      "upload": {
+        "title": "上传固件",
+        "description": "上传已签名的固件二进制文件。请使用 ota-sign 离线签名；私钥不会进入浏览器。",
+        "versionPlaceholder": "版本号（如 1.4.0）",
+        "channelPlaceholder": "渠道（可选：stable / beta）",
+        "signaturePlaceholder": "Ed25519 签名（十六进制，来自 ota-sign）",
+        "submit": "上传",
+        "submitting": "上传中…",
+        "cryptoUnavailable": "固件上传需要安全上下文（HTTPS）。",
+        "validation": {
+          "versionRequired": "版本号为必填项",
+          "versionMax": "版本号过长",
+          "signatureHex": "签名必须为 128 个十六进制字符（Ed25519）",
+          "fileRequired": "请选择固件文件"
+        }
+      },
+      "list": {
+        "title": "固件仓库",
+        "description": "此租户已上传的固件版本。",
+        "loading": "加载中…",
+        "empty": "尚未上传任何固件。",
+        "channelAll": "全部渠道",
+        "colVersion": "版本",
+        "colChannel": "渠道",
+        "colSha": "SHA-256",
+        "colSize": "大小",
+        "colUploadedBy": "上传者",
+        "colCreated": "创建时间"
+      },
+      "errors": { "generic": "发生错误，请重试。" }
+    }
   }
 }

@@ -15,6 +15,7 @@ import {
   LayersIcon,
   MailIcon,
   MapPinPlusIcon,
+  MicrochipIcon,
   RouterIcon,
   ServerIcon,
   SettingsIcon,
@@ -75,6 +76,7 @@ const mistyisletPreviewRoutePrefixes = [
   "/wallet",
   "/cameras",
   "/gateways",
+  "/ota",
   "/events",
   "/alarms",
   "/audit",
@@ -127,6 +129,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
         { label: t("cameras.navLabel"), icon: CameraIcon, to: "/cameras" },
         { label: t("nav.southbound"), icon: RouterIcon, to: "/southbound" },
         { label: t("nav.alarmSchedules"), icon: CalendarClockIcon, to: "/alarm-schedules" },
+        { label: t("ota.nav.firmware"), icon: MicrochipIcon, to: "/ota" },
       ],
     },
     {
