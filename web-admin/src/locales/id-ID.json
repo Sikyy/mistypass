@@ -4821,6 +4821,32 @@
   },
   "ota": {
     "nav": { "firmware": "Firmware" },
+    "rollout": {
+      "nav": { "rollouts": "Peluncuran" },
+      "pageTitle": "Peluncuran OTA",
+      "list": {
+        "title": "Riwayat Peluncuran",
+        "description": "Semua peluncuran OTA untuk tenant ini.",
+        "loading": "Memuat…",
+        "empty": "Belum ada peluncuran.",
+        "colFirmware": "Firmware",
+        "colTarget": "Target",
+        "colState": "Status",
+        "colPhase": "Fase",
+        "colCreated": "Dibuat"
+      },
+      "state": {
+        "active": "Aktif",
+        "completed": "Selesai",
+        "failed": "Gagal",
+        "paused": "Dijeda",
+        "awaiting_approval": "Menunggu Persetujuan",
+        "scheduled": "Terjadwal",
+        "pending": "Tertunda",
+        "aborted": "Dibatalkan"
+      },
+      "errors": { "generic": "Terjadi kesalahan." }
+    },
     "firmware": {
       "pageTitle": "Manajemen Firmware",
       "summary": {

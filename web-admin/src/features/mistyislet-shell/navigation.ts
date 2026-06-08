@@ -17,6 +17,7 @@ import {
   MapPinPlusIcon,
   MicrochipIcon,
   RouterIcon,
+  SendHorizontalIcon,
   ServerIcon,
   SettingsIcon,
   ShieldCheckIcon,
@@ -130,6 +131,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
         { label: t("nav.southbound"), icon: RouterIcon, to: "/southbound" },
         { label: t("nav.alarmSchedules"), icon: CalendarClockIcon, to: "/alarm-schedules" },
         { label: t("ota.nav.firmware"), icon: MicrochipIcon, to: "/ota" },
+        { label: t("ota.rollout.nav.rollouts"), icon: SendHorizontalIcon, to: "/ota/rollouts" },
       ],
     },
     {

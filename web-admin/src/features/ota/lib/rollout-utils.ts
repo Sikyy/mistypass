@@ -24,7 +24,9 @@ export function availableRolloutActions(state: string): RolloutActionName[] {
   }
 }
 
-export function rolloutStateBadgeVariant(state: string): string {
+type BadgeVariant = "default" | "secondary" | "destructive" | "success" | "warning" | "danger" | "outline" | "ghost" | "link"
+
+export function rolloutStateBadgeVariant(state: string): BadgeVariant {
   switch (state) {
     case "active": return "default"
     case "completed": return "success"

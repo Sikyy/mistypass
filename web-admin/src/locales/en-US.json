@@ -4821,6 +4821,32 @@
   },
   "ota": {
     "nav": { "firmware": "Firmware" },
+    "rollout": {
+      "nav": { "rollouts": "Rollouts" },
+      "pageTitle": "OTA Rollouts",
+      "list": {
+        "title": "Rollout History",
+        "description": "All OTA rollouts for this tenant.",
+        "loading": "Loading…",
+        "empty": "No rollouts yet.",
+        "colFirmware": "Firmware",
+        "colTarget": "Target",
+        "colState": "State",
+        "colPhase": "Phase",
+        "colCreated": "Created"
+      },
+      "state": {
+        "active": "Active",
+        "completed": "Completed",
+        "failed": "Failed",
+        "paused": "Paused",
+        "awaiting_approval": "Awaiting Approval",
+        "scheduled": "Scheduled",
+        "pending": "Pending",
+        "aborted": "Aborted"
+      },
+      "errors": { "generic": "Something went wrong." }
+    },
     "firmware": {
       "pageTitle": "Firmware Management",
       "summary": {

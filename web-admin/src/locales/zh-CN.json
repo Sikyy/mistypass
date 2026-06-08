@@ -4934,6 +4934,32 @@
   },
   "ota": {
     "nav": { "firmware": "固件" },
+    "rollout": {
+      "nav": { "rollouts": "推送任务" },
+      "pageTitle": "OTA 推送",
+      "list": {
+        "title": "推送历史",
+        "description": "此租户的所有 OTA 推送任务。",
+        "loading": "加载中…",
+        "empty": "暂无推送任务。",
+        "colFirmware": "固件",
+        "colTarget": "目标",
+        "colState": "状态",
+        "colPhase": "阶段",
+        "colCreated": "创建时间"
+      },
+      "state": {
+        "active": "进行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "paused": "已暂停",
+        "awaiting_approval": "待审批",
+        "scheduled": "已排期",
+        "pending": "等待中",
+        "aborted": "已中止"
+      },
+      "errors": { "generic": "发生错误，请重试。" }
+    },
     "firmware": {
       "pageTitle": "固件管理",
       "summary": {
