@@ -73,4 +73,8 @@ export const queryKeys = {
   // --- Access ---
   accessBaseData: ns("access-base-data"),
   accessLinkClaim: ns("access-link-claim"),
+
+  // --- OTA / Firmware ---
+  firmwareSummary: ns("ota-firmware-summary"),
+  firmwareList: ns("ota-firmware-list"),
 } as const
