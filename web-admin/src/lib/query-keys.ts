@@ -77,4 +77,8 @@ export const queryKeys = {
   // --- OTA / Firmware ---
   firmwareSummary: ns("ota-firmware-summary"),
   firmwareList: ns("ota-firmware-list"),
+
+  // --- OTA / Rollouts ---
+  rolloutList: ns("ota-rollout-list"),
+  rolloutDetail: ns("ota-rollout-detail"),
 } as const
