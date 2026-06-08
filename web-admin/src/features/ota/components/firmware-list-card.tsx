@@ -7,7 +7,7 @@ import { useFirmwareList } from "../hooks/use-firmware"
 import { formatBytes, truncateHex } from "../lib/firmware-utils"
 
 export function FirmwareListCard({ token, tenantID }: { token: string | undefined; tenantID: string | undefined }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [channel, setChannel] = useState("")
   const query = useFirmwareList(token, tenantID, channel)
   const items = query.data ?? []
@@ -52,7 +52,7 @@ export function FirmwareListCard({ token, tenantID }: { token: string | undefine
                   <TableCell><span title={fw.sha256} className="font-mono text-xs">{truncateHex(fw.sha256)}</span></TableCell>
                   <TableCell>{formatBytes(fw.size_bytes)}</TableCell>
                   <TableCell>{fw.uploaded_by ?? "—"}</TableCell>
-                  <TableCell>{new Date(fw.created_at).toLocaleString()}</TableCell>
+                  <TableCell>{new Date(fw.created_at).toLocaleString(i18n.language)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
