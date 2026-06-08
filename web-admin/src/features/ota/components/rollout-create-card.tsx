@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
 import { Controller, useFieldArray, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
@@ -58,9 +58,9 @@ export function RolloutCreateCard({ token, tenantID }: { token: string | undefin
           building_id: z.string().optional(),
           gateway_ids: z.array(z.string()),
           phases: z
-            .array(z.object({ percentage: z.coerce.number(), requires_approval: z.boolean() }))
+            .array(z.object({ percentage: z.number(), requires_approval: z.boolean() }))
             .refine(validatePhases, t("ota.rollout.create.validation.phasesInvalid")),
-          failure_threshold_pct: z.coerce.number().min(0).max(100),
+          failure_threshold_pct: z.number().min(0).max(100),
           startAtLocal: z.string().optional(),
           windowStart: z
             .string()
