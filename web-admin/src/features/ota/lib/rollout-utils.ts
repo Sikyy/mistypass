@@ -59,6 +59,19 @@ export function buildSchedulePayload(input: { startAtLocal?: string; windowStart
   return Object.keys(sch).length > 0 ? sch : undefined
 }
 
+export function formatSchedule(s: RolloutSchedule, locale?: string): string {
+  const parts: string[] = []
+  if (s.window_start && s.window_end) {
+    parts.push(`${s.window_start}–${s.window_end}${s.timezone ? ` (${s.timezone})` : ""}`)
+  } else if (s.timezone) {
+    parts.push(s.timezone)
+  }
+  if (s.start_at) {
+    parts.push(`≥ ${new Date(s.start_at).toLocaleString(locale)}`)
+  }
+  return parts.length > 0 ? parts.join(", ") : "—"
+}
+
 export function targetSummary(target: RolloutTarget): string {
   if (target.kind === "all") return "All gateways"
   if (target.kind === "building") return `Building ${target.building_id ?? "—"}`

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { CurrentUser } from "@/lib/api"
 import type { RolloutActionName } from "@/lib/api/ota"
 import { useRolloutActionMutation, useRolloutDetail } from "../hooks/use-rollouts"
-import { availableRolloutActions, rolloutStateBadgeVariant, targetSummary } from "../lib/rollout-utils"
+import { availableRolloutActions, formatSchedule, rolloutStateBadgeVariant, targetSummary } from "../lib/rollout-utils"
 
 const WRITE_ROLES: CurrentUser["role"][] = ["super_admin", "tenant_admin", "building_admin"]
 
@@ -34,7 +34,7 @@ export function RolloutDetail({ token, tenantID, viewer, id }: { token: string |
           <p>{t("ota.rollout.detail.target")}: {targetSummary(rollout.target)}</p>
           <p>{t("ota.rollout.detail.phase")}: {rollout.current_phase + 1}/{rollout.phases.length} ({rollout.phases.map((p) => `${p.percentage}%${p.requires_approval ? "*" : ""}`).join(" → ")})</p>
           <p>{t("ota.rollout.detail.threshold")}: {rollout.failure_threshold_pct}%</p>
-          {rollout.schedule && <p>{t("ota.rollout.detail.schedule")}: {JSON.stringify(rollout.schedule)}</p>}
+          {rollout.schedule && <p>{t("ota.rollout.detail.schedule")}: {formatSchedule(rollout.schedule, i18n.language)}</p>}
           <div className="flex gap-2 pt-2">
             {actions.map((a) => a === "abort" ? (
               <Button key={a} variant="destructive" size="sm" disabled={action.isPending} onClick={() => setConfirmAbort(true)}>{t("ota.rollout.detail.actions.abort")}</Button>

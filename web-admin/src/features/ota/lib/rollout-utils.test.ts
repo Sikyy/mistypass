@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { availableRolloutActions, buildSchedulePayload, buildingOptions, isHHMM, rolloutStateBadgeVariant, targetSummary, validatePhases } from "./rollout-utils"
+import { availableRolloutActions, buildSchedulePayload, buildingOptions, formatSchedule, isHHMM, rolloutStateBadgeVariant, targetSummary, validatePhases } from "./rollout-utils"
 
 describe("rollout-utils", () => {
   it("validatePhases", () => {
@@ -44,5 +44,11 @@ describe("rollout-utils", () => {
   it("targetSummary", () => {
     expect(targetSummary({ kind: "all" })).toContain("All")
     expect(targetSummary({ kind: "gateways", gateway_ids: ["a", "b"] })).toContain("2")
+  })
+  it("formatSchedule", () => {
+    expect(formatSchedule({ window_start: "02:00", window_end: "05:00", timezone: "Asia/Jakarta" })).toBe("02:00–05:00 (Asia/Jakarta)")
+    expect(formatSchedule({ timezone: "UTC" })).toBe("UTC")
+    expect(formatSchedule({})).toBe("—")
+    expect(formatSchedule({ window_start: "02:00", window_end: "05:00" })).toBe("02:00–05:00")
   })
 })
