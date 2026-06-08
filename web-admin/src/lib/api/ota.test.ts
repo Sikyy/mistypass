@@ -46,4 +46,11 @@ describe("ota api", () => {
     const headers = new Headers(init.headers)
     expect(headers.get("Content-Type")).toBeNull()
   })
+  it("getFirmwareSummary defaults to zeros on an empty response", async () => {
+    mockFetchOnce({})
+    const res = await getFirmwareSummary("tok")
+    expect(res.total).toBe(0)
+    expect(res.reported).toBe(0)
+    expect(res.versions).toEqual([])
+  })
 })

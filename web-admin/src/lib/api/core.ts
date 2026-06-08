@@ -411,20 +411,40 @@ export async function requestFormData<T>(
 ): Promise<T> {
   const headers = new Headers()
   const activeToken = resolveAuthToken(token)
-  if (activeToken) headers.set("Authorization", `Bearer ${activeToken}`)
+  if (activeToken) {
+    headers.set("Authorization", `Bearer ${activeToken}`)
+  }
   // NO Content-Type: the browser sets multipart/form-data with the boundary.
-  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: formData })
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  })
+
   if (response.status === 401 && activeToken && !options.skipAuthRecovery) {
     const refreshedToken = await refreshAccessToken()
-    if (refreshedToken) return requestFormData<T>(path, formData, refreshedToken, { skipAuthRecovery: true })
+    if (refreshedToken) {
+      return requestFormData<T>(path, formData, refreshedToken, { skipAuthRecovery: true })
+    }
     throw new APIError(401, "Session expired, please sign in again")
   }
+
   if (!response.ok) {
     const errorDetails = await parseAPIErrorDetails(response)
-    if (response.status === 401) clearSession()
-    throw new APIError(response.status, errorDetails.message, { code: errorDetails.code, responseStatus: errorDetails.responseStatus })
+    if (response.status === 401) {
+      clearSession()
+    }
+    throw new APIError(response.status, errorDetails.message, {
+      code: errorDetails.code,
+      responseStatus: errorDetails.responseStatus,
+    })
   }
-  if (response.status === 204) return undefined as T
+
+  if (response.status === 204) {
+    return undefined as T
+  }
+
   return (await response.json()) as T
 }
 

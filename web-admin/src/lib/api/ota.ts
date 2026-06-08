@@ -30,5 +30,6 @@ export async function uploadFirmware(token: string | undefined, tenantID: string
   fd.set("sha256", input.sha256)
   fd.set("signature", input.signature)
   fd.set("file", input.file)
+  // tenant_id goes on the query string (backend reads it via resolveTenantID); the form body carries only the artifact fields.
   return requestFormData<GatewayFirmware>(`/api/v1/gateways/firmware${firmwareQuery(tenantID)}`, fd, token)
 }
