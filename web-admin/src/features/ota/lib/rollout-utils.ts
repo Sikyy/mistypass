@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next"
 import type { RolloutPhase, RolloutSchedule, RolloutTarget } from "@/lib/api/ota"
 
 export type { RolloutActionName } from "@/lib/api/ota"
@@ -72,8 +73,8 @@ export function formatSchedule(s: RolloutSchedule, locale?: string): string {
   return parts.length > 0 ? parts.join(", ") : "—"
 }
 
-export function targetSummary(target: RolloutTarget): string {
-  if (target.kind === "all") return "All gateways"
-  if (target.kind === "building") return `Building ${target.building_id ?? "—"}`
-  return `${target.gateway_ids?.length ?? 0} gateways`
+export function targetSummary(target: RolloutTarget, t: TFunction): string {
+  if (target.kind === "all") return t("ota.rollout.targetSummary.all")
+  if (target.kind === "building") return t("ota.rollout.targetSummary.building", { id: target.building_id ?? "—" })
+  return t("ota.rollout.targetSummary.gateways", { count: target.gateway_ids?.length ?? 0 })
 }

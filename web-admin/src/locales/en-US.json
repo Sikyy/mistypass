@@ -4846,6 +4846,7 @@
         "aborted": "Aborted"
       },
       "errors": { "generic": "Something went wrong." },
+      "targetSummary": { "all": "All gateways", "building": "Building {{id}}", "gateways": "{{count}} gateways" },
       "create": {
         "title": "Create Rollout",
         "description": "Roll out a firmware version to a set of gateways in phases.",

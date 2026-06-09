@@ -4959,6 +4959,7 @@
         "aborted": "已中止"
       },
       "errors": { "generic": "发生错误，请重试。" },
+      "targetSummary": { "all": "全部网关", "building": "楼栋 {{id}}", "gateways": "{{count}} 个网关" },
       "create": {
         "title": "创建发布",
         "description": "将固件版本分阶段推送到一组网关。",

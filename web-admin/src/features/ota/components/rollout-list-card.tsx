@@ -39,7 +39,7 @@ export function RolloutListCard({ token, tenantID }: { token: string | undefined
               {items.map((r) => (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/ota/rollouts/${r.id}`)}>
                   <TableCell>{r.firmware_version}</TableCell>
-                  <TableCell>{targetSummary(r.target)}</TableCell>
+                  <TableCell>{targetSummary(r.target, t)}</TableCell>
                   <TableCell><Badge variant={rolloutStateBadgeVariant(r.state)}>{t(`ota.rollout.state.${r.state}`)}</Badge></TableCell>
                   <TableCell>{r.current_phase + 1}/{r.phases.length}</TableCell>
                   <TableCell>{new Date(r.created_at).toLocaleString(i18n.language)}</TableCell>

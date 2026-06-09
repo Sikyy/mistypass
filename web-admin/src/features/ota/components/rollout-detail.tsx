@@ -31,7 +31,7 @@ export function RolloutDetail({ token, tenantID, viewer, id }: { token: string |
         <CardHeader><CardTitle className="flex items-center gap-3">{t("ota.rollout.detail.title")} <Badge variant={rolloutStateBadgeVariant(rollout.state)}>{t(`ota.rollout.state.${rollout.state}`)}</Badge></CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
           <p>{t("ota.rollout.detail.firmware")}: {rollout.firmware_version}</p>
-          <p>{t("ota.rollout.detail.target")}: {targetSummary(rollout.target)}</p>
+          <p>{t("ota.rollout.detail.target")}: {targetSummary(rollout.target, t)}</p>
           <p>{t("ota.rollout.detail.phase")}: {rollout.current_phase + 1}/{rollout.phases.length} ({rollout.phases.map((p) => `${p.percentage}%${p.requires_approval ? "*" : ""}`).join(" → ")})</p>
           <p>{t("ota.rollout.detail.threshold")}: {rollout.failure_threshold_pct}%</p>
           {rollout.schedule && <p>{t("ota.rollout.detail.schedule")}: {formatSchedule(rollout.schedule, i18n.language)}</p>}

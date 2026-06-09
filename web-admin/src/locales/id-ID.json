@@ -4846,6 +4846,7 @@
         "aborted": "Dibatalkan"
       },
       "errors": { "generic": "Terjadi kesalahan." },
+      "targetSummary": { "all": "Semua gateway", "building": "Gedung {{id}}", "gateways": "{{count}} gateway" },
       "create": {
         "title": "Buat Peluncuran",
         "description": "Luncurkan versi firmware ke sejumlah gateway secara bertahap.",

@@ -41,9 +41,11 @@ describe("rollout-utils", () => {
     expect(typeof p2?.start_at).toBe("string")
     expect(p2?.start_at).toContain("T")
   })
-  it("targetSummary", () => {
-    expect(targetSummary({ kind: "all" })).toContain("All")
-    expect(targetSummary({ kind: "gateways", gateway_ids: ["a", "b"] })).toContain("2")
+  it("targetSummary builds i18n keys + params", () => {
+    const t = ((key: string, params?: Record<string, unknown>) => (params ? `${key} ${JSON.stringify(params)}` : key)) as unknown as import("i18next").TFunction
+    expect(targetSummary({ kind: "all" }, t)).toBe("ota.rollout.targetSummary.all")
+    expect(targetSummary({ kind: "building", building_id: "b1" }, t)).toContain("b1")
+    expect(targetSummary({ kind: "gateways", gateway_ids: ["a", "b"] }, t)).toContain("2")
   })
   it("formatSchedule", () => {
     expect(formatSchedule({ window_start: "02:00", window_end: "05:00", timezone: "Asia/Jakarta" })).toBe("02:00–05:00 (Asia/Jakarta)")
