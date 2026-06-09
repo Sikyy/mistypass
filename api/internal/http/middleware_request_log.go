@@ -2,11 +2,42 @@ package httpx
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 )
+
+// sensitiveQueryParams are signed-URL credentials that must never be written to
+// request logs. They appear on the signed blob endpoints under /api/v1/uploads/
+// (avatars, credential photos, documents, OTA firmware). Logging the raw `sig`
+// hands anyone with log access a short-lived download/upload capability.
+var sensitiveQueryParams = []string{"sig", "uid", "expires"}
+
+// redactSensitiveQuery returns rawQuery with signed-URL credential values replaced
+// by "REDACTED" for the /api/v1/uploads/ blob endpoints. Other paths and queries
+// without sensitive params are returned unchanged (no re-encoding).
+func redactSensitiveQuery(path, rawQuery string) string {
+	if rawQuery == "" || !strings.HasPrefix(path, "/api/v1/uploads/") {
+		return rawQuery
+	}
+	values, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return "REDACTED"
+	}
+	redacted := false
+	for _, key := range sensitiveQueryParams {
+		if values.Has(key) {
+			values.Set(key, "REDACTED")
+			redacted = true
+		}
+	}
+	if !redacted {
+		return rawQuery
+	}
+	return values.Encode()
+}
 
 type requestLogResponseWriter struct {
 	http.ResponseWriter
@@ -65,7 +96,7 @@ func (s *server) withRequestLog(next http.Handler) http.Handler {
 			"http request completed",
 			"method", r.Method,
 			"path", r.URL.Path,
-			"query", r.URL.RawQuery,
+			"query", redactSensitiveQuery(r.URL.Path, r.URL.RawQuery),
 			"status", status,
 			"duration_ms", duration.Milliseconds(),
 			"request_id", requestID,
