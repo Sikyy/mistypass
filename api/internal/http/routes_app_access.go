@@ -21,8 +21,10 @@ func (s *server) appUnlockDoor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		LockID   string `json:"lock_id"`
-		BLEToken string `json:"ble_token"`
+		LockID    string   `json:"lock_id"`
+		BLEToken  string   `json:"ble_token"`
+		Latitude  *float64 `json:"latitude"`
+		Longitude *float64 `json:"longitude"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -57,19 +59,37 @@ func (s *server) appUnlockDoor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allowed, groupName := s.checkUserLockAccess(tenantID, accessUser.GroupIDs, lockID)
-	if !allowed {
-		allowed = s.checkRoleAssignmentAccess(tenantID, user.ID, door.BuildingID)
-		if allowed {
+	groupAllowed, groupName := s.checkUserLockAccess(tenantID, accessUser.GroupIDs, lockID)
+	roleAllowed := false
+	if !groupAllowed {
+		roleAllowed = s.checkRoleAssignmentAccess(tenantID, user.ID, door.BuildingID)
+		if roleAllowed {
 			groupName = "role_assignment"
 		}
 	}
 
-	if !allowed {
+	if !groupAllowed && !roleAllowed {
 		s.recordAppAccessEvent(tenantID, lockID, user.Email, "access_denied", "no_access")
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"decision": "deny",
 			"reason":   "no_access",
+			"lock_id":  lockID,
+		})
+		return
+	}
+
+	// Geofence enforcement: when access comes only through geofenced group(s),
+	// the request must carry coordinates within the granting group's radius.
+	hasLoc := req.Latitude != nil && req.Longitude != nil
+	var lat, lon float64
+	if hasLoc {
+		lat, lon = *req.Latitude, *req.Longitude
+	}
+	if ok, reason := evaluateGeofenceAccess(s.grantingUserGroupsForLock(tenantID, accessUser.GroupIDs, lockID), roleAllowed, hasLoc, lat, lon); !ok {
+		s.recordAppAccessEvent(tenantID, lockID, user.Email, "access_denied", reason)
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"decision": "deny",
+			"reason":   reason,
 			"lock_id":  lockID,
 		})
 		return

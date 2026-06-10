@@ -270,6 +270,14 @@ func (s *server) appPlaceUnlockDoor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Optional geofence coordinates. The body is optional for this endpoint, so a
+	// missing/empty/invalid body simply means "no coordinates supplied".
+	var locReq struct {
+		Latitude  *float64 `json:"latitude"`
+		Longitude *float64 `json:"longitude"`
+	}
+	_ = decodeJSON(r, &locReq)
+
 	now := time.Now().UTC()
 	tenantID := user.TenantID
 
@@ -299,20 +307,38 @@ func (s *server) appPlaceUnlockDoor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allowed, groupName := s.checkUserLockAccess(tenantID, accessUser.GroupIDs, doorID)
-	if !allowed {
-		allowed = s.checkRoleAssignmentAccess(tenantID, user.ID, door.BuildingID)
-		if allowed {
+	groupAllowed, groupName := s.checkUserLockAccess(tenantID, accessUser.GroupIDs, doorID)
+	roleAllowed := false
+	if !groupAllowed {
+		roleAllowed = s.checkRoleAssignmentAccess(tenantID, user.ID, door.BuildingID)
+		if roleAllowed {
 			groupName = "role_assignment"
 		}
 	}
 
-	if !allowed {
+	if !groupAllowed && !roleAllowed {
 		s.logger.Error("unlock denied: no_access", "tenant_id", tenantID, "user_id", user.ID, "door_id", doorID, "groups", accessUser.GroupIDs)
 		s.recordAppAccessEvent(tenantID, doorID, user.Email, "access_denied", "no_access")
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"decision": "deny",
 			"reason":   "no_access",
+			"lock_id":  doorID,
+		})
+		return
+	}
+
+	// Geofence enforcement: when access comes only through geofenced group(s),
+	// the request must carry coordinates within the granting group's radius.
+	hasLoc := locReq.Latitude != nil && locReq.Longitude != nil
+	var lat, lon float64
+	if hasLoc {
+		lat, lon = *locReq.Latitude, *locReq.Longitude
+	}
+	if ok, reason := evaluateGeofenceAccess(s.grantingUserGroupsForLock(tenantID, accessUser.GroupIDs, doorID), roleAllowed, hasLoc, lat, lon); !ok {
+		s.recordAppAccessEvent(tenantID, doorID, user.Email, "access_denied", reason)
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"decision": "deny",
+			"reason":   reason,
 			"lock_id":  doorID,
 		})
 		return

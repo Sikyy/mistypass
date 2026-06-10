@@ -203,6 +203,8 @@ type referenceGroupPayload struct {
 	LoginEnabled                    *bool    `json:"login_enabled"`
 	GeofenceRestrictionEnabled      *bool    `json:"geofence_restriction_enabled"`
 	GeofenceRestrictionRadius       *float64 `json:"geofence_restriction_radius"`
+	GeofenceRestrictionLatitude     *float64 `json:"geofence_restriction_latitude"`
+	GeofenceRestrictionLongitude    *float64 `json:"geofence_restriction_longitude"`
 	PrimaryDeviceRestrictionEnabled *bool    `json:"primary_device_restriction_enabled"`
 	ManagedDeviceRestrictionEnabled *bool    `json:"managed_device_restriction_enabled"`
 	ReaderRestrictionEnabled        *bool    `json:"reader_restriction_enabled"`
@@ -223,6 +225,8 @@ type referenceGroupMutationRequest struct {
 	LoginEnabled                    *bool                  `json:"login_enabled"`
 	GeofenceRestrictionEnabled      *bool                  `json:"geofence_restriction_enabled"`
 	GeofenceRestrictionRadius       *float64               `json:"geofence_restriction_radius"`
+	GeofenceRestrictionLatitude     *float64               `json:"geofence_restriction_latitude"`
+	GeofenceRestrictionLongitude    *float64               `json:"geofence_restriction_longitude"`
 	PrimaryDeviceRestrictionEnabled *bool                  `json:"primary_device_restriction_enabled"`
 	ManagedDeviceRestrictionEnabled *bool                  `json:"managed_device_restriction_enabled"`
 	ReaderRestrictionEnabled        *bool                  `json:"reader_restriction_enabled"`
@@ -246,6 +250,8 @@ func (request referenceGroupMutationRequest) payload() referenceGroupPayload {
 		LoginEnabled:                    request.LoginEnabled,
 		GeofenceRestrictionEnabled:      request.GeofenceRestrictionEnabled,
 		GeofenceRestrictionRadius:       request.GeofenceRestrictionRadius,
+		GeofenceRestrictionLatitude:     request.GeofenceRestrictionLatitude,
+		GeofenceRestrictionLongitude:    request.GeofenceRestrictionLongitude,
 		PrimaryDeviceRestrictionEnabled: request.PrimaryDeviceRestrictionEnabled,
 		ManagedDeviceRestrictionEnabled: request.ManagedDeviceRestrictionEnabled,
 		ReaderRestrictionEnabled:        request.ReaderRestrictionEnabled,
@@ -261,6 +267,8 @@ func referenceGroupPayloadHasRestrictions(payload referenceGroupPayload) bool {
 	return payload.LoginEnabled != nil ||
 		payload.GeofenceRestrictionEnabled != nil ||
 		payload.GeofenceRestrictionRadius != nil ||
+		payload.GeofenceRestrictionLatitude != nil ||
+		payload.GeofenceRestrictionLongitude != nil ||
 		payload.PrimaryDeviceRestrictionEnabled != nil ||
 		payload.ManagedDeviceRestrictionEnabled != nil ||
 		payload.ReaderRestrictionEnabled != nil ||
@@ -274,6 +282,8 @@ func referenceGroupRestrictionsInput(payload referenceGroupPayload) access.UserG
 		LoginEnabled:                    payload.LoginEnabled,
 		GeofenceRestrictionEnabled:      payload.GeofenceRestrictionEnabled,
 		GeofenceRestrictionRadius:       payload.GeofenceRestrictionRadius,
+		GeofenceRestrictionLatitude:     payload.GeofenceRestrictionLatitude,
+		GeofenceRestrictionLongitude:    payload.GeofenceRestrictionLongitude,
 		PrimaryDeviceRestrictionEnabled: payload.PrimaryDeviceRestrictionEnabled,
 		ManagedDeviceRestrictionEnabled: payload.ManagedDeviceRestrictionEnabled,
 		ReaderRestrictionEnabled:        payload.ReaderRestrictionEnabled,

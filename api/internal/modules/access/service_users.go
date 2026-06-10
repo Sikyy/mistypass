@@ -1549,6 +1549,12 @@ func (s *Service) UpdateUserGroupRestrictions(tenantID, groupID string, input Us
 		if input.GeofenceRestrictionRadius != nil {
 			s.userGroups[i].GeofenceRestrictionRadius = *input.GeofenceRestrictionRadius
 		}
+		if input.GeofenceRestrictionLatitude != nil {
+			s.userGroups[i].GeofenceRestrictionLatitude = *input.GeofenceRestrictionLatitude
+		}
+		if input.GeofenceRestrictionLongitude != nil {
+			s.userGroups[i].GeofenceRestrictionLongitude = *input.GeofenceRestrictionLongitude
+		}
 		if input.PrimaryDeviceRestrictionEnabled != nil {
 			s.userGroups[i].PrimaryDeviceRestrictionEnabled = *input.PrimaryDeviceRestrictionEnabled
 		}

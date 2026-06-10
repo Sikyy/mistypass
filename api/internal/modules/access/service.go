@@ -251,6 +251,8 @@ type UserGroup struct {
 	LoginEnabled                    bool      `json:"login_enabled"`
 	GeofenceRestrictionEnabled      bool      `json:"geofence_restriction_enabled"`
 	GeofenceRestrictionRadius       float64   `json:"geofence_restriction_radius"`
+	GeofenceRestrictionLatitude     float64   `json:"geofence_restriction_latitude"`
+	GeofenceRestrictionLongitude    float64   `json:"geofence_restriction_longitude"`
 	PrimaryDeviceRestrictionEnabled bool      `json:"primary_device_restriction_enabled"`
 	ManagedDeviceRestrictionEnabled bool      `json:"managed_device_restriction_enabled"`
 	ReaderRestrictionEnabled        bool      `json:"reader_restriction_enabled"`
@@ -269,6 +271,8 @@ type UserGroupRestrictionsInput struct {
 	LoginEnabled                    *bool
 	GeofenceRestrictionEnabled      *bool
 	GeofenceRestrictionRadius       *float64
+	GeofenceRestrictionLatitude     *float64
+	GeofenceRestrictionLongitude    *float64
 	PrimaryDeviceRestrictionEnabled *bool
 	ManagedDeviceRestrictionEnabled *bool
 	ReaderRestrictionEnabled        *bool
@@ -761,6 +765,8 @@ func NewService() *Service {
 				LoginEnabled:                    true,
 				GeofenceRestrictionEnabled:      true,
 				GeofenceRestrictionRadius:       150,
+				GeofenceRestrictionLatitude:     -6.2088,
+				GeofenceRestrictionLongitude:    106.8456,
 				PrimaryDeviceRestrictionEnabled: true,
 				TapToAccessRestrictionEnabled:   true,
 				Members:                         []string{"usr_1001"},

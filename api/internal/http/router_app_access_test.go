@@ -18,8 +18,9 @@ func TestAppUnlockDoor(t *testing.T) {
 	}
 	token := referenceAPILogin(t, router, "resident.jakarta@mistypass.local")
 
-	// unlock door_jkt_001
-	body := []byte(`{"lock_id":"door_jkt_001"}`)
+	// unlock door_jkt_001 — the resident's access is via the geofenced
+	// "Common Office Access" group, so coordinates within its radius are required.
+	body := []byte(`{"lock_id":"door_jkt_001","latitude":-6.2088,"longitude":106.8456}`)
 	rec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/access/unlock", token, body)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
