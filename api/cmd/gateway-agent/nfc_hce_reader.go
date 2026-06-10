@@ -89,7 +89,7 @@ func (r *NFCHCEReader) handleOnce() {
 	)
 
 	// Verify using v2 protocol with NFC_HCE transport tag
-	result := r.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagNFCHCE)
+	result := r.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagNFCHCE, r.lockID)
 
 	if result.Code == BLEResultGranted {
 		// Debounce: skip if same user was just granted within cooldown

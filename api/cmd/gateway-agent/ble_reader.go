@@ -147,7 +147,7 @@ func (b *BLEReader) handleSession(conn net.Conn) {
 	)
 
 	// Step 3: Verify with v2 (transport tag + nonce replay + gateway_id check)
-	result := b.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagBLE)
+	result := b.agent.VerifyAuthResponseV2(response, challengeBytes, TransportTagBLE, b.lockID)
 	conn.Write(result.Encode())
 
 	if result.Code == BLEResultGranted {

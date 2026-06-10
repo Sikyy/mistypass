@@ -139,6 +139,62 @@ func TestBLETCPSmoke_NonceReplay(t *testing.T) {
 	}
 }
 
+// TestBLETCPSmoke_UnauthorizedDoorDenied is the regression guard for the v2
+// broken-access-control bug: VerifyAuthResponseV2 granted access after a valid
+// ECDSA verify without ever consulting rule.LockIDs, so any valid credential
+// could open every BLE/NFC-HCE door the gateway served.
+//
+// Here the user's credential authorizes only door_A, but the reader is bound to
+// door_B. A valid signature MUST still be DENIED with reason "no_access_to_lock".
+// Mirrors the v1 door_factory_999 assertion in ble_protocol_test.go.
+func TestBLETCPSmoke_UnauthorizedDoorDenied(t *testing.T) {
+	priv, pubPEM := generateTestECKey(t)
+	userID := "usr_crossdoor_001"
+	authorizedLock := "door_A"
+	readerLock := "door_B"
+	var gatewayIDUint32 uint32 = 12345
+
+	agent := &Agent{
+		logger:          testLogger(),
+		rulesCacheTTL:   24 * time.Hour,
+		rulesUpdatedAt:  time.Now(),
+		gatewayID:       "gw_crossdoor_001",
+		gatewayIDUint32: gatewayIDUint32,
+		accessRules: []AccessRule{
+			{
+				CredentialType: "ble_signature",
+				CredentialData: pubPEM,
+				UserID:         userID,
+				UserEmail:      "crossdoor@test.local",
+				LockIDs:        []string{authorizedLock},
+			},
+		},
+		relay:          &DryRunRelay{logger: testLogger()},
+		unlockDuration: 1 * time.Second,
+	}
+
+	// Reader is bound to door_B, but the user is only authorized for door_A.
+	reader := NewBLEReader(testLogger(), readerLock, agent)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	reader.listener = ln
+	reader.running = true
+	go reader.acceptLoop()
+	defer reader.Stop()
+
+	addr := ln.Addr().String()
+
+	result := doBLETCPAuth(t, addr, priv, userID, TransportTagBLE)
+	if result.Code == BLEResultGranted {
+		t.Fatalf("expected DENIED (user authorized for %s, reader bound to %s), got GRANTED", authorizedLock, readerLock)
+	}
+	if result.Reason != "no_access_to_lock" {
+		t.Fatalf("expected denial reason 'no_access_to_lock', got code=%d reason=%q", result.Code, result.Reason)
+	}
+}
+
 // doBLETCPAuth connects to the BLE TCP simulator, performs the full v2
 // challenge-response handshake, and returns the auth result.
 // This mirrors exactly what MistyisletBleManager.authenticate() does on Android.

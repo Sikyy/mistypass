@@ -784,9 +784,13 @@ func (a *Agent) VerifyBLEAuth(challenge *BLEChallenge, response *BLEAuthResponse
 }
 
 // VerifyAuthResponseV2 performs the full v2 verification chain in fast-to-slow order:
-// nonce cache -> cache freshness -> gateway_id -> credential lookup -> ECDSA verify.
+// nonce cache -> cache freshness -> gateway_id -> credential lookup -> ECDSA verify
+// -> per-lock authorization.
 // transport is "BLE" or "NFC_HCE" (use TransportTagBLE / TransportTagNFCHCE).
-func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, transport string) BLEAuthResult {
+// lockID is the door this reader controls; the credential whose signature verifies
+// must list it in its rule's LockIDs, otherwise access is denied. Without this
+// check any valid ble_signature could open every door the gateway serves.
+func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, transport string, lockID string) BLEAuthResult {
 	if len(challenge) < 32 {
 		return BLEAuthResult{Code: BLEResultDenied, Reason: "challenge_too_short"}
 	}
@@ -821,6 +825,7 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 	type candidateKey struct {
 		publicKeyPEM string
 		userEmail    string
+		lockIDs      []string
 	}
 	now := time.Now().UTC()
 	a.mu.RLock()
@@ -836,6 +841,7 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 			candidates = append(candidates, candidateKey{
 				publicKeyPEM: rule.CredentialData,
 				userEmail:    rule.UserEmail,
+				lockIDs:      rule.LockIDs,
 			})
 		}
 	}
@@ -850,10 +856,12 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 	copy(nonceArr[:], nonce)
 	var lastErr error
 	var matchedEmail string
+	var matchedLockIDs []string
 	for _, cand := range candidates {
 		err := VerifyBLESignatureV2(cand.publicKeyPEM, nonceArr, resp.UserID, transport, resp.Signature)
 		if err == nil {
 			matchedEmail = cand.userEmail
+			matchedLockIDs = cand.lockIDs
 			lastErr = nil
 			break
 		}
@@ -863,7 +871,22 @@ func (a *Agent) VerifyAuthResponseV2(resp *BLEAuthResponse, challenge []byte, tr
 		return BLEAuthResult{Code: BLEResultInvalidSignature, Reason: lastErr.Error()}
 	}
 
-	// 5. Mark nonce as used (only after successful verification)
+	// 5. Per-lock authorization — the credential whose signature verified must be
+	// authorized for the door this reader controls. Mirrors the v1 LockIDs check
+	// in VerifyBLEAuth/VerifyCredential; its absence here was a broken-access-control
+	// bug that let any valid credential open every door the gateway served.
+	authorized := false
+	for _, id := range matchedLockIDs {
+		if id == lockID {
+			authorized = true
+			break
+		}
+	}
+	if !authorized {
+		return BLEAuthResult{Code: BLEResultDenied, Reason: "no_access_to_lock"}
+	}
+
+	// 6. Mark nonce as used (only after successful verification + authorization)
 	if a.nonceCache != nil {
 		a.nonceCache.Add(nonce)
 	}
