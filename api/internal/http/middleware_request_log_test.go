@@ -58,6 +58,99 @@ func TestWithRequestLogDefaultsStatusWhenHandlerDoesNotWrite(t *testing.T) {
 	assertContains(t, buf.String(), `"status":200`)
 }
 
+func TestWithRequestLogRedactsSignedDownloadQueryParams(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	s := &server{logger: logger}
+
+	handler := s.withRequestLog(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	const secretSig = "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/uploads/upl_abc123?sig="+secretSig+"&expires=1893456000", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	output := buf.String()
+	if strings.Contains(output, secretSig) {
+		t.Fatalf("log output leaked raw upload signature, output=%s", output)
+	}
+	assertContains(t, output, `"path":"/api/v1/uploads/upl_abc123"`)
+	assertContains(t, output, "sig=REDACTED")
+	assertContains(t, output, "expires=REDACTED")
+}
+
+func TestWithRequestLogRedactsSignedUploadQueryParams(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	s := &server{logger: logger}
+
+	handler := s.withRequestLog(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+
+	const secretSig = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/uploads/upl_def456?sig="+secretSig+"&uid=user-123&expires=1893456000", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	output := buf.String()
+	if strings.Contains(output, secretSig) {
+		t.Fatalf("log output leaked raw upload signature, output=%s", output)
+	}
+	if strings.Contains(output, "user-123") {
+		t.Fatalf("log output leaked raw uid, output=%s", output)
+	}
+	assertContains(t, output, "sig=REDACTED")
+	assertContains(t, output, "uid=REDACTED")
+	assertContains(t, output, "expires=REDACTED")
+}
+
+func TestWithRequestLogRedactsPercentEncodedSensitiveKeys(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	s := &server{logger: logger}
+
+	handler := s.withRequestLog(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+
+	const secretSig = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	// %73ig decodes to "sig" and %65xpires to "expires": the uploads handlers read
+	// params via r.URL.Query(), which percent-decodes key names, so these spellings
+	// are honored as live capabilities and must be redacted just the same.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/uploads/upl_ghi789?%73ig="+secretSig+"&%65xpires=1893456000&uid=user-456", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	output := buf.String()
+	if strings.Contains(output, secretSig) {
+		t.Fatalf("log output leaked percent-encoded signature, output=%s", output)
+	}
+	if strings.Contains(output, "user-456") {
+		t.Fatalf("log output leaked raw uid, output=%s", output)
+	}
+	assertContains(t, output, "uid=REDACTED")
+}
+
+func TestWithRequestLogDoesNotRedactNonUploadQuery(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	s := &server{logger: logger}
+
+	handler := s.withRequestLog(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// A "sig" query param outside the uploads endpoints must be logged verbatim.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/health?sig=keepme&region=ap", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assertContains(t, buf.String(), `"query":"sig=keepme&region=ap"`)
+}
+
 func assertContains(t *testing.T, content, expected string) {
 	t.Helper()
 	if !strings.Contains(content, expected) {
