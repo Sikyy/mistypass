@@ -153,6 +153,11 @@ func (s *server) updateGuestStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.EqualFold(strings.TrimSpace(request.Status), "checked_in") && s.guestNDACheckInBlocked(tenantID, guestID) {
+		writeError(w, http.StatusConflict, "nda_required")
+		return
+	}
+
 	guest, err := s.accessSvc.UpdateGuestStatus(tenantID, guestID, request.Status)
 	if err != nil {
 		switch {

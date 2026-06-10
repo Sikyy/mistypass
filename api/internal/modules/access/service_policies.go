@@ -2,6 +2,7 @@ package access
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -478,6 +479,8 @@ var ErrGuestPhoneRequired = errors.New("guest phone is required")
 var ErrGuestHostRequired = errors.New("guest host name is required")
 var ErrGuestStatusInvalid = errors.New("guest status must be expected, checked_in, checked_out, or cancelled")
 var ErrGuestIDDocumentTypeInvalid = errors.New("id_document_type must be KTP, KITAS, or ITAS")
+var ErrGuestNDASignerRequired = errors.New("nda signer_name is required")
+var ErrGuestNDASignatureInvalid = errors.New("nda signature_data_url must be a data:image/* URL of at most 64KB")
 
 var ErrSpaceNotFound = errors.New("bookable space not found")
 var ErrSpaceNameRequired = errors.New("space name is required")
@@ -681,6 +684,50 @@ func (s *Service) UpdateGuestStatus(tenantID, guestID, status string) (Guest, er
 			if nextStatus == "checked_out" && s.guests[i].CheckedOutAt == "" {
 				s.guests[i].CheckedOutAt = now.Format(time.RFC3339)
 			}
+			if err := s.persistLocked(); err != nil {
+				return Guest{}, err
+			}
+			return s.guests[i], nil
+		}
+	}
+	return Guest{}, ErrGuestNotFound
+}
+
+// GuestNDAInput captures one NDA signature submission.
+type GuestNDAInput struct {
+	SignerName       string
+	SignatureDataURL string
+	TemplateVersion  int
+}
+
+const guestNDASignatureMaxBytes = 64 * 1024
+
+// SignGuestNDA records an NDA signature on the guest. Re-signing overwrites
+// (the latest signature wins).
+func (s *Service) SignGuestNDA(tenantID, guestID string, input GuestNDAInput) (Guest, error) {
+	nextID := strings.TrimSpace(guestID)
+	signer := strings.TrimSpace(input.SignerName)
+	if signer == "" {
+		return Guest{}, ErrGuestNDASignerRequired
+	}
+	signature := strings.TrimSpace(input.SignatureDataURL)
+	if !strings.HasPrefix(signature, "data:image/") || len(signature) > guestNDASignatureMaxBytes {
+		return Guest{}, ErrGuestNDASignatureInvalid
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	for i := range s.guests {
+		if s.guests[i].ID == nextID && (tenantID == "" || s.guests[i].TenantID == tenantID) {
+			digest := sha256.Sum256([]byte(signature))
+			s.guests[i].NDASignedAt = now.Format(time.RFC3339)
+			s.guests[i].NDASignerName = signer
+			s.guests[i].NDATemplateVersion = input.TemplateVersion
+			s.guests[i].NDASignatureDataURL = signature
+			s.guests[i].NDASignatureHash = hex.EncodeToString(digest[:])
+			s.guests[i].UpdatedAt = now
 			if err := s.persistLocked(); err != nil {
 				return Guest{}, err
 			}

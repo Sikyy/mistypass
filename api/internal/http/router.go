@@ -109,6 +109,8 @@ type server struct {
 	customAlertPolicySeq          int
 	incidentAlertPolicyMu         sync.RWMutex
 	incidentAlertPolicyOverrides  map[string]referenceAlertPolicy
+	visitorNDAMu                  sync.RWMutex
+	visitorNDATemplates           map[string]visitorNDATemplate
 	alertNotificationMu           sync.RWMutex
 	alertNotifications            []alertNotification
 	alertCooldownMu               sync.RWMutex
@@ -449,6 +451,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		emailInboundEvents:            []emailInboundEvent{},
 		customAlertPolicies:           map[string]referenceAlertPolicy{},
 		incidentAlertPolicyOverrides:  map[string]referenceAlertPolicy{},
+		visitorNDATemplates:           map[string]visitorNDATemplate{},
 		alertCooldowns:                map[string]time.Time{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
 		hrisWebhookDLQWorkerWake:      make(chan struct{}, 1),
@@ -604,6 +607,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	}
 	s.restoreAlertPoliciesFromState()
 	s.restoreIncidentAlertPoliciesFromState()
+	s.restoreVisitorNDATemplatesFromState()
 	s.restoreReportSchedulesFromState()
 	s.restoreEmailInboundEventsFromState()
 	s.restorePushDevicesFromState()
@@ -1068,6 +1072,9 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/guests", s.createGuest)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Patch("/guests/{guestID}/status", s.updateGuestStatus)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Delete("/guests/{guestID}", s.deleteGuest)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "building_admin")).Post("/guests/{guestID}/nda/sign", s.signGuestNDA)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/visitor-nda/template", s.getVisitorNDATemplate)
+			protected.With(s.requireRoles("super_admin", "tenant_admin")).Put("/visitor-nda/template", s.updateVisitorNDATemplate)
 
 			// Bookable Spaces
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin", "resident")).Get("/bookable-spaces", s.listBookableSpaces)

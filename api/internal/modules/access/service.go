@@ -522,6 +522,11 @@ type Guest struct {
 	AccessToken          string    `json:"access_token,omitempty"`
 	AccessTokenExpiresAt string    `json:"access_token_expires_at,omitempty"`
 	DoorIDs              []string  `json:"door_ids,omitempty"`
+	NDASignedAt          string    `json:"nda_signed_at,omitempty"`
+	NDASignerName        string    `json:"nda_signer_name,omitempty"`
+	NDATemplateVersion   int       `json:"nda_template_version,omitempty"`
+	NDASignatureDataURL  string    `json:"nda_signature_data_url,omitempty"`
+	NDASignatureHash     string    `json:"nda_signature_hash,omitempty"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }

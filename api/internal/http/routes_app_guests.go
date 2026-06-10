@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
@@ -113,6 +114,11 @@ func (s *server) appAdminUpdateGuestStatus(w http.ResponseWriter, r *http.Reques
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if strings.EqualFold(strings.TrimSpace(request.Status), "checked_in") && s.guestNDACheckInBlocked(tenantID, guestID) {
+		writeError(w, http.StatusConflict, "nda_required")
 		return
 	}
 
