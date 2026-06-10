@@ -165,6 +165,111 @@ type doorActivityResponse struct {
 	Doors []doorActivityEntry `json:"doors"`
 }
 
+// ---------------------------------------------------------------------------
+// GET /api/v1/analytics/occupancy
+// ---------------------------------------------------------------------------
+
+func (s *server) getOccupancyAnalytics(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	start, end, ok := parseAnalyticsWindow(w, r)
+	if !ok {
+		return
+	}
+	filterBuildingID := strings.TrimSpace(r.URL.Query().Get("building_id"))
+
+	items := s.eventSvc.ListAccessEvents(tenantID)
+	if buildingScope != nil {
+		items = filterAccessEventsByScope(items, buildingScope)
+	}
+	days, peakDate, peakUnique, totalUnique := computeOccupancy(items, start, end, filterBuildingID)
+
+	currentPresent := 0
+	for _, p := range s.accessSvc.ListPresences(tenantID, filterBuildingID) {
+		if strings.TrimSpace(p.ExitedAt) == "" {
+			currentPresent++
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"start":              start.Format(time.RFC3339),
+		"end":                end.Format(time.RFC3339),
+		"days":               days,
+		"peak_date":          peakDate,
+		"peak_unique_users":  peakUnique,
+		"total_unique_users": totalUnique,
+		"current_present":    currentPresent,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/analytics/retention
+// ---------------------------------------------------------------------------
+
+func (s *server) getUserRetentionAnalytics(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	buildingScope, ok := s.buildingScopeForRequest(w, r)
+	if !ok {
+		return
+	}
+	start, end, ok := parseAnalyticsWindow(w, r)
+	if !ok {
+		return
+	}
+	bucket := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("bucket")))
+	if bucket == "" {
+		bucket = "week"
+	}
+	if bucket != "day" && bucket != "week" {
+		writeError(w, http.StatusBadRequest, "bucket must be day or week")
+		return
+	}
+	filterBuildingID := strings.TrimSpace(r.URL.Query().Get("building_id"))
+
+	items := s.eventSvc.ListAccessEvents(tenantID)
+	if buildingScope != nil {
+		items = filterAccessEventsByScope(items, buildingScope)
+	}
+	buckets := computeRetention(items, start, end, filterBuildingID, bucket)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"start":   start.Format(time.RFC3339),
+		"end":     end.Format(time.RFC3339),
+		"bucket":  bucket,
+		"buckets": buckets,
+	})
+}
+
+// parseAnalyticsWindow parses required RFC3339 start/end query parameters.
+func parseAnalyticsWindow(w http.ResponseWriter, r *http.Request) (time.Time, time.Time, bool) {
+	startStr := strings.TrimSpace(r.URL.Query().Get("start"))
+	endStr := strings.TrimSpace(r.URL.Query().Get("end"))
+	if startStr == "" || endStr == "" {
+		writeError(w, http.StatusBadRequest, "start and end query parameters are required (RFC3339)")
+		return time.Time{}, time.Time{}, false
+	}
+	start, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid start parameter: must be RFC3339")
+		return time.Time{}, time.Time{}, false
+	}
+	end, err := time.Parse(time.RFC3339, endStr)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid end parameter: must be RFC3339")
+		return time.Time{}, time.Time{}, false
+	}
+	return start, end, true
+}
+
 func (s *server) getDoorActivity(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
