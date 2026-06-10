@@ -1,598 +1,265 @@
 # Kisi vs MistyPass 全面差距分析
 
-> 更新日期：2026-05-01
-> 本地基准：`Kisi-API-Bundled References.yaml` (OpenAPI 3.1.0, **227 operations**, 47 resource groups, 141 unique paths)
-> 线上基准：`https://docs.kisi.io/` (产品文档，含 Dashboard / Analytics / Access Control / Credentials / Intrusion Detection / Visitor Management / Video / Bookings / Marketplace 等)
-> 代码审查报告：`docs/CODE-REVIEW-2026-05-01.md`
+> 更新日期：2026-06-10（前版 2026-05-01，见 git 历史）
+> 本地基准：`Kisi-API-Bundled References.yaml`（OpenAPI 3.1.0, 227 operations）；2026-06-10 实测 api.kisi.io/docs 内嵌 spec **仍为 227 operations / 48 tags，无新增 endpoint**
+> 线上基准：docs.kisi.io + getkisi.com/updates（已逐月核对 2025-01 ～ 2026-05 全部月度更新；截至本日无 2026-06 更新）
+> 代码基准：HEAD `03536c5`（2026-06-10）
+> 配套：`docs/CODE-REVIEW-2026-06-10.md`（本轮代码审查，其中 P1-1/P1-2 直接影响本文两项的销项判定）
 
 ---
 
 ## 0. 总览
 
-### 0.1 API Operation 覆盖率
+### 0.1 API Operation 覆盖率（本版口径修正）
 
-| 指标 | 数值 |
-|------|------|
-| Kisi Bundled References 总 operations | **227** |
-| 其中已废弃 (deprecated) 的 operations | **17** |
-| 有效 (非废弃) operations | **210** |
-| MistyPass 已覆盖的有效 operations | **189** |
-| MistyPass 已覆盖（含废弃兼容） | **206** |
-| 有效覆盖率 | **90%** |
-| 总覆盖率（含废弃） | **91%** |
-| MistyPass 独有 operations（Kisi 没有） | **~150** |
+> ⚠️ **口径说明**：前版总览宣称"有效覆盖 189/210 = 90%"，与其自身逐操作表不一致（逐表口径为 174/210 ≈ 83%）。本版统一按**逐操作表严格口径**重算，前后期均按同口径对比。
 
-### 0.2 产品功能覆盖率（基于 docs.kisi.io）
+| 指标 | 2026-05-01（同口径重算） | 2026-06-10 |
+|------|---:|---:|
+| Kisi 总 operations | 227 | 227（无变化，实测确认） |
+| 有效（非废弃）operations | 210 | 210 |
+| 已覆盖（有效） | 174 (83%) | **185 (88%)** |
+| 注册但有 bug（修复即 +1） | 0 | 1（`activate_with_token`，见 1.2） |
+| 已覆盖（含废弃兼容） | 190/227 | **201/227 (89%)** |
+| 本期净增覆盖 | — | **+11 operations** |
+| 剩余缺口构成 | — | 硬件依赖 19 + Kisi 登录模型特有 4 + SCRAM 1 + bug 1 |
+| MistyPass 独有 operations | ~150 | **~250+**（移动管理员 ~80 条 + SCIM + OAuth2 + southbound + wallet DLQ 等） |
 
-| 分类 | Kisi | MistyPass | 覆盖 |
-|------|------|-----------|------|
-| 门禁管理（Places/Locks/Groups/Access Rights） | ✅ | ✅ | 100% |
-| 电梯管理 | ✅ | ✅ | 100% |
-| 硬件管理（Controllers/Readers/Terminals） | ✅ | ✅ | 95% |
-| 凭证管理（Cards/Passes/Physical/Digital） | ✅ | ✅ | 90% |
-| 用户管理（CRUD/Batch/CSV/Invite） | ✅ | ✅ | 100% |
-| 团队和角色 | ✅ | ✅ | 100% |
-| 事件和报表 | ✅ | ✅ | 85% |
-| 排程和日历 | ✅ | ✅ | 100% |
-| 集成管理 | ✅ | ✅ | 100% |
-| 告警/Incident Policies | ✅ | ✅ 部分 | 70% |
-| 入侵检测 | ✅ | ✅ 部分 | 40% |
-| 访客管理 | ✅ | ✅ 基础 | 30% |
-| 视频监控 | ✅ | 桩 | 10% |
-| 预约/Bookings | ✅ | ❌ | 0% |
-| 对讲/Intercom | ✅ | ❌ | 0% |
-| 展台/Kiosk | ✅ | ❌ | 0% |
-| 工牌打印 | ✅ | ❌ | 0% |
-| Marketplace | ✅ | ❌ | 0% |
-| Mobile SDK | ✅ | ❌ | 0% |
-| SCIM 2.0 | ✅ | ❌ | 0% |
+**结论：纯软件且有业务价值的 API 缺口已基本清零。** 剩余 25 项中 19 项依赖控制器/无线锁硬件，4 项是 Kisi API-key 登录模型特有概念（promote/current-login，MistyPass 为 JWT 模型，低价值），1 项 SCRAM 有 Gateway 离线缓存替代，1 项是待修的参数名 bug。
+
+另：Kisi 已公告旧版 Cards 操作（assign/deassign/activate/deactivate 等 6 项 deprecated）于 **2025-11-30 落日**（docs.kisi.io/platform/apis/deprecations），MistyPass 对应兼容实现可降级维护。
+
+### 0.2 产品功能覆盖率（基于 docs.kisi.io + 2025-26 月度更新）
+
+| 分类 | Kisi | 05-01 | **06-10** | 备注 |
+|------|------|------:|------:|------|
+| 门禁管理（Places/Locks/Groups/Rights） | ✅ | 100% | 100% | |
+| 电梯管理 | ✅ | 100% | 100% | |
+| 硬件管理（Controllers/Readers/Terminals） | ✅ | 95% | 95% | Controller I/O 18 项待硬件 |
+| 凭证管理 | ✅ | 90% | 90% | Wallet 端到端仍缺（见 2.2） |
+| 用户管理 / 团队角色 | ✅ | 100% | 100% | Kisi 新增 Custom Roles 试点（见 2.4） |
+| 事件和报表 | ✅ | 85% | **95%** | +PDF/邮件/调度（调度器有 P1 bug 待修）；缺占用/留存分析 |
+| 排程和日历 | ✅ | 100% | 100% | |
+| 集成管理 | ✅ | 100% | 100% | 生态广度仍差（见 2.4） |
+| 告警/Incident Policies | ✅ | 70% | **80%** | +2 内置策略 + impossible-travel 运行时检测 |
+| 入侵检测 | ✅ | 40% | 40% | zones/Stay-Away/siren 仍缺 |
+| 访客管理 | ✅ | 30% | **50%** | +QR 直入 +host notify 字段；缺 Kiosk/NDA/工牌 |
+| 视频监控 | ✅（集成路线） | 10% | **80%** | 5 厂商真集成 + HikConnect 云；缺录像回放管理 |
+| 预约/Bookings | ✅ | 0% | **80%** | CRUD+签到+移动端；缺支付/必签协议/平面图 |
+| SCIM 2.0 | ✅ | 0% | **100%** | 完整服务端 + 管理端 + E2E |
+| OAuth2 API 认证 | ✅ | 0% | **形式 100% / 实际 0%** | token 无法通过鉴权（CODE-REVIEW P1-1），修复后销项 |
+| 对讲/Intercom | ✅（自研硬件） | 0% | 0% | |
+| 展台/Kiosk | ✅（自研硬件+软件） | 0% | 0% | |
+| 工牌打印 | ✅ | 0% | 0% | |
+| Mobile SDK / 白标 | ✅ | 0% | 0% | |
+| Marketplace | ✅ | 0% | 0% | |
+| 空间分析（Occupancy/Visual/Retention） | ✅（2025-26 新增） | — | **0%**（新差距项） | 见 2.4 |
+| Security Agents（自动化安全代理） | ✅（2025-06 新增） | — | **0%**（新差距项） | 见 2.4 |
 
 ---
 
-## 1. API Operation 逐项对照（基于 Bundled References YAML）
-
-### 1.1 Places — 9/9 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 1 | `fetchPlaces` | GET | `/places` | `listReferencePlaces` | ✅ |
-| 2 | `createPlace` | POST | `/places` | `createReferencePlace` | ✅ |
-| 3 | `fetchPlace` | GET | `/places/{id}` | `getReferencePlace` | ✅ |
-| 4 | `updatePlace` | PATCH | `/places/{id}` | `updateReferencePlace` | ✅ |
-| 5 | `deletePlace` | DELETE | `/places/{id}` | `deleteReferencePlace`（归档语义） | ✅ |
-| 6 | `lockDownPlace` | POST | `/places/{id}/lock_down` | `lockDownReferencePlace` | ✅ |
-| 7 | `cancelPlaceLockdown` | POST | `/places/{id}/cancel_lockdown` | `cancelReferencePlaceLockdown` | ✅ |
-| 8 | `favoritePlace` | POST | `/places/{id}/favorite` | `favoriteReferencePlace` | ✅ |
-| 9 | `unfavoritePlace` | POST | `/places/{id}/unfavorite` | `unfavoriteReferencePlace` | ✅ |
-
-### 1.2 Locks — 12/12 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 10 | `fetchLocks` | GET | `/locks` | `listReferenceLocks` | ✅ |
-| 11 | `createLock` | POST | `/locks` | `createReferenceLock` | ✅ |
-| 12 | `fetchLock` | GET | `/locks/{id}` | `getReferenceLock` | ✅ |
-| 13 | `updateLock` | PATCH | `/locks/{id}` | `updateReferenceLock` | ✅ |
-| 14 | `deleteLock` | DELETE | `/locks/{id}` | `deleteReferenceLock` | ✅ |
-| 15 | `unlockLock` | POST | `/locks/{id}/unlock` | `unlockReferenceLock` | ✅ |
-| 16 | `lockDownLock` | POST | `/locks/{id}/lock_down` | `lockDownReferenceLock` | ✅ |
-| 17 | `cancelLockLockdown` | POST | `/locks/{id}/cancel_lockdown` | `cancelReferenceLockLockdown` | ✅ |
-| 18 | `favoriteLock` | POST | `/locks/{id}/favorite` | `favoriteReferenceLock` | ✅ |
-| 19 | `unfavoriteLock` | POST | `/locks/{id}/unfavorite` | `unfavoriteReferenceLock` | ✅ |
-| 20 | `firstToArriveLock` | POST | `/locks/{id}/first_to_arrive` | `firstToArriveReferenceLock` | ✅ |
-| 21 | `lastToLeaveLock` | POST | `/locks/{id}/last_to_leave` | `lastToLeaveReferenceLock` | ✅ |
-
-### 1.3 Floors — 4/4 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 22 | `fetchFloors` | GET | `/floors` | `listFloors` | ✅ |
-| 23 | `createFloor` | POST | `/floors` | `createFloor` | ✅ |
-| 24 | `fetchFloor` | GET | `/floors/{id}` | `getFloor` | ✅ |
-| 25 | `updateFloor` | PATCH | `/floors/{id}` | `updateFloor` | ✅ |
-
-### 1.4 Users — 15/15 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 26 | `fetchUsers` | GET | `/users` | `listUsers` | ✅ |
-| 27 | `createUser` | POST | `/users` | `createUser` | ✅ |
-| 28 | `fetchUser` | GET | `/users/{id}` | `getUser` | ✅ |
-| 29 | `updateUser` | PATCH | `/users/{id}` | `updateUser` | ✅ |
-| 30 | `deleteUser` | DELETE | `/users/{id}` | `deleteUser` | ✅ |
-| 31 | `fetchCurrentUser` | GET | `/user` | `getCurrentUserProfile` | ✅ |
-| 32 | `updateCurrentUser` | PATCH | `/user` | `updateCurrentUserProfile` | ✅ |
-| 33 | `deleteCurrentUser` | DELETE | `/user` | — | ❌ 缺失 |
-| 34 | `fetchOTP` | POST | `/user/2fa/otp_secret` | `setupUserMFA` | ✅ |
-| 35 | `activate2fa` | POST | `/user/2fa/activate` | `enableUserMFA` | ✅ |
-| 36 | `deactivate2fa` | POST | `/user/2fa/deactivate` | `disableUserMFA` | ✅ |
-| 37 | `fetchBackupCodes` | POST | `/user/2fa/backup_codes` | `regenerateAdminMFARecoveryCodes`（Admin 级） | ✅ |
-| 38 | `requestPasswordReset` | POST | `/users/password` | `requestPasswordReset` | ✅ |
-| 39 | `passwordReset` | PATCH | `/users/password` | `confirmPasswordReset` | ✅ |
-| 40 | `signUpUser` | POST | `/users/sign_up` | `userSignUp` | ✅ |
-
-> 注：`deleteCurrentUser` 缺失，但 deleteUser 已覆盖管理员删除场景。自删属低优先级。
-
-### 1.5 Groups — 5/5 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 41 | `fetchGroups` | GET | `/groups` | `listReferenceGroups` | ✅ |
-| 42 | `createGroup` | POST | `/groups` | `createReferenceGroup` | ✅ |
-| 43 | `fetchGroup` | GET | `/groups/{id}` | `getReferenceGroup` | ✅ |
-| 44 | `updateGroup` | PATCH | `/groups/{id}` | `updateReferenceGroup` | ✅ |
-| 45 | `deleteGroup` | DELETE | `/groups/{id}` | `deleteReferenceGroup` | ✅ |
-
-### 1.6 Group Sub-resources — 14/15 (93%)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 46 | `fetchGroupLocks` | GET | `/group_locks` | `listReferenceGroupLocks` | ✅ |
-| 47 | `createGroupLock` | POST | `/group_locks` | `createReferenceGroupLock` | ✅ |
-| 48 | `fetchGroupLock` | GET | `/group_locks/{id}` | — | ❌ 缺 detail |
-| 49 | `deleteGroupLock` | DELETE | `/group_locks/{id}` | `deleteReferenceGroupLock` | ✅ |
-| 50 | `fetchGroupZones` | GET | `/group_zones` | `listReferenceGroupZones` | ✅ |
-| 51 | `createGroupZone` | POST | `/group_zones` | `createReferenceGroupZone` | ✅ |
-| 52 | `fetchGroupZone` | GET | `/group_zones/{id}` | `getReferenceGroupZone` | ✅ |
-| 53 | `deleteGroupZone` | DELETE | `/group_zones/{id}` | `deleteReferenceGroupZone` | ✅ |
-| 54 | `fetchGroupElevatorStops` | GET | `/group_elevator_stops` | `listGroupElevatorStops` | ✅ |
-| 55 | `createGroupElevatorStop` | POST | `/group_elevator_stops` | `createGroupElevatorStop` | ✅ |
-| 56 | `fetchGroupElevatorStop` | GET | `/group_elevator_stops/{id}` | — | ❌ 缺 detail |
-| 57 | `deleteGroupElevatorStop` | DELETE | `/group_elevator_stops/{id}` | `deleteGroupElevatorStop` | ✅ |
-| 58 | `fetchGroupTerminals` | GET | `/group_terminals` | `listGroupTerminals` | ✅ |
-| 59 | `createGroupTerminal` | POST | `/group_terminals` | `createGroupTerminal` | ✅ |
-| 60 | `fetchGroupTerminal` | GET | `/group_terminals/{id}` | — | ❌ 缺 detail |
-| 61 | `deleteGroupTerminal` | DELETE | `/group_terminals/{id}` | `deleteGroupTerminal` | ✅ |
-
-> 缺失 3 个 detail 端点：`fetchGroupLock`、`fetchGroupElevatorStop`、`fetchGroupTerminal`。纯软件，可随时补。
-
-### 1.7 Group Links — 3/3 (100%) ✅ + 扩展
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 62 | `fetchGroup_links` | GET | `/group_links` | `listReferenceGroupLinks` | ✅ |
-| 63 | `createGroupLink` | POST | `/group_links` | `createReferenceGroupLink` | ✅ |
-| 64 | `deleteGroupLink` | DELETE | `/group_links/{id}` | `deleteReferenceGroupLink` | ✅ |
-
-> MistyPass 额外支持：GET/{id}、PATCH/{id}、verify（token/QR 验证 + claimed_at 写回 + 审计）
-
-### 1.8 Teams — 5/5 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 65 | `fetchTeams` | GET | `/teams` | `listReferenceTeams` | ✅ |
-| 66 | `createTeam` | POST | `/teams` | `createReferenceTeam` | ✅ |
-| 67 | `fetchTeam` | GET | `/teams/{id}` | `getReferenceTeam` | ✅ |
-| 68 | `updateTeam` | PATCH | `/teams/{id}` | `updateReferenceTeam` | ✅ |
-| 69 | `deleteTeam` | DELETE | `/teams/{id}` | `deleteReferenceTeam` | ✅ |
-
-### 1.9 Team Memberships — 3/4 (75%)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 70 | `fetchTeamMemberships` | GET | `/team_memberships` | `listReferenceTeamMemberships` | ✅ |
-| 71 | `createTeamMembership` | POST | `/team_memberships` | `createReferenceTeamMembership` | ✅ |
-| 72 | `fetchTeamMembership` | GET | `/team_memberships/{id}` | — | ❌ 缺 detail |
-| 73 | `deleteTeamMembership` | DELETE | `/team_memberships/{id}` | `deleteReferenceTeamMembership` | ✅ |
-
-### 1.10 Roles + Role Assignments — 7/7 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 74 | `fetchRoles` | GET | `/roles` | `listReferenceRoles` | ✅ |
-| 75 | `fetchRole` | GET | `/roles/{id}` | `getReferenceRole` | ✅ |
-| 76 | `fetchRoleAssignments` | GET | `/role_assignments` | `listReferenceRoleAssignments` | ✅ |
-| 77 | `createRoleAssignment` | POST | `/role_assignments` | `createReferenceRoleAssignment` | ✅ |
-| 78 | `fetchRoleAssignment` | GET | `/role_assignments/{id}` | `getReferenceRoleAssignment` | ✅ |
-| 79 | `updateRoleAssignment` | PATCH | `/role_assignments/{id}` | `updateReferenceRoleAssignment` | ✅ |
-| 80 | `deleteRoleAssignment` | DELETE | `/role_assignments/{id}` | `deleteReferenceRoleAssignment` | ✅ |
-
-### 1.11 Shares — 5/5 (100%) ✅ (Kisi 已废弃)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 | Kisi 废弃 |
-|---|---|---|---|---|---|---|
-| 81 | `fetchShares` | GET | `/shares` | `listReferenceShares` | ✅ | ⚠️ deprecated |
-| 82 | `createShare` | POST | `/shares` | `createReferenceShare` | ✅ | ⚠️ deprecated |
-| 83 | `fetchShare` | GET | `/shares/{id}` | `getReferenceShare` | ✅ | ⚠️ deprecated |
-| 84 | `updateShare` | PATCH | `/shares/{id}` | `updateReferenceShare` | ✅ | ⚠️ deprecated |
-| 85 | `deleteShare` | DELETE | `/shares/{id}` | `deleteReferenceShare` | ✅ | ⚠️ deprecated |
-
-### 1.12 Members — 5/5 (100%) ✅ (Kisi 已废弃)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 | Kisi 废弃 |
-|---|---|---|---|---|---|---|
-| 86 | `fetchMembers` | GET | `/members` | `listReferenceMembers` | ✅ | ⚠️ deprecated |
-| 87 | `createMember` | POST | `/members` | `createReferenceMember` | ✅ | ⚠️ deprecated |
-| 88 | `fetchMember` | GET | `/members/{id}` | `getReferenceMembers` | ✅ | ⚠️ deprecated |
-| 89 | `updateMember` | PATCH | `/members/{id}` | `updateReferenceMember` | ✅ | ⚠️ deprecated |
-| 90 | `deleteMember` | DELETE | `/members/{id}` | `deleteReferenceMember` | ✅ | ⚠️ deprecated |
-
-### 1.13 Cards — 10/10 (100%) ✅ (6 个 Kisi 废弃)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 | Kisi 废弃 |
-|---|---|---|---|---|---|---|
-| 91 | `fetchCards` | GET | `/cards` | `listReferenceCards` | ✅ | |
-| 92 | `createCard` | POST | `/cards` | `createReferenceCard` | ✅ | |
-| 93 | `fetchCard` | GET | `/cards/{id}` | `getReferenceCard` | ✅ | |
-| 94 | `updateCard` | PATCH | `/cards/{id}` | `updateReferenceCard` | ✅ | ⚠️ deprecated |
-| 95 | `deleteCard` | DELETE | `/cards/{id}` | `deleteReferenceCard` | ✅ | |
-| 96 | `assignCard` | POST | `/cards/{id}/assign` | `assignReferenceCard` | ✅ | ⚠️ deprecated |
-| 97 | `deassignCard` | POST | `/cards/{id}/deassign` | `deassignReferenceCard` | ✅ | ⚠️ deprecated |
-| 98 | `activateCard` | POST | `/cards/{id}/activate` | `activateReferenceCard` | ✅ | ⚠️ deprecated |
-| 99 | `deactivateCard` | POST | `/cards/{id}/deactivate` | `deactivateReferenceCard` | ✅ | ⚠️ deprecated |
-| 100 | `activateCardByToken` | POST | `/cards/{token}/activate_with_token` | — | ⚠️ 兼容保留 | ⚠️ deprecated |
-
-### 1.14 Card Assignments — 8/8 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 101 | `fetchCardAssignments` | GET | `/card_assignments` | `listReferenceCardAssignments` | ✅ |
-| 102 | `createCardAssignment` | POST | `/card_assignments` | `createReferenceCardAssignment` | ✅ |
-| 103 | `fetchCardAssignment` | GET | `/card_assignments/{id}` | `getReferenceCardAssignment` | ✅ |
-| 104 | `updateCardAssignment` | PATCH | `/card_assignments/{id}` | `updateReferenceCardAssignment` | ✅ |
-| 105 | `deleteCardAssignment` | DELETE | `/card_assignments/{id}` | `deleteReferenceCardAssignment` | ✅ |
-| 106 | `activateCardAssignment` | POST | `/card_assignments/{id}/activate` | `activateReferenceCardAssignment` | ✅ |
-| 107 | `deactivateCardAssignment` | POST | `/card_assignments/{id}/deactivate` | `deactivateReferenceCardAssignment` | ✅ |
-| 108 | `activateCardAssignmentWithActivationToken` | POST | `/card_assignments/{token}/activate_with_token` | — | ❌ 缺失 |
-
-### 1.15 CSV Imports — 4/4 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 109 | `createCsvCardImport` | POST | `/csv_card_imports` | `createCSVCardImport` | ✅ |
-| 110 | `fetchCsvCardImport` | GET | `/csv_card_imports/{id}` | `getCSVCardImport` | ✅ |
-| 111 | `createCsvUserImport` | POST | `/csv_user_imports` | `importUsersCSV` | ✅ |
-| 112 | `fetchCsvUserImport` | GET | `/csv_user_imports/{id}` | `exportUsersCSV`（对应查询结果） | ✅ |
-
-### 1.16 Controllers — 6/6 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 113 | `fetchControllers` | GET | `/controllers` | `listReferenceControllers` | ✅ |
-| 114 | `fetchController` | GET | `/controllers/{id}` | `getReferenceController` | ✅ |
-| 115 | `updateController` | PATCH | `/controllers/{id}` | `updateReferenceController` | ✅ |
-| 116 | `assignController` | POST | `/controllers/{token}/assign` | `assignReferenceController` | ✅ |
-| 117 | `deassignController` | POST | `/controllers/{id}/deassign` | `deassignReferenceController` | ✅ |
-| 118 | `rebootController` | POST | `/controllers/{id}/reboot` | `rebootReferenceController` | ✅ |
-
-### 1.17 Readers — 7/7 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 119 | `fetchReaders` | GET | `/readers` | `listReferenceReaders` | ✅ |
-| 120 | `fetchReader` | GET | `/readers/{id}` | `getReferenceReader` | ✅ |
-| 121 | `updateReader` | PATCH | `/readers/{id}` | `updateReferenceReader` | ✅ |
-| 122 | `assignReader` | POST | `/readers/{token}/assign` | `assignReferenceReader` | ✅ |
-| 123 | `deassignReader` | POST | `/readers/{id}/deassign` | `deassignReferenceReader` | ✅ |
-| 124 | `rebootReader` | POST | `/readers/{id}/reboot` | `rebootReferenceReader` | ✅ |
-| 125 | `resetTamperedState` | POST | `/readers/{id}/reset_tamper` | `resetTamperReferenceReader` | ✅ |
-
-### 1.18 Terminals — 6/6 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 126 | `fetchTerminals` | GET | `/terminals` | `listReferenceTerminals` | ✅ |
-| 127 | `createTerminal` | POST | `/terminals` | `createReferenceTerminal` | ✅ |
-| 128 | `fetchTerminal` | GET | `/terminals/{id}` | `getReferenceTerminal` | ✅ |
-| 129 | `updateTerminal` | PUT | `/terminals/{id}` | `updateReferenceTerminal` | ✅ |
-| 130 | `deleteTerminal` | DELETE | `/terminals/{id}` | `deleteReferenceTerminal` | ✅ |
-| 131 | `triggerTerminal` | POST | `/terminals/{id}/trigger` | `triggerReferenceTerminal` | ✅ |
-
-### 1.19 Controller I/O — 0/18 (0%) ❌
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 132 | `fetchControllerInputs` | GET | `/controller_inputs` | — | ❌ |
-| 133 | `fetchControllerRelays` | GET | `/controller_relays` | — | ❌ |
-| 134 | `fetchControllerWiegands` | GET | `/controller_wiegands` | — | ❌ |
-| 135-139 | Controller Input Connections (5) | CRUD | `/controller_input_connections` | — | ❌ |
-| 140-144 | Controller Relay Connections (5) | CRUD | `/controller_relay_connections` | — | ❌ |
-| 145-149 | Controller Wiegand Connections (5) | CRUD | `/controller_wiegand_connections` | — | ❌ |
-
-> 全部 18 个 operations 依赖控制器硬件（ZKTeco C3 等）。
-
-### 1.20 Wireless Locks — 0/1 (0%) ❌
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 150 | `fetchWirelessLocks` | GET | `/wireless_locks` | — | ❌ 依赖硬件 |
-
-### 1.21 Elevators — 5/5 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 151 | `fetchElevators` | GET | `/elevators` | `listElevators` | ✅ |
-| 152 | `createElevator` | POST | `/elevators` | `createElevator` | ✅ |
-| 153 | `fetchElevator` | GET | `/elevators/{id}` | `getElevator` | ✅ |
-| 154 | `updateElevator` | PATCH | `/elevators/{id}` | `updateElevator` | ✅ |
-| 155 | `deleteElevator` | DELETE | `/elevators/{id}` | `deleteElevator` | ✅ |
-
-### 1.22 Elevator Stops — 7/7 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 156-160 | CRUD | | `/elevator_stops` | `list/create/get/update/deleteElevatorStop` | ✅ |
-| 161 | `lockDownElevatorStop` | POST | `/elevator_stops/{id}/lock_down` | `lockDownElevatorStop` | ✅ |
-| 162 | `cancelElevatorStopLockdown` | POST | `/elevator_stops/{id}/cancel_lockdown` | `cancelElevatorStopLockdown` | ✅ |
-
-### 1.23 Events — 4/4 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 163 | `createEventSet` | POST | `/event_sets` | `createReferenceEventSet` | ✅ |
-| 164 | `fetchEventSet` | GET | `/event_sets/{id}` | `getReferenceEventSet` | ✅ |
-| 165 | `fetchEventMetadata` | GET | `/events/meta` | `getReferenceEventMetadata` | ✅ (Kisi deprecated) |
-| 166 | `fetchEventTypes` | GET | `/events/types` | `listReferenceEventTypes` | ✅ |
-
-### 1.24 Reports — 5/5 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 167 | `fetchReports` | GET | `/reports` | `listReferenceReports` | ✅ |
-| 168 | `createReport` | POST | `/reports` | `createReferenceReport` | ✅ |
-| 169 | `fetchReport` | GET | `/reports/{id}` | `getReferenceReport` | ✅ |
-| 170 | `deleteReport` | DELETE | `/reports/{id}` | `deleteReferenceReport` | ✅ |
-| 171 | `downloadReport` | POST | `/reports/{id}/download` | `downloadReferenceReport` | ✅ |
-
-### 1.25 Scheduled Reports — 5/5 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 172-176 | CRUD + update | ✅ 全部覆盖 |
-
-### 1.26 Schedules — 5/5 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 177-181 | CRUD | ✅ 全部覆盖 |
-
-### 1.27 Calendar — 1/1 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 182 | `fetchSummary` | GET | `/calendar/summary` | `evaluateReferenceAccessRightsSchedule` | ✅ 功能等价 |
-
-### 1.28 Holidays — 2/2 (100%) ✅
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 183 | `fetchRegions` | GET | `/holiday_calendars/regions` | `listHolidayCalendarPresetCountries` | ✅ |
-| 184 | `fetchHolidays` | GET | `/holiday_calendars/{region}/holidays` | `listHolidayCalendarPresets` | ✅ |
-
-> MistyPass 额外支持 Holiday Calendar CRUD（7 端点）。
-
-### 1.29 Integrations — 5/5 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 185-189 | CRUD | ✅ 全部覆盖 |
-
-### 1.30 Guests — 4/4 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 190-193 | List/Create/Fetch/Delete | ✅ 全部覆盖（MistyPass 额外有 check-in/out） |
-
-### 1.31 Presences — 1/1 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 194 | `fetchPresences` | ✅ |
-
-### 1.32 Invites — 1/1 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 195 | `createInvite` | ✅（MistyPass 额外有 invitation list/cancel/resend/provider-receipt） |
-
-### 1.33 Signed Upload URLs — 1/1 (100%) ✅
-
-| # | Kisi operationId | 状态 |
-|---|---|---|
-| 196 | `createSignedUploadURL` | ✅ |
-
-### 1.34 Cameras — 1/6 (17%) ⚠️
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 197 | `fetchCameras` | GET | `/cameras` | `listCameras` | ✅ 桩 |
-| 198 | `createCamera` | POST | `/cameras` | `createCamera` | ✅ 桩 |
-| 199 | `fetchCamera` | GET | `/cameras/{id}` | `getCamera` | ✅ 桩 |
-| 200 | `updateCamera` | PATCH | `/cameras/{id}` | — | ❌ |
-| 201 | `deleteCamera` | DELETE | `/cameras/{id}` | `deleteCamera` | ✅ 桩 |
-| 202 | `fetchVideoLink` | GET | `/cameras/{id}/video_link` | — | ❌ |
-
-> 当前为 501 桩端点，需 IP 摄像头（ONVIF 兼容）进行真实集成。
-
-### 1.35 Logins (Session Management) — 5/10 (50%)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 203 | `fetchLogins` | GET | `/logins` | `listLoginSessions` | ✅ 功能等价 |
-| 204 | `createLogin` | POST | `/logins` | `login`（JWT 模型） | ✅ 模型不同 |
-| 205 | `deleteLogin` | DELETE | `/logins/{id}` | `revokeLoginSession` | ✅ 功能等价 |
-| 206 | `fetchCurrentLogin` | GET | `/login` | `getCurrentUserProfile` | ✅ 功能等价 |
-| 207 | `deleteAllExceptCurrentLogin` | DELETE | `/login/elsewhere` | `revokeAllLoginSessions` | ✅ 功能等价 |
-| 208 | `promoteLogin` | POST | `/logins/{id}/promote` | — | ❌ |
-| 209 | `resolveLogin` | POST | `/logins/resolve` | — | ❌ |
-| 210 | `updateCurrentLogin` | PUT | `/login` | — | ❌ |
-| 211 | `deleteCurrentLogin` | DELETE | `/login` | — | ❌ |
-| 212 | `promoteCurrentLogin` | POST | `/login/promote` | — | ❌ |
-
-> MistyPass 使用 JWT + Refresh Token 模型，与 Kisi 的 API Key Login 模型不同。promote/resolve 是 Kisi 特有概念（primary device 提升 / provisional login 解决）。
-
-### 1.36 SCRAM / Offline Certificate — 0/1 (0%)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 213 | `fetchOfflineCertificate` | POST | `/login/offline_certificate` | — | ❌ |
-
-> Kisi 特有的离线证书机制。MistyPass 通过 Gateway 离线缓存 access rules 实现类似功能。
-
-### 1.37 Organizations — 8/14 (57%)
-
-| # | Kisi operationId | Method | Path | MistyPass | 状态 |
-|---|---|---|---|---|---|
-| 214 | `fetchOrganizations` | GET | `/organizations` | `listTenants`（super_admin） | ✅ 功能等价 |
-| 215 | `fetchCurrentOrganization` | GET | `/organization` | `getOrganizationSettings` | ✅ 功能等价 |
-| 216 | `updateCurrentOrganization` | PATCH | `/organization` | `updateOrganizationSettings` | ✅ 功能等价 |
-| 217 | `fetchCurrentOrganizationSettings` | GET | `/organization/settings` | `getOrganizationSettings` | ✅ |
-| 218 | `fetchCurrentOrganizationDashboard` | GET | `/organization/dashboard` | — | ❌ 有 analytics 替代 |
-| 219 | `generateNextCertificate` | POST | `/organization/generate_next_certificate` | — | ✅ (NEXT-ROADMAP done) |
-| 220 | `rotateCertificate` | POST | `/organization/rotate_certificate` | — | ✅ (NEXT-ROADMAP done) |
-| 221 | `fetchOrganizationTransfers` | GET | `/organization/transfers` | — | ✅ (NEXT-ROADMAP done) |
-| 222 | `requestTransfer` | POST | `/organization/request_transfer` | `transferOrganization` | ✅ |
-| 223 | `acceptTransfer` | POST | `/organization/accept_transfer` | — | ✅ (NEXT-ROADMAP done) |
-| 224 | `cancelTransfer` | POST | `/organization/cancel_transfer` | — | ✅ (NEXT-ROADMAP done) |
-| 225 | `rejectTransfer` | POST | `/organization/reject_transfer` | — | ✅ (NEXT-ROADMAP done) |
-| 226 | `fetchPublicOrganization` | GET | `/organizations/{domain}/public` | — | ❌ |
-| 227 | `findOrganizations` | POST | `/organizations/find` | — | ❌ |
+## 1. API Operation 覆盖（重构版：分组汇总 + 缺口明细）
+
+> 完整的逐 operationId 映射表见前版（git 历史 2026-05-01）。本版仅展开**有变化或有缺口**的组；标注"✅ 全覆盖"的组与前版一致。
+
+### 1.1 分组汇总
+
+| 资源组 | 覆盖 | 状态 | 本期变化 |
+|---|---|---|---|
+| Places | 9/9 | ✅ | |
+| Locks | 12/12 | ✅ | |
+| Floors | 4/4 | ✅ | |
+| Users | 15/15 | ✅ | **+deleteCurrentUser** |
+| Groups | 5/5 | ✅ | |
+| Group 子资源（locks/zones/elevator stops/terminals） | 16/16 | ✅ | **+3 个 detail 端点** |
+| Group Links | 3/3 +扩展 | ✅ | |
+| Teams | 5/5 | ✅ | |
+| Team Memberships | 4/4 | ✅ | **+detail 端点** |
+| Roles + Role Assignments | 7/7 | ✅ | |
+| Shares / Members（Kisi 已废弃组） | 10/10 | ✅ | 维持兼容 |
+| Cards | 9/10 | ✅ | 唯一未实现项为已废弃的 activateCardByToken（2025-11-30 落日，无需补） |
+| Card Assignments | 7/8 | ⚠️ | activate_with_token 已注册但有 bug（见 1.2） |
+| CSV Imports | 4/4 | ✅ | |
+| Controllers / Readers / Terminals | 19/19 | ✅ | |
+| **Controller I/O（inputs/relays/wiegands + connections）** | **0/18** | ❌ | 依赖控制器硬件 |
+| **Wireless Locks** | **0/1** | ❌ | 依赖硬件 |
+| Elevators + Elevator Stops | 12/12 | ✅ | |
+| Events / Reports / Scheduled Reports / Schedules / Calendar / Holidays | 22/22 | ✅ | 报表调度器有 P1 bug（CODE-REVIEW P1-2） |
+| Integrations / Guests / Presences / Invites / Signed Upload URLs | 12/12 | ✅ | |
+| **Cameras** | **6/6** | ✅ | **从 501 桩 → 真实集成**（见 1.3） |
+| **Logins** | **6/10** | ⚠️ | +resolveLogin、+createLogin（Kisi 数字 ID 形态兼容层） |
+| **SCRAM Offline Certificate** | **0/1** | ❌ | Gateway 离线缓存为替代方案 |
+| Organizations | 14/14 | ✅ | **+dashboard、+public、+find** |
+
+### 1.2 剩余缺口明细（25 项）
+
+| operationId | 路径 | 分类 | 说明 |
+|---|---|---|---|
+| `activateCardAssignmentWithActivationToken` | POST `/card_assignments/{token}/activate_with_token` | **bug 待修** | 路由注册 `{activationToken}`，处理链读 `chi.URLParam("cardID")` → 必 404（router.go:1229 / routes_reference_gap.go:502）；修复 ~0.5h |
+| `promoteLogin` | POST `/logins/{id}/promote` | Kisi 登录模型 | primary device 提升；MistyPass 相近概念为 `/app/me/primary-device` |
+| `updateCurrentLogin` / `deleteCurrentLogin` / `promoteCurrentLogin` | PUT/DELETE/POST `/login*` | Kisi 登录模型 | API-key login 模型特有；MistyPass 为 JWT+Refresh，已有会话管理等价物，低价值 |
+| `fetchOfflineCertificate` | POST `/login/offline_certificate` | Kisi 特有 | SCRAM 离线证书；Gateway 离线缓存 access rules 为替代 |
+| Controller Inputs / Relays / Wiegands + 三组 Connections | 18 个 operations | 硬件依赖 | 待控制器硬件（ZKTeco C3 / southbound 路线） |
+| `fetchWirelessLocks` | GET `/wireless_locks` | 硬件依赖 | 待无线锁硬件 |
+
+### 1.3 本期新增覆盖（11 项，均已核实路由注册 + handler）
+
+| operationId | MistyPass 证据 |
+|---|---|
+| `fetchGroupLock` | router.go:1116 → routes_reference_api.go:1588 |
+| `fetchGroupElevatorStop` | router.go:1097 → routes_reference_kisi_full.go:244 |
+| `fetchGroupTerminal` | router.go:1101 → routes_reference_kisi_full.go:307 |
+| `fetchTeamMembership` | router.go:1175 → routes_reference_api.go:2950 |
+| `deleteCurrentUser` | router.go:634 → routes_auth.go:203（真删 + 审计） |
+| `fetchPublicOrganization` | router.go:651 → routes_kisi_compat.go:19（⚠️ 与 router.go:635 重复注册，后者覆盖前者，待清理） |
+| `findOrganizations` | router.go:636 → routes_organization_settings.go:140 |
+| `resolveLogin` | router.go:653 → routes_kisi_compat.go:57（功能等价：接受 resolution_token 按普通登录处理） |
+| `updateCamera` | router.go:1259 → routes_cameras.go:60（真实现 + 审计） |
+| `fetchVideoLink` | router.go:1260 → routes_cameras.go:98（cameraSvc.GetVideoLink，10s 超时） |
+| `fetchCurrentOrganizationDashboard` | router.go:1030 → routes_organization_settings.go:61（聚合 users/places/locks/cards/teams/groups counts） |
 
 ---
 
-## 2. 产品功能差距（基于 docs.kisi.io）
+## 2. 产品功能差距
 
-以下功能在 Kisi 产品文档中有描述，但不完全体现在 Bundled References YAML 中。
+### 2.1 本期从"缺失/部分"翻转为"已覆盖"
 
-### 2.1 已覆盖或功能等价
+| 功能 | 实现 | 证据 |
+|---|---|---|
+| 报表 PDF 导出 + 邮件推送 + 定时调度 | `GET /reports/export?format=pdf\|csv\|json`（pdfgen + Gotenberg + Mistyislet 设计语言）；report-schedules CRUD + 定时器 + PDF 附件邮件 + provider-status；手动发送已异步化 | routes_report_export.go / routes_report_schedule.go ⚠️ 调度器 P1 bug 修复后才算闭环 |
+| Organization Dashboard 聚合端点 | GET /organization/dashboard | routes_organization_settings.go:61 |
+| 网络拓扑前端可视化 | network-topology-page.tsx（452 行，树状渲染 + 协议标签） | web-admin/src/features/network/ |
+| SCIM 2.0 | /scim/v2 完整（ServiceProviderConfig/Schemas/Users CRUD+filter）+ 管理端 config/token/test/logs + 前端 + E2E mock | routes_scim.go / routes_scim_admin.go |
+| OAuth2 API 认证 | /oauth2/authorize+token+revoke + 客户端 CRUD + 前端 + e2e | routes_oauth2.go ⚠️ P1-1 修复后销项 |
+| Bookings | bookable-spaces + bookings CRUD + check-in/out + 移动端 /app/bookings + 前端 | routes_bookings.go（缺支付，见 2.2） |
+| 视频监控真集成 | 海康 ISAPI / 大华 / ONVIF / VIVOTEK / 中控 5 个 provider + 抓图/快照/发现/测试 + HikConnect 云绑定 + 移动端 + 前端 | api/internal/modules/camera/、modules/hikconnect/ |
+| 访客 QR 直入（Tier 3） | Guest `gqr_` AccessToken（24-72h）+ DoorIDs 白名单 + 扫码开门 + notify_host 字段 | routes_guests.go / routes_app_guests.go |
 
-| Kisi 功能 | MistyPass 实现 | 评价 |
-|----------|---------------|------|
-| 门禁管理 | Places/Locks/Groups/Access Rights 全链路 | ✅ 完整 |
-| 电梯管理 | Elevators/Stops/GroupElevatorStops | ✅ 完整 |
-| 硬件管理 | Controllers/Readers/Terminals + config/reboot | ✅ 完整 |
-| 用户批量管理 | batch-status/delete/invite + CSV import/export | ✅ 完整 |
-| 凭证生命周期 | Cards/CardAssignments + activate/deactivate/assign/deassign/revoke | ✅ 完整 |
-| 临时访问 | Shares + valid_from/valid_until + Group Links | ✅ 完整 |
-| Access Links / QR | Group Links + verify + claim UI | ✅ 完整 |
-| Apple Wallet | Mock provider + resident self-service enrollment | ⚠️ 基础版（需真实签名） |
-| 物理凭证管理 | Physical card vendor/inventory/scan/CSV import/lifecycle | ✅ 超越 Kisi |
-| 排程和日历 | Schedules CRUD + Holiday Calendar CRUD + evaluate | ✅ 超越 Kisi |
-| 事件历史 | event_sets + access/device events + SSE stream | ✅ 超越 Kisi |
-| 报表 | Reports CRUD + download + Scheduled Reports | ✅ 完整 |
-| SSO | OIDC + SAML（5+ 提供商） | ✅ 超越 Kisi |
-| 2FA | User TOTP + Admin MFA + backup codes | ✅ 完整 |
-| 密码管理 | Sign up + change password + reset | ✅ 完整 |
+### 2.2 部分覆盖（更新后）
 
-### 2.2 部分覆盖
-
-| Kisi 功能 | Kisi 详情 | MistyPass 现状 | 差距 |
+| Kisi 功能 | Kisi 详情 | MistyPass 现状 | 剩余差距 |
 |----------|----------|--------------|------|
-| **Incident Policies** | 8 种：Anti-passback、Door Held Open、Hardware Outage、Impossible Travel、Primary Device Change、Role Assignment、Tailgating、Custom | Alert Policies 支持 custom condition + event evaluate + dispatch | 缺少 6 种内置策略类型 |
-| **入侵检测** | 最多 4 个报警区域、Stay/Away 模式、报警排程、接触传感器触发 | Alarm schedules + alarm CRUD + SSE stream | 缺少 alarm zone 管理、Stay/Away 模式、siren relay 控制 |
-| **访客管理** | Kiosk 自助签到、QR 签到、NDA 管理、工牌打印、主人通知 | Guests CRUD + Visitor Passes + check-in/out | 缺少 Kiosk、NDA、工牌打印、主人通知 |
-| **访问限制** | Geofence 300m GPS、Reader proximity BLE、Primary device、Managed device (MDM)、Reader Tap to Access | Group restrictions + Time windows | 缺少 GPS geofence、primary device、MDM |
-| **Organization Dashboard** | apple_passes_count, cameras_count, users_count, places_count, locks_count | Analytics endpoints（access-summary, door-activity） | 缺少统一 dashboard 聚合端点 |
-| **报表 PDF** | 支持 PDF 导出和邮件推送（max 180 天间隔，10 收件人） | CSV 下载 | 缺少 PDF 导出和邮件推送 |
-| **网络可视化** | 设备连接拓扑、依赖关系图 | GET /network/topology（端点已有） | 缺少前端可视化组件 |
+| **Incident Policies** | 9 类内置（Anti-passback、Door Held Open、Hardware Outage、Impossible Travel、Primary Device Change、Role Assignment、Tailgating、Custom + 2025-11 新增 Role Assignment 监控）+ Security Agents 自动化 | 内置 Door Held Open + Hardware Outage（routes_reference_api.go:4945）；impossible-travel/限频为运行时异常检测（routes_gateway_verify.go:302）；自定义条件引擎 | Anti-passback、Tailgating、Role Assignment 策略；Security Agents 式自动收权 |
+| **入侵检测** | 4 报警区域、Stay/Away、报警排程、siren | Alarm CRUD + AlarmSchedule + 移动端告警 + SSE | alarm zones、Stay/Away 模式、siren relay 控制 |
+| **访客管理** | Kiosk（含 Kiosk Pro 硬件）、NDA、工牌打印、主人通知、Guest cards | Guests/Visitor Passes/visitor-groups + QR 直入 + notify_host 字段 + 前端 | Kiosk、NDA 签署、工牌打印、通知端到端验证 |
+| **访问限制** | GPS geofence 300m、Reader proximity、Primary device、MDM、Tap to Access、**"开门需物理在场"（2025-12 新增）** | 限制字段可配置（Geofence/PrimaryDevice/ManagedDevice，routes_reference_api.go:204）+ /app/me/primary-device + Android 客户端 geofence | **服务端强制全部缺失**（解锁路径无 lat/lng/primary-device 校验） |
+| **Bookings** | + Stripe 支付、必签协议（2026-05）、平面图选位、App 内预订 | CRUD + 签到 + 移动端 | 支付（建议 Midtrans/Xendit）、必签协议、平面图 |
+| **报表/分析** | + Visual analytics、Daily Occupancy、User Retention（2025-12～2026-04 新增） | access-summary / door-activity / 报表 PDF | 占用统计、留存分析、平面图 widget |
+| **目录集成** | Google Workspace / Entra ID / Okta / JumpCloud 直连 | Google Workspace 同步 + Lark 集成 + SCIM（覆盖 Entra/Okta/JumpCloud 场景） | Entra/Okta 直连配置向导 + 文档（功能上 SCIM 已可达） |
 
-### 2.3 完全缺失
+### 2.3 仍完全缺失
 
-| Kisi 功能 | 说明 | 影响 | 优先级 |
-|----------|------|------|--------|
-| **SCIM 2.0** | 标准用户同步协议（Entra ID / Okta / JumpCloud / OneLogin） | 企业自动化用户供给 | P2 |
-| **Directory Integration** | Google Workspace / Entra ID / JumpCloud 直接集成 | 企业用户同步 | P2（有 HRIS 替代） |
-| **Bookings** | 自助预约 + Stripe 支付 + 自动访问授予 | 共享空间场景 | P3 |
-| **Intercom** | 门铃呼叫 + 远程应答 + 视频流 | 访客沟通 | P3 |
-| **Kiosk** | 自助终端 + PWA + 访客工牌打印 | 访客自助体验 | P3 |
-| **Badge Printing** | 员工工牌生成 + PDF 下载 | 企业工牌 | P3 |
-| **Mobile SDK** | iOS/Android SDK，支持白标 App | 第三方集成 | P3 |
-| **Marketplace** | 17 类合作伙伴集成目录 | 生态建设 | P3 |
-| **OAuth2 API 认证** | 支持 OAuth2 Authorization Code 流 | 第三方应用集成 | P2 |
-| **Offline Certificate** | SCRAM 协议离线证书 | 设备离线认证 | P3（有 Gateway 离线缓存替代） |
+| Kisi 功能 | 优先级 | 备注 |
+|----------|------|------|
+| Intercom（含 Intercom Pro 自研硬件 + Web/App 接听） | P3 | 硬件绑定；建议第三方门口机集成路线（见第 4 节） |
+| Kiosk（含 Kiosk Pro 自助签到打印一体机） | P3 | 软件版（PWA）可先行 |
+| Badge Printing | P3 | 纯软件，pdfgen 可复用，数天工作量 |
+| Mobile SDK（白标） | P3 | 有客户需求再抽取 |
+| Marketplace（17 类伙伴目录，健身赛道 Mindbody/Magicline/bsport 持续加码） | P3 | 优先做 2-3 个印尼本地集成 |
+| SCRAM Offline Certificate | P3 | Gateway 离线缓存为替代 |
+| MotionSense 免操作开门 | P2（移动端体验） | 自研可行（见第 4 节） |
+
+### 2.4 Kisi 2025-26 新增观察清单（前版未收录，需持续跟踪）
+
+| 时间 | Kisi 新增 | 对差距分析的影响 |
+|---|---|---|
+| 2026-05 | Bookings 必签协议；Intercom Pro 促销（$59/月） | Bookings 子差距 +1 |
+| 2026-04 | **Visual Analytics**（空间使用可视化）；Tailgating 事件邮件跟进；Magicline 集成 | 新差距项：空间分析 |
+| 2026-03 | **Kiosk Pro 硬件**（签到+打印一体）；App 内 Bookings | Kiosk 差距从软件升级为软硬一体 |
+| 2026-01～02 | User Retention 报表；bsport/Mindbody 预约自动授权 | 新差距项：留存分析 |
+| 2025-12 | Daily Occupancy 报表；"开门需物理在场"限制；Bookings 平面图 | 新差距项 ×3 |
+| 2025-11 | Role Assignment incident policy；Web 端 Intercom 呼叫 | 策略类型 +1 |
+| 2025-09 | Bookings 正式 GA + Stripe + 日历邀请；Space Activity Hub | 已收录 |
+| 2025-06 | **Security Agents**（凭证共享检测、变更追踪、自动收紧权限） | 新差距项：自动化安全代理 |
+| 2025-03～05 | Custom Roles（试点）；Guest cards；独立版访客管理（免费层）；平面图 | 关注 RBAC 自定义角色 |
+| 2025-04～07 | Intercom Pro 硬件发售 | 硬件代际更新 |
+| API | **227 operations 无变化**；旧 Cards 操作 2025-11-30 落日；**Bookings/Intercom/访客/视频 AI 均无公开 API** | Kisi 的 API 覆盖缺口（可作竞争话术：MistyPass 的 bookings/cameras/visitors 都有 API） |
+| Wallet | **仍仅支持 Apple Wallet**（无 Google Wallet） | MistyPass Google Wallet 后端优势仍成立 |
 
 ---
 
 ## 3. MistyPass 独有功能（Kisi 没有）
 
+前版已列（仍有效）：多租户架构、Areas、WebAuthn/Passkey、SSO 联邦（OIDC+SAML）、Enterprise HRIS（Talenta webhook+DLQ）、JIT 审批、同步引擎、告警调度器（自定义条件表达式）、审计 HMAC 链、SSE 事件流、Event Sourcing 回放、Google Wallet、物理卡完整生命周期、Gateway Bootstrap 协议、序列号库存、移动端 App API、实体卡库存治理、权限高级治理（模板/bulk/impact preview）、Holiday Calendar CRUD。
+
+**本期新增**：
+
 | 模块 | 说明 |
 |------|------|
-| 多租户架构 | Tenants CRUD + topology + 域名映射 |
-| Areas（子区域） | 楼层下的区域划分 |
-| WebAuthn/Passkey | FIDO2 无密码登录 |
-| SSO 联邦 | OIDC + SAML IdP 集成 + 域名路由 |
-| Enterprise HRIS | Talenta 等 HR 系统 webhook + DLQ + pull worker |
-| Enterprise JIT 审批 | 即时用户供给 + 审批流 + 外部同步 |
-| Enterprise 同步引擎 | Sync jobs/requests/workers + alerts |
-| 告警调度器 | 自定义条件表达式 + event evaluate + 多渠道通知 |
-| 审计日志 HMAC 链 | 防篡改审计 + Webhook 投递 + 导出 |
-| 事件流 SSE | 实时事件/告警推送 |
-| 状态回放 | Event sourcing + checkpoint + replay |
-| Google Wallet | Pass class/object + JWT save link（Kisi 不支持） |
-| 物理卡完整生命周期 | Vendor/inventory/scan/import/available/frozen/scrapped |
-| Gateway Bootstrap 协议 | 注册/激活/心跳/配置同步/OTA/事件批量上报 |
-| Gateway 序列号库存 | 硬件资产管理 + CSV import/export |
-| 移动端 App API | BLE/QR unlock + my-doors + BLE token |
-| 实体卡库存治理 | 批量状态变更 + lifecycle 强制 |
-| 访问权限高级治理 | Schedule templates + bulk edit + impact preview + review |
-| Holiday Calendar CRUD | 租户级假日日历管理（7 端点 vs Kisi 的 2 端点只读） |
+| 摄像头直连集成 | 海康/大华/ONVIF/VIVOTEK/中控 5 provider + HikConnect ISC 云绑定（Kisi 走第三方集成，无直连） |
+| Southbound 设备直控 | /gateway/southbound/{provider}/{deviceID}/unlock + sync-users + zkteco push |
+| 移动管理员 API | ~80 条 place 管理员路由（users/events/incidents/cards/credentials/analytics/guests…），Kisi 移动端无同级管理能力 |
+| Gateway 边缘安全栈 | mTLS ECDSA P-256 + TLS1.3 强制 + 证书续期、auth protocol v2（52B challenge）、nonce 重放缓存、NFC HCE APDU、Wiegand GPIO、Matter over Thread、OSDP v2、BLE TCP 模拟器 |
+| Wallet DLQ 治理 | requeue/cleanup/archives + metrics/trend/alert 订阅 + 前端钻取 |
+| Cloudflare 双向邮件 | 发送 provider（primary）+ 入站 webhook + Worker |
+| FCM 推送 | FCM v1 + service account JWT + provider-status/smoke + APNs 注册端点 |
+| Kisi 兼容层 | routes_kisi_compat.go（数字 ID 格式，供客户端按 Kisi 形态直连） |
+| 移动凭证管理后台 | /credentials/mobile 列表/吊销 + 前端 |
+| 审计 Webhook 管理面 | config + deliveries + dispatch + UI |
+| PDF 报表引擎 | pdfgen + Gotenberg + 设计语言 |
+| 印尼本地化 + 合规 | id-ID locale + UU PDP 合规文档（compliance-uu-pdp-indonesia.md） |
+| OAuth2 客户端体系 | 客户端 CRUD + 三协议端点（修复 P1-1 后即为对 Kisi 的纯增项——Kisi 的 OAuth2 仅限官方集成，未开放第三方客户端自助注册） |
+| 基建 | React 19 / Vite 8 / Go 1.25.10、replay-soak 夜间 CI、OpenAPI + 移动路由防漂移 guard |
 
 ---
 
-## 4. 缺失 operations 汇总
+## 4. 差距功能的 Kisi 实现方式（自研 vs 第三方）与对策建议
 
-### 4.1 纯软件可补（10 operations）
+> 置信度标注：【确认】= 官方文档/月度更新直接证实；【高置信】= 多来源一致推断；【推断】= 单一来源或间接推断。
 
-| 序号 | operationId | 路径 | 优先级 | 预估 |
-|---:|---|---|--------|------|
-| 1 | `fetchGroupLock` | GET `/group_locks/{id}` | P3 | 0.5h |
-| 2 | `fetchGroupElevatorStop` | GET `/group_elevator_stops/{id}` | P3 | 0.5h |
-| 3 | `fetchGroupTerminal` | GET `/group_terminals/{id}` | P3 | 0.5h |
-| 4 | `fetchTeamMembership` | GET `/team_memberships/{id}` | P3 | 0.5h |
-| 5 | `activateCardAssignmentWithActivationToken` | POST `/card_assignments/{token}/activate_with_token` | P3 | 0.5h |
-| 6 | `deleteCurrentUser` | DELETE `/user` | P3 | 0.5h |
-| 7 | `fetchPublicOrganization` | GET `/organizations/{domain}/public` | P3 | 1h |
-| 8 | `findOrganizations` | POST `/organizations/find` | P3 | 1h |
-| 9 | `promoteLogin` | POST `/logins/{id}/promote` | P3 | 2h |
-| 10 | `resolveLogin` | POST `/logins/resolve` | P3 | 2h |
+| 差距功能 | Kisi 的做法 | 置信度 | 建议 MistyPass 路线 |
+|---|---|---|---|
+| **视频监控** | **第三方集成路线**：无自研摄像头/VMS，靠 Spot AI / Cisco Meraki / Eagle Eye / VIVOTEK VORTEX 集成拉流，tailgating AI 检测也依赖集成方 | 【确认】 | 已反超（5 厂商直连，契合印尼市场海康/大华占有率）。补**录像回放**走海康 ISAPI playback / NVR 接口，**不要自研 VMS** |
+| **Intercom** | **自研硬件**（Intercom Pro，2025 发售，$59/月订阅）+ 自研呼叫软件（Web/App 接听） | 【确认】 | 不建议自研硬件。集成 SIP/ONVIF 门口机（Akuvox/海康/大华门禁对讲，印尼易采购），复用 southbound 架构；软件侧加 WebRTC/SIP 接听面板 |
+| **Kiosk** | 软件自研（iPad/PWA 签到）+ **2026-03 起自研硬件**（Kiosk Pro 签到打印一体机） | 【确认】 | 软件先行：web-admin 出 kiosk PWA（平板锁定模式）+ 市售 Android 平板 + USB 标签打印机；硬件品牌化后置 |
+| **工牌打印** | 自研软件功能（工牌生成 + PDF 下载，配普通打印机） | 【高置信】 | **自研，最快可销项**：复用 pdfgen + Gotenberg 出徽章模板，约数天工作量 |
+| **访客 NDA** | 自研轻量电子签（访客流程内上传 NDA + kiosk 上签署），未见接 DocuSign 等第三方 | 【推断】 | 自研：NDA 模板上传 + 签名画板 + 归档进审计链（审计 HMAC 链是现成优势） |
+| **Bookings 支付** | 预订模块自研 + **第三方 Stripe** 收款；日历邀请自研 ICS | 【确认】 | 支付接**第三方**，但印尼场景建议 Midtrans/Xendit（QRIS/GoPay/OVO）优先于 Stripe——本地化差异点；ICS 邮件链路已有 |
+| **Apple Wallet 员工证** | 走 **Apple 官方企业徽章计划**（Apple Wallet access badge + NFC），需 Apple 合作资质，门槛高 | 【确认】 | 短期做**展示型 pass**（QR 条码双钱包）+ 自有 App BLE/HCE 解锁；Apple Access / Google Smart Tap 的 NFC 钱包凭证均为受限合作计划，列长期。我方 Google Wallet 后端已有——**优先把双端 App 的 wallet 入口放出来端到端打通**，这是 Kisi 没有的现成卖点 |
+| **MotionSense 免操作开门** | **自研**（App 后台 BLE ranging + 自家 reader 固件配合，专利特性） | 【高置信】 | 自研可行：App 后台 BLE ranging + gateway RSSI 门限 + 防误触（已有 BLE v2 栈与 Android HCE 基础），Android 先行 |
+| **SCIM / 目录集成** | SCIM 自研 + 第三方 IdP（Google/Entra/Okta/JumpCloud）官方 API 直连 | 【确认】 | SCIM 已平手。补 Entra/Okta 的 SCIM 配置向导 + 文档即可对外宣称支持，直连后置 |
+| **入侵检测（zones/Stay-Away/siren）** | 自研软件模型 + **自家控制器继电器**驱动 siren | 【高置信】 | 软件模型（zones/arm modes/排程联动）纯自研可先行；siren 物理输出走 gateway GPIO / ZKTeco aux 继电器，半硬件绑定 |
+| **Incident Policies / Security Agents** | 自研规则引擎跑在自家事件流上 | 【高置信】 | 自研：alert engine 已有，补内置策略类型。注意 Anti-passback/Tailgating 需要进出双向读卡数据，半硬件绑定；Role-Assignment 监控纯软件可即做 |
+| **空间分析（Occupancy/Visual/Retention）** | 自研（基于自家事件数据） | 【高置信】 | 自研：presences/events 数据已有，纯报表开发；可与现有 analytics 端点合并出"空间分析"页 |
+| **Custom Roles** | 自研 RBAC（2025-03 起试点） | 【确认】 | 自研；建议提前设计 permission matrix，避免现有固定角色未来迁移成本 |
+| **Mobile SDK / 白标** | 自研 SDK | 【确认】 | 后置；有白标客户需求时从现有双端 App 抽取 |
+| **Marketplace** | 目录自研 + 伙伴 API 集成（健身赛道密集：Mindbody/Magicline/bsport） | 【确认】 | 后置；优先 2-3 个印尼本地集成（Talenta 已有，可加 Mekari 生态 / Midtrans），比泛目录更有销售价值 |
+| **Controller I/O** | **自研控制器硬件**（重资产，亦是其毛利来源） | 【确认】 | 维持第三方控制器（ZKTeco C3 等）+ southbound 直控的轻资产路线，正确且已有架构支撑 |
 
-> 合计 ~1 天，全部为 P3，不影响核心流程。
-
-### 4.2 依赖硬件（19 operations）
-
-| 分类 | Operations | 依赖 |
-|------|-----------|------|
-| Controller Inputs | 1 | 控制器硬件 |
-| Controller Relays | 1 | 控制器硬件 |
-| Controller Wiegands | 1 | 控制器硬件 |
-| Controller Input Connections | 5 | 控制器硬件 |
-| Controller Relay Connections | 5 | 控制器硬件 |
-| Controller Wiegand Connections | 5 | 控制器硬件 |
-| Wireless Locks | 1 | 无线锁硬件 |
-
-### 4.3 依赖第三方（2 operations）
-
-| 分类 | Operations | 依赖 |
-|------|-----------|------|
-| Camera updateCamera | 1 | IP 摄像头 |
-| Camera fetchVideoLink | 1 | 视频服务 |
+**战略总结**：Kisi 是"自研硬件（重资产）+ 自研软件 + 选择性第三方（支付/视频/IdP）"；MistyPass 资源与市场（印尼）决定了应走"**软件全自研 + 商品化第三方硬件集成**"——southbound/gateway 架构正是为此而建。纯软件可销项（工牌、NDA、kiosk PWA、空间分析、内置策略、geofence 服务端强制、Bookings 本地支付）合计约 4-6 周工作量；硬件绑定项随硬件采购节奏推进。
 
 ---
 
-## 5. 优先行动建议
+## 5. 缺失汇总（更新）
 
-### 立即可做（纯软件，~1 天）
+### 5.1 纯软件（约 1 天级）
+1. 修 `activate_with_token` 参数名 bug（0.5h）+ 清理 `/organizations/{domain}/public` 重复注册（0.5h）
+2. `promoteLogin`（2h，可与 /app/me/primary-device 概念对齐）
+3. （可选，低价值）updateCurrentLogin / deleteCurrentLogin / promoteCurrentLogin
 
-1. 补 4 个 detail 端点：`fetchGroupLock`、`fetchGroupElevatorStop`、`fetchGroupTerminal`、`fetchTeamMembership`
-2. 补 `deleteCurrentUser` 和 `activateCardAssignmentWithActivationToken`
+### 5.2 纯软件功能块（周级，按销项性价比排序）
+1. 工牌打印（pdfgen 复用）
+2. 空间分析三件套（Occupancy / Visual / Retention）
+3. 内置 Incident Policy：Role Assignment 监控（纯软件）；Anti-passback/Tailgating（需双向读卡数据，半硬件）
+4. 访客 NDA + 通知端到端 + Kiosk PWA
+5. Geofence / Primary device 服务端强制
+6. Bookings：Midtrans/Xendit 支付 + 必签协议
+7. 入侵检测软件模型（zones / Stay-Away / 排程联动）
+8. Wallet 端到端：双端 App 入口恢复 + Google Wallet 打通 + Apple 展示型 pass
 
-### 短期（~1 周）
+### 5.3 依赖硬件（19 operations + 物理能力）
+Controller I/O ×18、Wireless Locks ×1、siren 物理输出、Intercom/Kiosk 硬件形态、Apple/Google NFC 钱包凭证（合作计划门槛）。
 
-3. 报表 PDF 导出 + 邮件推送（对齐 Kisi Reports/Scheduled Reports 邮件功能）
-4. Organization Dashboard 聚合端点（对齐 Kisi fetchCurrentOrganizationDashboard）
-5. 内置 Incident Policy 类型（Door Held Open、Hardware Outage）
+### 5.4 前置阻塞（来自代码审查）
+- **OAuth2 P1-1 与报表调度器 P1-2 修复前，0.2 矩阵中对应两项不得对外宣称完成。**
 
-### 中期（~1 月）
+---
 
-6. SCIM 2.0 用户供给协议
-7. OAuth2 Authorization Code 流（第三方应用集成）
-8. GPS Geofence 访问限制
-9. 访客管理增强（NDA、主人通知、Kiosk PWA）
+## 6. 优先行动建议
 
-### 长期（依赖外部资源）
-
-10. Controller I/O 全套（19 operations，依赖硬件）
-11. Wireless Locks（依赖硬件）
-12. Camera 真实集成（依赖 IP 摄像头）
-13. Apple Pass 真实签名（依赖 Apple Developer 账号）
-14. Bookings / Intercom / Kiosk（视产品规划）
+1. **本周**：修 CODE-REVIEW P1-1/P1-2（OAuth2、报表调度器）→ 两个差距项正式销项；修 5.1 的两个路由 bug
+2. **2 周内**：工牌打印、Role-Assignment 策略、geofence 服务端强制、locale 补齐（id-ID 是目标市场）
+3. **1 月内**：空间分析三件套、访客 NDA + Kiosk PWA、Bookings 本地支付、Wallet 端到端
+4. **季度**：入侵检测软件模型、MotionSense 等价免操作开门（Android 先行）、Custom Roles 设计、Entra/Okta SCIM 向导
+5. **随硬件**：Controller I/O、siren、门口机对讲集成、Kiosk 硬件
+6. **持续跟踪**：Kisi 月度更新（getkisi.com/updates）；其 Security Agents 与空间分析是 2026 主推方向
