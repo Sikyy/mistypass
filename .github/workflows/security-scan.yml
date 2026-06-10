@@ -52,7 +52,9 @@ jobs:
         run: docker build -f api/Dockerfile -t mistypass-api:ci .
 
       - name: Trivy Scan API Image
-        uses: aquasecurity/trivy-action@master
+        # Pin to a released tag, not @master: a third-party action on a mutable
+        # ref runs arbitrary code in CI on every push.
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: mistypass-api:ci
           format: table
