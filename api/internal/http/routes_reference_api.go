@@ -2781,6 +2781,16 @@ func (s *server) updateReferenceAlertPolicy(w http.ResponseWriter, r *http.Reque
 		}
 		writeJSON(w, http.StatusOK, updated)
 	default:
+		if strings.HasPrefix(policyKind, "incident_") {
+			updated, err := s.updateReferenceIncidentAlertPolicy(strings.TrimPrefix(policyKind, "incident_"), tenantID, payload)
+			if err != nil {
+				handleReferenceAlertPolicyMutationError(w, err)
+				return
+			}
+			s.appendAuditLog(r, tenantID, "reference_incident_alert_policy_updated", fmt.Sprintf("policy_id=%s,trigger=%s,status=%s", updated.ID, updated.Trigger, updated.Status), "alert_policy")
+			writeJSON(w, http.StatusOK, updated)
+			return
+		}
 		updated, err := s.updateReferenceCustomAlertPolicy(policyKind, tenantID, payload)
 		if err != nil {
 			handleReferenceAlertPolicyMutationError(w, err)
@@ -3073,6 +3083,7 @@ func (s *server) createReferenceRoleAssignment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	s.appendAuditLog(r, tenantID, "reference_role_assignment_created", referenceRoleAssignmentAuditTarget(created), "access")
+	s.maybeDispatchRoleAssignmentAlert(tenantID, created, "role_assignment.created")
 	writeJSON(w, http.StatusCreated, created)
 }
 
@@ -3123,6 +3134,7 @@ func (s *server) updateReferenceRoleAssignment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	s.appendAuditLog(r, tenantID, "reference_role_assignment_updated", referenceRoleAssignmentAuditTarget(updated), "access")
+	s.maybeDispatchRoleAssignmentAlert(tenantID, updated, "role_assignment.updated")
 	writeJSON(w, http.StatusOK, updated)
 }
 
@@ -4585,6 +4597,16 @@ func (s *server) resolveReferenceAlertPolicyRequest(w http.ResponseWriter, r *ht
 
 func referenceAlertPolicyIDParts(policyID string) (string, string) {
 	nextPolicyID := strings.TrimSpace(policyID)
+	for _, trigger := range incidentAlertPolicyTriggers {
+		prefix := "ap_incident_" + trigger + "_"
+		if strings.HasPrefix(nextPolicyID, prefix) {
+			tenantID := strings.TrimSpace(strings.TrimPrefix(nextPolicyID, prefix))
+			if tenantID == "" {
+				return "", ""
+			}
+			return "incident_" + trigger, tenantID
+		}
+	}
 	switch {
 	case strings.HasPrefix(nextPolicyID, "ap_enterprise_sync_worker_"):
 		tenantID := strings.TrimSpace(strings.TrimPrefix(nextPolicyID, "ap_enterprise_sync_worker_"))
@@ -4628,6 +4650,10 @@ func (s *server) referenceAlertPolicyByKind(policyKind string, tenantID string) 
 	nextTenantID := strings.TrimSpace(tenantID)
 	if nextTenantID == "" {
 		return referenceAlertPolicy{}, false
+	}
+	if strings.HasPrefix(policyKind, "incident_") {
+		trigger := strings.TrimPrefix(policyKind, "incident_")
+		return s.incidentAlertPolicyByID(nextTenantID, incidentAlertPolicyID(trigger, nextTenantID))
 	}
 	switch policyKind {
 	case "enterprise_sync_worker":
@@ -4953,38 +4979,7 @@ func referenceCustomAlertPolicyFromPayload(
 }
 
 func (s *server) referenceIncidentAlertPolicies(tenantID string) []referenceAlertPolicy {
-	return []referenceAlertPolicy{
-		{
-			ID:              "ap_incident_door_held_open_" + tenantID,
-			TenantID:        tenantID,
-			Name:            "Door Held Open",
-			Description:     "Alerts when a door remains open beyond the configured threshold.",
-			Category:        "incident",
-			Trigger:         "door_held_open",
-			Severity:        "high",
-			Condition:       "event.type == 'lock.held_open' && event.duration_seconds > threshold",
-			Status:          "inactive",
-			Enabled:         false,
-			Threshold:       300,
-			WindowSeconds:   600,
-			CooldownSeconds: 1800,
-		},
-		{
-			ID:              "ap_incident_hardware_outage_" + tenantID,
-			TenantID:        tenantID,
-			Name:            "Hardware Outage",
-			Description:     "Alerts when controller or reader uptime falls below threshold.",
-			Category:        "incident",
-			Trigger:         "hardware_outage",
-			Severity:        "critical",
-			Condition:       "event.type == 'controller.offline' && event.downtime_minutes > threshold",
-			Status:          "inactive",
-			Enabled:         false,
-			Threshold:       5,
-			WindowSeconds:   300,
-			CooldownSeconds: 3600,
-		},
-	}
+	return s.mergedIncidentAlertPolicies(tenantID)
 }
 
 func (s *server) referenceCustomAlertPolicies(tenantID string) []referenceAlertPolicy {

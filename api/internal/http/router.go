@@ -107,6 +107,8 @@ type server struct {
 	customAlertPolicyMu           sync.RWMutex
 	customAlertPolicies           map[string]referenceAlertPolicy
 	customAlertPolicySeq          int
+	incidentAlertPolicyMu         sync.RWMutex
+	incidentAlertPolicyOverrides  map[string]referenceAlertPolicy
 	alertNotificationMu           sync.RWMutex
 	alertNotifications            []alertNotification
 	alertCooldownMu               sync.RWMutex
@@ -446,6 +448,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		reportSchedules:               map[string]reportSchedule{},
 		emailInboundEvents:            []emailInboundEvent{},
 		customAlertPolicies:           map[string]referenceAlertPolicy{},
+		incidentAlertPolicyOverrides:  map[string]referenceAlertPolicy{},
 		alertCooldowns:                map[string]time.Time{},
 		hrisWebhookReceiptWorkerWake:  make(chan struct{}, 1),
 		hrisWebhookDLQWorkerWake:      make(chan struct{}, 1),
@@ -600,6 +603,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		return nil, nil, err
 	}
 	s.restoreAlertPoliciesFromState()
+	s.restoreIncidentAlertPoliciesFromState()
 	s.restoreReportSchedulesFromState()
 	s.restoreEmailInboundEventsFromState()
 	s.restorePushDevicesFromState()
