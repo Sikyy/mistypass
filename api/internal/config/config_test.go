@@ -198,6 +198,7 @@ func TestFromEnvReportEmailConfig(t *testing.T) {
 	t.Setenv("REPORT_EMAIL_ENABLED", "")
 	t.Setenv("REPORT_EMAIL_FROM", "")
 	t.Setenv("GOTENBERG_URL", "")
+	t.Setenv("BADGE_VERIFY_BASE_URL", "")
 
 	cfg := FromEnv()
 	if cfg.ReportEmailEnabled {
@@ -209,10 +210,14 @@ func TestFromEnvReportEmailConfig(t *testing.T) {
 	if cfg.GotenbergURL != "http://localhost:3000" {
 		t.Fatalf("default gotenberg url mismatch: got %s", cfg.GotenbergURL)
 	}
+	if cfg.BadgeVerifyBaseURL != "" {
+		t.Fatalf("default badge verify base url should be empty, got %q", cfg.BadgeVerifyBaseURL)
+	}
 
 	t.Setenv("REPORT_EMAIL_ENABLED", "true")
 	t.Setenv("REPORT_EMAIL_FROM", "reports@mistyislet.com")
 	t.Setenv("GOTENBERG_URL", "http://gotenberg:3000")
+	t.Setenv("BADGE_VERIFY_BASE_URL", "https://id.example.com")
 
 	cfg = FromEnv()
 	if !cfg.ReportEmailEnabled {
@@ -223,6 +228,9 @@ func TestFromEnvReportEmailConfig(t *testing.T) {
 	}
 	if cfg.GotenbergURL != "http://gotenberg:3000" {
 		t.Fatalf("override gotenberg url mismatch: got %s", cfg.GotenbergURL)
+	}
+	if cfg.BadgeVerifyBaseURL != "https://id.example.com" {
+		t.Fatalf("badge verify base url override mismatch: got %q", cfg.BadgeVerifyBaseURL)
 	}
 }
 

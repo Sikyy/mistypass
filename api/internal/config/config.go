@@ -161,6 +161,7 @@ type Config struct {
 	ReportEmailEnabled                                           bool
 	ReportEmailFrom                                              string
 	GotenbergURL                                                 string
+	BadgeVerifyBaseURL                                           string
 	CameraEnabled                                                bool
 	CameraVaultMasterKey                                         string
 	CameraSnapshotTimeoutSeconds                                 int
@@ -1092,6 +1093,7 @@ func loadReportEmailConfig(cfg *Config) {
 	cfg.ReportEmailEnabled = parseBoolOrFallback(envString("REPORT_EMAIL_ENABLED"), false)
 	cfg.ReportEmailFrom = envString("REPORT_EMAIL_FROM")
 	cfg.GotenbergURL = envStringOrDefault("GOTENBERG_URL", "http://localhost:3000")
+	cfg.BadgeVerifyBaseURL = envStringOrDefault("BADGE_VERIFY_BASE_URL", "")
 }
 
 func loadOAuth2Config(cfg *Config) {
