@@ -1,0 +1,34 @@
+{{define "badge"}}<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><style>
+  @page { size: 54mm 86mm; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #141510; }
+  .badge { width: 54mm; height: 86mm; padding: 6mm 5mm; display: flex; flex-direction: column;
+           page-break-after: always; border: 0.3mm solid #e8dfd1; }
+  .badge:last-child { page-break-after: auto; }
+  .org { display: flex; align-items: center; gap: 2mm; border-bottom: 0.3mm solid #e8dfd1; padding-bottom: 3mm; }
+  .org img { height: 8mm; }
+  .org .name { font-size: 9pt; font-weight: 700; color: #4A69FF; }
+  .holder { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .holder .full-name { font-size: 16pt; font-weight: 800; line-height: 1.1; }
+  .holder .role { font-size: 10pt; color: #7c7568; margin-top: 1mm; }
+  .holder .where { font-size: 8pt; color: #9a9486; margin-top: 2mm; }
+  .status { display: inline-block; margin-top: 2mm; padding: 0.5mm 2mm; border-radius: 2mm;
+            font-size: 7pt; font-weight: 700; text-transform: uppercase; background: #eef1ff; color: #4A69FF; }
+  .qr { display: flex; align-items: center; gap: 2mm; border-top: 0.3mm solid #e8dfd1; padding-top: 3mm; }
+  .qr img { width: 18mm; height: 18mm; }
+  .qr .cap { font-size: 7pt; color: #9a9486; }
+</style></head><body>
+{{range .Badges}}
+  <div class="badge">
+    <div class="org">{{if $.LogoBase64}}<img src="data:image/png;base64,{{$.LogoBase64}}" alt="">{{end}}<span class="name">{{$.Organization}}</span></div>
+    <div class="holder">
+      <div class="full-name">{{.Name}}</div>
+      <div class="role">{{.Role}}</div>
+      <div class="where">{{.Building}}</div>
+      <span class="status">{{.Status}}</span>
+    </div>
+    <div class="qr"><img src="data:image/png;base64,{{.QRBase64}}" alt="QR"><span class="cap">Scan to verify</span></div>
+  </div>
+{{end}}
+</body></html>{{end}}

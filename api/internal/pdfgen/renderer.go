@@ -42,10 +42,11 @@ var reportTypeLabels = map[string]string{
 }
 
 type Renderer struct {
-	templates   map[string]*template.Template
-	logoBase64  string
-	heroBase64  string
-	noiseBase64 string
+	templates     map[string]*template.Template
+	badgeTemplate *template.Template
+	logoBase64    string
+	heroBase64    string
+	noiseBase64   string
 }
 
 type templateData struct {
@@ -74,11 +75,17 @@ func NewRenderer() (*Renderer, error) {
 		templates[rt] = tmpl
 	}
 
+	badgeTmpl, err := template.ParseFS(templateFS, "templates/badge.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse badge template: %w", err)
+	}
+
 	return &Renderer{
-		templates:   templates,
-		logoBase64:  logoB64,
-		heroBase64:  heroB64,
-		noiseBase64: noiseB64,
+		templates:     templates,
+		badgeTemplate: badgeTmpl,
+		logoBase64:    logoB64,
+		heroBase64:    heroB64,
+		noiseBase64:   noiseB64,
 	}, nil
 }
 
