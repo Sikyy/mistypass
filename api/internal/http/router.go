@@ -634,6 +634,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withBearerToken).Patch("/user", s.updateCurrentUserProfile)
 		r.With(s.withBearerToken).Delete("/user", s.deleteCurrentUser)
 		r.With(s.withEnterprisePublicRateLimit).Post("/organizations/find", s.findOrganizations)
+		r.With(s.withEnterprisePublicRateLimit).Get("/badges/verify", s.verifyBadge)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/tenant/resolve", s.resolveEnterpriseTenantByEmail)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/start", s.enterpriseAuthStart)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/exchange", s.enterpriseAuthExchange)
