@@ -222,6 +222,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request) {
 		Format:     format,
 		DayOfWeek:  dayOfWeek,
 		Enabled:    enabled,
+		NextRunAt:  computeReportScheduleNextRun(frequency, now).Format(time.RFC3339),
 		CreatedAt:  now.Format(time.RFC3339),
 		UpdatedAt:  now.Format(time.RFC3339),
 	}
@@ -269,12 +270,14 @@ func (s *server) updateReportSchedule(w http.ResponseWriter, r *http.Request) {
 		}
 		next.ReportType = reportType
 	}
+	frequencyChanged := false
 	if payload.Frequency != "" {
 		frequency, ok := normalizeReportScheduleFrequency(payload.Frequency)
 		if !ok {
 			writeError(w, http.StatusBadRequest, "frequency must be one of: daily, weekly, monthly")
 			return
 		}
+		frequencyChanged = frequency != next.Frequency
 		next.Frequency = frequency
 	}
 	if payload.Format != "" {
@@ -302,6 +305,9 @@ func (s *server) updateReportSchedule(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UTC().Truncate(time.Second)
 	next.UpdatedAt = now.Format(time.RFC3339)
+	if frequencyChanged || next.NextRunAt == "" {
+		next.NextRunAt = computeReportScheduleNextRun(next.Frequency, now).Format(time.RFC3339)
+	}
 
 	s.reportScheduleMu.Lock()
 	s.reportSchedules[next.ID] = next
@@ -590,6 +596,23 @@ func writeReportEmailRow(sb *strings.Builder, label, value string) {
 // Background report scheduler
 // ---------------------------------------------------------------------------
 
+// computeReportScheduleNextRun returns the next delivery time for a schedule of
+// the given frequency, measured from the supplied reference time.
+func computeReportScheduleNextRun(frequency string, from time.Time) time.Time {
+	switch frequency {
+	case "daily":
+		return from.Add(24 * time.Hour)
+	case "weekly":
+		return from.Add(7 * 24 * time.Hour)
+	case "monthly":
+		return from.AddDate(0, 1, 0)
+	case "quarterly":
+		return from.AddDate(0, 3, 0)
+	default:
+		return from.Add(7 * 24 * time.Hour)
+	}
+}
+
 func (s *server) startReportScheduler(stop <-chan struct{}) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -611,6 +634,23 @@ func (s *server) runScheduledReports() {
 		return
 	}
 	now := time.Now().UTC()
+
+	// Backfill schedules persisted before next_run_at was stamped at create time —
+	// without this they would never become due.
+	s.reportScheduleMu.Lock()
+	backfilled := false
+	for id, sched := range s.reportSchedules {
+		if sched.Enabled && sched.NextRunAt == "" {
+			sched.NextRunAt = computeReportScheduleNextRun(sched.Frequency, now).Format(time.RFC3339)
+			sched.UpdatedAt = now.Format(time.RFC3339)
+			s.reportSchedules[id] = sched
+			backfilled = true
+		}
+	}
+	if backfilled {
+		s.persistReportSchedulesLocked()
+	}
+	s.reportScheduleMu.Unlock()
 
 	s.reportScheduleMu.RLock()
 	var due []reportSchedule
@@ -723,20 +763,7 @@ func (s *server) executeScheduledReport(sched reportSchedule, now time.Time, pro
 	if current, ok := s.reportSchedules[sched.ID]; ok {
 		current.LastSentAt = now.Format(time.RFC3339)
 		current.UpdatedAt = now.Format(time.RFC3339)
-		var nextRun time.Time
-		switch sched.Frequency {
-		case "daily":
-			nextRun = now.Add(24 * time.Hour)
-		case "weekly":
-			nextRun = now.Add(7 * 24 * time.Hour)
-		case "monthly":
-			nextRun = now.AddDate(0, 1, 0)
-		case "quarterly":
-			nextRun = now.AddDate(0, 3, 0)
-		default:
-			nextRun = now.Add(7 * 24 * time.Hour)
-		}
-		current.NextRunAt = nextRun.Format(time.RFC3339)
+		current.NextRunAt = computeReportScheduleNextRun(sched.Frequency, now).Format(time.RFC3339)
 		s.reportSchedules[sched.ID] = current
 		s.persistReportSchedulesLocked()
 	}

@@ -177,3 +177,100 @@ func TestReportScheduleProviderStatus(t *testing.T) {
 		t.Fatalf("expected 15s cloudflare fallback timeout, got %+v", cloudflareFallbackStatus)
 	}
 }
+
+func TestCreateReportScheduleSetsNextRunAt(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "report-schedule-nextrun-create-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	body := []byte(`{"tenant_id":"tenant_demo_jakarta","name":"Daily ops","report_type":"events","frequency":"daily","recipients":["ops@example.com"],"format":"pdf"}`)
+	recorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/report-schedules", token, body)
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var created reportSchedule
+	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created schedule: %v", err)
+	}
+	if created.NextRunAt == "" {
+		t.Fatal("expected next_run_at to be set on create so the background scheduler can pick the schedule up")
+	}
+	nextRun, err := time.Parse(time.RFC3339, created.NextRunAt)
+	if err != nil {
+		t.Fatalf("parse next_run_at: %v", err)
+	}
+	until := time.Until(nextRun)
+	if until < 23*time.Hour || until > 25*time.Hour {
+		t.Fatalf("expected daily schedule next_run_at ~24h out, got %s (in %s)", created.NextRunAt, until)
+	}
+}
+
+func TestUpdateReportScheduleRecomputesNextRunAtOnFrequencyChange(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "report-schedule-nextrun-update-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	createBody := []byte(`{"tenant_id":"tenant_demo_jakarta","name":"Ops digest","report_type":"events","frequency":"daily","recipients":["ops@example.com"],"format":"pdf"}`)
+	createRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/report-schedules", token, createBody)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected create 201, got %d body=%s", createRecorder.Code, createRecorder.Body.String())
+	}
+	var created reportSchedule
+	if err := json.Unmarshal(createRecorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created schedule: %v", err)
+	}
+
+	updateBody := []byte(`{"tenant_id":"tenant_demo_jakarta","frequency":"weekly"}`)
+	updateRecorder := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/report-schedules/"+created.ID, token, updateBody)
+	if updateRecorder.Code != http.StatusOK {
+		t.Fatalf("expected update 200, got %d body=%s", updateRecorder.Code, updateRecorder.Body.String())
+	}
+	var updated reportSchedule
+	if err := json.Unmarshal(updateRecorder.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode updated schedule: %v", err)
+	}
+	nextRun, err := time.Parse(time.RFC3339, updated.NextRunAt)
+	if err != nil {
+		t.Fatalf("parse updated next_run_at %q: %v", updated.NextRunAt, err)
+	}
+	until := time.Until(nextRun)
+	if until < 6*24*time.Hour+23*time.Hour || until > 7*24*time.Hour+time.Hour {
+		t.Fatalf("expected weekly schedule next_run_at ~7d out after frequency change, got %s (in %s)", updated.NextRunAt, until)
+	}
+}
+
+func TestRunScheduledReportsBackfillsMissingNextRunAt(t *testing.T) {
+	s := &server{
+		cfg: config.Config{ReportEmailEnabled: true},
+		reportSchedules: map[string]reportSchedule{
+			"rs_legacy": {ID: "rs_legacy", TenantID: "tenant_demo_jakarta", Frequency: "weekly", Enabled: true},
+		},
+	}
+
+	s.runScheduledReports()
+
+	s.reportScheduleMu.RLock()
+	got := s.reportSchedules["rs_legacy"]
+	s.reportScheduleMu.RUnlock()
+	if got.NextRunAt == "" {
+		t.Fatal("expected runScheduledReports to backfill next_run_at for legacy schedules persisted without one")
+	}
+	nextRun, err := time.Parse(time.RFC3339, got.NextRunAt)
+	if err != nil {
+		t.Fatalf("parse backfilled next_run_at %q: %v", got.NextRunAt, err)
+	}
+	if until := time.Until(nextRun); until < 6*24*time.Hour+23*time.Hour || until > 7*24*time.Hour+time.Hour {
+		t.Fatalf("expected backfilled weekly next_run_at ~7d out, got %s (in %s)", got.NextRunAt, until)
+	}
+}
