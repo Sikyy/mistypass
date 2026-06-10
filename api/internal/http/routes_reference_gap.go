@@ -466,7 +466,7 @@ func (s *server) updateReferenceCardAssignment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	assignmentID := chi.URLParam(r, "assignmentID")
-	record, err := s.walletSvc.GetPass(tenantID, strings.TrimSpace(assignmentID))
+	record, err := s.walletSvc.GetPass(tenantID, referenceCardAssignmentPassID(assignmentID))
 	if err != nil {
 		writeError(w, http.StatusNotFound, "card assignment not found")
 		return
@@ -482,7 +482,7 @@ func (s *server) deleteReferenceCardAssignment(w http.ResponseWriter, r *http.Re
 		return
 	}
 	assignmentID := chi.URLParam(r, "assignmentID")
-	if _, err := s.walletSvc.RevokePass(tenantID, strings.TrimSpace(assignmentID), requestActor(r)); err != nil {
+	if _, err := s.walletSvc.RevokePass(tenantID, referenceCardAssignmentPassID(assignmentID), requestActor(r)); err != nil {
 		writeError(w, http.StatusNotFound, "card assignment not found")
 		return
 	}

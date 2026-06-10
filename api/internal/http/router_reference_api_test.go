@@ -2037,3 +2037,63 @@ func referenceAPIRequest(t *testing.T, router http.Handler, method, path, token 
 	router.ServeHTTP(recorder, request)
 	return recorder
 }
+
+func TestReferenceCardAssignmentStatusRoutes(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "card-assignment-status-routes-secret",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	createCardBody := []byte(`{"card":{"tenant_id":"tenant_demo_jakarta","template_id":"wpt_employee_demo","uid":"CA5TATE12345"}}`)
+	createCardRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/cards", token, createCardBody)
+	if createCardRecorder.Code != http.StatusCreated {
+		t.Fatalf("expected card create 201, got %d body=%s", createCardRecorder.Code, createCardRecorder.Body.String())
+	}
+	var createdCard struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createCardRecorder.Body.Bytes(), &createdCard); err != nil {
+		t.Fatalf("decode created card: %v", err)
+	}
+
+	assignBody := []byte(`{"card_assignment":{"tenant_id":"tenant_demo_jakarta","card_id":"` + createdCard.ID + `","assignee_type":"User","assignee_id":"usr_1001"}}`)
+	assignRecorder := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/card_assignments", token, assignBody)
+	if assignRecorder.Code != http.StatusOK {
+		t.Fatalf("expected card assignment create 200, got %d body=%s", assignRecorder.Code, assignRecorder.Body.String())
+	}
+
+	// Kisi canonical assignment IDs carry the ca_ prefix; raw pass IDs must keep working too.
+	deactivatePrefixed := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/card_assignments/ca_"+createdCard.ID+"/deactivate?tenant_id=tenant_demo_jakarta", token, nil)
+	if deactivatePrefixed.Code != http.StatusOK {
+		t.Fatalf("expected ca_-prefixed assignment deactivate 200, got %d body=%s", deactivatePrefixed.Code, deactivatePrefixed.Body.String())
+	}
+
+	activateWithToken := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/card_assignments/"+createdCard.ID+"/activate_with_token?tenant_id=tenant_demo_jakarta", token, nil)
+	if activateWithToken.Code != http.StatusOK {
+		t.Fatalf("expected activate_with_token 200, got %d body=%s", activateWithToken.Code, activateWithToken.Body.String())
+	}
+
+	deactivateRaw := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/card_assignments/"+createdCard.ID+"/deactivate?tenant_id=tenant_demo_jakarta", token, nil)
+	if deactivateRaw.Code != http.StatusOK {
+		t.Fatalf("expected raw assignment deactivate 200, got %d body=%s", deactivateRaw.Code, deactivateRaw.Body.String())
+	}
+
+	activatePrefixed := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/card_assignments/ca_"+createdCard.ID+"/activate?tenant_id=tenant_demo_jakarta", token, nil)
+	if activatePrefixed.Code != http.StatusOK {
+		t.Fatalf("expected ca_-prefixed assignment activate 200, got %d body=%s", activatePrefixed.Code, activatePrefixed.Body.String())
+	}
+
+	updatePrefixed := referenceAPIRequest(t, router, http.MethodPatch, "/api/v1/card_assignments/ca_"+createdCard.ID+"?tenant_id=tenant_demo_jakarta", token, []byte(`{}`))
+	if updatePrefixed.Code != http.StatusOK {
+		t.Fatalf("expected ca_-prefixed assignment update 200, got %d body=%s", updatePrefixed.Code, updatePrefixed.Body.String())
+	}
+
+	deletePrefixed := referenceAPIRequest(t, router, http.MethodDelete, "/api/v1/card_assignments/ca_"+createdCard.ID+"?tenant_id=tenant_demo_jakarta", token, nil)
+	if deletePrefixed.Code != http.StatusNoContent {
+		t.Fatalf("expected ca_-prefixed assignment delete 204, got %d body=%s", deletePrefixed.Code, deletePrefixed.Body.String())
+	}
+}

@@ -3656,6 +3656,16 @@ func (s *server) listReferenceEventTypes(w http.ResponseWriter, r *http.Request)
 
 func (s *server) changeReferenceCardStatus(w http.ResponseWriter, r *http.Request, status string) {
 	cardID := strings.TrimSpace(chi.URLParam(r, "cardID"))
+	if cardID == "" {
+		// The same status transitions are registered for card assignments under
+		// {assignmentID} (canonically ca_-prefixed) and for the Kisi-compat
+		// activation-token route under {activationToken}, whose token is the
+		// pass ID — resolve all of them to the underlying pass ID.
+		cardID = referenceCardAssignmentPassID(firstNonEmptyString(
+			chi.URLParam(r, "assignmentID"),
+			chi.URLParam(r, "activationToken"),
+		))
+	}
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
 		return
