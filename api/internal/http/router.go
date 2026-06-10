@@ -1272,6 +1272,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/alarm-metrics", s.getAlarmMetrics)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/analytics/export", s.exportAnalytics)
 			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/reports/export", s.exportReport)
+			protected.With(s.requireRoles("super_admin", "tenant_admin", "operator", "building_admin")).Get("/badges/export", s.exportBadges)
 
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Get("/report-schedules", s.listReportSchedules)
 			protected.With(s.requireRoles("super_admin", "tenant_admin")).Post("/report-schedules", s.createReportSchedule)
