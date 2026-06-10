@@ -59,7 +59,23 @@ else
   echo "== already up to date: ${before} =="
 fi
 
-if [[ "${before}" != "${target}" || "${FORCE_REDEPLOY}" == "true" ]]; then
+health_check() {
+  local attempt
+  for attempt in {1..30}; do
+    if curl -fsS "${HEALTH_URL}" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
+code_changed=false
+if [[ "${before}" != "${target}" ]]; then
+  code_changed=true
+fi
+
+if [[ "${code_changed}" == "true" || "${FORCE_REDEPLOY}" == "true" ]]; then
   echo "== docker compose up: ${COMPOSE_FILES} =="
   docker compose "${compose_args[@]}" up -d --build
 else
@@ -67,14 +83,32 @@ else
 fi
 
 echo "== health check: ${HEALTH_URL} =="
-for attempt in {1..30}; do
-  if curl -fsS "${HEALTH_URL}" >/dev/null; then
-    echo "healthz ok"
-    exit 0
-  fi
-  sleep 2
-done
+if health_check; then
+  echo "healthz ok"
+  exit 0
+fi
 
 echo "healthz failed after retries" >&2
 docker compose "${compose_args[@]}" ps
+
+# Roll back to the previously deployed commit so the box doesn't sit on a broken
+# build until the next push (the prior behaviour: every subsequent launchd cycle
+# saw before==target and skipped compose, leaving the bad version running). Only
+# meaningful when this run actually advanced the code; a forced redeploy at the
+# same commit has nothing to roll back to.
+if [[ "${code_changed}" == "true" ]]; then
+  echo "== rollback ${target} -> ${before} ==" >&2
+  git reset --hard "${before}"
+  docker compose "${compose_args[@]}" up -d --build
+  echo "== health check after rollback: ${HEALTH_URL} =="
+  if health_check; then
+    echo "rolled back to ${before}; previous version healthy" >&2
+    exit 1
+  fi
+  echo "rollback health check also failed; manual intervention required" >&2
+  docker compose "${compose_args[@]}" ps
+  exit 1
+fi
+
+echo "no prior version to roll back to (forced redeploy at ${before})" >&2
 exit 1
