@@ -70,7 +70,21 @@ type tokenClaims struct {
 	BuildingIDs []string `json:"building_ids,omitempty"`
 	Language    string   `json:"language,omitempty"`
 	TokenType   string   `json:"token_type"`
+	// OAuth2-issued access tokens carry the granting client and the scopes the
+	// resource owner consented to. Session tokens leave these empty, which the
+	// API treats as full (role-gated) access.
+	ClientID string   `json:"client_id,omitempty"`
+	Scopes   []string `json:"scopes,omitempty"`
 	jwt.RegisteredClaims
+}
+
+// AccessTokenContext carries the verified user plus, for OAuth2-issued tokens,
+// the granting client and consented scopes.
+type AccessTokenContext struct {
+	User     User
+	ClientID string
+	Scopes   []string
+	IsOAuth2 bool
 }
 
 type userRecord struct {
@@ -725,6 +739,107 @@ func (s *Service) VerifyAccessToken(accessToken string) (User, error) {
 		BuildingIDs: append([]string(nil), claims.BuildingIDs...),
 		Language:    claims.Language,
 	}, nil
+}
+
+// VerifyAccessTokenContext verifies an access token like VerifyAccessToken but
+// also returns the OAuth2 client/scopes carried by the token (empty for plain
+// session tokens). Used by the HTTP layer to enforce OAuth2 scopes.
+func (s *Service) VerifyAccessTokenContext(accessToken string) (AccessTokenContext, error) {
+	claims, err := s.parseTokenClaims(strings.TrimSpace(accessToken), "access")
+	if err != nil {
+		return AccessTokenContext{}, ErrInvalidAccessToken
+	}
+
+	now := time.Now().UTC()
+	revoked, err := s.isAccessTokenRevoked(claims.ID, now)
+	if err != nil || revoked {
+		return AccessTokenContext{}, ErrInvalidAccessToken
+	}
+
+	user, exists, err := s.findUserByID(claims.UserID)
+	if err != nil {
+		return AccessTokenContext{}, ErrInvalidAccessToken
+	}
+	if !exists {
+		user = User{
+			ID:          claims.UserID,
+			Name:        claims.Name,
+			Email:       claims.Email,
+			Role:        claims.Role,
+			TenantID:    claims.TenantID,
+			BuildingIDs: append([]string(nil), claims.BuildingIDs...),
+			Language:    claims.Language,
+		}
+	}
+
+	return AccessTokenContext{
+		User:     user,
+		ClientID: claims.ClientID,
+		Scopes:   append([]string(nil), claims.Scopes...),
+		IsOAuth2: claims.ClientID != "",
+	}, nil
+}
+
+// IssueOAuth2AccessToken signs an access token on behalf of the resource owner
+// for an OAuth2 client. The token is a normal "access" token (so it verifies and
+// is revocable through the existing machinery) that additionally carries the
+// client id and consented scopes.
+func (s *Service) IssueOAuth2AccessToken(userID, tenantID string, scopes []string, clientID string) (string, int, error) {
+	nextUserID := strings.TrimSpace(userID)
+	if nextUserID == "" {
+		return "", 0, errors.New("user id is required")
+	}
+	if strings.TrimSpace(clientID) == "" {
+		return "", 0, errors.New("client id is required")
+	}
+
+	user, exists, err := s.findUserByID(nextUserID)
+	if err != nil {
+		return "", 0, err
+	}
+	if !exists {
+		user = User{ID: nextUserID, TenantID: strings.TrimSpace(tenantID)}
+	}
+
+	jti, err := randomTokenID(12)
+	if err != nil {
+		return "", 0, err
+	}
+
+	resolvedTenant := strings.TrimSpace(user.TenantID)
+	if resolvedTenant == "" {
+		resolvedTenant = strings.TrimSpace(tenantID)
+	}
+
+	now := time.Now().UTC()
+	claims := tokenClaims{
+		UserID:      user.ID,
+		Name:        strings.TrimSpace(user.Name),
+		Email:       user.Email,
+		Role:        user.Role,
+		TenantID:    resolvedTenant,
+		BuildingIDs: append([]string(nil), user.BuildingIDs...),
+		Language:    normalizeLanguage(user.Language),
+		TokenType:   "access",
+		ClientID:    strings.TrimSpace(clientID),
+		Scopes:      append([]string(nil), scopes...),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
+			Subject:   user.ID,
+			Issuer:    s.issuer,
+			Audience:  jwt.ClaimStrings{s.issuer},
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.accessTTL)),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString(s.signingKey)
+	if err != nil {
+		return "", 0, err
+	}
+	return signed, int(s.accessTTL.Seconds()), nil
 }
 
 func (s *Service) GetUserByID(userID string) (User, error) {

@@ -226,6 +226,7 @@ type loginRateLimitBucket struct {
 type authContextKey string
 
 const authUserContextKey authContextKey = "auth_user"
+const authTokenScopesContextKey authContextKey = "auth_token_scopes"
 const gatewayBootstrapStateKey = "http_gateway_bootstrap"
 
 const (
@@ -1403,9 +1404,12 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		})
 	})
 
-	// OAuth2 protocol endpoints (outside protected group — handle their own auth)
+	// OAuth2 protocol endpoints (outside protected group — handle their own auth).
+	// Rate-limited per client IP: /token verifies client_secret with bcrypt and is
+	// public, so it is an online-bruteforce and CPU-amplification surface.
 	router.Route("/oauth2", func(oauthRouter chi.Router) {
 		oauthRouter.Use(s.oauth2Enabled)
+		oauthRouter.Use(s.withEnterprisePublicRateLimit)
 		oauthRouter.Get("/authorize", s.oauth2Authorize)
 		oauthRouter.Post("/token", s.oauth2Token)
 		oauthRouter.Post("/revoke", s.oauth2Revoke)

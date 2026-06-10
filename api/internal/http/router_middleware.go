@@ -507,15 +507,44 @@ func (s *server) withBearerToken(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := s.authService.VerifyAccessToken(token)
+		authCtx, err := s.authService.VerifyAccessTokenContext(token)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "invalid access token")
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), authUserContextKey, user)
+		// OAuth2 access tokens are limited to their consented scopes; enforce them
+		// at this single choke point. Session tokens carry no scopes and remain
+		// role-gated as before.
+		if authCtx.IsOAuth2 && !oauth2ScopeAllowsMethod(authCtx.Scopes, r.Method) {
+			writeError(w, http.StatusForbidden, "insufficient_scope")
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), authUserContextKey, authCtx.User)
+		ctx = context.WithValue(ctx, authTokenScopesContextKey, authCtx.Scopes)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// oauth2ScopeAllowsMethod maps an HTTP method to the scope it requires and
+// reports whether the granted scopes satisfy it. Safe methods need "read";
+// mutating methods need "write". "admin" grants everything and "write" implies
+// "read".
+func oauth2ScopeAllowsMethod(granted []string, method string) bool {
+	has := make(map[string]bool, len(granted))
+	for _, scope := range granted {
+		has[strings.ToLower(strings.TrimSpace(scope))] = true
+	}
+	if has["admin"] {
+		return true
+	}
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return has["read"] || has["write"]
+	default:
+		return has["write"]
+	}
 }
 
 func bearerToken(authHeader string) (string, error) {

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -36,19 +35,13 @@ type OAuth2AuthorizationCode struct {
 // ---------------------------------------------------------------------------
 
 type oauth2Store struct {
-	mu              sync.RWMutex
-	codes           map[string]OAuth2AuthorizationCode // key = code
-	ephemeralSecret string                             // generated once if JWT_SECRET not set
+	mu    sync.RWMutex
+	codes map[string]OAuth2AuthorizationCode // key = code
 }
 
 func newOAuth2Store() *oauth2Store {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		panic(fmt.Sprintf("generate oauth2 ephemeral secret: %v", err))
-	}
 	return &oauth2Store{
-		codes:           make(map[string]OAuth2AuthorizationCode),
-		ephemeralSecret: hex.EncodeToString(raw),
+		codes: make(map[string]OAuth2AuthorizationCode),
 	}
 }
 
@@ -591,58 +584,13 @@ func (s *server) oauth2Revoke(w http.ResponseWriter, r *http.Request) {
 // JWT issuing for OAuth2
 // ---------------------------------------------------------------------------
 
-type oauth2AccessTokenClaims struct {
-	UserID   string   `json:"user_id"`
-	TenantID string   `json:"tenant_id,omitempty"`
-	ClientID string   `json:"client_id"`
-	Scopes   []string `json:"scopes"`
-	jwt.RegisteredClaims
-}
-
+// oauth2IssueAccessToken issues the access token through the shared auth service
+// so it verifies as a normal "access" token (carrying token_type plus the
+// client id and scopes) and is revocable via the same machinery as session
+// tokens. Signing OAuth2 tokens separately previously produced tokens that
+// could never pass VerifyAccessToken.
 func (s *server) oauth2IssueAccessToken(authCode OAuth2AuthorizationCode) (string, int, error) {
-	secret := strings.TrimSpace(s.cfg.JWTSecret)
-	if secret == "" {
-		// Use process-lifetime ephemeral secret (generated once in newOAuth2Store).
-		// Production MUST set JWT_SECRET; ephemeral means tokens die on restart.
-		secret = s.oauth2.ephemeralSecret
-	}
-	issuer := strings.TrimSpace(s.cfg.JWTIssuer)
-	if issuer == "" {
-		issuer = "mistypass-api"
-	}
-	ttl := s.cfg.JWTAccessTTL
-	if ttl <= 0 {
-		ttl = time.Hour
-	}
-
-	jti, err := oauth2RandomHex(12)
-	if err != nil {
-		return "", 0, err
-	}
-
-	now := time.Now().UTC()
-	claims := oauth2AccessTokenClaims{
-		UserID:   authCode.UserID,
-		TenantID: authCode.TenantID,
-		ClientID: authCode.ClientID,
-		Scopes:   authCode.Scopes,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        jti,
-			Subject:   authCode.UserID,
-			Issuer:    issuer,
-			IssuedAt:  jwt.NewNumericDate(now),
-			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(secret))
-	if err != nil {
-		return "", 0, err
-	}
-
-	return signed, int(ttl.Seconds()), nil
+	return s.authService.IssueOAuth2AccessToken(authCode.UserID, authCode.TenantID, authCode.Scopes, authCode.ClientID)
 }
 
 // ---------------------------------------------------------------------------
