@@ -32,7 +32,11 @@ func (s *server) kisiOrgPublic(w http.ResponseWriter, r *http.Request) {
 	for _, t := range tenants {
 		tenantID := strings.ToLower(t.ID)
 		tenantName := strings.ToLower(t.Name)
-		if tenantID == domain || tenantName == domain || normalize(tenantID) == normalizedDomain || normalize(tenantName) == normalizedDomain {
+		// Also resolve by the organization's configured primary domain, covering
+		// the lookup the legacy /organizations/{domain}/public handler served
+		// before this Kisi-compat route superseded it.
+		primaryDomain := strings.ToLower(strings.TrimSpace(s.accessSvc.GetOrganizationSettings(t.ID).PrimaryDomain))
+		if tenantID == domain || tenantName == domain || primaryDomain == domain || normalize(tenantID) == normalizedDomain || normalize(tenantName) == normalizedDomain {
 			buildings := s.spaceSvc.ListBuildings(t.ID)
 			writeJSON(w, http.StatusOK, map[string]any{
 				"id":                               int(kisiNumericID(t.ID)),

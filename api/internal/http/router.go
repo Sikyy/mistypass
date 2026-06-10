@@ -632,7 +632,6 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withBearerToken).Get("/user", s.getCurrentUserProfile)
 		r.With(s.withBearerToken).Patch("/user", s.updateCurrentUserProfile)
 		r.With(s.withBearerToken).Delete("/user", s.deleteCurrentUser)
-		r.With(s.withEnterprisePublicRateLimit).Get("/organizations/{domain}/public", s.getPublicOrganization)
 		r.With(s.withEnterprisePublicRateLimit).Post("/organizations/find", s.findOrganizations)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/tenant/resolve", s.resolveEnterpriseTenantByEmail)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/start", s.enterpriseAuthStart)
@@ -648,7 +647,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/users/invitations/provider-receipts", s.receiveUserInvitationProviderReceipt)
 
 		// Kisi-compatible routes (no /app prefix)
-		r.Get("/organizations/{domain}/public", s.kisiOrgPublic)
+		r.With(s.withEnterprisePublicRateLimit).Get("/organizations/{domain}/public", s.kisiOrgPublic)
 		r.With(s.withLoginRateLimit).Post("/logins", s.kisiLogin)
 		r.With(s.withLoginRateLimit).Post("/logins/resolve", s.kisiLogin)
 		r.Group(func(kisiAuth chi.Router) {

@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 )
 
 func (s *server) getOrganizationSettings(w http.ResponseWriter, r *http.Request) {
@@ -112,29 +110,6 @@ func (s *server) disableOrganization(w http.ResponseWriter, r *http.Request) {
 		"status":  "disabled",
 		"message": "organization has been disabled",
 	})
-}
-
-func (s *server) getPublicOrganization(w http.ResponseWriter, r *http.Request) {
-	domain := strings.ToLower(strings.TrimSpace(chi.URLParam(r, "domain")))
-	if domain == "" {
-		writeError(w, http.StatusBadRequest, "domain is required")
-		return
-	}
-	for _, t := range s.tenantSvc.List() {
-		settings := s.accessSvc.GetOrganizationSettings(t.ID)
-		orgDomain := strings.ToLower(strings.TrimSpace(settings.PrimaryDomain))
-		if orgDomain == domain {
-			writeJSON(w, http.StatusOK, map[string]any{
-				"id":           t.ID,
-				"name":         t.Name,
-				"domain":       orgDomain,
-				"places_count": len(s.spaceSvc.ListBuildings(t.ID)),
-				"users_count":  len(s.accessSvc.ListUsers(t.ID)),
-			})
-			return
-		}
-	}
-	writeError(w, http.StatusNotFound, "organization not found")
 }
 
 func (s *server) findOrganizations(w http.ResponseWriter, r *http.Request) {
