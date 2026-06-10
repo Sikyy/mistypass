@@ -4,10 +4,41 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
 )
+
+// validateGuestDoorIDs checks that every requested guest door belongs to the
+// tenant — and, when buildingID is provided, to that building — so a guest QR
+// access token can never be provisioned against doors outside the caller's
+// scope. It returns the trimmed list, or a non-empty message for a 400.
+func (s *server) validateGuestDoorIDs(tenantID, buildingID string, doorIDs []string) ([]string, string) {
+	if len(doorIDs) == 0 {
+		return nil, ""
+	}
+	doorBuildings := make(map[string]string)
+	for _, door := range s.spaceSvc.ListDoors(tenantID) {
+		doorBuildings[door.ID] = door.BuildingID
+	}
+	cleaned := make([]string, 0, len(doorIDs))
+	for _, doorID := range doorIDs {
+		doorID = strings.TrimSpace(doorID)
+		if doorID == "" {
+			continue
+		}
+		building, ok := doorBuildings[doorID]
+		if !ok {
+			return nil, "door " + doorID + " does not belong to this tenant"
+		}
+		if buildingID != "" && building != buildingID {
+			return nil, "door " + doorID + " does not belong to this place"
+		}
+		cleaned = append(cleaned, doorID)
+	}
+	return cleaned, ""
+}
 
 func (s *server) listGuests(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
@@ -64,6 +95,12 @@ func (s *server) createGuest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	doorIDs, doorErrMsg := s.validateGuestDoorIDs(tenantID, request.BuildingID, request.DoorIDs)
+	if doorErrMsg != "" {
+		writeError(w, http.StatusBadRequest, doorErrMsg)
+		return
+	}
+
 	guest, err := s.accessSvc.CreateGuest(access.CreateGuestInput{
 		TenantID:         tenantID,
 		BuildingID:       request.BuildingID,
@@ -79,7 +116,7 @@ func (s *server) createGuest(w http.ResponseWriter, r *http.Request) {
 		IDDocumentNumber: request.IDDocumentNumber,
 		ExpectedAt:       request.ExpectedAt,
 		NotifyHost:       request.NotifyHost,
-		DoorIDs:          request.DoorIDs,
+		DoorIDs:          doorIDs,
 		AccessTTLHours:   request.AccessTTLHours,
 	})
 	if err != nil {

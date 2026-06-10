@@ -54,6 +54,12 @@ func (s *server) appAdminCreateGuest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	doorIDs, doorErrMsg := s.validateGuestDoorIDs(tenantID, placeID, request.DoorIDs)
+	if doorErrMsg != "" {
+		writeError(w, http.StatusBadRequest, doorErrMsg)
+		return
+	}
+
 	guest, err := s.accessSvc.CreateGuest(access.CreateGuestInput{
 		TenantID:         tenantID,
 		BuildingID:       placeID,
@@ -69,7 +75,7 @@ func (s *server) appAdminCreateGuest(w http.ResponseWriter, r *http.Request) {
 		IDDocumentNumber: request.IDDocumentNumber,
 		ExpectedAt:       request.ExpectedAt,
 		NotifyHost:       request.NotifyHost,
-		DoorIDs:          request.DoorIDs,
+		DoorIDs:          doorIDs,
 		AccessTTLHours:   request.AccessTTLHours,
 	})
 	if err != nil {

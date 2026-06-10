@@ -159,3 +159,70 @@ func TestGuestCreateValidation(t *testing.T) {
 		t.Fatalf("expected 400 for missing host, got %d", rec2.Code)
 	}
 }
+
+func TestAppAdminCreateGuestRejectsForeignDoorIDs(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "guest-door-scope-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "building.admin.sudirman@mistypass.local")
+
+	// door_fct_029 belongs to tenant_demo_factory — a cross-tenant door must be rejected.
+	foreignBody := []byte(`{"name":"Test Visitor","phone":"0812 1111 2222","host_name":"Host Person","door_ids":["door_fct_029"]}`)
+	foreignRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, foreignBody)
+	if foreignRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for cross-tenant door id, got %d body=%s", foreignRec.Code, foreignRec.Body.String())
+	}
+
+	unknownBody := []byte(`{"name":"Test Visitor","phone":"0812 1111 2222","host_name":"Host Person","door_ids":["door_does_not_exist"]}`)
+	unknownRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, unknownBody)
+	if unknownRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for unknown door id, got %d body=%s", unknownRec.Code, unknownRec.Body.String())
+	}
+
+	validBody := []byte(`{"name":"Test Visitor","phone":"0812 1111 2222","host_name":"Host Person","door_ids":["door_jkt_001"]}`)
+	validRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/app/places/building_demo_001/guests", token, validBody)
+	if validRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for in-place door id, got %d body=%s", validRec.Code, validRec.Body.String())
+	}
+	var created access.Guest
+	if err := json.Unmarshal(validRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created guest: %v", err)
+	}
+	if len(created.DoorIDs) != 1 || created.DoorIDs[0] != "door_jkt_001" {
+		t.Fatalf("expected door_ids preserved for valid door, got %+v", created.DoorIDs)
+	}
+}
+
+func TestCreateGuestRejectsForeignDoorIDs(t *testing.T) {
+	router, _, err := NewRouter(config.Config{
+		JWTSecret:       "guest-door-scope-ref-test",
+		EnableDemoUsers: true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("expected router: %v", err)
+	}
+	token := referenceAPILogin(t, router, "organization.admin@mistypass.local")
+
+	foreignBody := []byte(`{"tenant_id":"tenant_demo_jakarta","building_id":"building_demo_001","name":"Visitor","phone":"0812 3333 4444","host_name":"Host","door_ids":["door_fct_029"]}`)
+	foreignRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/guests", token, foreignBody)
+	if foreignRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for cross-tenant door id, got %d body=%s", foreignRec.Code, foreignRec.Body.String())
+	}
+
+	validBody := []byte(`{"tenant_id":"tenant_demo_jakarta","building_id":"building_demo_001","name":"Visitor","phone":"0812 3333 4444","host_name":"Host","door_ids":["door_jkt_001"]}`)
+	validRec := referenceAPIRequest(t, router, http.MethodPost, "/api/v1/guests", token, validBody)
+	if validRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for tenant door id, got %d body=%s", validRec.Code, validRec.Body.String())
+	}
+	var created access.Guest
+	if err := json.Unmarshal(validRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created guest: %v", err)
+	}
+	if len(created.DoorIDs) != 1 || created.DoorIDs[0] != "door_jkt_001" {
+		t.Fatalf("expected door_ids preserved, got %+v", created.DoorIDs)
+	}
+}
