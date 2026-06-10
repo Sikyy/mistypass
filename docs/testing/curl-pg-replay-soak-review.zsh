@@ -43,6 +43,11 @@ if [[ "${total_rows}" -eq 0 ]]; then
 fi
 
 failed_rows="$(awk -F, 'NR>1 && $15!="passed" { c++ } END { print c+0 }' "${SOAK_REVIEW_ALL_ROWS_CSV}")"
+# Split failed rows by origin: the current run lives under .../current/, history
+# under dated dirs. A failed row from a PAST nightly should inform the trend, not
+# hard-fail every subsequent night — so only current-run failures gate the build.
+current_failed_rows="$(awk -F, 'NR>1 && $1 ~ /\/current\// && $15!="passed" { c++ } END { print c+0 }' "${SOAK_REVIEW_ALL_ROWS_CSV}")"
+history_failed_rows="$(awk -F, 'NR>1 && $1 !~ /\/current\// && $15!="passed" { c++ } END { print c+0 }' "${SOAK_REVIEW_ALL_ROWS_CSV}")"
 unique_days="$(awk -F, 'NR>1 && $15=="passed" && length($3)>=10 { print substr($3,1,10) }' "${SOAK_REVIEW_ALL_ROWS_CSV}" | sort -u | wc -l | tr -d '[:space:]')"
 coverage_stats="$(awk -F, '
 function daynum(ymd, y, m, d, era, yoe, doy, doe) {
@@ -260,7 +265,7 @@ if [[ "${coverage_missing_days}" -gt "${SOAK_REVIEW_MAX_ALLOWED_MISSING_DAYS}" ]
 fi
 
 overall_status="passed"
-if [[ "${metric_fail_count}" -gt 0 || "${failed_rows}" -gt 0 ]]; then
+if [[ "${metric_fail_count}" -gt 0 || "${current_failed_rows}" -gt 0 ]]; then
   overall_status="failed"
 elif [[ "${metric_insufficient_count}" -gt 0 || "${unique_days}" -lt "${SOAK_REVIEW_MIN_DAYS}" ]]; then
   overall_status="insufficient_days"
@@ -283,6 +288,8 @@ fi
   echo "- metrics_files: \`${#metric_files[@]}\`"
   echo "- merged_rows: \`${total_rows}\`"
   echo "- failed_rows: \`${failed_rows}\`"
+  echo "- current_failed_rows: \`${current_failed_rows}\`"
+  echo "- history_failed_rows: \`${history_failed_rows}\` (informational; does not fail the build)"
   echo "- metric_count: \`${metric_count}\`"
   echo "- metric_failed: \`${metric_fail_count}\`"
   echo "- metric_insufficient_days: \`${metric_insufficient_count}\`"
@@ -313,6 +320,8 @@ cat >"${SOAK_REVIEW_SUMMARY_JSON}" <<EOF
   "metrics_files": ${#metric_files[@]},
   "merged_rows": ${total_rows},
   "failed_rows": ${failed_rows},
+  "current_failed_rows": ${current_failed_rows},
+  "history_failed_rows": ${history_failed_rows},
   "metric_count": ${metric_count},
   "metric_failed": ${metric_fail_count},
   "metric_insufficient_days": ${metric_insufficient_count},
@@ -329,7 +338,7 @@ echo "summary: review_summary_json=${SOAK_REVIEW_SUMMARY_JSON}"
 echo "summary: review_status=${overall_status}"
 
 if [[ "${overall_status}" == "failed" ]]; then
-  echo "FAIL review: detected failed rows or failed metrics"
+  echo "FAIL review: detected current-run failed rows or failed trend metrics"
   exit 1
 fi
 if [[ ("${overall_status}" == "insufficient_days" || "${overall_status}" == "insufficient_coverage") && "${SOAK_REVIEW_STRICT}" == "true" ]]; then
