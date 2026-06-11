@@ -65,7 +65,7 @@
 | SCIM 2.0 | ✅ | 0% | 100% | 100% | 完整服务端 + 管理端 + E2E |
 | OAuth2 API 认证 | ✅ | 0% | 形式 100% | **100%** | P1-1 已修：token 可鉴权 + scope 强制 + 限流 + e2e |
 | 对讲/Intercom | ✅（自研硬件） | 0% | 0% | 0% | |
-| 展台/Kiosk | ✅（自研硬件+软件） | 0% | 0% | 0% | 后端依赖（访客+NDA API）已备齐，剩 PWA 前端 |
+| 展台/Kiosk | ✅（自研硬件+软件） | 0% | 0% | **软件版 100%** | /kiosk 自助签到（预约查找/走访登记/NDA 签署/check-in）；硬件一体机形态仍 Kisi 独有 |
 | 工牌打印 | ✅ | 0% | 0% | **100%** | /badges/export 单/批 PDF + 公开 verify（QR 核验在职状态） |
 | Mobile SDK / 白标 | ✅ | 0% | 0% | 0% | |
 | Marketplace | ✅ | 0% | 0% | 0% | |
@@ -157,7 +157,7 @@
 |----------|----------|--------------|------|
 | **Incident Policies** | 9 类内置（Anti-passback、Door Held Open、Hardware Outage、Impossible Travel、Primary Device Change、Role Assignment、Tailgating、Custom）+ Security Agents 自动化 | 内置 Door Held Open + Hardware Outage + **Role Assignment（06-11，启用后角色授予/变更即派发告警）**，三者均可经 /alert_policies 切换并持久化（routes_incident_alert_policy.go）；impossible-travel/限频为运行时异常检测；自定义条件引擎 | Anti-passback、Tailgating（需进出双向读卡数据，半硬件）；Security Agents 式自动收权 |
 | **入侵检测** | 4 报警区域、Stay/Away、报警排程、siren | Alarm CRUD + AlarmSchedule + 移动端告警 + SSE | alarm zones、Stay/Away 模式、siren relay 控制 |
-| **访客管理** | Kiosk（含 Kiosk Pro 硬件）、NDA、工牌打印、主人通知、Guest cards | Guests/Visitor Passes/visitor-groups + QR 直入 + notify_host + **NDA（06-11：租户模板/签名图+哈希/审计/check-in 强制）** + **工牌打印（06-11）** | Kiosk（PWA 前端；后端依赖已备齐）、通知端到端验证 |
+| **访客管理** | Kiosk（含 Kiosk Pro 硬件）、NDA、工牌打印、主人通知、Guest cards | Guests/Visitor Passes/visitor-groups + QR 直入 + notify_host + **NDA（06-11：租户模板/签名图+哈希/审计/check-in 强制）** + **工牌打印（06-11）** + **Kiosk 自助签到（06-11：/kiosk 全屏流程，浏览器端到端验证）** | 通知端到端验证；Kiosk 硬件一体机形态 |
 | **访问限制** | GPS geofence 300m、Reader proximity、Primary device、MDM、Tap to Access、**"开门需物理在场"（2025-12 新增）** | **GPS geofence 已服务端强制（06-11）**：UserGroup 圆心+半径，解锁路径缺坐标→location_required、超范围→geofence_denied（OR-of-paths，geofence.go）；primary-device/MDM 字段可配置 + /app/me/primary-device | primary-device / MDM 的服务端强制；Reader proximity |
 | **Bookings** | + Stripe 支付、必签协议（2026-05）、平面图选位、App 内预订 | CRUD + 签到 + 移动端 + **Midtrans Snap 支付（06-11：price_idr、pending_payment 占位、webhook 签名结算）** | 必签协议、平面图选位；Xendit 备选 provider |
 | **报表/分析** | + Visual analytics、Daily Occupancy、User Retention（2025-12～2026-04 新增） | access-summary / door-activity / 报表 PDF + **occupancy/retention 端点（06-11）** | 前端空间分析可视化、平面图 widget |
@@ -168,7 +168,7 @@
 | Kisi 功能 | 优先级 | 备注 |
 |----------|------|------|
 | Intercom（含 Intercom Pro 自研硬件 + Web/App 接听） | P3 | 硬件绑定；建议第三方门口机集成路线（见第 4 节） |
-| Kiosk（含 Kiosk Pro 自助签到打印一体机） | P3 | 软件版（PWA）可先行；**后端依赖（访客 CRUD/NDA 签署/check-in）06-11 已全部就绪** |
+| ~~Kiosk（软件版）~~ / Kiosk Pro 硬件一体机 | ~~P3~~ / P3 | **软件版 ✅ 已完成（2026-06-11）**：/kiosk 自助签到 + NDA 签名板；剩硬件一体机形态（打印一体），随硬件策略走 |
 | ~~Badge Printing~~ | ~~P3~~ | **✅ 已完成（2026-06-11）**：/badges/export + /badges/verify |
 | Mobile SDK（白标） | P3 | 有客户需求再抽取 |
 | Marketplace（17 类伙伴目录，健身赛道 Mindbody/Magicline/bsport 持续加码） | P3 | 优先做 2-3 个印尼本地集成 |
@@ -261,7 +261,7 @@
 - ~~locale 补齐（en/id 99 keys + parity 测试）~~ ✅
 
 仍待做：
-1. Kiosk PWA（web-admin 前端；后端依赖已全部就绪）
+1. ~~Kiosk PWA~~ ✅ 已完成（06-11，/kiosk 自助签到）
 2. 空间分析前端可视化（occupancy/retention 数据已有端点）
 3. Bookings 必签协议 + 平面图选位
 4. Primary device / MDM 的服务端强制（geofence 已做，模式可复用）
