@@ -69,7 +69,7 @@
 | 工牌打印 | ✅ | 0% | 0% | **100%** | /badges/export 单/批 PDF + 公开 verify（QR 核验在职状态） |
 | Mobile SDK / 白标 | ✅ | 0% | 0% | 0% | |
 | Marketplace | ✅ | 0% | 0% | 0% | |
-| 空间分析（Occupancy/Visual/Retention） | ✅（2025-26 新增） | — | 0% | **后端 100%** | occupancy/retention 端点已备；前端可视化待做 |
+| 空间分析（Occupancy/Visual/Retention） | ✅（2025-26 新增） | — | 0% | **100%** | occupancy/retention 端点 + Analytics 页可视化（占用柱状/KPI + 留存表，浏览器验证） |
 | Security Agents（自动化安全代理） | ✅（2025-06 新增） | — | 0% | 0% | 见 2.4 |
 
 ---
@@ -262,7 +262,7 @@
 
 仍待做：
 1. ~~Kiosk PWA~~ ✅ 已完成（06-11，/kiosk 自助签到）
-2. 空间分析前端可视化（occupancy/retention 数据已有端点）
+2. ~~空间分析前端可视化~~ ✅ 已完成（06-11，Analytics 页占用/留存）
 3. Bookings 必签协议 + 平面图选位
 4. Primary device / MDM 的服务端强制（geofence 已做，模式可复用）
 5. Anti-passback / Tailgating 策略（需双向读卡数据，半硬件）

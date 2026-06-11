@@ -77,5 +77,18 @@ Integration (smoke, demo data):
 - both require start/end (400 without), and are role-gated (401 without bearer).
 
 ## 5. Out of scope / future
-PDF/CSV export of these reports (wire into `/analytics/export` later); frontend
-space-usage visualization; per-area heatmaps; cohort-matrix retention.
+PDF/CSV export of these reports (wire into `/analytics/export` later); per-area
+heatmaps; cohort-matrix retention.
+
+## 6. Frontend (added 2026-06-11)
+The web-admin Analytics page (`features/analytics/pages/analytics-page.tsx`) now
+renders two Space Analytics sections from these endpoints:
+- **Space Occupancy**: KPI cards (current present / peak / total unique) + a daily
+  unique-users bar row (`occupancyBarHeights`, unit-tested in
+  `space-analytics-utils.test.ts`).
+- **User Retention**: a per-bucket table (active / new / returning /
+  `formatRetentionRate`).
+API client: `getOccupancyAnalytics`, `getUserRetentionAnalytics` (lib/api/analytics.ts);
+date pickers are widened to RFC3339 (`T00:00:00Z`..`T23:59:59Z`). i18n
+`analyticsSpace.*` across zh/en/id (parity-tested). Browser-verified against demo
+data (peak 2 on 2026-06-11; retention row active 2 / new 2 / 0%).
