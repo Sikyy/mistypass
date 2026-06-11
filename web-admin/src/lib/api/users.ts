@@ -55,6 +55,10 @@ export type Guest = {
   access_token?: string
   access_token_expires_at?: string
   door_ids?: string[]
+  nda_signed_at?: string
+  nda_signer_name?: string
+  nda_template_version?: number
+  nda_signature_hash?: string
   created_at: string
   updated_at: string
 }

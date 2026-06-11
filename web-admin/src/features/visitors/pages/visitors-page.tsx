@@ -99,13 +99,22 @@ export function VisitorsPage({ token, viewer }: VisitorsPageProps) {
       title={t("visitors.title")}
       description={t("visitors.description")}
       actions={
-        <Button
-          className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
-          onClick={() => setShowCreate(true)}
-        >
-          <PlusIcon className="mr-2 size-4" />
-          {t("visitors.registerGuest")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="h-11 rounded-[6px] px-6"
+            onClick={() => { window.location.href = "/kiosk" }}
+          >
+            {t("kiosk.launch")}
+          </Button>
+          <Button
+            className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover"
+            onClick={() => setShowCreate(true)}
+          >
+            <PlusIcon className="mr-2 size-4" />
+            {t("visitors.registerGuest")}
+          </Button>
+        </div>
       }
     >
       {mutationError && (

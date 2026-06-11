@@ -19,6 +19,9 @@ const NotFoundPage = lazy(() =>
 const NoPermissionPage = lazy(() =>
   import("@/features/legacy/pages/no-permission-page").then((module) => ({ default: module.NoPermissionPage }))
 )
+const KioskPage = lazy(() =>
+  import("@/features/kiosk/pages/kiosk-page").then((module) => ({ default: module.KioskPage }))
+)
 
 function RouteFallback() {
   return (
@@ -80,6 +83,15 @@ export default function App() {
 
   if (location.pathname === "/login" || location.pathname === "/") {
     return <Navigate to="/home" replace />
+  }
+
+  // Kiosk mode renders full-screen without the admin shell (tablet self check-in).
+  if (location.pathname === "/kiosk") {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <KioskPage token={token} viewer={viewer} />
+      </Suspense>
+    )
   }
 
   return (
