@@ -329,30 +329,36 @@ export function HomePage({ token, viewer, onViewerChange, onLogout }: HomePagePr
 
   const homeContent = (
     <>
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-sm font-medium text-[#4f55ff]">
-            <Link to="/home" className="underline-offset-4 hover:underline">
-              Home
-            </Link>
+      {/* Emerald hero — carries the green identity of the legacy dashboard
+          (fe59776 retired it) forward inside the Mistyislet design language. */}
+      <div className="relative overflow-hidden rounded-[6px] border border-[#14532d]/40 bg-[linear-gradient(135deg,#0c3b27_0%,#14724a_55%,#1f9d63_100%)] px-7 py-7">
+        <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-[radial-gradient(circle,rgba(110,231,183,0.35),transparent_65%)] blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-28 left-1/3 h-44 w-2/3 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.14),transparent_60%)] blur-xl" />
+        <div className="relative flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-sm font-medium text-emerald-200">
+              <Link to="/home" className="underline-offset-4 hover:underline">
+                Home
+              </Link>
+            </div>
+            <h1 className="mt-5 text-[34px] font-bold leading-[42px] text-white sm:text-[40px] sm:leading-[48px]">
+              {t("kisi.home.welcome", { name: personName })}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-emerald-100/90">
+              <span>{scopeName}</span>
+              <span className="size-1 rounded-full bg-emerald-200/70" />
+              <span className="rounded-full border border-white/25 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white">
+                {formatMistyisletRoleLabel(viewer, location.pathname)}
+              </span>
+            </div>
           </div>
-          <h1 className="mt-6 text-[34px] font-bold leading-[42px] text-content-heading sm:text-[40px] sm:leading-[48px]">
-            {t("kisi.home.welcome", { name: personName })}
-          </h1>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-content-subtle">
-            <span>{scopeName}</span>
-            <span className="size-1 rounded-full bg-[#c3c6d1]" />
-            <span className="rounded-full border border-[#e1e3e8] bg-white px-2.5 py-1 text-xs font-semibold text-content-body">
-              {formatMistyisletRoleLabel(viewer, location.pathname)}
-            </span>
-          </div>
-        </div>
 
-        {summaryQuery.isError || summary?.partial ? (
-          <div className="rounded-[14px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
-            Some live signals are unavailable.
-          </div>
-        ) : null}
+          {summaryQuery.isError || summary?.partial ? (
+            <div className="rounded-[14px] border border-[#f1c27a] bg-warning-bg px-4 py-3 text-sm text-warning-text">
+              Some live signals are unavailable.
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <section className="mt-9 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
