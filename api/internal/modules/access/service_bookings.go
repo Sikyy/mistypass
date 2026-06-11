@@ -87,6 +87,7 @@ func (s *Service) CreateBookableSpace(in CreateBookableSpaceInput) (BookableSpac
 		LockID:          strings.TrimSpace(in.LockID),
 		RequiresBooking: in.RequiresBooking,
 		Enabled:         in.Enabled,
+		PriceIDR:        in.PriceIDR,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
@@ -145,6 +146,9 @@ func (s *Service) UpdateBookableSpace(tenantID, spaceID string, in UpdateBookabl
 			}
 			if in.Enabled != nil {
 				s.bookableSpaces[i].Enabled = *in.Enabled
+			}
+			if in.PriceIDR != nil {
+				s.bookableSpaces[i].PriceIDR = *in.PriceIDR
 			}
 			s.bookableSpaces[i].UpdatedAt = now
 			if err := s.persistLocked(); err != nil {
@@ -282,14 +286,15 @@ func (s *Service) CreateBooking(in CreateBookingInput) (Booking, error) {
 		return Booking{}, ErrSpaceNotFound
 	}
 
-	// check capacity for overlapping confirmed/checked_in bookings
+	// Check capacity for overlapping bookings. pending_payment bookings hold
+	// their slot while payment is in flight, so they count too.
 	overlapping := 0
 	for i := range s.bookings {
 		b := &s.bookings[i]
 		if b.SpaceID != nextSpaceID || b.TenantID != nextTenantID {
 			continue
 		}
-		if b.Status != "confirmed" && b.Status != "checked_in" {
+		if b.Status != "confirmed" && b.Status != "checked_in" && b.Status != "pending_payment" {
 			continue
 		}
 		bStart, err1 := time.Parse(time.RFC3339, b.StartTime)
@@ -331,12 +336,79 @@ func (s *Service) CreateBooking(in CreateBookingInput) (Booking, error) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
+	if space.PriceIDR > 0 {
+		// Priced spaces require payment before the booking is confirmed.
+		record.Status = "pending_payment"
+		record.PriceIDR = space.PriceIDR
+		record.PaymentStatus = "pending"
+	}
 
 	s.bookings = append([]Booking{record}, s.bookings...)
 	if err := s.persistLocked(); err != nil {
 		return Booking{}, err
 	}
 	return record, nil
+}
+
+// AttachBookingPayment records the payment order id and hosted checkout URL on
+// a pending_payment booking.
+func (s *Service) AttachBookingPayment(tenantID, bookingID, orderID, paymentURL string) (Booking, error) {
+	nextID := strings.TrimSpace(bookingID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	for i := range s.bookings {
+		if s.bookings[i].ID == nextID && (tenantID == "" || s.bookings[i].TenantID == tenantID) {
+			s.bookings[i].PaymentOrderID = strings.TrimSpace(orderID)
+			s.bookings[i].PaymentURL = strings.TrimSpace(paymentURL)
+			s.bookings[i].UpdatedAt = now
+			if err := s.persistLocked(); err != nil {
+				return Booking{}, err
+			}
+			return s.bookings[i], nil
+		}
+	}
+	return Booking{}, ErrBookingNotFound
+}
+
+// SettleBookingPaymentByOrderID applies a payment outcome reported by the
+// provider webhook. Outcome "paid" confirms the booking; "expired" and "failed"
+// cancel it. The webhook carries no tenant, so lookup is by the globally unique
+// payment order id.
+func (s *Service) SettleBookingPaymentByOrderID(orderID, outcome string) (Booking, error) {
+	nextOrderID := strings.TrimSpace(orderID)
+	if nextOrderID == "" {
+		return Booking{}, ErrBookingNotFound
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().UTC()
+	for i := range s.bookings {
+		if s.bookings[i].PaymentOrderID != nextOrderID {
+			continue
+		}
+		switch outcome {
+		case "paid":
+			s.bookings[i].Status = "confirmed"
+			s.bookings[i].PaymentStatus = "paid"
+			s.bookings[i].PaidAt = now.Format(time.RFC3339)
+		case "expired", "failed":
+			s.bookings[i].Status = "cancelled"
+			s.bookings[i].PaymentStatus = outcome
+		default:
+			return s.bookings[i], nil
+		}
+		s.bookings[i].UpdatedAt = now
+		if err := s.persistLocked(); err != nil {
+			return Booking{}, err
+		}
+		return s.bookings[i], nil
+	}
+	return Booking{}, ErrBookingNotFound
 }
 
 func (s *Service) UpdateBooking(tenantID, bookingID string, in UpdateBookingInput) (Booking, error) {
@@ -368,7 +440,7 @@ func (s *Service) UpdateBooking(tenantID, bookingID string, in UpdateBookingInpu
 			if in.Status != nil {
 				st := strings.ToLower(strings.TrimSpace(*in.Status))
 				switch st {
-				case "confirmed", "checked_in", "completed", "cancelled", "no_show":
+				case "confirmed", "checked_in", "completed", "cancelled", "no_show", "pending_payment":
 				default:
 					return Booking{}, ErrBookingStatusInvalid
 				}

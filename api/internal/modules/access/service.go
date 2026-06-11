@@ -543,6 +543,7 @@ type BookableSpace struct {
 	LockID           string    `json:"lock_id,omitempty"`
 	RequiresBooking  bool      `json:"requires_booking"`
 	Enabled          bool      `json:"enabled"`
+	PriceIDR         int64     `json:"price_idr,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }
@@ -556,11 +557,16 @@ type Booking struct {
 	Title        string    `json:"title,omitempty"`
 	StartTime    string    `json:"start_time"`
 	EndTime      string    `json:"end_time"`
-	Status       string    `json:"status"`
-	CheckedInAt  string    `json:"checked_in_at,omitempty"`
-	CheckedOutAt string    `json:"checked_out_at,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Status         string    `json:"status"`
+	CheckedInAt    string    `json:"checked_in_at,omitempty"`
+	CheckedOutAt   string    `json:"checked_out_at,omitempty"`
+	PriceIDR       int64     `json:"price_idr,omitempty"`
+	PaymentOrderID string    `json:"payment_order_id,omitempty"`
+	PaymentURL     string    `json:"payment_url,omitempty"`
+	PaymentStatus  string    `json:"payment_status,omitempty"`
+	PaidAt         string    `json:"paid_at,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type BookableSpaceStatus struct {
@@ -578,6 +584,7 @@ type CreateBookableSpaceInput struct {
 	LockID          string
 	RequiresBooking bool
 	Enabled         bool
+	PriceIDR        int64
 }
 
 type UpdateBookableSpaceInput struct {
@@ -589,6 +596,7 @@ type UpdateBookableSpaceInput struct {
 	LockID          *string
 	RequiresBooking *bool
 	Enabled         *bool
+	PriceIDR        *int64
 }
 
 type CreateBookingInput struct {

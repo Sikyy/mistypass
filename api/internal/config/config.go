@@ -162,6 +162,9 @@ type Config struct {
 	ReportEmailFrom                                              string
 	GotenbergURL                                                 string
 	BadgeVerifyBaseURL                                           string
+	PaymentProvider                                              string
+	MidtransEndpoint                                             string
+	MidtransServerKey                                            string
 	CameraEnabled                                                bool
 	CameraVaultMasterKey                                         string
 	CameraSnapshotTimeoutSeconds                                 int
@@ -1094,6 +1097,9 @@ func loadReportEmailConfig(cfg *Config) {
 	cfg.ReportEmailFrom = envString("REPORT_EMAIL_FROM")
 	cfg.GotenbergURL = envStringOrDefault("GOTENBERG_URL", "http://localhost:3000")
 	cfg.BadgeVerifyBaseURL = envStringOrDefault("BADGE_VERIFY_BASE_URL", "")
+	cfg.PaymentProvider = strings.ToLower(strings.TrimSpace(envString("PAYMENT_PROVIDER")))
+	cfg.MidtransEndpoint = envStringOrDefault("MIDTRANS_ENDPOINT", "https://app.sandbox.midtrans.com")
+	cfg.MidtransServerKey = envString("MIDTRANS_SERVER_KEY")
 }
 
 func loadOAuth2Config(cfg *Config) {

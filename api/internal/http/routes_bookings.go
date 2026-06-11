@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mistypass/cloud/api/internal/modules/access"
+	"github.com/mistypass/cloud/api/internal/payment"
 )
 
 func (s *server) listBookableSpaces(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +30,7 @@ func (s *server) createBookableSpace(w http.ResponseWriter, r *http.Request) {
 		LockID          string `json:"lock_id"`
 		RequiresBooking bool   `json:"requires_booking"`
 		Enabled         bool   `json:"enabled"`
+		PriceIDR        int64  `json:"price_idr"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -49,6 +51,7 @@ func (s *server) createBookableSpace(w http.ResponseWriter, r *http.Request) {
 		LockID:          request.LockID,
 		RequiresBooking: request.RequiresBooking,
 		Enabled:         request.Enabled,
+		PriceIDR:        request.PriceIDR,
 	})
 	if err != nil {
 		switch {
@@ -81,6 +84,7 @@ func (s *server) updateBookableSpace(w http.ResponseWriter, r *http.Request) {
 		LockID          *string `json:"lock_id"`
 		RequiresBooking *bool   `json:"requires_booking"`
 		Enabled         *bool   `json:"enabled"`
+		PriceIDR        *int64  `json:"price_idr"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -100,6 +104,7 @@ func (s *server) updateBookableSpace(w http.ResponseWriter, r *http.Request) {
 		LockID:          request.LockID,
 		RequiresBooking: request.RequiresBooking,
 		Enabled:         request.Enabled,
+		PriceIDR:        request.PriceIDR,
 	})
 	if err != nil {
 		switch {
@@ -283,9 +288,60 @@ func (s *server) createBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if booking.Status == "pending_payment" {
+		booking, ok = s.setupBookingPayment(w, r, tenantID, booking)
+		if !ok {
+			return
+		}
+	}
+
 	s.appendAuditLog(r, tenantID, "booking_created",
-		fmt.Sprintf("booking_id=%s,space_id=%s,user_id=%s", booking.ID, booking.SpaceID, booking.UserID), "access")
+		fmt.Sprintf("booking_id=%s,space_id=%s,user_id=%s,status=%s", booking.ID, booking.SpaceID, booking.UserID, booking.Status), "access")
 	writeJSON(w, http.StatusCreated, booking)
+}
+
+// setupBookingPayment creates the hosted payment link for a pending_payment
+// booking. On failure the booking is cancelled so it does not hold its slot,
+// and an error response is written.
+func (s *server) setupBookingPayment(w http.ResponseWriter, r *http.Request, tenantID string, booking access.Booking) (access.Booking, bool) {
+	cancelBooking := func() {
+		cancelled := "cancelled"
+		if _, err := s.accessSvc.UpdateBooking(tenantID, booking.ID, access.UpdateBookingInput{Status: &cancelled}); err != nil {
+			s.logger.Warn("booking payment: failed to cancel booking after payment setup failure", "error", err, "booking_id", booking.ID)
+		}
+	}
+
+	if s.bookingPaymentProvider == nil {
+		cancelBooking()
+		writeError(w, http.StatusServiceUnavailable, "booking requires payment but no payment provider is configured")
+		return access.Booking{}, false
+	}
+
+	link, err := s.bookingPaymentProvider.CreatePaymentLink(r.Context(), payment.Request{
+		TenantID:     tenantID,
+		OrderID:      booking.ID,
+		AmountIDR:    booking.PriceIDR,
+		CustomerName: booking.UserName,
+		Description:  firstNonEmptyString(booking.Title, "Booking "+booking.ID),
+	})
+	if err != nil {
+		s.logger.Error("booking payment: create payment link failed", "error", err, "booking_id", booking.ID)
+		cancelBooking()
+		writeError(w, http.StatusBadGateway, "failed to create payment link")
+		return access.Booking{}, false
+	}
+
+	updated, err := s.accessSvc.AttachBookingPayment(tenantID, booking.ID, booking.ID, link.RedirectURL)
+	if err != nil {
+		s.logger.Error("booking payment: attach payment failed", "error", err, "booking_id", booking.ID)
+		cancelBooking()
+		writeError(w, http.StatusInternalServerError, "failed to record payment link")
+		return access.Booking{}, false
+	}
+
+	s.appendAuditLog(r, tenantID, "booking_payment_link_created",
+		fmt.Sprintf("booking_id=%s,provider=%s,amount_idr=%d", booking.ID, s.bookingPaymentProvider.Provider(), booking.PriceIDR), "access")
+	return updated, true
 }
 
 func (s *server) updateBooking(w http.ResponseWriter, r *http.Request) {

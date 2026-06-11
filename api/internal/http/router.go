@@ -31,6 +31,7 @@ import (
 	"github.com/mistypass/cloud/api/internal/modules/space"
 	"github.com/mistypass/cloud/api/internal/modules/tenant"
 	"github.com/mistypass/cloud/api/internal/modules/wallet"
+	"github.com/mistypass/cloud/api/internal/payment"
 	"github.com/mistypass/cloud/api/internal/pdfgen"
 	"github.com/mistypass/cloud/api/internal/push"
 	"github.com/mistypass/cloud/api/internal/redistore"
@@ -138,6 +139,7 @@ type server struct {
 	mobilePushProvider            push.Provider
 	pdfRenderer                   *pdfgen.Renderer
 	gotenbergClient               *pdfgen.GotenbergClient
+	bookingPaymentProvider        payment.Provider
 	quit                          chan struct{}
 }
 
@@ -409,6 +411,14 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 	}
 	gotenbergClient := pdfgen.NewGotenbergClient(cfg.GotenbergURL, nil)
 
+	var bookingPaymentProvider payment.Provider
+	if cfg.PaymentProvider == "midtrans" && strings.TrimSpace(cfg.MidtransServerKey) != "" {
+		bookingPaymentProvider = payment.NewMidtransProvider(payment.MidtransOptions{
+			Endpoint:  cfg.MidtransEndpoint,
+			ServerKey: cfg.MidtransServerKey,
+		})
+	}
+
 	s := &server{
 		cfg:                           cfg,
 		stateStore:                    stateStore,
@@ -465,6 +475,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		pushDevices:                   map[string]pushDevice{},
 		pdfRenderer:                   pdfRenderer,
 		gotenbergClient:               gotenbergClient,
+		bookingPaymentProvider:        bookingPaymentProvider,
 		quit:                          make(chan struct{}),
 	}
 	webAuthnEngine, err := auth.NewWebAuthnEngine(cfg.WebAuthnRPDisplayName, cfg.WebAuthnRPID, cfg.WebAuthnRPOrigins)
@@ -649,6 +660,7 @@ func newRouterInternal(cfg config.Config, stateStore state.Store) (http.Handler,
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/logout", s.enterpriseAuthLogout)
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/enterprise/hris-webhook/{connectorID}", s.receiveEnterpriseHRISWebhook)
 		r.With(s.withEnterpriseWebhookRateLimit).Post("/webhooks/email/inbound", s.receiveEmailInboundWebhook)
+		r.With(s.withEnterpriseWebhookRateLimit).Post("/webhooks/payment/midtrans", s.receiveMidtransPaymentWebhook)
 		r.With(s.withEnterprisePublicRateLimit).Get("/enterprise/auth/oidc/callback", s.enterpriseOIDCCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/auth/saml/callback", s.enterpriseSAMLCallback)
 		r.With(s.withEnterprisePublicRateLimit).Post("/enterprise/jit-provision-approvals/external-sync/callback", s.enterpriseJITApprovalExternalSyncCallback)
