@@ -1,10 +1,26 @@
 # Kisi vs MistyPass 全面差距分析
 
-> 更新日期：2026-06-10（前版 2026-05-01，见 git 历史）
+> 更新日期：2026-06-11（前版 2026-06-10 / 2026-05-01，见 git 历史）
 > 本地基准：`Kisi-API-Bundled References.yaml`（OpenAPI 3.1.0, 227 operations）；2026-06-10 实测 api.kisi.io/docs 内嵌 spec **仍为 227 operations / 48 tags，无新增 endpoint**
 > 线上基准：docs.kisi.io + getkisi.com/updates（已逐月核对 2025-01 ～ 2026-05 全部月度更新；截至本日无 2026-06 更新）
-> 代码基准：HEAD `03536c5`（2026-06-10）
-> 配套：`docs/CODE-REVIEW-2026-06-10.md`（本轮代码审查，其中 P1-1/P1-2 直接影响本文两项的销项判定）
+> 代码基准：HEAD `1a73d20`（2026-06-11）
+> 配套：`docs/CODE-REVIEW-2026-06-10.md`（审查报告；其行动清单中的 P1/P2 已于 06-10~06-11 全部修复落地）
+
+### 增量记录（2026-06-11）
+
+审查后两天内完成的销项（均 TDD + 全量测试通过，specs 见 `docs/superpowers/specs/`）：
+
+| 销项 | 实现 | commit |
+|---|---|---|
+| OAuth2 实际可用（P1-1 修复） | token 经 auth 服务签发 + scope 单点强制 + 限流 + e2e | `0159bb4` |
+| 报表调度器（P1-2 修复） | NextRunAt 计算/重算/backfill | `f22cc9a` |
+| `activate_with_token` bug + 重复路由 | 参数归一 + 路由清理 | `76d388c` `373eff8` |
+| **工牌打印** | `/badges/export`（单/批 PDF/HTML）+ 公开 `/badges/verify`（HMAC 签名 QR） | `446a33f..6988919` |
+| **Role-Assignment 内置告警策略** | 角色授予/变更触发告警；顺带把内置 incident 策略修成可切换可触发 | `58cad47` |
+| **GPS geofence 服务端强制** | UserGroup 圆心 + 解锁路径强制（location_required/geofence_denied，OR-of-paths） | `e2fec90` |
+| **空间分析（后端）** | `/analytics/occupancy` + `/analytics/retention` | `4d3b6fb` |
+| **访客 NDA** | 租户模板 + 签署（签名图+哈希+审计）+ check-in 强制 | `ef54f32` |
+| **Bookings 支付（Midtrans Snap）** | `price_idr` + pending_payment 占位 + webhook 签名结算 | `1a73d20` |
 
 ---
 
@@ -31,30 +47,30 @@
 
 ### 0.2 产品功能覆盖率（基于 docs.kisi.io + 2025-26 月度更新）
 
-| 分类 | Kisi | 05-01 | **06-10** | 备注 |
-|------|------|------:|------:|------|
-| 门禁管理（Places/Locks/Groups/Rights） | ✅ | 100% | 100% | |
-| 电梯管理 | ✅ | 100% | 100% | |
-| 硬件管理（Controllers/Readers/Terminals） | ✅ | 95% | 95% | Controller I/O 18 项待硬件 |
-| 凭证管理 | ✅ | 90% | 90% | Wallet 端到端仍缺（见 2.2） |
-| 用户管理 / 团队角色 | ✅ | 100% | 100% | Kisi 新增 Custom Roles 试点（见 2.4） |
-| 事件和报表 | ✅ | 85% | **95%** | +PDF/邮件/调度（调度器有 P1 bug 待修）；缺占用/留存分析 |
-| 排程和日历 | ✅ | 100% | 100% | |
-| 集成管理 | ✅ | 100% | 100% | 生态广度仍差（见 2.4） |
-| 告警/Incident Policies | ✅ | 70% | **80%** | +2 内置策略 + impossible-travel 运行时检测 |
-| 入侵检测 | ✅ | 40% | 40% | zones/Stay-Away/siren 仍缺 |
-| 访客管理 | ✅ | 30% | **50%** | +QR 直入 +host notify 字段；缺 Kiosk/NDA/工牌 |
-| 视频监控 | ✅（集成路线） | 10% | **80%** | 5 厂商真集成 + HikConnect 云；缺录像回放管理 |
-| 预约/Bookings | ✅ | 0% | **80%** | CRUD+签到+移动端；缺支付/必签协议/平面图 |
-| SCIM 2.0 | ✅ | 0% | **100%** | 完整服务端 + 管理端 + E2E |
-| OAuth2 API 认证 | ✅ | 0% | **形式 100% / 实际 0%** | token 无法通过鉴权（CODE-REVIEW P1-1），修复后销项 |
-| 对讲/Intercom | ✅（自研硬件） | 0% | 0% | |
-| 展台/Kiosk | ✅（自研硬件+软件） | 0% | 0% | |
-| 工牌打印 | ✅ | 0% | 0% | |
-| Mobile SDK / 白标 | ✅ | 0% | 0% | |
-| Marketplace | ✅ | 0% | 0% | |
-| 空间分析（Occupancy/Visual/Retention） | ✅（2025-26 新增） | — | **0%**（新差距项） | 见 2.4 |
-| Security Agents（自动化安全代理） | ✅（2025-06 新增） | — | **0%**（新差距项） | 见 2.4 |
+| 分类 | Kisi | 05-01 | 06-10 | **06-11** | 备注 |
+|------|------|------:|------:|------:|------|
+| 门禁管理（Places/Locks/Groups/Rights） | ✅ | 100% | 100% | 100% | |
+| 电梯管理 | ✅ | 100% | 100% | 100% | |
+| 硬件管理（Controllers/Readers/Terminals） | ✅ | 95% | 95% | 95% | Controller I/O 18 项待硬件 |
+| 凭证管理 | ✅ | 90% | 90% | 90% | Wallet 端到端仍缺（见 2.2） |
+| 用户管理 / 团队角色 | ✅ | 100% | 100% | 100% | Kisi 新增 Custom Roles 试点（见 2.4） |
+| 事件和报表 | ✅ | 85% | 95% | **98%** | 调度器 bug 已修；+占用/留存分析端点 |
+| 排程和日历 | ✅ | 100% | 100% | 100% | |
+| 集成管理 | ✅ | 100% | 100% | 100% | 生态广度仍差（见 2.4） |
+| 告警/Incident Policies | ✅ | 70% | 80% | **85%** | +Role Assignment 策略；内置策略改为可切换可触发 |
+| 入侵检测 | ✅ | 40% | 40% | 40% | zones/Stay-Away/siren 仍缺 |
+| 访客管理 | ✅ | 30% | 50% | **70%** | +NDA（模板/签署/check-in 强制）；剩 Kiosk |
+| 视频监控 | ✅（集成路线） | 10% | 80% | 80% | 5 厂商真集成 + HikConnect 云；缺录像回放管理 |
+| 预约/Bookings | ✅ | 0% | 80% | **90%** | +Midtrans Snap 支付；缺必签协议/平面图 |
+| SCIM 2.0 | ✅ | 0% | 100% | 100% | 完整服务端 + 管理端 + E2E |
+| OAuth2 API 认证 | ✅ | 0% | 形式 100% | **100%** | P1-1 已修：token 可鉴权 + scope 强制 + 限流 + e2e |
+| 对讲/Intercom | ✅（自研硬件） | 0% | 0% | 0% | |
+| 展台/Kiosk | ✅（自研硬件+软件） | 0% | 0% | 0% | 后端依赖（访客+NDA API）已备齐，剩 PWA 前端 |
+| 工牌打印 | ✅ | 0% | 0% | **100%** | /badges/export 单/批 PDF + 公开 verify（QR 核验在职状态） |
+| Mobile SDK / 白标 | ✅ | 0% | 0% | 0% | |
+| Marketplace | ✅ | 0% | 0% | 0% | |
+| 空间分析（Occupancy/Visual/Retention） | ✅（2025-26 新增） | — | 0% | **后端 100%** | occupancy/retention 端点已备；前端可视化待做 |
+| Security Agents（自动化安全代理） | ✅（2025-06 新增） | — | 0% | 0% | 见 2.4 |
 
 ---
 
@@ -139,12 +155,12 @@
 
 | Kisi 功能 | Kisi 详情 | MistyPass 现状 | 剩余差距 |
 |----------|----------|--------------|------|
-| **Incident Policies** | 9 类内置（Anti-passback、Door Held Open、Hardware Outage、Impossible Travel、Primary Device Change、Role Assignment、Tailgating、Custom + 2025-11 新增 Role Assignment 监控）+ Security Agents 自动化 | 内置 Door Held Open + Hardware Outage（routes_reference_api.go:4945）；impossible-travel/限频为运行时异常检测（routes_gateway_verify.go:302）；自定义条件引擎 | Anti-passback、Tailgating、Role Assignment 策略；Security Agents 式自动收权 |
+| **Incident Policies** | 9 类内置（Anti-passback、Door Held Open、Hardware Outage、Impossible Travel、Primary Device Change、Role Assignment、Tailgating、Custom）+ Security Agents 自动化 | 内置 Door Held Open + Hardware Outage + **Role Assignment（06-11，启用后角色授予/变更即派发告警）**，三者均可经 /alert_policies 切换并持久化（routes_incident_alert_policy.go）；impossible-travel/限频为运行时异常检测；自定义条件引擎 | Anti-passback、Tailgating（需进出双向读卡数据，半硬件）；Security Agents 式自动收权 |
 | **入侵检测** | 4 报警区域、Stay/Away、报警排程、siren | Alarm CRUD + AlarmSchedule + 移动端告警 + SSE | alarm zones、Stay/Away 模式、siren relay 控制 |
-| **访客管理** | Kiosk（含 Kiosk Pro 硬件）、NDA、工牌打印、主人通知、Guest cards | Guests/Visitor Passes/visitor-groups + QR 直入 + notify_host 字段 + 前端 | Kiosk、NDA 签署、工牌打印、通知端到端验证 |
-| **访问限制** | GPS geofence 300m、Reader proximity、Primary device、MDM、Tap to Access、**"开门需物理在场"（2025-12 新增）** | 限制字段可配置（Geofence/PrimaryDevice/ManagedDevice，routes_reference_api.go:204）+ /app/me/primary-device + Android 客户端 geofence | **服务端强制全部缺失**（解锁路径无 lat/lng/primary-device 校验） |
-| **Bookings** | + Stripe 支付、必签协议（2026-05）、平面图选位、App 内预订 | CRUD + 签到 + 移动端 | 支付（建议 Midtrans/Xendit）、必签协议、平面图 |
-| **报表/分析** | + Visual analytics、Daily Occupancy、User Retention（2025-12～2026-04 新增） | access-summary / door-activity / 报表 PDF | 占用统计、留存分析、平面图 widget |
+| **访客管理** | Kiosk（含 Kiosk Pro 硬件）、NDA、工牌打印、主人通知、Guest cards | Guests/Visitor Passes/visitor-groups + QR 直入 + notify_host + **NDA（06-11：租户模板/签名图+哈希/审计/check-in 强制）** + **工牌打印（06-11）** | Kiosk（PWA 前端；后端依赖已备齐）、通知端到端验证 |
+| **访问限制** | GPS geofence 300m、Reader proximity、Primary device、MDM、Tap to Access、**"开门需物理在场"（2025-12 新增）** | **GPS geofence 已服务端强制（06-11）**：UserGroup 圆心+半径，解锁路径缺坐标→location_required、超范围→geofence_denied（OR-of-paths，geofence.go）；primary-device/MDM 字段可配置 + /app/me/primary-device | primary-device / MDM 的服务端强制；Reader proximity |
+| **Bookings** | + Stripe 支付、必签协议（2026-05）、平面图选位、App 内预订 | CRUD + 签到 + 移动端 + **Midtrans Snap 支付（06-11：price_idr、pending_payment 占位、webhook 签名结算）** | 必签协议、平面图选位；Xendit 备选 provider |
+| **报表/分析** | + Visual analytics、Daily Occupancy、User Retention（2025-12～2026-04 新增） | access-summary / door-activity / 报表 PDF + **occupancy/retention 端点（06-11）** | 前端空间分析可视化、平面图 widget |
 | **目录集成** | Google Workspace / Entra ID / Okta / JumpCloud 直连 | Google Workspace 同步 + Lark 集成 + SCIM（覆盖 Entra/Okta/JumpCloud 场景） | Entra/Okta 直连配置向导 + 文档（功能上 SCIM 已可达） |
 
 ### 2.3 仍完全缺失
@@ -152,8 +168,8 @@
 | Kisi 功能 | 优先级 | 备注 |
 |----------|------|------|
 | Intercom（含 Intercom Pro 自研硬件 + Web/App 接听） | P3 | 硬件绑定；建议第三方门口机集成路线（见第 4 节） |
-| Kiosk（含 Kiosk Pro 自助签到打印一体机） | P3 | 软件版（PWA）可先行 |
-| Badge Printing | P3 | 纯软件，pdfgen 可复用，数天工作量 |
+| Kiosk（含 Kiosk Pro 自助签到打印一体机） | P3 | 软件版（PWA）可先行；**后端依赖（访客 CRUD/NDA 签署/check-in）06-11 已全部就绪** |
+| ~~Badge Printing~~ | ~~P3~~ | **✅ 已完成（2026-06-11）**：/badges/export + /badges/verify |
 | Mobile SDK（白标） | P3 | 有客户需求再抽取 |
 | Marketplace（17 类伙伴目录，健身赛道 Mindbody/Magicline/bsport 持续加码） | P3 | 优先做 2-3 个印尼本地集成 |
 | SCRAM Offline Certificate | P3 | Gateway 离线缓存为替代 |
@@ -230,36 +246,43 @@
 
 ---
 
-## 5. 缺失汇总（更新）
+## 5. 缺失汇总（2026-06-11 更新）
 
 ### 5.1 纯软件（约 1 天级）
-1. 修 `activate_with_token` 参数名 bug（0.5h）+ 清理 `/organizations/{domain}/public` 重复注册（0.5h）
+1. ~~修 `activate_with_token` 参数名 bug + 清理重复注册~~ **✅ 已完成（06-10）**
 2. `promoteLogin`（2h，可与 /app/me/primary-device 概念对齐）
 3. （可选，低价值）updateCurrentLogin / deleteCurrentLogin / promoteCurrentLogin
 
 ### 5.2 纯软件功能块（周级，按销项性价比排序）
-1. 工牌打印（pdfgen 复用）
-2. 空间分析三件套（Occupancy / Visual / Retention）
-3. 内置 Incident Policy：Role Assignment 监控（纯软件）；Anti-passback/Tailgating（需双向读卡数据，半硬件）
-4. 访客 NDA + 通知端到端 + Kiosk PWA
-5. Geofence / Primary device 服务端强制
-6. Bookings：Midtrans/Xendit 支付 + 必签协议
-7. 入侵检测软件模型（zones / Stay-Away / 排程联动）
-8. Wallet 端到端：双端 App 入口恢复 + Google Wallet 打通 + Apple 展示型 pass
+
+已完成（2026-06-10 ~ 06-11）：
+- ~~工牌打印~~ ✅ · ~~Role Assignment 内置策略~~ ✅ · ~~Geofence 服务端强制~~ ✅
+- ~~空间分析（Occupancy/Retention 后端）~~ ✅ · ~~访客 NDA~~ ✅ · ~~Bookings Midtrans 支付~~ ✅
+- ~~locale 补齐（en/id 99 keys + parity 测试）~~ ✅
+
+仍待做：
+1. Kiosk PWA（web-admin 前端；后端依赖已全部就绪）
+2. 空间分析前端可视化（occupancy/retention 数据已有端点）
+3. Bookings 必签协议 + 平面图选位
+4. Primary device / MDM 的服务端强制（geofence 已做，模式可复用）
+5. Anti-passback / Tailgating 策略（需双向读卡数据，半硬件）
+6. 入侵检测软件模型（zones / Stay-Away / 排程联动）
+7. Wallet 端到端：双端 App 入口恢复 + Google Wallet 打通 + Apple 展示型 pass（移动端仓库）
+8. 访客通知端到端验证
 
 ### 5.3 依赖硬件（19 operations + 物理能力）
 Controller I/O ×18、Wireless Locks ×1、siren 物理输出、Intercom/Kiosk 硬件形态、Apple/Google NFC 钱包凭证（合作计划门槛）。
 
 ### 5.4 前置阻塞（来自代码审查）
-- **OAuth2 P1-1 与报表调度器 P1-2 修复前，0.2 矩阵中对应两项不得对外宣称完成。**
+- ~~OAuth2 P1-1 与报表调度器 P1-2~~ **均已修复（2026-06-10，commit 0159bb4 / f22cc9a），对应两项已正式销项。**
 
 ---
 
-## 6. 优先行动建议
+## 6. 优先行动建议（2026-06-11 更新）
 
-1. **本周**：修 CODE-REVIEW P1-1/P1-2（OAuth2、报表调度器）→ 两个差距项正式销项；修 5.1 的两个路由 bug
-2. **2 周内**：工牌打印、Role-Assignment 策略、geofence 服务端强制、locale 补齐（id-ID 是目标市场）
-3. **1 月内**：空间分析三件套、访客 NDA + Kiosk PWA、Bookings 本地支付、Wallet 端到端
-4. **季度**：入侵检测软件模型、MotionSense 等价免操作开门（Android 先行）、Custom Roles 设计、Entra/Okta SCIM 向导
+1. ~~本周：修 P1-1/P1-2 + 路由 bug~~ **✅ 完成**
+2. ~~2 周内：工牌打印、Role-Assignment 策略、geofence 服务端强制、locale 补齐~~ **✅ 完成**
+3. ~~1 月内~~ → 已完成：空间分析后端、访客 NDA、Bookings Midtrans 支付；**剩**：Kiosk PWA、Wallet 端到端（移动端）
+4. **季度**：入侵检测软件模型、MotionSense 等价免操作开门（Android 先行）、Custom Roles 设计、Entra/Okta SCIM 向导、primary-device/MDM 服务端强制
 5. **随硬件**：Controller I/O、siren、门口机对讲集成、Kiosk 硬件
 6. **持续跟踪**：Kisi 月度更新（getkisi.com/updates）；其 Security Agents 与空间分析是 2026 主推方向

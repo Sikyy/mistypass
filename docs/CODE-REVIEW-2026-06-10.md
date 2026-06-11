@@ -7,6 +7,8 @@
 > 审查方法：6 路并行专项审查（后端 / 前端 / 部署 CI / Kisi 差距核对 / Kisi 线上调研 / 移动端），所有 finding 均经代码逐行核实
 > 综合评分：**8.3 / 10**（上轮 8.1）
 
+> **后记（2026-06-11）**：第八节行动清单第 1-3 步已全部落地——4 个 P1（OAuth2 `0159bb4`、报表调度器 `f22cc9a`、i18n `e808643`；iOS entitlement 已建独立任务）、全部后端 P2（B-1 `2a4c6d7`、B-2 `dcb4949`、B-3 `0159bb4`、B-4 `76d388c`、B-5 `373eff8`）、部署/CI 三项（D-1 `66349ff`、D-2 `0210157`、D-3 `40bc1a8`）。同时完成 Kisi 销项六件（工牌打印、Role-Assignment 策略、geofence 强制、空间分析、访客 NDA、Midtrans 支付），见 `docs/kisi-gap-analysis.md` 增量记录。未动项：移动端 M-1/M-2/M-3、前端 F-1~F-3、P3 批量清理、gateway-agent 深审。
+
 ---
 
 ## 一、总览
