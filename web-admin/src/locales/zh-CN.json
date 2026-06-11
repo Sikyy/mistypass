@@ -4979,6 +4979,9 @@
     }
   },
   "nav": {
+    "visitors": "访客",
+    "wallet": "凭证工作台",
+    "audit": "审计与合规",
     "holidayCalendars": "节假日日历",
     "mobileCredentials": "移动凭证",
     "bookings": "预约",

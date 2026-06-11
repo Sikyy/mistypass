@@ -4979,6 +4979,9 @@
     }
   },
   "nav": {
+    "visitors": "Pengunjung",
+    "wallet": "Operasi Kredensial",
+    "audit": "Audit & Kepatuhan",
     "holidayCalendars": "Kalender Hari Libur",
     "mobileCredentials": "Kredensial Mobile",
     "bookings": "Pemesanan",

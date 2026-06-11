@@ -6,6 +6,7 @@ import {
   CameraIcon,
   CalendarClockIcon,
   CalendarDaysIcon,
+  ContactIcon,
   CreditCardIcon,
   DoorOpenIcon,
   FileTextIcon,
@@ -16,11 +17,13 @@ import {
   MailIcon,
   MapPinPlusIcon,
   RouterIcon,
+  ScrollTextIcon,
   ServerIcon,
   SettingsIcon,
   ShieldCheckIcon,
   SmartphoneIcon,
   UsersIcon,
+  WalletIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -107,6 +110,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
         { label: t("nav.holidayCalendars"), icon: CalendarDaysIcon, to: "/holiday-calendars" },
         { label: t("kisi.shell.navCredentials"), icon: CreditCardIcon, to: "/credentials" },
         { label: t("nav.mobileCredentials"), icon: SmartphoneIcon, to: "/mobile-credentials" },
+        { label: t("nav.wallet"), icon: WalletIcon, to: "/wallet" },
         { label: t("kisi.invitations.title"), icon: MailIcon, to: "/invitations" },
       ],
     },
@@ -115,6 +119,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
       entries: [
         { label: t("kisi.shell.navPlaces"), icon: Building2Icon, to: "/places" },
         { label: t("nav.bookings"), icon: CalendarCheckIcon, to: "/bookings" },
+        { label: t("nav.visitors"), icon: ContactIcon, to: "/visitors" },
       ],
     },
     {
@@ -140,6 +145,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
         { label: t("kisi.shell.navCreatePlace"), icon: MapPinPlusIcon, to: "/organization/create-place" },
         { label: t("kisi.shell.navSettings"), icon: SettingsIcon, to: "/organization/settings" },
         { label: t("kisi.shell.navSsoScim"), icon: KeyRoundIcon, to: "/organization/sso-scim" },
+        { label: t("nav.audit"), icon: ScrollTextIcon, to: "/audit" },
       ],
     },
   ]

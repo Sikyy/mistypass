@@ -4979,6 +4979,9 @@
     }
   },
   "nav": {
+    "visitors": "Visitors",
+    "wallet": "Credential Ops",
+    "audit": "Audit & Compliance",
     "holidayCalendars": "Holiday Calendars",
     "mobileCredentials": "Mobile Credentials",
     "bookings": "Bookings",
