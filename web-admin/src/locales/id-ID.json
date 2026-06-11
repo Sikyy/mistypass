@@ -4875,6 +4875,24 @@
       "deleteFailed": "Gagal menghapus kamera"
     }
   },
+  "analyticsSpace": {
+    "occupancyTitle": "Okupansi Ruang",
+    "currentPresent": "Sedang Hadir",
+    "currentPresentNote": "Orang yang ada di lokasi saat ini",
+    "peakOccupancy": "Puncak Okupansi",
+    "peakOn": "Puncak pada {{date}}",
+    "peakNote": "Hari tertinggi dalam rentang",
+    "totalUnique": "Pengunjung Unik",
+    "totalUniqueNote": "Jumlah orang unik dalam rentang",
+    "loading": "Memuat…",
+    "noData": "Tidak ada data untuk rentang ini",
+    "retentionTitle": "Retensi Pengguna",
+    "bucket": "Periode",
+    "active": "Aktif",
+    "new": "Baru",
+    "returning": "Kembali",
+    "retentionRate": "Retensi"
+  },
   "kiosk": {
     "title": "Check-In Mandiri Pengunjung",
     "launch": "Mode Kiosk",

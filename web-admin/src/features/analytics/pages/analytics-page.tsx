@@ -1,6 +1,7 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery } from "@tanstack/react-query"
-import { BarChart3Icon, DownloadIcon, ShieldAlertIcon, DoorOpenIcon } from "lucide-react"
+import { BarChart3Icon, DownloadIcon, ShieldAlertIcon, DoorOpenIcon, UsersIcon } from "lucide-react"
 
 import { PageFrame, KpiCard, StatusDot } from "@/components/mistyislet/primitives"
 import { Button } from "@/components/ui/button"
@@ -8,15 +9,20 @@ import {
   getAccessSummary,
   getDoorActivity,
   getAlarmMetrics,
+  getOccupancyAnalytics,
+  getUserRetentionAnalytics,
   exportAnalytics,
   type CurrentUser,
 } from "@/lib/api"
 import { getViewerTenantID } from "@/lib/viewer"
 
+import { formatRetentionRate, occupancyBarHeights } from "./space-analytics-utils"
+
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const weekAgoISO = () => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) }
 
 export function AnalyticsPage({ token, viewer }: { token: string; viewer: CurrentUser }) {
+  const { t } = useTranslation()
   const [start, setStart] = useState(weekAgoISO)
   const [end, setEnd] = useState(todayISO)
   const [exporting, setExporting] = useState(false)
@@ -36,6 +42,23 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
     queryKey: ["analytics-alarm-metrics", start, end],
     queryFn: () => getAlarmMetrics(token, tenantID, start, end),
   })
+
+  const rangeStart = `${start}T00:00:00Z`
+  const rangeEnd = `${end}T23:59:59Z`
+
+  const occupancyQuery = useQuery({
+    queryKey: ["analytics-occupancy", start, end],
+    queryFn: () => getOccupancyAnalytics(token, tenantID, rangeStart, rangeEnd),
+  })
+
+  const retentionQuery = useQuery({
+    queryKey: ["analytics-retention", start, end],
+    queryFn: () => getUserRetentionAnalytics(token, tenantID, rangeStart, rangeEnd, "day"),
+  })
+
+  const occupancy = occupancyQuery.data
+  const occupancyBars = occupancyBarHeights(occupancy?.days ?? [], 80)
+  const retentionBuckets = retentionQuery.data?.buckets ?? []
 
   const summary = summaryQuery.data
   const doors = doorQuery.data?.doors ?? []
@@ -168,6 +191,72 @@ export function AnalyticsPage({ token, viewer }: { token: string; viewer: Curren
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Space Analytics — occupancy */}
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-content-heading">{t("analyticsSpace.occupancyTitle")}</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <KpiCard label={t("analyticsSpace.currentPresent")} value={String(occupancy?.current_present ?? 0)} note={t("analyticsSpace.currentPresentNote")} icon={UsersIcon} tone="info" loading={occupancyQuery.isPending} />
+          <KpiCard label={t("analyticsSpace.peakOccupancy")} value={String(occupancy?.peak_unique_users ?? 0)} note={occupancy?.peak_date ? t("analyticsSpace.peakOn", { date: occupancy.peak_date }) : t("analyticsSpace.peakNote")} icon={BarChart3Icon} tone="warning" loading={occupancyQuery.isPending} />
+          <KpiCard label={t("analyticsSpace.totalUnique")} value={String(occupancy?.total_unique_users ?? 0)} note={t("analyticsSpace.totalUniqueNote")} icon={UsersIcon} tone="success" loading={occupancyQuery.isPending} />
+        </div>
+        <div className="mt-4 rounded-[6px] border border-[#e1e3e8] bg-white p-5">
+          {occupancyQuery.isPending ? (
+            <p className="py-8 text-center text-sm text-content-subtle">{t("analyticsSpace.loading")}</p>
+          ) : occupancyBars.length === 0 ? (
+            <p className="py-8 text-center text-sm text-content-subtle">{t("analyticsSpace.noData")}</p>
+          ) : (
+            <div className="flex items-end gap-2 overflow-x-auto" style={{ height: 110 }}>
+              {occupancyBars.map((bar) => (
+                <div key={bar.date} className="flex min-w-8 flex-1 flex-col items-center justify-end gap-1">
+                  <span className="text-xs font-medium text-content-heading">{bar.uniqueUsers}</span>
+                  <div
+                    className="w-full rounded-t bg-brand"
+                    style={{ height: `${bar.heightPx}px` }}
+                    title={`${bar.date}: ${bar.uniqueUsers}`}
+                  />
+                  <span className="text-[10px] text-content-subtle">{bar.date.slice(5)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Space Analytics — retention */}
+      <section>
+        <h2 className="mb-4 text-lg font-semibold text-content-heading">{t("analyticsSpace.retentionTitle")}</h2>
+        <div className="rounded-[6px] border border-[#e1e3e8] bg-white">
+          {retentionQuery.isPending ? (
+            <p className="px-5 py-8 text-center text-sm text-content-subtle">{t("analyticsSpace.loading")}</p>
+          ) : retentionBuckets.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-content-subtle">{t("analyticsSpace.noData")}</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line-subtle text-left text-xs text-content-subtle">
+                  <th className="px-5 py-3 font-medium">{t("analyticsSpace.bucket")}</th>
+                  <th className="px-5 py-3 font-medium">{t("analyticsSpace.active")}</th>
+                  <th className="px-5 py-3 font-medium">{t("analyticsSpace.new")}</th>
+                  <th className="px-5 py-3 font-medium">{t("analyticsSpace.returning")}</th>
+                  <th className="px-5 py-3 font-medium">{t("analyticsSpace.retentionRate")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line-subtle">
+                {retentionBuckets.map((bucket) => (
+                  <tr key={bucket.start}>
+                    <td className="px-5 py-3 text-content-body">{bucket.start}</td>
+                    <td className="px-5 py-3 text-content-heading">{bucket.active_users}</td>
+                    <td className="px-5 py-3 text-content-body">{bucket.new_users}</td>
+                    <td className="px-5 py-3 text-content-body">{bucket.returning_users}</td>
+                    <td className="px-5 py-3 font-semibold text-content-heading">{formatRetentionRate(bucket.retention_rate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </PageFrame>

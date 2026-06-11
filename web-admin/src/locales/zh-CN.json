@@ -4875,6 +4875,24 @@
       "deleteFailed": "删除摄像头失败"
     }
   },
+  "analyticsSpace": {
+    "occupancyTitle": "空间占用",
+    "currentPresent": "当前在场",
+    "currentPresentNote": "实时在场人数",
+    "peakOccupancy": "占用峰值",
+    "peakOn": "峰值日：{{date}}",
+    "peakNote": "区间内单日最高",
+    "totalUnique": "独立访客数",
+    "totalUniqueNote": "区间内去重人数",
+    "loading": "加载中…",
+    "noData": "该区间暂无数据",
+    "retentionTitle": "用户留存",
+    "bucket": "周期",
+    "active": "活跃",
+    "new": "新增",
+    "returning": "回访",
+    "retentionRate": "留存率"
+  },
   "kiosk": {
     "title": "访客自助签到",
     "launch": "自助签到模式",

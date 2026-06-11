@@ -4875,6 +4875,24 @@
       "deleteFailed": "Failed to delete camera"
     }
   },
+  "analyticsSpace": {
+    "occupancyTitle": "Space Occupancy",
+    "currentPresent": "Currently Present",
+    "currentPresentNote": "People on-site right now",
+    "peakOccupancy": "Peak Occupancy",
+    "peakOn": "Peak on {{date}}",
+    "peakNote": "Highest single day in range",
+    "totalUnique": "Unique Visitors",
+    "totalUniqueNote": "Distinct people in range",
+    "loading": "Loading…",
+    "noData": "No data for this range",
+    "retentionTitle": "User Retention",
+    "bucket": "Period",
+    "active": "Active",
+    "new": "New",
+    "returning": "Returning",
+    "retentionRate": "Retention"
+  },
   "kiosk": {
     "title": "Visitor Self Check-In",
     "launch": "Kiosk Mode",

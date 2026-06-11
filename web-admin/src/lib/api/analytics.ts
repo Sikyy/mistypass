@@ -118,3 +118,44 @@ export async function sendReportSchedule(token: string | undefined, scheduleID: 
 }
 
 // listCameras moved to cameras.ts
+
+// --- Space analytics (occupancy + retention) ---
+
+export type OccupancyDay = {
+  date: string
+  unique_users: number
+  total_entries: number
+}
+
+export type OccupancyAnalytics = {
+  days: OccupancyDay[]
+  peak_date: string
+  peak_unique_users: number
+  total_unique_users: number
+  current_present: number
+}
+
+export type RetentionBucket = {
+  start: string
+  active_users: number
+  new_users: number
+  returning_users: number
+  retention_rate: number
+}
+
+export type RetentionAnalytics = {
+  bucket: string
+  buckets: RetentionBucket[]
+}
+
+export async function getOccupancyAnalytics(token: string | undefined, tenantID: string, start: string, end: string, buildingID?: string): Promise<OccupancyAnalytics> {
+  const params = new URLSearchParams({ tenant_id: tenantID, start, end })
+  if (buildingID) params.set("building_id", buildingID)
+  return request<OccupancyAnalytics>(`/api/v1/analytics/occupancy?${params}`, {}, token)
+}
+
+export async function getUserRetentionAnalytics(token: string | undefined, tenantID: string, start: string, end: string, bucket: "day" | "week" = "week", buildingID?: string): Promise<RetentionAnalytics> {
+  const params = new URLSearchParams({ tenant_id: tenantID, start, end, bucket })
+  if (buildingID) params.set("building_id", buildingID)
+  return request<RetentionAnalytics>(`/api/v1/analytics/retention?${params}`, {}, token)
+}
