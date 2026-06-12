@@ -594,6 +594,7 @@ function AuditWebhookPanel({
   onSave: () => void
   onDispatch: () => void
 }) {
+  const { t } = useTranslation()
   const statusLabel = loading ? "Checking" : config?.enabled ? "Enabled" : configMissing ? "Not configured" : "Disabled"
   const statusVariant = config?.enabled ? "default" : "outline"
   const latestDelivery = deliveries[0]
@@ -636,7 +637,7 @@ function AuditWebhookPanel({
                 <p className="text-sm font-medium text-content-heading">Delivery enabled</p>
                 <p className="mt-1 text-xs text-content-subtle">When disabled, manual dispatch returns a conflict.</p>
               </div>
-              <ToggleSwitch enabled={enabled} onToggle={() => onEnabledChange(!enabled)} />
+              <ToggleSwitch enabled={enabled} onToggle={() => onEnabledChange(!enabled)} label={t("common.enabled")} />
             </div>
             <label className="block">
               <span className="mb-1 block text-xs font-semibold text-content-subtle">Endpoint</span>

@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
+
 import i18n from "@/lib/i18n"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileTextIcon, MailIcon, PencilIcon, PlusIcon, SendIcon, Trash2Icon } from "lucide-react"
@@ -50,6 +52,7 @@ const FORMATS = [
 type ReportSchedulePageProps = { token: string; viewer: CurrentUser }
 
 export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const tenantID = viewer.tenant_id
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -323,7 +326,7 @@ export function ReportSchedulePage({ token, viewer }: ReportSchedulePageProps) {
             </label>
             <div className="flex items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3">
               <span className="text-sm font-medium text-content-heading">Enabled</span>
-              <ToggleSwitch enabled={form.enabled} onToggle={() => setForm((f) => ({ ...f, enabled: !f.enabled }))} />
+              <ToggleSwitch enabled={form.enabled} onToggle={() => setForm((f) => ({ ...f, enabled: !f.enabled }))} label={t("common.enabled")} />
             </div>
             <SheetFooter>
               <Button
@@ -404,7 +407,8 @@ function ReportRow({
   onSend: (s: ReportSchedule) => void
   sending: boolean
 }) {
-  const typeLabel = REPORT_TYPES.find((t) => t.value === schedule.report_type)?.label ?? schedule.report_type
+  const { t } = useTranslation()
+  const typeLabel = REPORT_TYPES.find((item) => item.value === schedule.report_type)?.label ?? schedule.report_type
   const freqLabel = FREQUENCIES.find((f) => f.value === schedule.frequency)?.label ?? schedule.frequency
   return (
     <div className="flex flex-col gap-2 border-b border-line-subtle px-5 py-4 last:border-b-0 md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
@@ -420,7 +424,7 @@ function ReportRow({
       <span className="truncate text-sm text-content-subtle">{schedule.recipients.join(", ")}</span>
       <span className="text-sm text-content-muted">{schedule.last_sent_at ? new Date(schedule.last_sent_at).toLocaleDateString(i18n.language) : "Never"}</span>
       <div className="flex items-center gap-2">
-        <ToggleSwitch enabled={schedule.enabled} onToggle={() => onToggle(schedule)} />
+        <ToggleSwitch enabled={schedule.enabled} onToggle={() => onToggle(schedule)} label={t("common.enabled")} />
         <StatusDot tone={schedule.enabled ? "success" : "warning"} label={schedule.enabled ? "Active" : "Paused"} />
         <RowActionsMenu
           items={[

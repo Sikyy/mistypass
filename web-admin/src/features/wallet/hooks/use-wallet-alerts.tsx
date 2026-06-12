@@ -352,6 +352,7 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
           failed: result.failed,
         })
       )
+      await loadMetricsAndAlerts(nextTenantID)
     } catch (err) {
       const message = err instanceof Error ? err.message : t("walletPage.errors.dispatchAlertsFailed")
       setError(message)
@@ -381,6 +382,7 @@ export function useWalletAlerts({ token, tenantID }: UseWalletAlertsParams) {
           reasonSuffix: result.reason ? ` (${result.reason})` : "",
         })
       )
+      await loadMetricsAndAlerts(nextTenantID)
     } catch (err) {
       const message = err instanceof Error ? err.message : t("walletPage.errors.retryAlertNotificationFailed")
       setError(message)
