@@ -4979,6 +4979,8 @@
     }
   },
   "nav": {
+    "alarms": "告警处置",
+    "apiClients": "API 客户端",
     "visitors": "访客",
     "wallet": "凭证工作台",
     "audit": "审计与合规",

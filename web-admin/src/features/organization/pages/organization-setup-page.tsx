@@ -308,16 +308,21 @@ function alertPolicyDraftTone(draft: AlertPolicyDraft): AlertPolicyRow[3] {
 
 export function OrganizationSetupAdaptedPage({
   title,
+  section,
   token,
   viewer,
 }: {
   title: string
+  /** Route section slug (e.g. "billing") — drives content branching so the
+   *  display title can be localized freely. Falls back to title for callers
+   *  that don't pass it. */
+  section?: string
   token: string
   viewer: CurrentUser
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const normalized = title.toLowerCase()
+  const normalized = (section ?? title).toLowerCase()
   const isCreatePlace = normalized.includes("create")
   const isAlertPolicies = normalized.includes("alert")
   const isIntegrations = normalized.includes("integrations")

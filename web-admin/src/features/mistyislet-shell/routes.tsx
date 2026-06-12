@@ -1,4 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, Navigate, Route, Routes, useParams } from "react-router"
 
 import { PageFrame } from "@/components/mistyislet/primitives"
@@ -108,29 +109,11 @@ const TenantDetailPage = lazy(() =>
 const EnterprisePage = lazy(() =>
   import("@/features/legacy/pages/enterprise-page").then((module) => ({ default: module.EnterprisePage }))
 )
-const SpacesPage = lazy(() =>
-  import("@/features/legacy/pages/spaces-page").then((module) => ({ default: module.SpacesPage }))
-)
-const AccessDirectoryPage = lazy(() =>
-  import("@/features/legacy/pages/access-directory-page").then((module) => ({ default: module.AccessDirectoryPage }))
-)
-const AccessPoliciesPage = lazy(() =>
-  import("@/features/legacy/pages/access-policies-page").then((module) => ({ default: module.AccessPoliciesPage }))
-)
-const AccessGrantsPage = lazy(() =>
-  import("@/features/legacy/pages/access-grants-page").then((module) => ({ default: module.AccessGrantsPage }))
-)
-const AccessLegacySectionRedirectPage = lazy(() =>
-  import("@/features/legacy/pages/access-legacy-section-redirect-page").then((module) => ({ default: module.AccessLegacySectionRedirectPage }))
-)
 const WalletPage = lazy(() =>
   import("@/features/legacy/pages/wallet-page").then((module) => ({ default: module.WalletPage }))
 )
 const GatewaysPage = lazy(() =>
   import("@/features/legacy/pages/gateways-page").then((module) => ({ default: module.GatewaysPage }))
-)
-const EventsPage = lazy(() =>
-  import("@/features/legacy/pages/events-page").then((module) => ({ default: module.EventsPage }))
 )
 const AlarmsPage = lazy(() =>
   import("@/features/legacy/pages/alarms-page").then((module) => ({ default: module.AlarmsPage }))
@@ -234,9 +217,24 @@ function PlaceRoute({ section, token, viewer }: PlaceResourcePageProps) {
 }
 
 function OrganizationRoute({ token, viewer }: AuthenticatedResourcePageProps) {
+  const { t } = useTranslation()
   const { section } = useParams()
-  const title = section === "sso-scim" ? "SSO & SCIM" : titleFromSegment(section ?? "settings")
-  return <OrganizationSetupAdaptedPage title={title} token={token} viewer={viewer} />
+  const normalizedSection = section ?? "settings"
+  // /organization/sso-scim retired in favour of the /enterprise workbench
+  // (decision 2026-06-12).
+  if (normalizedSection === "sso-scim") {
+    return <Navigate to="/enterprise" replace />
+  }
+  const titleKeyBySection: Record<string, string> = {
+    "settings": "kisi.shell.navSettings",
+    "billing": "kisi.shell.navBilling",
+    "integrations": "kisi.shell.navIntegrations",
+    "alert-policies": "kisi.shell.navAlertPolicies",
+    "create-place": "kisi.shell.navCreatePlace",
+  }
+  const titleKey = titleKeyBySection[normalizedSection]
+  const title = titleKey ? t(titleKey) : titleFromSegment(normalizedSection)
+  return <OrganizationSetupAdaptedPage title={title} section={normalizedSection} token={token} viewer={viewer} />
 }
 
 function NotFoundPage() {
@@ -291,16 +289,15 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/tenants" element={<TenantsPage token={token} />} />
         <Route path="/tenants/:tenantID" element={<TenantDetailPage token={token} />} />
         <Route path="/enterprise" element={<EnterprisePage token={token} viewer={viewer} />} />
-        <Route path="/spaces" element={<SpacesPage token={token} viewer={viewer} />} />
-        <Route path="/access" element={<Navigate to="/access/directory" replace />} />
-        <Route path="/access/:section" element={<AccessLegacySectionRedirectPage />} />
-        <Route path="/access/directory" element={<AccessDirectoryPage token={token} viewer={viewer} />} />
-        <Route path="/access/policies" element={<AccessPoliciesPage token={token} viewer={viewer} />} />
-        <Route path="/access/grants" element={<AccessGrantsPage token={token} viewer={viewer} />} />
+        {/* Retired legacy parallel pages (decision 2026-06-12): redirect to their
+            Mistyislet-shell successors so old bookmarks keep working. */}
+        <Route path="/spaces" element={<Navigate to="/places" replace />} />
+        <Route path="/access" element={<Navigate to="/users" replace />} />
+        <Route path="/access/:section" element={<Navigate to="/users" replace />} />
         <Route path="/wallet" element={<WalletPage token={token} viewer={viewer} />} />
         <Route path="/cameras" element={<CamerasPage token={token} viewer={viewer} />} />
         <Route path="/gateways" element={<GatewaysPage token={token} viewer={viewer} />} />
-        <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
+        <Route path="/events" element={<Navigate to="/event-history" replace />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />
         <Route path="/audit" element={<AuditPage token={token} viewer={viewer} />} />
         <Route path="/access-links/claim" element={<AccessLinkClaimPage />} />

@@ -4979,6 +4979,8 @@
     }
   },
   "nav": {
+    "alarms": "Penanganan Alarm",
+    "apiClients": "Klien API",
     "visitors": "Pengunjung",
     "wallet": "Operasi Kredensial",
     "audit": "Audit & Kepatuhan",

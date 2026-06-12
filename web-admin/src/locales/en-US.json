@@ -4979,6 +4979,8 @@
     }
   },
   "nav": {
+    "alarms": "Alarm Response",
+    "apiClients": "API Clients",
     "visitors": "Visitors",
     "wallet": "Credential Ops",
     "audit": "Audit & Compliance",
