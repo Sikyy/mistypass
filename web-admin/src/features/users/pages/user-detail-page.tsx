@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { useMistyisletResourceSummary } from "@/features/mistyislet-shell/use-resource-summary"
 import {
   deleteUser,
+  exportUserBadge,
   fetchUser,
   listUserInvitations,
   sendUserInvitation,
@@ -113,6 +114,25 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
   const [actionNotice, setActionNotice] = useState("")
   const [actionError, setActionError] = useState("")
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [badgeExporting, setBadgeExporting] = useState(false)
+
+  async function handleExportBadge() {
+    setBadgeExporting(true)
+    setActionError("")
+    try {
+      const blob = await exportUserBadge(token, userID, tenantID || undefined)
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = `badge-${userID}.pdf`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setActionError(t("common.exportBadgeFailed"))
+    } finally {
+      setBadgeExporting(false)
+    }
+  }
 
   const userQuery = useQuery({
     queryKey: ["access-user", userID, tenantID],
@@ -244,6 +264,15 @@ export function UserDetailAdaptedPage({ token, viewer }: UserDetailAdaptedPagePr
         description={t("kisi.myAccount.description")}
         actions={
           <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={badgeExporting || !user}
+              onClick={() => void handleExportBadge()}
+              className="h-10 rounded-[6px] border-[#8589ff] bg-white px-5 text-[#4f55ff] hover:border-[#6f74ff] hover:bg-brand-subtle hover:text-[#3439cc]"
+            >
+              {badgeExporting ? t("common.exporting") : t("common.exportBadge")}
+            </Button>
             <Button
               asChild
               variant="interaction"

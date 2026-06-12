@@ -1,5 +1,8 @@
 {
   "common": {
+    "exportBadge": "Ekspor Kartu ID",
+    "exporting": "Mengekspor…",
+    "exportBadgeFailed": "Ekspor kartu ID gagal. Silakan coba lagi.",
     "language": {
       "zh": "中文",
       "en": "inggris",

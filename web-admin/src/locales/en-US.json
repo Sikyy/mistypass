@@ -1,5 +1,8 @@
 {
   "common": {
+    "exportBadge": "Export Badge",
+    "exporting": "Exporting…",
+    "exportBadgeFailed": "Badge export failed. Please retry.",
     "language": {
       "zh": "中文",
       "en": "English",

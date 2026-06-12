@@ -1,4 +1,4 @@
-import { request, requestItems, requestText, withTenantQuery, encodePathSegment, APIError } from "./core"
+import { API_BASE_URL, request, requestItems, requestText, resolveAuthToken, withTenantQuery, encodePathSegment, APIError } from "./core"
 
 export type AccessUser = {
   id: string
@@ -330,4 +330,18 @@ export async function updateGuestStatus(token: string | undefined, guestID: stri
 
 export async function deleteGuest(token: string | undefined, guestID: string, tenantID: string): Promise<void> {
   return request<void>(`/api/v1/guests/${encodePathSegment(guestID)}?tenant_id=${encodeURIComponent(tenantID)}`, { method: "DELETE" }, token)
+}
+
+// --- Badges ---
+
+/** Downloads the printable PDF badge for one user (GET /api/v1/badges/export). */
+export async function exportUserBadge(token: string | undefined, userID: string, tenantID?: string): Promise<Blob> {
+  const params = new URLSearchParams({ user_id: userID, format: "pdf" })
+  if (tenantID) params.set("tenant_id", tenantID)
+  const activeToken = resolveAuthToken(token)
+  const res = await fetch(`${API_BASE_URL}/api/v1/badges/export?${params}`, {
+    headers: activeToken ? { Authorization: `Bearer ${activeToken}` } : {},
+  })
+  if (!res.ok) throw new Error(`Badge export failed: ${res.status}`)
+  return res.blob()
 }

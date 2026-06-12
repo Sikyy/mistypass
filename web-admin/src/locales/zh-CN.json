@@ -1,5 +1,8 @@
 {
   "common": {
+    "exportBadge": "导出工牌",
+    "exporting": "导出中…",
+    "exportBadgeFailed": "工牌导出失败，请重试",
     "language": {
       "zh": "中文",
       "en": "英语",
