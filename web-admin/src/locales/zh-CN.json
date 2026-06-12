@@ -4878,6 +4878,137 @@
       "deleteFailed": "删除摄像头失败"
     }
   },
+  "apiClients": {
+    "title": "API 客户端",
+    "description": "管理 OAuth2 客户端应用。",
+    "newClient": "新建客户端",
+    "clientSecretFor": "{{clientId}} 的客户端密钥：",
+    "stats": {
+      "clients": "客户端",
+      "tenant": "租户"
+    },
+    "redirectUris": "重定向 URI",
+    "scopes": "授权范围",
+    "loading": "正在加载 API 客户端...",
+    "empty": "暂无 API 客户端。",
+    "rowActions": "针对 {{name}} 的操作",
+    "sheet": {
+      "createTitle": "新建 API 客户端",
+      "editTitle": "编辑 API 客户端",
+      "createDescription": "OAuth2 授权码模式客户端"
+    },
+    "saveChanges": "保存更改",
+    "createClient": "创建客户端",
+    "deleteDialog": {
+      "title": "删除 API 客户端",
+      "description": "删除 {{name}} 并吊销其尚未使用的授权码。",
+      "fallbackName": "此客户端"
+    },
+    "errors": {
+      "create": "创建 API 客户端失败",
+      "update": "更新 API 客户端失败",
+      "delete": "删除 API 客户端失败"
+    }
+  },
+  "reportSchedule": {
+    "breadcrumbDashboard": "仪表盘",
+    "breadcrumbReports": "报表",
+    "title": "定时报表",
+    "description": "配置报表的自动发送。",
+    "newSchedule": "新建报表计划",
+    "listTitle": "定时报表（{{count}}）",
+    "empty": "暂无报表计划。",
+    "frequency": "频率",
+    "recipients": "收件人",
+    "lastSent": "上次发送",
+    "never": "从未",
+    "statusActive": "运行中",
+    "statusPaused": "已暂停",
+    "sendNow": "立即发送",
+    "sending": "发送中...",
+    "sentVia": "{{name}} 已通过配置的邮件服务发送。",
+    "saveChanges": "保存更改",
+    "createSchedule": "创建计划",
+    "sheet": {
+      "createTitle": "新建报表计划",
+      "editTitle": "编辑报表计划",
+      "editDescription": "在下方更新计划设置。"
+    },
+    "form": {
+      "reportType": "报表类型",
+      "format": "格式",
+      "recipients": "收件人（多个邮箱用英文逗号分隔）"
+    },
+    "types": {
+      "weeklyAnalytics": "每周分析",
+      "events": "门禁事件",
+      "unlockStats": "开锁统计",
+      "userPresence": "人员在场",
+      "incidents": "安全事件",
+      "hardware": "硬件健康"
+    },
+    "frequencies": {
+      "daily": "每日",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "errors": {
+      "create": "创建报表计划失败",
+      "update": "更新报表计划失败",
+      "toggle": "切换计划状态失败",
+      "delete": "删除报表计划失败",
+      "send": "发送报表失败"
+    },
+    "deleteDialog": {
+      "title": "删除报表计划",
+      "description": "该报表计划将被永久删除。"
+    },
+    "provider": {
+      "title": "报表邮件服务",
+      "checking": "检查中",
+      "ready": "就绪",
+      "configRequired": "需要配置",
+      "unavailable": "无法获取服务状态",
+      "checkingMessage": "正在检查报表邮件服务。"
+    }
+  },
+  "auditWebhook": {
+    "title": "审计 Webhook",
+    "description": "端点、过滤条件与投递历史。",
+    "saved": "审计 Webhook 设置已保存。",
+    "deliveryResult": "Webhook 投递 {{id}}：{{status}}。",
+    "status": {
+      "checking": "检查中",
+      "enabled": "已启用",
+      "notConfigured": "未配置",
+      "disabled": "已禁用"
+    },
+    "deliveryEnabled": "启用投递",
+    "deliveryEnabledHint": "禁用后，手动派发将返回冲突错误。",
+    "endpoint": "端点",
+    "actionFilter": "动作过滤",
+    "signingSecret": "验签 Secret",
+    "secretKeepPlaceholder": "留空则保留当前 Secret",
+    "secretOptionalPlaceholder": "可选的 HMAC Secret",
+    "saveWebhook": "保存 Webhook",
+    "dispatchLatest": "派发最新记录",
+    "dispatching": "派发中...",
+    "dispatchTargetLabel": "派发的审计日志 ID",
+    "latestDelivery": "最近一次投递",
+    "noDeliveriesYet": "暂无 Webhook 投递记录。",
+    "noDeliveryRecords": "暂无投递记录。",
+    "table": {
+      "delivery": "投递",
+      "action": "动作",
+      "status": "状态",
+      "attempts": "尝试次数",
+      "dispatched": "派发时间"
+    },
+    "errors": {
+      "save": "保存审计 Webhook 设置失败",
+      "dispatch": "派发审计 Webhook 失败"
+    }
+  },
   "analyticsSpace": {
     "occupancyTitle": "空间占用",
     "currentPresent": "当前在场",

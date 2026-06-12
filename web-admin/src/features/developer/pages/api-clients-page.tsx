@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { KeyRoundIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
@@ -54,6 +55,7 @@ function parseRedirectURIs(input: string) {
 }
 
 export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<OAuth2Client | null>(null)
@@ -118,7 +120,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       setDraft(emptyDraft)
       setError("")
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed to create API client"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("apiClients.errors.create")),
   })
 
   const updateMutation = useMutation({
@@ -136,7 +138,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       setDraft(emptyDraft)
       setError("")
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed to update API client"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("apiClients.errors.update")),
   })
 
   const deleteMutation = useMutation({
@@ -146,7 +148,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       setDeleteTarget(null)
       setError("")
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed to delete API client"),
+    onError: (err) => setError(err instanceof Error ? err.message : t("apiClients.errors.delete")),
   })
 
   const saving = createMutation.isPending || updateMutation.isPending
@@ -154,13 +156,13 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
 
   return (
     <PageFrame
-      breadcrumbs={["Home", "Organization", "API Clients"]}
-      title="API Clients"
-      description="Manage OAuth2 client applications."
+      breadcrumbs={[t("common.home"), t("common.organization"), t("apiClients.title")]}
+      title={t("apiClients.title")}
+      description={t("apiClients.description")}
       actions={
         <Button type="button" className="h-11 rounded-[6px] bg-brand px-6 text-white hover:bg-brand-hover" onClick={openCreate}>
           <PlusIcon className="mr-2 size-4" />
-          New Client
+          {t("apiClients.newClient")}
         </Button>
       }
     >
@@ -174,7 +176,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       ) : null}
       {createdSecret ? (
         <div className="rounded-[6px] border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          <span className="font-semibold">Client secret for {createdSecret.clientID}: </span>
+          <span className="font-semibold">{t("apiClients.clientSecretFor", { clientId: createdSecret.clientID })} </span>
           <code className="break-all rounded bg-white/70 px-1.5 py-0.5">{createdSecret.secret}</code>
         </div>
       ) : null}
@@ -182,19 +184,19 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-content-subtle">Clients</CardTitle>
+            <CardTitle className="text-sm font-medium text-content-subtle">{t("apiClients.stats.clients")}</CardTitle>
           </CardHeader>
           <CardContent className="text-3xl font-bold text-content-heading">{clientsQuery.isLoading ? "--" : clients.length}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-content-subtle">Enabled</CardTitle>
+            <CardTitle className="text-sm font-medium text-content-subtle">{t("common.enabled")}</CardTitle>
           </CardHeader>
           <CardContent className="text-3xl font-bold text-content-heading">{clients.filter((item) => item.enabled).length}</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-content-subtle">Tenant</CardTitle>
+            <CardTitle className="text-sm font-medium text-content-subtle">{t("apiClients.stats.tenant")}</CardTitle>
           </CardHeader>
           <CardContent className="truncate text-sm font-semibold text-content-heading">{viewer.tenant_id}</CardContent>
         </Card>
@@ -202,13 +204,13 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
 
       <section className="overflow-hidden rounded-[6px] border border-line-subtle bg-white">
         <div className="hidden border-b border-line-subtle px-5 py-3 md:grid md:grid-cols-[1.4fr_1.6fr_1fr_1fr_auto]">
-          {["Name", "Redirect URIs", "Scopes", "Status", ""].map((header) => (
+          {[t("common.name"), t("apiClients.redirectUris"), t("apiClients.scopes"), t("common.status"), ""].map((header) => (
             <span key={header} className="text-xs font-semibold text-content-subtle">{header}</span>
           ))}
         </div>
         {clients.length === 0 ? (
           <div className="px-5 py-8 text-center text-sm text-content-subtle">
-            {clientsQuery.isLoading ? "Loading API clients..." : "No API clients configured."}
+            {clientsQuery.isLoading ? t("apiClients.loading") : t("apiClients.empty")}
           </div>
         ) : (
           clients.map((client) => (
@@ -226,14 +228,14 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
                 ))}
               </div>
               <span className="text-sm text-content-subtle">{client.scopes.join(", ") || "read"}</span>
-              <StatusDot tone={client.enabled ? "success" : "warning"} label={client.enabled ? "Enabled" : "Disabled"} />
+              <StatusDot tone={client.enabled ? "success" : "warning"} label={client.enabled ? t("common.enabled") : t("common.disabled")} />
               <RowActionsMenu
-                label={`Actions for ${client.name}`}
+                label={t("apiClients.rowActions", { name: client.name })}
                 items={[
-                  { id: "edit", label: "Edit", icon: PencilIcon, onSelect: () => openEdit(client) },
+                  { id: "edit", label: t("common.edit"), icon: PencilIcon, onSelect: () => openEdit(client) },
                   {
                     id: "delete",
-                    label: "Delete",
+                    label: t("common.delete"),
                     icon: Trash2Icon,
                     destructive: true,
                     onSelect: () => setDeleteTarget(client),
@@ -259,8 +261,8 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
       >
         <SheetContent className="w-full max-w-lg overflow-y-auto bg-white">
           <SheetHeader>
-            <SheetTitle>{isEditing ? "Edit API Client" : "New API Client"}</SheetTitle>
-            <SheetDescription>{isEditing ? editTarget?.id : "OAuth2 authorization code client"}</SheetDescription>
+            <SheetTitle>{isEditing ? t("apiClients.sheet.editTitle") : t("apiClients.sheet.createTitle")}</SheetTitle>
+            <SheetDescription>{isEditing ? editTarget?.id : t("apiClients.sheet.createDescription")}</SheetDescription>
           </SheetHeader>
           <form
             className="space-y-5 p-6"
@@ -271,11 +273,11 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
             }}
           >
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Name</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("common.name")}</span>
               <Input value={draft.name} onChange={(event) => updateDraft({ name: event.target.value })} required />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Redirect URIs</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("apiClients.redirectUris")}</span>
               <Textarea
                 value={draft.redirectURIs}
                 onChange={(event) => updateDraft({ redirectURIs: event.target.value })}
@@ -285,7 +287,7 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
               />
             </label>
             <div>
-              <span className="mb-2 block text-xs font-semibold text-content-subtle">Scopes</span>
+              <span className="mb-2 block text-xs font-semibold text-content-subtle">{t("apiClients.scopes")}</span>
               <div className="inline-flex overflow-hidden rounded-[6px] border border-line-default">
                 {scopeOptions.map((scope) => {
                   const active = draft.scopes.includes(scope)
@@ -304,13 +306,13 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
             </div>
             {isEditing ? (
               <div className="flex items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3">
-                <span className="text-sm font-medium text-content-heading">Enabled</span>
-                <ToggleSwitch enabled={draft.enabled} label="Enabled" onToggle={() => updateDraft({ enabled: !draft.enabled })} />
+                <span className="text-sm font-medium text-content-heading">{t("common.enabled")}</span>
+                <ToggleSwitch enabled={draft.enabled} label={t("common.enabled")} onToggle={() => updateDraft({ enabled: !draft.enabled })} />
               </div>
             ) : null}
             <SheetFooter>
               <Button type="submit" disabled={saving || !canSubmit}>
-                {saving ? "Saving..." : isEditing ? "Save Changes" : "Create Client"}
+                {saving ? t("common.saving") : isEditing ? t("apiClients.saveChanges") : t("apiClients.createClient")}
               </Button>
             </SheetFooter>
           </form>
@@ -319,9 +321,9 @@ export function APIClientsPage({ token, viewer }: APIClientsPageProps) {
 
       <ConfirmActionDialog
         open={Boolean(deleteTarget)}
-        title="Delete API client"
-        description={`Delete ${deleteTarget?.name ?? "this client"} and revoke outstanding authorization codes.`}
-        confirmLabel="Delete"
+        title={t("apiClients.deleteDialog.title")}
+        description={t("apiClients.deleteDialog.description", { name: deleteTarget?.name ?? t("apiClients.deleteDialog.fallbackName") })}
+        confirmLabel={t("common.delete")}
         destructive
         pending={deleteMutation.isPending}
         onOpenChange={(open) => {

@@ -4878,6 +4878,137 @@
       "deleteFailed": "Failed to delete camera"
     }
   },
+  "apiClients": {
+    "title": "API Clients",
+    "description": "Manage OAuth2 client applications.",
+    "newClient": "New Client",
+    "clientSecretFor": "Client secret for {{clientId}}:",
+    "stats": {
+      "clients": "Clients",
+      "tenant": "Tenant"
+    },
+    "redirectUris": "Redirect URIs",
+    "scopes": "Scopes",
+    "loading": "Loading API clients...",
+    "empty": "No API clients configured.",
+    "rowActions": "Actions for {{name}}",
+    "sheet": {
+      "createTitle": "New API Client",
+      "editTitle": "Edit API Client",
+      "createDescription": "OAuth2 authorization code client"
+    },
+    "saveChanges": "Save Changes",
+    "createClient": "Create Client",
+    "deleteDialog": {
+      "title": "Delete API client",
+      "description": "Delete {{name}} and revoke outstanding authorization codes.",
+      "fallbackName": "this client"
+    },
+    "errors": {
+      "create": "Failed to create API client",
+      "update": "Failed to update API client",
+      "delete": "Failed to delete API client"
+    }
+  },
+  "reportSchedule": {
+    "breadcrumbDashboard": "Dashboard",
+    "breadcrumbReports": "Reports",
+    "title": "Report Schedules",
+    "description": "Configure automated report delivery.",
+    "newSchedule": "New Report Schedule",
+    "listTitle": "Scheduled Reports ({{count}})",
+    "empty": "No report schedules configured.",
+    "frequency": "Frequency",
+    "recipients": "Recipients",
+    "lastSent": "Last Sent",
+    "never": "Never",
+    "statusActive": "Active",
+    "statusPaused": "Paused",
+    "sendNow": "Send now",
+    "sending": "Sending...",
+    "sentVia": "{{name}} sent via the configured mail provider.",
+    "saveChanges": "Save Changes",
+    "createSchedule": "Create Schedule",
+    "sheet": {
+      "createTitle": "New Report Schedule",
+      "editTitle": "Edit Report Schedule",
+      "editDescription": "Update the schedule settings below."
+    },
+    "form": {
+      "reportType": "Report Type",
+      "format": "Format",
+      "recipients": "Recipients (comma-separated emails)"
+    },
+    "types": {
+      "weeklyAnalytics": "Weekly Analytics",
+      "events": "Access Events",
+      "unlockStats": "Unlock Statistics",
+      "userPresence": "User Presence",
+      "incidents": "Incidents",
+      "hardware": "Hardware Health"
+    },
+    "frequencies": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "errors": {
+      "create": "Failed to create report schedule",
+      "update": "Failed to update report schedule",
+      "toggle": "Failed to toggle schedule",
+      "delete": "Failed to delete report schedule",
+      "send": "Failed to send report schedule"
+    },
+    "deleteDialog": {
+      "title": "Delete report schedule",
+      "description": "This report schedule will be permanently removed."
+    },
+    "provider": {
+      "title": "Report email provider",
+      "checking": "Checking",
+      "ready": "Ready",
+      "configRequired": "Configuration required",
+      "unavailable": "Provider status unavailable",
+      "checkingMessage": "Checking report email provider."
+    }
+  },
+  "auditWebhook": {
+    "title": "Audit Webhook",
+    "description": "Endpoint, filters, and delivery history.",
+    "saved": "Audit webhook settings saved.",
+    "deliveryResult": "Webhook delivery {{id}} {{status}}.",
+    "status": {
+      "checking": "Checking",
+      "enabled": "Enabled",
+      "notConfigured": "Not configured",
+      "disabled": "Disabled"
+    },
+    "deliveryEnabled": "Delivery enabled",
+    "deliveryEnabledHint": "When disabled, manual dispatch returns a conflict.",
+    "endpoint": "Endpoint",
+    "actionFilter": "Action filter",
+    "signingSecret": "Signing secret",
+    "secretKeepPlaceholder": "Leave blank to keep current secret",
+    "secretOptionalPlaceholder": "Optional HMAC secret",
+    "saveWebhook": "Save Webhook",
+    "dispatchLatest": "Dispatch Latest",
+    "dispatching": "Dispatching...",
+    "dispatchTargetLabel": "Dispatch audit log ID",
+    "latestDelivery": "Latest delivery",
+    "noDeliveriesYet": "No webhook deliveries yet.",
+    "noDeliveryRecords": "No delivery records.",
+    "table": {
+      "delivery": "Delivery",
+      "action": "Action",
+      "status": "Status",
+      "attempts": "Attempts",
+      "dispatched": "Dispatched"
+    },
+    "errors": {
+      "save": "Failed to save audit webhook settings",
+      "dispatch": "Failed to dispatch audit webhook"
+    }
+  },
   "analyticsSpace": {
     "occupancyTitle": "Space Occupancy",
     "currentPresent": "Currently Present",

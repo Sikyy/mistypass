@@ -4878,6 +4878,137 @@
       "deleteFailed": "Gagal menghapus kamera"
     }
   },
+  "apiClients": {
+    "title": "Klien API",
+    "description": "Kelola aplikasi klien OAuth2.",
+    "newClient": "Klien Baru",
+    "clientSecretFor": "Client secret untuk {{clientId}}:",
+    "stats": {
+      "clients": "Klien",
+      "tenant": "Tenant"
+    },
+    "redirectUris": "URI Pengalihan",
+    "scopes": "Cakupan Izin",
+    "loading": "Memuat klien API...",
+    "empty": "Belum ada klien API yang dikonfigurasi.",
+    "rowActions": "Aksi untuk {{name}}",
+    "sheet": {
+      "createTitle": "Klien API Baru",
+      "editTitle": "Edit Klien API",
+      "createDescription": "Klien OAuth2 dengan authorization code"
+    },
+    "saveChanges": "Simpan Perubahan",
+    "createClient": "Buat Klien",
+    "deleteDialog": {
+      "title": "Hapus klien API",
+      "description": "Hapus {{name}} dan cabut kode otorisasi yang masih berlaku.",
+      "fallbackName": "klien ini"
+    },
+    "errors": {
+      "create": "Gagal membuat klien API",
+      "update": "Gagal memperbarui klien API",
+      "delete": "Gagal menghapus klien API"
+    }
+  },
+  "reportSchedule": {
+    "breadcrumbDashboard": "Dasbor",
+    "breadcrumbReports": "Laporan",
+    "title": "Jadwal Laporan",
+    "description": "Atur pengiriman laporan otomatis.",
+    "newSchedule": "Jadwal Laporan Baru",
+    "listTitle": "Laporan Terjadwal ({{count}})",
+    "empty": "Belum ada jadwal laporan yang dikonfigurasi.",
+    "frequency": "Frekuensi",
+    "recipients": "Penerima",
+    "lastSent": "Terakhir Dikirim",
+    "never": "Belum pernah",
+    "statusActive": "Aktif",
+    "statusPaused": "Dijeda",
+    "sendNow": "Kirim sekarang",
+    "sending": "Mengirim...",
+    "sentVia": "{{name}} telah dikirim melalui penyedia email yang dikonfigurasi.",
+    "saveChanges": "Simpan Perubahan",
+    "createSchedule": "Buat Jadwal",
+    "sheet": {
+      "createTitle": "Jadwal Laporan Baru",
+      "editTitle": "Edit Jadwal Laporan",
+      "editDescription": "Perbarui pengaturan jadwal di bawah ini."
+    },
+    "form": {
+      "reportType": "Jenis Laporan",
+      "format": "Format",
+      "recipients": "Penerima (email dipisahkan koma)"
+    },
+    "types": {
+      "weeklyAnalytics": "Analitik Mingguan",
+      "events": "Event Akses",
+      "unlockStats": "Statistik Buka Kunci",
+      "userPresence": "Kehadiran Pengguna",
+      "incidents": "Insiden",
+      "hardware": "Kesehatan Perangkat Keras"
+    },
+    "frequencies": {
+      "daily": "Harian",
+      "weekly": "Mingguan",
+      "monthly": "Bulanan"
+    },
+    "errors": {
+      "create": "Gagal membuat jadwal laporan",
+      "update": "Gagal memperbarui jadwal laporan",
+      "toggle": "Gagal mengubah status jadwal",
+      "delete": "Gagal menghapus jadwal laporan",
+      "send": "Gagal mengirim laporan"
+    },
+    "deleteDialog": {
+      "title": "Hapus jadwal laporan",
+      "description": "Jadwal laporan ini akan dihapus secara permanen."
+    },
+    "provider": {
+      "title": "Penyedia email laporan",
+      "checking": "Memeriksa",
+      "ready": "Siap",
+      "configRequired": "Perlu konfigurasi",
+      "unavailable": "Status penyedia tidak tersedia",
+      "checkingMessage": "Memeriksa penyedia email laporan."
+    }
+  },
+  "auditWebhook": {
+    "title": "Webhook Audit",
+    "description": "Endpoint, filter, dan riwayat pengiriman.",
+    "saved": "Pengaturan webhook audit disimpan.",
+    "deliveryResult": "Pengiriman webhook {{id}} {{status}}.",
+    "status": {
+      "checking": "Memeriksa",
+      "enabled": "Diaktifkan",
+      "notConfigured": "Belum dikonfigurasi",
+      "disabled": "Dinonaktifkan"
+    },
+    "deliveryEnabled": "Pengiriman diaktifkan",
+    "deliveryEnabledHint": "Saat dinonaktifkan, pengiriman manual akan menghasilkan konflik.",
+    "endpoint": "Endpoint",
+    "actionFilter": "Filter aksi",
+    "signingSecret": "Secret tanda tangan",
+    "secretKeepPlaceholder": "Biarkan kosong untuk mempertahankan secret saat ini",
+    "secretOptionalPlaceholder": "Secret HMAC opsional",
+    "saveWebhook": "Simpan Webhook",
+    "dispatchLatest": "Kirim Terbaru",
+    "dispatching": "Mengirim...",
+    "dispatchTargetLabel": "ID log audit untuk dikirim",
+    "latestDelivery": "Pengiriman terbaru",
+    "noDeliveriesYet": "Belum ada pengiriman webhook.",
+    "noDeliveryRecords": "Tidak ada catatan pengiriman.",
+    "table": {
+      "delivery": "Pengiriman",
+      "action": "Aksi",
+      "status": "Status",
+      "attempts": "Percobaan",
+      "dispatched": "Dikirim"
+    },
+    "errors": {
+      "save": "Gagal menyimpan pengaturan webhook audit",
+      "dispatch": "Gagal mengirim webhook audit"
+    }
+  },
   "analyticsSpace": {
     "occupancyTitle": "Okupansi Ruang",
     "currentPresent": "Sedang Hadir",

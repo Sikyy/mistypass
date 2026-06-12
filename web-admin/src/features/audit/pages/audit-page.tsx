@@ -318,11 +318,11 @@ export function AuditPage({ token, viewer }: AuditPageProps) {
       setWebhookActions((config.actions ?? []).join(", "))
       setWebhookSecret("")
       setWebhookError("")
-      setWebhookMessage("Audit webhook settings saved.")
+      setWebhookMessage(t("auditWebhook.saved"))
     },
     onError: (err) => {
       setWebhookMessage("")
-      setWebhookError(err instanceof Error ? err.message : "Failed to save audit webhook settings")
+      setWebhookError(err instanceof Error ? err.message : t("auditWebhook.errors.save"))
     },
   })
 
@@ -336,12 +336,12 @@ export function AuditPage({ token, viewer }: AuditPageProps) {
       queryClient.invalidateQueries({ queryKey: ["audit-webhook-deliveries", tenantID] })
       queryClient.invalidateQueries({ queryKey: ["audit-logs"] })
       setWebhookError("")
-      setWebhookMessage(`Webhook delivery ${response.delivery.id} ${response.delivery.status}.`)
+      setWebhookMessage(t("auditWebhook.deliveryResult", { id: response.delivery.id, status: response.delivery.status }))
     },
     onError: (err) => {
       queryClient.invalidateQueries({ queryKey: ["audit-webhook-deliveries", tenantID] })
       setWebhookMessage("")
-      setWebhookError(err instanceof Error ? err.message : "Failed to dispatch audit webhook")
+      setWebhookError(err instanceof Error ? err.message : t("auditWebhook.errors.dispatch"))
     },
   })
 
@@ -595,7 +595,13 @@ function AuditWebhookPanel({
   onDispatch: () => void
 }) {
   const { t } = useTranslation()
-  const statusLabel = loading ? "Checking" : config?.enabled ? "Enabled" : configMissing ? "Not configured" : "Disabled"
+  const statusLabel = loading
+    ? t("auditWebhook.status.checking")
+    : config?.enabled
+      ? t("auditWebhook.status.enabled")
+      : configMissing
+        ? t("auditWebhook.status.notConfigured")
+        : t("auditWebhook.status.disabled")
   const statusVariant = config?.enabled ? "default" : "outline"
   const latestDelivery = deliveries[0]
 
@@ -606,9 +612,9 @@ function AuditWebhookPanel({
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <WebhookIcon className="size-4 text-content-subtle" />
-              Audit Webhook
+              {t("auditWebhook.title")}
             </CardTitle>
-            <CardDescription>Endpoint, filters, and delivery history.</CardDescription>
+            <CardDescription>{t("auditWebhook.description")}</CardDescription>
           </div>
           <Badge variant={statusVariant}>{statusLabel}</Badge>
         </div>
@@ -634,13 +640,13 @@ function AuditWebhookPanel({
           >
             <div className="flex items-center justify-between rounded-[6px] border border-line-subtle px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-content-heading">Delivery enabled</p>
-                <p className="mt-1 text-xs text-content-subtle">When disabled, manual dispatch returns a conflict.</p>
+                <p className="text-sm font-medium text-content-heading">{t("auditWebhook.deliveryEnabled")}</p>
+                <p className="mt-1 text-xs text-content-subtle">{t("auditWebhook.deliveryEnabledHint")}</p>
               </div>
               <ToggleSwitch enabled={enabled} onToggle={() => onEnabledChange(!enabled)} label={t("common.enabled")} />
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Endpoint</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("auditWebhook.endpoint")}</span>
               <Input
                 value={endpoint}
                 onChange={(event) => onEndpointChange(event.target.value)}
@@ -648,7 +654,7 @@ function AuditWebhookPanel({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Action filter</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("auditWebhook.actionFilter")}</span>
               <Input
                 value={actions}
                 onChange={(event) => onActionsChange(event.target.value)}
@@ -656,17 +662,17 @@ function AuditWebhookPanel({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Signing secret</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("auditWebhook.signingSecret")}</span>
               <Input
                 type="password"
                 value={signingSecret}
                 onChange={(event) => onSigningSecretChange(event.target.value)}
-                placeholder={config?.updated_at ? "Leave blank to keep current secret" : "Optional HMAC secret"}
+                placeholder={config?.updated_at ? t("auditWebhook.secretKeepPlaceholder") : t("auditWebhook.secretOptionalPlaceholder")}
               />
             </label>
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={saving || (enabled && !endpoint.trim())}>
-                {saving ? "Saving..." : "Save Webhook"}
+                {saving ? t("common.saving") : t("auditWebhook.saveWebhook")}
               </Button>
               <Button
                 type="button"
@@ -675,14 +681,14 @@ function AuditWebhookPanel({
                 onClick={onDispatch}
               >
                 <SendIcon className="mr-1.5 size-4" />
-                {dispatching ? "Dispatching..." : "Dispatch Latest"}
+                {dispatching ? t("auditWebhook.dispatching") : t("auditWebhook.dispatchLatest")}
               </Button>
             </div>
           </form>
 
           <div className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-content-subtle">Dispatch audit log ID</span>
+              <span className="mb-1 block text-xs font-semibold text-content-subtle">{t("auditWebhook.dispatchTargetLabel")}</span>
               <Input
                 value={dispatchAuditLogID}
                 onChange={(event) => onDispatchTargetChange(event.target.value)}
@@ -690,7 +696,7 @@ function AuditWebhookPanel({
               />
             </label>
             <div className="rounded-[6px] border border-line-subtle px-4 py-3 text-sm">
-              <p className="font-medium text-content-heading">Latest delivery</p>
+              <p className="font-medium text-content-heading">{t("auditWebhook.latestDelivery")}</p>
               {latestDelivery ? (
                 <div className="mt-3 space-y-1 text-content-subtle">
                   <p>
@@ -701,7 +707,7 @@ function AuditWebhookPanel({
                   {latestDelivery.error ? <p className="text-red-700">{latestDelivery.error}</p> : null}
                 </div>
               ) : (
-                <p className="mt-3 text-content-subtle">No webhook deliveries yet.</p>
+                <p className="mt-3 text-content-subtle">{t("auditWebhook.noDeliveriesYet")}</p>
               )}
             </div>
           </div>
@@ -711,18 +717,18 @@ function AuditWebhookPanel({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Delivery</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Attempts</TableHead>
-                <TableHead>Dispatched</TableHead>
+                <TableHead>{t("auditWebhook.table.delivery")}</TableHead>
+                <TableHead>{t("auditWebhook.table.action")}</TableHead>
+                <TableHead>{t("auditWebhook.table.status")}</TableHead>
+                <TableHead>{t("auditWebhook.table.attempts")}</TableHead>
+                <TableHead>{t("auditWebhook.table.dispatched")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {deliveries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                    No delivery records.
+                    {t("auditWebhook.noDeliveryRecords")}
                   </TableCell>
                 </TableRow>
               ) : (
