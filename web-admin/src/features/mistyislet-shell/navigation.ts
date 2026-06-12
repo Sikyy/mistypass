@@ -128,6 +128,7 @@ export function organizationNavSections(t: TFunction): NavSection[] {
         { label: t("kisi.shell.navEventHistory"), icon: HistoryIcon, to: "/event-history" },
         { label: t("nav.analytics"), icon: BarChart3Icon, to: "/analytics" },
         { label: t("kisi.shell.navReports"), icon: FileTextIcon, to: "/reports" },
+        { label: t("nav.gateways"), icon: RouterIcon, to: "/gateways" },
         { label: t("nav.network"), icon: ServerIcon, to: "/network" },
         { label: t("cameras.navLabel"), icon: CameraIcon, to: "/cameras" },
         { label: t("nav.southbound"), icon: RouterIcon, to: "/southbound" },

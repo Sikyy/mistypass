@@ -4982,6 +4982,7 @@
     }
   },
   "nav": {
+    "gateways": "Gateways",
     "alarms": "Alarm Response",
     "apiClients": "API Clients",
     "visitors": "Visitors",

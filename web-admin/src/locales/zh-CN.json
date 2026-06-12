@@ -4982,6 +4982,7 @@
     }
   },
   "nav": {
+    "gateways": "网关管理",
     "alarms": "告警处置",
     "apiClients": "API 客户端",
     "visitors": "访客",

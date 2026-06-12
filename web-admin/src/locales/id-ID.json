@@ -4982,6 +4982,7 @@
     }
   },
   "nav": {
+    "gateways": "Manajemen Gateway",
     "alarms": "Penanganan Alarm",
     "apiClients": "Klien API",
     "visitors": "Pengunjung",
