@@ -4818,5 +4818,124 @@
       "buildingAdmin": "Place Admin",
       "resident": "Akun tidak didukung"
     }
+  },
+  "ota": {
+    "nav": { "firmware": "Firmware" },
+    "rollout": {
+      "nav": { "rollouts": "Peluncuran" },
+      "pageTitle": "Peluncuran OTA",
+      "list": {
+        "title": "Riwayat Peluncuran",
+        "description": "Semua peluncuran OTA untuk tenant ini.",
+        "loading": "Memuat…",
+        "empty": "Belum ada peluncuran.",
+        "colFirmware": "Firmware",
+        "colTarget": "Target",
+        "colState": "Status",
+        "colPhase": "Fase",
+        "colCreated": "Dibuat"
+      },
+      "state": {
+        "active": "Aktif",
+        "completed": "Selesai",
+        "failed": "Gagal",
+        "paused": "Dijeda",
+        "awaiting_approval": "Menunggu Persetujuan",
+        "scheduled": "Terjadwal",
+        "pending": "Tertunda",
+        "aborted": "Dibatalkan"
+      },
+      "errors": { "generic": "Terjadi kesalahan." },
+      "targetSummary": { "all": "Semua gateway", "building": "Gedung {{id}}", "gateways": "{{count}} gateway" },
+      "create": {
+        "title": "Buat Peluncuran",
+        "description": "Luncurkan versi firmware ke sejumlah gateway secara bertahap.",
+        "firmwarePlaceholder": "Pilih versi firmware",
+        "targetAll": "Semua gateway",
+        "targetBuilding": "Per gedung",
+        "targetGateways": "Gateway tertentu",
+        "buildingPlaceholder": "Pilih gedung",
+        "phases": "Fase (persentase kumulatif, terakhir harus 100)",
+        "requiresApproval": "Memerlukan persetujuan",
+        "addPhase": "Tambah fase",
+        "removePhase": "Hapus",
+        "failureThreshold": "Ambang batas kegagalan %",
+        "scheduleSection": "Jadwal (opsional)",
+        "timezonePlaceholder": "Zona waktu",
+        "submit": "Buat",
+        "submitting": "Membuat…",
+        "validation": {
+          "firmwareRequired": "Pilih versi firmware",
+          "phasesInvalid": "Fase harus berupa persentase yang terus meningkat dan diakhiri dengan 100",
+          "buildingRequired": "Pilih gedung",
+          "gatewaysRequired": "Pilih setidaknya satu gateway",
+          "hhmm": "Gunakan format HH:MM (24 jam)"
+        }
+      },
+      "detail": {
+        "pageTitle": "Peluncuran",
+        "title": "Peluncuran",
+        "loading": "Memuat…",
+        "firmware": "Firmware",
+        "target": "Target",
+        "phase": "Fase",
+        "threshold": "Ambang batas kegagalan",
+        "schedule": "Jadwal",
+        "gatewaysTitle": "Progres per gateway",
+        "colGateway": "Gateway",
+        "colPhase": "Fase",
+        "colStatus": "Status",
+        "colVersion": "Versi saat ini",
+        "actions": {
+          "approve": "Setujui",
+          "pause": "Jeda",
+          "resume": "Lanjutkan",
+          "abort": "Batalkan"
+        },
+        "confirmAbortTitle": "Batalkan peluncuran?",
+        "confirmAbortBody": "Tindakan ini menghentikan peluncuran. Gateway yang sudah diperbarui tetap menggunakan firmware baru.",
+        "cancel": "Batal"
+      }
+    },
+    "firmware": {
+      "pageTitle": "Manajemen Firmware",
+      "summary": {
+        "title": "Versi Firmware Armada",
+        "description": "Distribusi versi firmware di seluruh gateway tenant ini.",
+        "loading": "Memuat…",
+        "empty": "Belum ada gateway yang melaporkan versi firmware.",
+        "fleet": "{{reported}} dari {{total}} gateway telah melaporkan versi."
+      },
+      "upload": {
+        "title": "Unggah Firmware",
+        "description": "Unggah biner firmware yang telah ditandatangani. Tandatangani secara offline dengan ota-sign; kunci privat tidak pernah masuk ke browser.",
+        "versionPlaceholder": "Versi (mis. 1.4.0)",
+        "channelPlaceholder": "Saluran (opsional: stable / beta)",
+        "signaturePlaceholder": "Tanda tangan Ed25519 (hex, dari ota-sign)",
+        "submit": "Unggah",
+        "submitting": "Mengunggah…",
+        "cryptoUnavailable": "Pengunggahan firmware memerlukan konteks aman (HTTPS).",
+        "validation": {
+          "versionRequired": "Versi wajib diisi",
+          "versionMax": "Versi terlalu panjang",
+          "signatureHex": "Tanda tangan harus terdiri dari 128 karakter hex (Ed25519)",
+          "fileRequired": "Pilih file firmware"
+        }
+      },
+      "list": {
+        "title": "Registri Firmware",
+        "description": "Versi firmware yang telah diunggah untuk tenant ini.",
+        "loading": "Memuat…",
+        "empty": "Belum ada firmware yang diunggah.",
+        "channelAll": "Semua saluran",
+        "colVersion": "Versi",
+        "colChannel": "Saluran",
+        "colSha": "SHA-256",
+        "colSize": "Ukuran",
+        "colUploadedBy": "Diunggah oleh",
+        "colCreated": "Dibuat"
+      },
+      "errors": { "generic": "Terjadi kesalahan." }
+    }
   }
 }

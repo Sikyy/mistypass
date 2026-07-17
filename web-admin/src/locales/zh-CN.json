@@ -4931,5 +4931,124 @@
     "network": "网络拓扑",
     "southbound": "下行设备",
     "alarmSchedules": "告警排班"
+  },
+  "ota": {
+    "nav": { "firmware": "固件" },
+    "rollout": {
+      "nav": { "rollouts": "推送任务" },
+      "pageTitle": "OTA 推送",
+      "list": {
+        "title": "推送历史",
+        "description": "此租户的所有 OTA 推送任务。",
+        "loading": "加载中…",
+        "empty": "暂无推送任务。",
+        "colFirmware": "固件",
+        "colTarget": "目标",
+        "colState": "状态",
+        "colPhase": "阶段",
+        "colCreated": "创建时间"
+      },
+      "state": {
+        "active": "进行中",
+        "completed": "已完成",
+        "failed": "失败",
+        "paused": "已暂停",
+        "awaiting_approval": "待审批",
+        "scheduled": "已排期",
+        "pending": "等待中",
+        "aborted": "已中止"
+      },
+      "errors": { "generic": "发生错误，请重试。" },
+      "targetSummary": { "all": "全部网关", "building": "楼栋 {{id}}", "gateways": "{{count}} 个网关" },
+      "create": {
+        "title": "创建发布",
+        "description": "将固件版本分阶段推送到一组网关。",
+        "firmwarePlaceholder": "选择固件版本",
+        "targetAll": "所有网关",
+        "targetBuilding": "按楼栋",
+        "targetGateways": "指定网关",
+        "buildingPlaceholder": "选择楼栋",
+        "phases": "阶段（累计百分比，最后一个必须为 100）",
+        "requiresApproval": "需要审批",
+        "addPhase": "添加阶段",
+        "removePhase": "移除",
+        "failureThreshold": "失败阈值 %",
+        "scheduleSection": "排期（可选）",
+        "timezonePlaceholder": "时区",
+        "submit": "创建",
+        "submitting": "创建中…",
+        "validation": {
+          "firmwareRequired": "请选择固件版本",
+          "phasesInvalid": "阶段百分比必须严格递增且最后一个为 100",
+          "buildingRequired": "请选择楼栋",
+          "gatewaysRequired": "请至少选择一个网关",
+          "hhmm": "请使用 HH:MM（24 小时制）"
+        }
+      },
+      "detail": {
+        "pageTitle": "推送详情",
+        "title": "推送详情",
+        "loading": "加载中…",
+        "firmware": "固件",
+        "target": "目标",
+        "phase": "阶段",
+        "threshold": "失败阈值",
+        "schedule": "排期",
+        "gatewaysTitle": "各网关进度",
+        "colGateway": "网关",
+        "colPhase": "阶段",
+        "colStatus": "状态",
+        "colVersion": "当前版本",
+        "actions": {
+          "approve": "批准",
+          "pause": "暂停",
+          "resume": "恢复",
+          "abort": "中止"
+        },
+        "confirmAbortTitle": "中止推送？",
+        "confirmAbortBody": "此操作将停止推送。已更新的网关将保留新固件。",
+        "cancel": "取消"
+      }
+    },
+    "firmware": {
+      "pageTitle": "固件管理",
+      "summary": {
+        "title": "舰队固件版本",
+        "description": "此租户网关的固件版本分布。",
+        "loading": "加载中…",
+        "empty": "暂无网关上报固件版本。",
+        "fleet": "{{total}} 台网关中已有 {{reported}} 台上报了版本。"
+      },
+      "upload": {
+        "title": "上传固件",
+        "description": "上传已签名的固件二进制文件。请使用 ota-sign 离线签名；私钥不会进入浏览器。",
+        "versionPlaceholder": "版本号（如 1.4.0）",
+        "channelPlaceholder": "渠道（可选：stable / beta）",
+        "signaturePlaceholder": "Ed25519 签名（十六进制，来自 ota-sign）",
+        "submit": "上传",
+        "submitting": "上传中…",
+        "cryptoUnavailable": "固件上传需要安全上下文（HTTPS）。",
+        "validation": {
+          "versionRequired": "版本号为必填项",
+          "versionMax": "版本号过长",
+          "signatureHex": "签名必须为 128 个十六进制字符（Ed25519）",
+          "fileRequired": "请选择固件文件"
+        }
+      },
+      "list": {
+        "title": "固件仓库",
+        "description": "此租户已上传的固件版本。",
+        "loading": "加载中…",
+        "empty": "尚未上传任何固件。",
+        "channelAll": "全部渠道",
+        "colVersion": "版本",
+        "colChannel": "渠道",
+        "colSha": "SHA-256",
+        "colSize": "大小",
+        "colUploadedBy": "上传者",
+        "colCreated": "创建时间"
+      },
+      "errors": { "generic": "发生错误，请重试。" }
+    }
   }
 }

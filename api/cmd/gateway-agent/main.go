@@ -16,14 +16,22 @@
 package main
 
 import (
+	"crypto/ed25519"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/mistypass/cloud/api/internal/otasig"
 )
+
+// version is set at build time: -ldflags "-X main.version=1.4.0". Used for
+// OTA anti-downgrade. Defaults to "dev" (which is < any numeric release).
+var version = "dev"
 
 func main() {
 	apiURL := flag.String("api", "http://localhost:8081", "Cloud API base URL")
@@ -57,9 +65,28 @@ func main() {
 	wiegandD1 := flag.Int("wiegand-d1-gpio", -1, "GPIO pin number for Wiegand D1 signal")
 	wsURL := flag.String("ws-url", "", "WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws). Empty = disabled, use HTTP polling only.")
 	mtlsCertDir := flag.String("mtls-cert-dir", "", "Directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/). Empty = disabled, use bearer token auth.")
+	otaPubKey := flag.String("ota-pubkey", "", "Comma-separated hex Ed25519 public key(s) pinned for OTA firmware verification. Empty = OTA disabled.")
+	otaURLAllowlist := flag.String("ota-url-allowlist", "", "Comma-separated host allowlist for OTA firmware download URLs. Empty = no restriction.")
 	flag.Parse()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	var otaKeys []ed25519.PublicKey
+	if strings.TrimSpace(*otaPubKey) != "" {
+		ks, err := otasig.ParsePublicKeysHex(*otaPubKey)
+		if err != nil {
+			logger.Error("invalid --ota-pubkey; OTA disabled (agent keeps running for door duty)", "error", err)
+		} else {
+			otaKeys = ks
+		}
+	}
+
+	var otaHosts []string
+	for _, h := range strings.Split(*otaURLAllowlist, ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			otaHosts = append(otaHosts, h)
+		}
+	}
 
 	agent := &Agent{
 		logger:             logger,
@@ -85,6 +112,9 @@ func main() {
 		rulesCacheTTL:      *rulesCacheTTL,
 		wsURL:              *wsURL,
 		mtlsCertDir:        *mtlsCertDir,
+		agentVersion:       version,
+		otaPublicKeys:      otaKeys,
+		otaURLAllowlist:    otaHosts,
 	}
 
 	logger.Info("gateway agent starting",

@@ -32,6 +32,14 @@ func (s *server) listGateways(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) gatewayFirmwareSummary(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.gatewaySvc.FirmwareSummary(tenantID))
+}
+
 func (s *server) updateGatewayStatus(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := s.resolveTenantID(w, r, r.URL.Query().Get("tenant_id"))
 	if !ok {
@@ -1095,6 +1103,7 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		FirmwareURL       string `json:"firmware_url"`
 		FirmwareSHA256    string `json:"firmware_sha256"`
 		FirmwareSignature string `json:"firmware_signature"`
+		FirmwareID        string `json:"firmware_id"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -1125,16 +1134,20 @@ func (s *server) createGatewayOTATask(w http.ResponseWriter, r *http.Request) {
 		request.FirmwareURL,
 		request.FirmwareSHA256,
 		request.FirmwareSignature,
+		request.FirmwareID,
 		requestActor(r),
 	)
 	if err != nil {
 		switch {
-		case errors.Is(err, gateway.ErrGatewayNotFound):
+		case errors.Is(err, gateway.ErrGatewayNotFound),
+			errors.Is(err, gateway.ErrGatewayFirmwareNotFound):
 			writeError(w, http.StatusNotFound, err.Error())
 		case errors.Is(err, gateway.ErrGatewayIDRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareVersionRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareURLRequired),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Required),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareSHA256Invalid),
+			errors.Is(err, gateway.ErrGatewayOTAFirmwareSignatureRequired),
 			errors.Is(err, gateway.ErrGatewayOTAFirmwareSignatureInvalid):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:

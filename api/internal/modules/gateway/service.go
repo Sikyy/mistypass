@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -60,7 +61,9 @@ var ErrGatewayQueueIngestDeltaInvalid = errors.New("gateway queue ingest delta i
 var ErrGatewayOTATaskIDRequired = errors.New("gateway ota task_id is required")
 var ErrGatewayOTAFirmwareVersionRequired = errors.New("gateway ota firmware_version is required")
 var ErrGatewayOTAFirmwareURLRequired = errors.New("gateway ota firmware_url is required")
+var ErrGatewayOTAFirmwareSHA256Required = errors.New("gateway ota firmware_sha256 is required")
 var ErrGatewayOTAFirmwareSHA256Invalid = errors.New("gateway ota firmware_sha256 is invalid")
+var ErrGatewayOTAFirmwareSignatureRequired = errors.New("gateway ota firmware_signature is required")
 var ErrGatewayOTAFirmwareSignatureInvalid = errors.New("gateway ota firmware_signature is invalid (expected hex-encoded Ed25519 signature)")
 var ErrGatewayOTATaskStatusInvalid = errors.New("gateway ota task status is invalid")
 var ErrGatewayOTATaskNotFound = errors.New("gateway ota task not found")
@@ -181,6 +184,9 @@ type Gateway struct {
 	Status         string          `json:"status"`
 	LastSeenAt     time.Time       `json:"last_seen_at"`
 	BoundDoorIDs   []string        `json:"bound_door_ids,omitempty"`
+
+	CurrentFirmwareVersion string    `json:"current_firmware_version,omitempty"`
+	FirmwareReportedAt     time.Time `json:"firmware_reported_at,omitempty"`
 }
 
 type SerialInventoryItem struct {
@@ -256,6 +262,9 @@ type GatewayOTATask struct {
 	FirmwareURL       string    `json:"firmware_url"`
 	FirmwareSHA256    string    `json:"firmware_sha256,omitempty"`
 	FirmwareSignature string    `json:"firmware_signature,omitempty"` // Ed25519 signature of firmware binary (hex-encoded)
+	FirmwareID        string    `json:"firmware_id,omitempty"`
+	RolloutID         string    `json:"rollout_id,omitempty"`
+	RolloutPhase      int       `json:"rollout_phase"`
 	Status            string    `json:"status"`
 	ErrorMessage      string    `json:"error_message,omitempty"`
 	RequestedBy       string    `json:"requested_by,omitempty"`
@@ -279,6 +288,8 @@ type stateSnapshot struct {
 	EventCheckpoints       []GatewayEventCheckpoint       `json:"event_checkpoints,omitempty"`
 	QueueIngestTotals      []GatewayQueueIngestTotal      `json:"queue_ingest_totals,omitempty"`
 	OTATasks               []GatewayOTATask               `json:"ota_tasks,omitempty"`
+	Firmwares              []GatewayFirmware              `json:"firmwares,omitempty"`
+	Rollouts               []GatewayRollout               `json:"rollouts,omitempty"`
 }
 
 type Service struct {
@@ -290,6 +301,8 @@ type Service struct {
 	eventCheckpoints       []GatewayEventCheckpoint
 	queueIngestTotals      []GatewayQueueIngestTotal
 	otaTasks               []GatewayOTATask
+	firmwares              []GatewayFirmware
+	rollouts               []GatewayRollout
 	stateStore             StateStore
 }
 
@@ -359,6 +372,8 @@ func NewService() *Service {
 		eventCheckpoints:       []GatewayEventCheckpoint{},
 		queueIngestTotals:      []GatewayQueueIngestTotal{},
 		otaTasks:               []GatewayOTATask{},
+		firmwares:              []GatewayFirmware{},
+		rollouts:               []GatewayRollout{},
 	}
 }
 
@@ -461,6 +476,83 @@ func (s *Service) UpdateGatewayStatus(tenantID, gatewayID, status string) (Gatew
 	}
 
 	return Gateway{}, ErrGatewayNotFound
+}
+
+// RecordFirmwareVersion stores the running firmware version a gateway reported.
+// An empty version is ignored so an older agent that doesn't report can't clobber it.
+func (s *Service) RecordFirmwareVersion(tenantID, gatewayID, version string) error {
+	nextGatewayID := strings.TrimSpace(gatewayID)
+	if nextGatewayID == "" {
+		return ErrGatewayIDRequired
+	}
+	nextVersion := strings.TrimSpace(version)
+	if nextVersion == "" {
+		return nil
+	}
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.gateways {
+		if s.gateways[i].ID != nextGatewayID {
+			continue
+		}
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			return ErrGatewayNotFound
+		}
+		s.gateways[i].CurrentFirmwareVersion = nextVersion
+		s.gateways[i].FirmwareReportedAt = time.Now().UTC()
+		return s.persistLocked()
+	}
+	return ErrGatewayNotFound
+}
+
+// GatewayFirmwareVersionCount is one firmware version and how many gateways run it.
+type GatewayFirmwareVersionCount struct {
+	Version string `json:"version"`
+	Count   int    `json:"count"`
+}
+
+// GatewayFirmwareSummary is the firmware-version distribution across a tenant's gateways.
+type GatewayFirmwareSummary struct {
+	Total    int                           `json:"total"`
+	Reported int                           `json:"reported"`
+	Versions []GatewayFirmwareVersionCount `json:"versions"`
+}
+
+// FirmwareSummary returns the firmware-version distribution for a tenant's gateways,
+// sorted by count desc (version asc as a stable tiebreak).
+func (s *Service) FirmwareSummary(tenantID string) GatewayFirmwareSummary {
+	filterTenantID := strings.TrimSpace(tenantID)
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	counts := map[string]int{}
+	summary := GatewayFirmwareSummary{}
+	for i := range s.gateways {
+		if filterTenantID != "" && s.gateways[i].TenantID != filterTenantID {
+			continue
+		}
+		summary.Total++
+		v := strings.TrimSpace(s.gateways[i].CurrentFirmwareVersion)
+		if v == "" {
+			continue
+		}
+		summary.Reported++
+		counts[v]++
+	}
+	for v, c := range counts {
+		summary.Versions = append(summary.Versions, GatewayFirmwareVersionCount{Version: v, Count: c})
+	}
+	sort.Slice(summary.Versions, func(a, b int) bool {
+		if summary.Versions[a].Count != summary.Versions[b].Count {
+			return summary.Versions[a].Count > summary.Versions[b].Count
+		}
+		return summary.Versions[a].Version < summary.Versions[b].Version
+	})
+	return summary
 }
 
 func (s *Service) ListSerialInventory(tenantID, productType, status string) ([]SerialInventoryItem, error) {
@@ -1713,33 +1805,18 @@ func (s *Service) CreateOTATask(
 	firmwareURL,
 	firmwareSHA256,
 	firmwareSignature,
+	firmwareID,
 	requestedBy string,
 ) (GatewayOTATask, error) {
 	gwID := strings.TrimSpace(gatewayID)
 	if gwID == "" {
 		return GatewayOTATask{}, ErrGatewayIDRequired
 	}
+	nextFirmwareID := strings.TrimSpace(firmwareID)
 	nextVersion := strings.TrimSpace(firmwareVersion)
-	if nextVersion == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareVersionRequired
-	}
 	nextURL := strings.TrimSpace(firmwareURL)
-	if nextURL == "" {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
-	}
 	nextSHA256 := strings.ToLower(strings.TrimSpace(firmwareSHA256))
-	if nextSHA256 != "" && !isValidSHA256Hex(nextSHA256) {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
-	}
 	nextSignature := strings.ToLower(strings.TrimSpace(firmwareSignature))
-	if nextSignature != "" && !isValidEd25519SignatureHex(nextSignature) {
-		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
-	}
-	taskID, err := otaTaskID()
-	if err != nil {
-		return GatewayOTATask{}, err
-	}
-
 	filterTenantID := strings.TrimSpace(tenantID)
 	now := time.Now().UTC()
 	nextRequestedBy := strings.TrimSpace(requestedBy)
@@ -1763,6 +1840,40 @@ func (s *Service) CreateOTATask(
 		return GatewayOTATask{}, ErrGatewayNotFound
 	}
 
+	if nextFirmwareID != "" {
+		fw, ok := s.findFirmwareLocked(nextFirmwareID, taskTenantID)
+		if !ok {
+			return GatewayOTATask{}, ErrGatewayFirmwareNotFound
+		}
+		nextSHA256 = fw.SHA256
+		nextSignature = fw.Signature
+		nextVersion = fw.Version
+		nextURL = "" // firmware_url filled dynamically at config/pull for registry tasks
+	}
+
+	if nextVersion == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareVersionRequired
+	}
+	if nextFirmwareID == "" && nextURL == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareURLRequired
+	}
+	if nextSHA256 == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Required
+	}
+	if !isValidSHA256Hex(nextSHA256) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSHA256Invalid
+	}
+	if nextSignature == "" {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureRequired
+	}
+	if !isValidEd25519SignatureHex(nextSignature) {
+		return GatewayOTATask{}, ErrGatewayOTAFirmwareSignatureInvalid
+	}
+
+	taskID, err := otaTaskID()
+	if err != nil {
+		return GatewayOTATask{}, err
+	}
 	task := GatewayOTATask{
 		ID:                taskID,
 		GatewayID:         gwID,
@@ -1771,6 +1882,7 @@ func (s *Service) CreateOTATask(
 		FirmwareURL:       nextURL,
 		FirmwareSHA256:    nextSHA256,
 		FirmwareSignature: nextSignature,
+		FirmwareID:        nextFirmwareID,
 		Status:            gatewayOTATaskStatusQueued,
 		RequestedBy:       nextRequestedBy,
 		UpdatedBy:         nextRequestedBy,
@@ -1881,10 +1993,17 @@ func (s *Service) UpdateOTATaskStatus(
 	}
 	s.otaTasks[idx].UpdatedAt = now
 
+	updatedTask := s.otaTasks[idx] // capture before advanceRolloutLocked may prepend new tasks
+	if updatedTask.RolloutID != "" {
+		if ri := s.findRolloutIndexLocked(updatedTask.RolloutID, ""); ri >= 0 {
+			s.advanceRolloutLocked(ri)
+		}
+	}
+
 	if err := s.persistLocked(); err != nil {
 		return GatewayOTATask{}, err
 	}
-	return s.otaTasks[idx], nil
+	return updatedTask, nil
 }
 
 func (s *Service) restoreFromStateStore() error {
@@ -1906,6 +2025,8 @@ func (s *Service) restoreFromStateStore() error {
 			EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(s.otaTasks),
+			Firmwares:              cloneGatewayFirmwares(s.firmwares),
+			Rollouts:               cloneGatewayRollouts(s.rollouts),
 		})
 	}
 	shouldBackfillInventory := false
@@ -1922,6 +2043,8 @@ func (s *Service) restoreFromStateStore() error {
 	s.eventCheckpoints = cloneGatewayEventCheckpoints(snapshot.EventCheckpoints)
 	s.queueIngestTotals = cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals)
 	s.otaTasks = cloneGatewayOTATasks(snapshot.OTATasks)
+	s.firmwares = cloneGatewayFirmwares(snapshot.Firmwares)
+	s.rollouts = cloneGatewayRollouts(snapshot.Rollouts)
 	s.mu.Unlock()
 
 	if shouldBackfillInventory {
@@ -1933,6 +2056,8 @@ func (s *Service) restoreFromStateStore() error {
 			EventCheckpoints:       cloneGatewayEventCheckpoints(snapshot.EventCheckpoints),
 			QueueIngestTotals:      cloneGatewayQueueIngestTotals(snapshot.QueueIngestTotals),
 			OTATasks:               cloneGatewayOTATasks(snapshot.OTATasks),
+			Firmwares:              cloneGatewayFirmwares(snapshot.Firmwares),
+			Rollouts:               cloneGatewayRollouts(snapshot.Rollouts),
 		})
 	}
 	return nil
@@ -1950,6 +2075,8 @@ func (s *Service) persistLocked() error {
 		EventCheckpoints:       cloneGatewayEventCheckpoints(s.eventCheckpoints),
 		QueueIngestTotals:      cloneGatewayQueueIngestTotals(s.queueIngestTotals),
 		OTATasks:               cloneGatewayOTATasks(s.otaTasks),
+		Firmwares:              cloneGatewayFirmwares(s.firmwares),
+		Rollouts:               cloneGatewayRollouts(s.rollouts),
 	})
 }
 

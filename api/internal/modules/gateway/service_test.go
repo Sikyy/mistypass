@@ -3,6 +3,7 @@ package gateway
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -712,7 +713,8 @@ func TestCreateListAndUpdateOTATask(t *testing.T) {
 		"v2.4.1",
 		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"", // firmware_signature (optional)
+		strings.Repeat("b", 128), // firmware_signature (now mandatory; format-only check)
+		"",
 		"tenant-admin@example.com",
 	)
 	if err != nil {
@@ -757,6 +759,7 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"",
 		"",
 		"",
+		"",
 	)
 	if err != ErrGatewayOTAFirmwareVersionRequired {
 		t.Fatalf("unexpected missing version error: %v", err)
@@ -766,6 +769,7 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"tenant_demo_jakarta",
 		"gw_demo_001",
 		"v2.4.1",
+		"",
 		"",
 		"",
 		"",
@@ -783,8 +787,126 @@ func TestCreateOTATaskValidation(t *testing.T) {
 		"invalid_sha256",
 		"",
 		"",
+		"",
 	)
 	if err != ErrGatewayOTAFirmwareSHA256Invalid {
 		t.Fatalf("unexpected invalid sha256 error: %v", err)
+	}
+
+	// empty sha256 → required
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"", strings.Repeat("b", 128), "", "",
+	)
+	if err != ErrGatewayOTAFirmwareSHA256Required {
+		t.Fatalf("unexpected missing sha256 error: %v", err)
+	}
+
+	// valid sha256, empty signature → required
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"", "", "",
+	)
+	if err != ErrGatewayOTAFirmwareSignatureRequired {
+		t.Fatalf("unexpected missing signature error: %v", err)
+	}
+
+	// valid sha256, malformed signature → invalid
+	_, err = svc.CreateOTATask(
+		"tenant_demo_jakarta", "gw_demo_001", "v2.4.1",
+		"https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"not-a-valid-signature", "", "",
+	)
+	if err != ErrGatewayOTAFirmwareSignatureInvalid {
+		t.Fatalf("unexpected invalid signature error: %v", err)
+	}
+}
+
+func TestRecordFirmwareVersion(t *testing.T) {
+	svc := NewService()
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "1.4.0"); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	// empty version must be a no-op (an older agent must not clobber a known version)
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "  "); err != nil {
+		t.Fatalf("empty record should be no-op, got %v", err)
+	}
+	found := false
+	for _, g := range svc.List("tenant_demo_jakarta") {
+		if g.ID == "gw_demo_001" {
+			found = true
+			if g.CurrentFirmwareVersion != "1.4.0" {
+				t.Fatalf("want 1.4.0, got %q", g.CurrentFirmwareVersion)
+			}
+			if g.FirmwareReportedAt.IsZero() {
+				t.Fatal("FirmwareReportedAt should be set")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("gw_demo_001 not found")
+	}
+	if err := svc.RecordFirmwareVersion("tenant_other", "gw_demo_001", "1.5.0"); err != ErrGatewayNotFound {
+		t.Fatalf("want ErrGatewayNotFound for wrong tenant, got %v", err)
+	}
+}
+
+func TestFirmwareSummary(t *testing.T) {
+	svc := NewService()
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "1.4.0"); err != nil {
+		t.Fatal(err)
+	}
+	sum := svc.FirmwareSummary("tenant_demo_jakarta")
+	if sum.Total < 1 {
+		t.Fatalf("expected total>=1, got %d", sum.Total)
+	}
+	if sum.Reported < 1 {
+		t.Fatalf("expected reported>=1, got %d", sum.Reported)
+	}
+	ok := false
+	for _, v := range sum.Versions {
+		if v.Version == "1.4.0" && v.Count >= 1 {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("expected 1.4.0 in versions, got %+v", sum.Versions)
+	}
+}
+
+func TestCreateOTATaskFromFirmwareRegistry(t *testing.T) {
+	svc := NewService()
+	fw, err := svc.CreateFirmware(CreateFirmwareInput{
+		TenantID:  "tenant_demo_jakarta",
+		Version:   "1.4.0",
+		SHA256:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Signature: strings.Repeat("b", 128),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// firmware_id provided → version/sha/sig sourced from the registry; url empty ok.
+	task, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "", "", "", "", fw.ID, "admin@example.com")
+	if err != nil {
+		t.Fatalf("create from registry: %v", err)
+	}
+	if task.FirmwareID != fw.ID || task.FirmwareSHA256 != fw.SHA256 || task.FirmwareSignature != fw.Signature || task.FirmwareVersion != "1.4.0" {
+		t.Fatalf("task not sourced from registry: %+v", task)
+	}
+	// A caller-supplied version is overridden by the registry record (consistency).
+	overridden, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "v99-mismatch", "", "", "", fw.ID, "admin@example.com")
+	if err != nil {
+		t.Fatalf("create with mismatched version: %v", err)
+	}
+	if overridden.FirmwareVersion != "1.4.0" {
+		t.Fatalf("registry version must win, got %q", overridden.FirmwareVersion)
+	}
+	// unknown firmware_id → error
+	if _, err := svc.CreateOTATask("tenant_demo_jakarta", "gw_demo_001", "", "", "", "", "fw_nope", "a"); err != ErrGatewayFirmwareNotFound {
+		t.Fatalf("want firmware-not-found, got %v", err)
 	}
 }

@@ -1,0 +1,40 @@
+# Mistyislet Gateway Agent — systemd unit
+#
+# Install:
+#   sudo cp gateway-agent           /usr/local/bin/gateway-agent
+#   sudo cp mistypass-ota-guard.sh  /usr/local/bin/mistypass-ota-guard.sh
+#   sudo chmod +x /usr/local/bin/mistypass-ota-guard.sh
+#   sudo cp gateway-agent.service   /etc/systemd/system/gateway-agent.service
+#   # edit the ExecStart placeholders below, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now gateway-agent
+#
+# Restart=always and ExecStartPre are REQUIRED for OTA self-update + auto-rollback:
+#   - the agent installs a new binary then exits(0); Restart=always relaunches it.
+#   - mistypass-ota-guard.sh runs before each start and restores the previous
+#     binary if a pending OTA update fails to come up (see docs/ota-signing-runbook.md).
+
+[Unit]
+Description=Mistyislet Gateway Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=3
+
+# Auto-rollback guard for failed OTA self-updates. Defaults inside the script
+# (MISTYPASS_AGENT_BIN=/usr/local/bin/gateway-agent,
+#  MISTYPASS_OTA_MARKER=/var/lib/mistypass/ota-pending.json) match the paths below.
+ExecStartPre=/usr/local/bin/mistypass-ota-guard.sh
+
+# --ota-pubkey pins the Ed25519 verification key (REQUIRED for OTA; empty disables OTA).
+# The marker lives in the directory of --token-file (default /var/lib/mistypass/).
+ExecStart=/usr/local/bin/gateway-agent \
+  --api https://api.example.com \
+  --gateway REPLACE_GATEWAY_ID \
+  --tenant REPLACE_TENANT_ID \
+  --ota-pubkey REPLACE_WITH_OTA_PUBLIC_KEY_HEX
+
+[Install]
+WantedBy=multi-user.target

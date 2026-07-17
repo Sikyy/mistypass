@@ -1,0 +1,685 @@
+package gateway
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+)
+
+var (
+	ErrRolloutNotFound         = errors.New("gateway rollout not found")
+	ErrRolloutFirmwareRequired = errors.New("rollout firmware_id is required")
+	ErrRolloutTargetEmpty      = errors.New("rollout target resolves to no gateways")
+	ErrRolloutPhasesInvalid    = errors.New("rollout phases must be non-empty, strictly increasing percentages ending at 100 (each 1-100)")
+	ErrRolloutThresholdInvalid = errors.New("rollout failure_threshold_pct must be 0-100")
+	ErrRolloutStateConflict    = errors.New("rollout action not allowed in current state")
+	ErrRolloutScheduleInvalid  = errors.New("rollout schedule is invalid (timezone must be a valid IANA name; window_start/window_end must both be set as HH:MM)")
+)
+
+const (
+	rolloutStatePending          = "pending"
+	rolloutStateActive           = "active"
+	rolloutStateAwaitingApproval = "awaiting_approval"
+	rolloutStatePaused           = "paused"
+	rolloutStateCompleted        = "completed"
+	rolloutStateFailed           = "failed"
+	rolloutStateScheduled        = "scheduled"
+
+	// applied when a rollout's FailureThresholdPct is 0 at creation
+	defaultRolloutFailureThresholdPct = 20
+	// a cohort gateway with no terminal task past this window counts as failed
+	rolloutStallWindow = time.Hour
+
+	gatewayOTAStatusPending  = "pending"   // a target gateway not yet in any created cohort
+	gatewayOTAStatusTimedOut = "timed_out" // a non-terminal task past the stall window
+)
+
+// RolloutTarget selects which gateways a rollout covers.
+type RolloutTarget struct {
+	Kind       string   `json:"kind"` // "all" | "building" | "gateways"
+	BuildingID string   `json:"building_id,omitempty"`
+	GatewayIDs []string `json:"gateway_ids,omitempty"`
+}
+
+// RolloutPhase is one cumulative-coverage wave.
+type RolloutPhase struct {
+	Percentage       int  `json:"percentage"`        // cumulative 1-100, strictly increasing, last == 100
+	RequiresApproval bool `json:"requires_approval"` // pause for manual approval before entering this phase
+}
+
+// RolloutSchedule defers/gates a rollout: start_at = earliest absolute start; the daily
+// local-time window [WindowStart, WindowEnd) (WindowEnd < WindowStart = overnight) gates phase starts.
+type RolloutSchedule struct {
+	StartAt     *time.Time `json:"start_at,omitempty"`
+	WindowStart string     `json:"window_start,omitempty"` // "HH:MM" local 24h
+	WindowEnd   string     `json:"window_end,omitempty"`   // "HH:MM" local 24h
+	Timezone    string     `json:"timezone,omitempty"`     // IANA, e.g. "Asia/Jakarta"; empty = UTC
+}
+
+var rolloutHHMMRe = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+
+// validateRolloutSchedule checks an optional schedule's window format + timezone.
+func validateRolloutSchedule(sch *RolloutSchedule) error {
+	if sch == nil {
+		return nil
+	}
+	ws, we := strings.TrimSpace(sch.WindowStart), strings.TrimSpace(sch.WindowEnd)
+	if (ws == "") != (we == "") {
+		return ErrRolloutScheduleInvalid
+	}
+	if ws != "" && (!rolloutHHMMRe.MatchString(ws) || !rolloutHHMMRe.MatchString(we)) {
+		return ErrRolloutScheduleInvalid
+	}
+	if ws != "" && ws == we {
+		return ErrRolloutScheduleInvalid
+	}
+	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
+		if _, err := time.LoadLocation(tz); err != nil {
+			return ErrRolloutScheduleInvalid
+		}
+	}
+	return nil
+}
+
+// scheduleOpen reports whether a phase may start now under the schedule. Pure (lock-free).
+func scheduleOpen(sch *RolloutSchedule, now time.Time) bool {
+	if sch == nil {
+		return true
+	}
+	if sch.StartAt != nil && now.Before(*sch.StartAt) {
+		return false
+	}
+	ws, we := strings.TrimSpace(sch.WindowStart), strings.TrimSpace(sch.WindowEnd)
+	if ws == "" || we == "" {
+		return true // no window → start_at alone gates
+	}
+	// LoadLocation per call is intentional: *time.Location can't be JSON-serialised, and the
+	// validated tz reads from embedded tzdata (fast). Cache only if profiling shows it hot.
+	loc := time.UTC
+	if tz := strings.TrimSpace(sch.Timezone); tz != "" {
+		// err fallback to UTC is safe: validateRolloutSchedule already rejected bad tz at creation.
+		if l, err := time.LoadLocation(tz); err == nil {
+			loc = l
+		}
+	}
+	hhmm := now.In(loc).Format("15:04")
+	if ws <= we {
+		return ws <= hhmm && hhmm < we
+	}
+	return hhmm >= ws || hhmm < we // overnight
+}
+
+// GatewayRollout is a phased firmware rollout over a set of gateways.
+type GatewayRollout struct {
+	ID                  string           `json:"id"`
+	TenantID            string           `json:"tenant_id"`
+	FirmwareID          string           `json:"firmware_id"`
+	FirmwareVersion     string           `json:"firmware_version"`
+	Target              RolloutTarget    `json:"target"`
+	Phases              []RolloutPhase   `json:"phases"`
+	Schedule            *RolloutSchedule `json:"schedule,omitempty"`
+	FailureThresholdPct int              `json:"failure_threshold_pct"`
+	State               string           `json:"state"`
+	CurrentPhase        int              `json:"current_phase"`
+	PhaseStartedAt      time.Time        `json:"phase_started_at"`
+	CreatedBy           string           `json:"created_by,omitempty"`
+	UpdatedBy           string           `json:"updated_by,omitempty"`
+	CreatedAt           time.Time        `json:"created_at"`
+	UpdatedAt           time.Time        `json:"updated_at"`
+}
+
+func rolloutRecordID() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "rollout_" + hex.EncodeToString(b), nil
+}
+
+// validateRolloutPhases requires non-empty, each in 1..100, strictly increasing, last == 100.
+func validateRolloutPhases(phases []RolloutPhase) bool {
+	if len(phases) == 0 {
+		return false
+	}
+	prev := 0
+	for _, p := range phases {
+		if p.Percentage < 1 || p.Percentage > 100 || p.Percentage <= prev {
+			return false
+		}
+		prev = p.Percentage
+	}
+	return prev == 100
+}
+
+// cohortForPhase returns the gateways newly covered by phaseIdx (cumulative slicing).
+func cohortForPhase(all []Gateway, phases []RolloutPhase, phaseIdx int) []Gateway {
+	n := len(all)
+	cum := func(i int) int {
+		if i < 0 {
+			return 0
+		}
+		c := (phases[i].Percentage*n + 99) / 100 // ceil(pct*n/100)
+		if c > n {
+			c = n
+		}
+		return c
+	}
+	start, end := cum(phaseIdx-1), cum(phaseIdx)
+	if start > end {
+		start = end
+	}
+	return all[start:end]
+}
+
+// rolloutTargetGatewaysLocked resolves a target to a tenant-scoped, ID-sorted gateway set.
+// Caller holds s.mu.
+func (s *Service) rolloutTargetGatewaysLocked(tenantID string, target RolloutTarget) []Gateway {
+	wantIDs := map[string]struct{}{}
+	for _, id := range target.GatewayIDs {
+		wantIDs[id] = struct{}{}
+	}
+	var out []Gateway
+	for i := range s.gateways {
+		if s.gateways[i].TenantID != tenantID {
+			continue
+		}
+		switch target.Kind {
+		case "all":
+			out = append(out, s.gateways[i])
+		case "building":
+			if s.gateways[i].BuildingID == target.BuildingID {
+				out = append(out, s.gateways[i])
+			}
+		case "gateways":
+			if _, ok := wantIDs[s.gateways[i].ID]; ok {
+				out = append(out, s.gateways[i])
+			}
+		}
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].ID < out[b].ID })
+	return out
+}
+
+func cloneGatewayRollouts(in []GatewayRollout) []GatewayRollout {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]GatewayRollout, len(in))
+	copy(out, in)
+	return out
+}
+
+// CreateRolloutInput carries a new rollout request.
+type CreateRolloutInput struct {
+	TenantID            string
+	FirmwareID          string
+	Target              RolloutTarget
+	Phases              []RolloutPhase
+	FailureThresholdPct int
+	CreatedBy           string
+	Schedule            *RolloutSchedule
+}
+
+// CreateRollout validates, persists, and starts phase 0 — or parks the rollout in "scheduled"
+// when a schedule window is not yet open.
+func (s *Service) CreateRollout(in CreateRolloutInput) (GatewayRollout, error) {
+	tenantID := strings.TrimSpace(in.TenantID)
+	fwID := strings.TrimSpace(in.FirmwareID)
+	if fwID == "" {
+		return GatewayRollout{}, ErrRolloutFirmwareRequired
+	}
+	if !validateRolloutPhases(in.Phases) {
+		return GatewayRollout{}, ErrRolloutPhasesInvalid
+	}
+	threshold := in.FailureThresholdPct
+	if threshold == 0 {
+		threshold = defaultRolloutFailureThresholdPct
+	}
+	if threshold < 0 || threshold > 100 {
+		return GatewayRollout{}, ErrRolloutThresholdInvalid
+	}
+	if err := validateRolloutSchedule(in.Schedule); err != nil {
+		return GatewayRollout{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	fw, ok := s.findFirmwareLocked(fwID, tenantID)
+	if !ok {
+		return GatewayRollout{}, ErrGatewayFirmwareNotFound
+	}
+	all := s.rolloutTargetGatewaysLocked(tenantID, in.Target)
+	if len(all) == 0 {
+		return GatewayRollout{}, ErrRolloutTargetEmpty
+	}
+
+	id, err := rolloutRecordID()
+	if err != nil {
+		return GatewayRollout{}, err
+	}
+	now := time.Now().UTC()
+	r := GatewayRollout{
+		ID:                  id,
+		TenantID:            tenantID,
+		FirmwareID:          fwID,
+		FirmwareVersion:     fw.Version,
+		Target:              in.Target,
+		Phases:              in.Phases,
+		Schedule:            in.Schedule,
+		FailureThresholdPct: threshold,
+		State:               rolloutStatePending,
+		CurrentPhase:        0,
+		CreatedBy:           strings.TrimSpace(in.CreatedBy),
+		UpdatedBy:           strings.TrimSpace(in.CreatedBy),
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	}
+	s.rollouts = append([]GatewayRollout{r}, s.rollouts...)
+	s.tryStartPhaseLocked(&s.rollouts[0], 0, all, now)
+	if err := s.persistLocked(); err != nil {
+		return GatewayRollout{}, err
+	}
+	return s.rollouts[0], nil
+}
+
+// startRolloutPhaseLocked creates OTA tasks for the phase cohort and marks the rollout active.
+// Schedule-respecting callers must use tryStartPhaseLocked instead; call this directly only when
+// the schedule gate has already been checked (e.g. the scheduled branch of advanceRolloutLocked).
+// Caller holds s.mu.
+func (s *Service) startRolloutPhaseLocked(r *GatewayRollout, phase int, all []Gateway, now time.Time) {
+	fw, ok := s.findFirmwareLocked(r.FirmwareID, r.TenantID)
+	if !ok {
+		r.State = rolloutStateFailed
+		r.UpdatedAt = now
+		return
+	}
+	for _, gw := range cohortForPhase(all, r.Phases, phase) {
+		s.appendRolloutOTATaskLocked(gw, fw, r.ID, phase, now)
+	}
+	r.CurrentPhase = phase
+	r.PhaseStartedAt = now
+	r.State = rolloutStateActive
+	r.UpdatedAt = now
+}
+
+// tryStartPhaseLocked starts the phase's cohort if the schedule window is open; otherwise parks
+// the rollout in "scheduled" at that phase to await the window. Caller holds s.mu.
+func (s *Service) tryStartPhaseLocked(r *GatewayRollout, phase int, all []Gateway, now time.Time) {
+	if scheduleOpen(r.Schedule, now) {
+		s.startRolloutPhaseLocked(r, phase, all, now)
+		return
+	}
+	r.CurrentPhase = phase
+	r.State = rolloutStateScheduled
+	r.UpdatedAt = now
+}
+
+// appendRolloutOTATaskLocked builds a queued OTA task attributed to a rollout phase.
+// Firmware sha/sig come from the (already-validated) registry record. Caller holds s.mu.
+func (s *Service) appendRolloutOTATaskLocked(gw Gateway, fw GatewayFirmware, rolloutID string, phase int, now time.Time) {
+	taskID, err := otaTaskID()
+	if err != nil {
+		return
+	}
+	s.otaTasks = append([]GatewayOTATask{{
+		ID:                taskID,
+		GatewayID:         gw.ID,
+		TenantID:          gw.TenantID,
+		FirmwareVersion:   fw.Version,
+		FirmwareSHA256:    fw.SHA256,
+		FirmwareSignature: fw.Signature,
+		FirmwareID:        fw.ID,
+		Status:            gatewayOTATaskStatusQueued,
+		RequestedBy:       "rollout:" + rolloutID,
+		UpdatedBy:         "rollout:" + rolloutID,
+		RolloutID:         rolloutID,
+		RolloutPhase:      phase,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}}, s.otaTasks...)
+}
+
+// latestRolloutTaskLocked finds the newest OTA task for a rollout phase + gateway. Caller holds s.mu.
+func (s *Service) latestRolloutTaskLocked(rolloutID string, phase int, gatewayID string) (GatewayOTATask, bool) {
+	for i := range s.otaTasks {
+		if s.otaTasks[i].RolloutID == rolloutID && s.otaTasks[i].RolloutPhase == phase && s.otaTasks[i].GatewayID == gatewayID {
+			return s.otaTasks[i], true
+		}
+	}
+	return GatewayOTATask{}, false
+}
+
+// evaluateRolloutPhaseLocked reports whether the current phase is terminal and its failure rate (%).
+// A cohort gateway with no terminal task counts as failed once the stall window elapses.
+// Empty cohort → terminal with 0% failure. Caller holds s.mu.
+func (s *Service) evaluateRolloutPhaseLocked(r *GatewayRollout, all []Gateway, now time.Time) (bool, int) {
+	cohort := cohortForPhase(all, r.Phases, r.CurrentPhase)
+	total := len(cohort)
+	if total == 0 {
+		return true, 0
+	}
+	stalled := now.Sub(r.PhaseStartedAt) > rolloutStallWindow
+	// Only succeeded/failed (and stall) are terminal; queued/dispatching keep the phase in-flight.
+	failed, terminal := 0, 0
+	for _, gw := range cohort {
+		task, ok := s.latestRolloutTaskLocked(r.ID, r.CurrentPhase, gw.ID)
+		switch {
+		case ok && task.Status == gatewayOTATaskStatusSucceeded:
+			terminal++
+		case ok && task.Status == gatewayOTATaskStatusFailed:
+			terminal++
+			failed++
+		case stalled:
+			terminal++
+			failed++
+		}
+	}
+	if terminal < total {
+		return false, 0
+	}
+	// Ceiling: a failure gate should err toward pausing, so round the rate up.
+	return true, (failed*100 + total - 1) / total
+}
+
+// advanceRolloutLocked drives an active rollout forward as far as it can.
+// Returns true if it changed the rollout's state/phase. Caller holds s.mu.
+func (s *Service) advanceRolloutLocked(rolloutIdx int) bool {
+	r := &s.rollouts[rolloutIdx]
+	now := time.Now().UTC()
+	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target) // target set is immutable under the lock
+	changed := false
+	for {
+		switch r.State {
+		case rolloutStateScheduled:
+			if !scheduleOpen(r.Schedule, now) {
+				return changed // still waiting for the window
+			}
+			s.startRolloutPhaseLocked(r, r.CurrentPhase, all, now) // window open → start the parked phase
+			// Loop continues: state is now active (the active case will evaluate the phase), or
+			// failed if firmware was missing (the default case exits). No infinite loop either way.
+			changed = true
+		case rolloutStateActive:
+			terminal, failureRate := s.evaluateRolloutPhaseLocked(r, all, now)
+			if !terminal {
+				return changed
+			}
+			changed = true
+			r.UpdatedAt = now
+			if failureRate >= r.FailureThresholdPct {
+				r.State = rolloutStatePaused
+				return changed
+			}
+			if r.CurrentPhase >= len(r.Phases)-1 {
+				r.State = rolloutStateCompleted
+				return changed
+			}
+			next := r.CurrentPhase + 1
+			if r.Phases[next].RequiresApproval {
+				r.State = rolloutStateAwaitingApproval
+				return changed
+			}
+			s.tryStartPhaseLocked(r, next, all, now) // window-gated; may park in scheduled
+		default:
+			return changed
+		}
+	}
+}
+
+// GetRollout evaluates the rollout (catches stall timeouts) then returns it, tenant-scoped.
+func (s *Service) GetRollout(tenantID, id string) (GatewayRollout, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if i < 0 {
+		return GatewayRollout{}, ErrRolloutNotFound
+	}
+	if s.advanceRolloutLocked(i) {
+		if err := s.persistLocked(); err != nil {
+			return GatewayRollout{}, err
+		}
+	}
+	return s.rollouts[i], nil
+}
+
+// ListRollouts returns a tenant's rollouts, newest first.
+func (s *Service) ListRollouts(tenantID string) []GatewayRollout {
+	ft := strings.TrimSpace(tenantID)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]GatewayRollout, 0, len(s.rollouts))
+	for i := range s.rollouts {
+		if ft == "" || s.rollouts[i].TenantID == ft {
+			out = append(out, s.rollouts[i])
+		}
+	}
+	return out
+}
+
+// findRolloutIndexLocked returns the index of a rollout (optionally tenant-filtered), or -1.
+func (s *Service) findRolloutIndexLocked(id, tenantID string) int {
+	for i := range s.rollouts {
+		if s.rollouts[i].ID == id && (tenantID == "" || s.rollouts[i].TenantID == tenantID) {
+			return i
+		}
+	}
+	return -1
+}
+
+// PauseRollout halts an active rollout. Only valid from "active".
+func (s *Service) PauseRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		s.advanceIfActiveLocked(ri)
+		r := &s.rollouts[ri]
+		if r.State != rolloutStateActive {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStatePaused
+		r.UpdatedBy = actor
+		r.UpdatedAt = now
+		return nil
+	})
+}
+
+// ResumeRollout reactivates a paused rollout. If the current phase is already terminal
+// (e.g. it was paused by the failure gate), resume forces past it — an explicit operator override.
+func (s *Service) ResumeRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		r := &s.rollouts[ri]
+		if r.State != rolloutStatePaused {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStateActive
+		r.UpdatedBy = actor
+		r.UpdatedAt = now
+		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+		terminal, _ := s.evaluateRolloutPhaseLocked(r, all, now)
+		if !terminal {
+			s.advanceRolloutLocked(ri) // re-evaluate with a fresh clock; may detect a stall and pause
+			return nil
+		}
+		// Terminal: override the failure gate and move past the current phase.
+		if r.CurrentPhase >= len(r.Phases)-1 {
+			r.State = rolloutStateCompleted
+			return nil
+		}
+		next := r.CurrentPhase + 1
+		if r.Phases[next].RequiresApproval {
+			r.State = rolloutStateAwaitingApproval
+			return nil
+		}
+		s.tryStartPhaseLocked(r, next, all, now)
+		s.advanceRolloutLocked(ri)
+		return nil
+	})
+}
+
+// ApproveRollout advances an awaiting-approval rollout into its next phase.
+func (s *Service) ApproveRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		r := &s.rollouts[ri]
+		if r.State != rolloutStateAwaitingApproval {
+			return ErrRolloutStateConflict
+		}
+		r.UpdatedBy = actor
+		all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+		s.tryStartPhaseLocked(r, r.CurrentPhase+1, all, now)
+		s.advanceRolloutLocked(ri)
+		return nil
+	})
+}
+
+// AbortRollout fails a non-terminal rollout; no further tasks are created.
+func (s *Service) AbortRollout(tenantID, id, actor string) (GatewayRollout, error) {
+	return s.transitionRolloutIdx(tenantID, id, func(ri int, now time.Time) error {
+		s.advanceIfActiveLocked(ri)
+		r := &s.rollouts[ri]
+		if r.State == rolloutStateCompleted || r.State == rolloutStateFailed {
+			return ErrRolloutStateConflict
+		}
+		r.State = rolloutStateFailed
+		r.UpdatedBy = actor
+		r.UpdatedAt = now
+		return nil
+	})
+}
+
+// EvaluateGatewayScheduledRollouts advances scheduled rollouts in the tenant whose target includes
+// the gateway — the reactive "window opened" trigger fired from config/pull. Caller must NOT hold s.mu.
+func (s *Service) EvaluateGatewayScheduledRollouts(tenantID, gatewayID string) error {
+	ft := strings.TrimSpace(tenantID)
+	gw := strings.TrimSpace(gatewayID)
+
+	// Fast-path: most polls have nothing scheduled — avoid the write lock entirely.
+	s.mu.RLock()
+	hasScheduled := false
+	for i := range s.rollouts {
+		if s.rollouts[i].TenantID == ft && s.rollouts[i].State == rolloutStateScheduled {
+			hasScheduled = true
+			break
+		}
+	}
+	s.mu.RUnlock()
+	if !hasScheduled {
+		return nil
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	changed := false
+	for i := range s.rollouts {
+		if s.rollouts[i].TenantID != ft || s.rollouts[i].State != rolloutStateScheduled {
+			continue
+		}
+		if !s.rolloutTargetIncludesLocked(s.rollouts[i].TenantID, s.rollouts[i].Target, gw) {
+			continue
+		}
+		if s.advanceRolloutLocked(i) {
+			changed = true
+		}
+	}
+	if changed {
+		return s.persistLocked()
+	}
+	return nil
+}
+
+// rolloutTargetIncludesLocked reports whether gatewayID is in the rollout's target set. Caller holds s.mu.
+func (s *Service) rolloutTargetIncludesLocked(tenantID string, target RolloutTarget, gatewayID string) bool {
+	if target.Kind == "gateways" {
+		for _, id := range target.GatewayIDs {
+			if id == gatewayID {
+				return true
+			}
+		}
+		return false
+	}
+	// "all" / "building" need the resolved (tenant-filtered) set.
+	for _, gw := range s.rolloutTargetGatewaysLocked(tenantID, target) {
+		if gw.ID == gatewayID {
+			return true
+		}
+	}
+	return false
+}
+
+// advanceIfActiveLocked refreshes an active rollout only; it never starts a scheduled one.
+// Caller holds s.mu.
+func (s *Service) advanceIfActiveLocked(ri int) {
+	if s.rollouts[ri].State == rolloutStateActive {
+		s.advanceRolloutLocked(ri)
+	}
+}
+
+// transitionRolloutIdx runs fn against a tenant-scoped rollout (by index) under the write
+// lock, then persists. fn assumes s.mu is held.
+func (s *Service) transitionRolloutIdx(tenantID, id string, fn func(int, time.Time) error) (GatewayRollout, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ri := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if ri < 0 {
+		return GatewayRollout{}, ErrRolloutNotFound
+	}
+	if err := fn(ri, time.Now().UTC()); err != nil {
+		return GatewayRollout{}, err
+	}
+	if err := s.persistLocked(); err != nil {
+		return GatewayRollout{}, err
+	}
+	return s.rollouts[ri], nil
+}
+
+// RolloutGatewayStatus is one gateway's progress within a rollout.
+type RolloutGatewayStatus struct {
+	GatewayID              string `json:"gateway_id"`
+	Phase                  int    `json:"phase"`      // -1 if not yet in any created cohort
+	OTAStatus              string `json:"ota_status"` // queued|dispatching|succeeded|failed|timed_out|pending
+	CurrentFirmwareVersion string `json:"current_firmware_version,omitempty"`
+}
+
+// GetRolloutDetail evaluates the rollout (catching stalls) and returns it with per-gateway
+// progress under one lock, so the two views are always a consistent snapshot. Tenant-scoped.
+func (s *Service) GetRolloutDetail(tenantID, id string) (GatewayRollout, []RolloutGatewayStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := s.findRolloutIndexLocked(strings.TrimSpace(id), strings.TrimSpace(tenantID))
+	if i < 0 {
+		return GatewayRollout{}, nil, ErrRolloutNotFound
+	}
+	if s.advanceRolloutLocked(i) {
+		if err := s.persistLocked(); err != nil {
+			return GatewayRollout{}, nil, err
+		}
+	}
+	r := s.rollouts[i]
+	return r, s.computeGatewayProgressLocked(r), nil
+}
+
+// computeGatewayProgressLocked builds per-gateway progress for a rollout. Caller holds s.mu.
+func (s *Service) computeGatewayProgressLocked(r GatewayRollout) []RolloutGatewayStatus {
+	all := s.rolloutTargetGatewaysLocked(r.TenantID, r.Target)
+	now := time.Now().UTC()
+	out := make([]RolloutGatewayStatus, 0, len(all))
+	for _, gw := range all {
+		st := RolloutGatewayStatus{GatewayID: gw.ID, Phase: -1, OTAStatus: gatewayOTAStatusPending, CurrentFirmwareVersion: gw.CurrentFirmwareVersion}
+		for i := range s.otaTasks {
+			if s.otaTasks[i].RolloutID == r.ID && s.otaTasks[i].GatewayID == gw.ID {
+				st.Phase = s.otaTasks[i].RolloutPhase
+				st.OTAStatus = s.otaTasks[i].Status
+				if s.otaTasks[i].Status != gatewayOTATaskStatusSucceeded &&
+					s.otaTasks[i].Status != gatewayOTATaskStatusFailed &&
+					st.Phase == r.CurrentPhase &&
+					now.Sub(r.PhaseStartedAt) > rolloutStallWindow {
+					st.OTAStatus = gatewayOTAStatusTimedOut
+				}
+				break
+			}
+		}
+		out = append(out, st)
+	}
+	return out
+}

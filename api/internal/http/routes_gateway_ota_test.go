@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -21,10 +22,11 @@ func TestGatewayOTATaskLifecycle(t *testing.T) {
 	}
 
 	createReqBody := map[string]any{
-		"tenant_id":        "tenant_demo_jakarta",
-		"firmware_version": "v2.4.1",
-		"firmware_url":     "https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
-		"firmware_sha256":  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"tenant_id":          "tenant_demo_jakarta",
+		"firmware_version":   "v2.4.1",
+		"firmware_url":       "https://cdn.example.com/firmware/gw_demo_001/v2.4.1.bin",
+		"firmware_sha256":    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"firmware_signature": strings.Repeat("b", 128),
 	}
 	createReqBytes, err := json.Marshal(createReqBody)
 	if err != nil {
@@ -160,10 +162,11 @@ func TestGatewayBootstrapOTAReport(t *testing.T) {
 
 	// Create an OTA task via admin API
 	createReqBody, _ := json.Marshal(map[string]any{
-		"tenant_id":        "tenant_demo_jakarta",
-		"firmware_version": "v3.0.0",
-		"firmware_url":     "https://cdn.example.com/firmware/v3.0.0.bin",
-		"firmware_sha256":  "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		"tenant_id":          "tenant_demo_jakarta",
+		"firmware_version":   "v3.0.0",
+		"firmware_url":       "https://cdn.example.com/firmware/v3.0.0.bin",
+		"firmware_sha256":    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		"firmware_signature": strings.Repeat("b", 128),
 	})
 	createReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(createReqBody))
 	createReq = withGatewayMQTTURLParam(createReq, "gatewayID", "gw_demo_001")
@@ -224,4 +227,26 @@ func withGatewayOTAURLParams(request *http.Request, gatewayID, taskID string) *h
 	}
 	ctx := context.WithValue(request.Context(), chi.RouteCtxKey, routeCtx)
 	return request.WithContext(ctx)
+}
+
+func TestGatewayFirmwareSummaryEndpoint(t *testing.T) {
+	svc := gateway.NewService()
+	if err := svc.RecordFirmwareVersion("tenant_demo_jakarta", "gw_demo_001", "1.4.0"); err != nil {
+		t.Fatal(err)
+	}
+	s := &server{gatewaySvc: svc}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/gateways/firmware-summary?tenant_id=tenant_demo_jakarta", nil)
+	req = withGatewayMQTTUser(req, auth.User{ID: "u1", Role: "tenant_admin", TenantID: "tenant_demo_jakarta"})
+	rec := httptest.NewRecorder()
+	s.gatewayFirmwareSummary(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var sum gateway.GatewayFirmwareSummary
+	if err := json.Unmarshal(rec.Body.Bytes(), &sum); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if sum.Reported < 1 {
+		t.Fatalf("expected reported>=1, got %+v", sum)
+	}
 }

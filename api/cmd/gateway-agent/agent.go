@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -35,15 +36,24 @@ type Agent struct {
 	relayOSDPDevice    string // RS485 serial device for OSDP v2 reader control
 	osdpAddress        byte   // OSDP peripheral device address (0-126)
 	// Matter relay configuration
-	relayMatterNodeID  uint64 // Matter node ID for target lock (0 = disabled)
-	matterEndpoint     int    // Door Lock cluster endpoint (default: 1)
-	matterStorageDir   string // chip-tool fabric credential storage
-	matterSetupCode    string // setup code for commissioning
-	matterChipToolPath string // path to chip-tool binary
-	matterTimedTimeout int    // --timedInteractionTimeoutMs value
-	tlsPinSHA256       string // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
-	wsURL              string // WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws)
-	mtlsCertDir        string // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
+	relayMatterNodeID  uint64              // Matter node ID for target lock (0 = disabled)
+	matterEndpoint     int                 // Door Lock cluster endpoint (default: 1)
+	matterStorageDir   string              // chip-tool fabric credential storage
+	matterSetupCode    string              // setup code for commissioning
+	matterChipToolPath string              // path to chip-tool binary
+	matterTimedTimeout int                 // --timedInteractionTimeoutMs value
+	tlsPinSHA256       string              // hex-encoded SHA256 of Cloud API's TLS certificate public key (SPKI)
+	wsURL              string              // WebSocket URL for persistent TLS connection (e.g. wss://api.example.com/api/v1/gateway/ws)
+	mtlsCertDir        string              // directory for mTLS client cert + key (e.g. /var/lib/mistypass/mtls/)
+	agentVersion       string              // build-time version, used for OTA anti-downgrade
+	otaPublicKeys      []ed25519.PublicKey // pinned Ed25519 keys for OTA verification (empty = OTA disabled)
+	otaURLAllowlist    []string            // allowed firmware-download hosts (empty = no restriction)
+	otaVerifyFailed    map[string]bool     // task IDs that failed signature verification this process lifetime (skip re-download)
+
+	// OTA test seams — default to real implementations in Start(); unit tests set them directly.
+	exitFunc    func(int)                           // process exit (os.Exit)
+	resolveSelf func() (string, error)              // path of the running binary
+	reportOTAFn func(otaTask, string, string) error // OTA status reporter
 
 	mu              sync.RWMutex
 	deviceToken     string // device-specific token obtained from registration
@@ -99,6 +109,11 @@ type AccessEvent struct {
 
 func (a *Agent) Start() error {
 	a.stopCh = make(chan struct{})
+	a.ensureOTADefaults()
+
+	// OTA rollback watchdog: if a pending self-update is not confirmed in time,
+	// restore the previous binary. No-op when there is no pending marker.
+	go a.otaWatchdog(90 * time.Second)
 
 	// Derive numeric gateway ID from string ID (used in v2 challenges for binding)
 	if a.gatewayID != "" {
@@ -376,6 +391,7 @@ func (a *Agent) pullConfig() error {
 		"tenant_id":           a.tenantID,
 		"current_version":     "",
 		"authz_cache_version": a.ruleVersion,
+		"firmware_version":    a.agentVersion,
 	})
 
 	resp, err := a.apiRequest("POST", "/api/v1/gateway/config/pull", body)
@@ -394,6 +410,7 @@ func (a *Agent) pullConfig() error {
 			Version     string       `json:"version"`
 			AccessRules []AccessRule `json:"access_rules"`
 		} `json:"authz_cache"`
+		PendingOTATasks []otaTask `json:"pending_ota_tasks"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return fmt.Errorf("config/pull decode: %w", err)
@@ -409,6 +426,8 @@ func (a *Agent) pullConfig() error {
 		"version", result.AuthzCache.Version,
 		"access_rules", len(result.AuthzCache.AccessRules),
 	)
+	a.confirmPendingOTA()                   // finalize a prior self-update on a healthy pull
+	a.maybeApplyOTA(result.PendingOTATasks) // may os.Exit to restart into new binary
 	return nil
 }
 

@@ -31,10 +31,11 @@ const (
 
 func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		GatewayID      string `json:"gateway_id"`
-		TenantID       string `json:"tenant_id"`
-		CurrentVersion string `json:"current_version"`
-		AuthzVersion   string `json:"authz_cache_version"`
+		GatewayID       string `json:"gateway_id"`
+		TenantID        string `json:"tenant_id"`
+		CurrentVersion  string `json:"current_version"`
+		AuthzVersion    string `json:"authz_cache_version"`
+		FirmwareVersion string `json:"firmware_version"`
 	}
 	if err := decodeJSON(r, &request); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -49,6 +50,10 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 	if !s.authorizeGatewayHTTPDeviceRequest(w, r, record.ID) {
 		return
 	}
+
+	// Record the gateway's reported running firmware version (empty = no-op).
+	_ = s.gatewaySvc.RecordFirmwareVersion(request.TenantID, request.GatewayID, request.FirmwareVersion)
+	_ = s.gatewaySvc.EvaluateGatewayScheduledRollouts(request.TenantID, request.GatewayID)
 
 	snapshot, err := s.gatewaySvc.PullConfig(request.TenantID, request.GatewayID)
 	if err != nil {
@@ -80,10 +85,18 @@ func (s *server) gatewayBootstrapConfigPull(w http.ResponseWriter, r *http.Reque
 	// Include pending OTA tasks so the gateway can discover firmware updates.
 	var pendingOTA []gateway.GatewayOTATask
 	if allOTA, otaErr := s.gatewaySvc.ListOTATasks(request.TenantID, request.GatewayID); otaErr == nil {
+		signingKey := strings.TrimSpace(s.cfg.UploadSigningKey)
+		base := requestBaseURL(r)
 		for _, task := range allOTA {
-			if task.Status == "queued" || task.Status == "dispatching" {
-				pendingOTA = append(pendingOTA, task)
+			if task.Status != "queued" && task.Status != "dispatching" {
+				continue
 			}
+			if task.FirmwareID != "" && signingKey != "" {
+				exp := time.Now().UTC().Add(10 * time.Minute)
+				sig := signDownload(signingKey, task.FirmwareID, exp)
+				task.FirmwareURL = fmt.Sprintf("%s/api/v1/uploads/%s?sig=%s&expires=%d", base, task.FirmwareID, sig, exp.Unix())
+			}
+			pendingOTA = append(pendingOTA, task)
 		}
 	}
 
@@ -2362,4 +2375,16 @@ func (s *server) canManageAuthUserBuildingScope(w http.ResponseWriter, r *http.R
 	}
 
 	return true
+}
+
+// requestBaseURL returns scheme://host for r, honoring X-Forwarded-Proto.
+func requestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https") {
+		scheme = "https"
+	}
+	return scheme + "://" + r.Host
 }

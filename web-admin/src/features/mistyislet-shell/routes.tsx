@@ -129,6 +129,15 @@ const WalletPage = lazy(() =>
 const GatewaysPage = lazy(() =>
   import("@/features/legacy/pages/gateways-page").then((module) => ({ default: module.GatewaysPage }))
 )
+const FirmwarePage = lazy(() =>
+  import("@/features/ota/pages/firmware-page").then((module) => ({ default: module.FirmwarePage }))
+)
+const RolloutsPage = lazy(() =>
+  import("@/features/ota/pages/rollouts-page").then((module) => ({ default: module.RolloutsPage }))
+)
+const RolloutDetailPage = lazy(() =>
+  import("@/features/ota/pages/rollout-detail-page").then((m) => ({ default: m.RolloutDetailPage }))
+)
 const EventsPage = lazy(() =>
   import("@/features/legacy/pages/events-page").then((module) => ({ default: module.EventsPage }))
 )
@@ -300,6 +309,9 @@ export function MistyisletConsoleRoutes({ homeContent, token, viewer, onViewerCh
         <Route path="/wallet" element={<WalletPage token={token} viewer={viewer} />} />
         <Route path="/cameras" element={<CamerasPage token={token} viewer={viewer} />} />
         <Route path="/gateways" element={<GatewaysPage token={token} viewer={viewer} />} />
+        <Route path="/ota" element={<FirmwarePage token={token} viewer={viewer} />} />
+        <Route path="/ota/rollouts" element={<RolloutsPage token={token} viewer={viewer} />} />
+        <Route path="/ota/rollouts/:rolloutID" element={<RolloutDetailPage token={token} viewer={viewer} />} />
         <Route path="/events" element={<EventsPage token={token} viewer={viewer} />} />
         <Route path="/alarms" element={<AlarmsPage token={token} viewer={viewer} />} />
         <Route path="/audit" element={<AuditPage token={token} viewer={viewer} />} />

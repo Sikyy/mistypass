@@ -4818,5 +4818,124 @@
       "buildingAdmin": "Place Admin",
       "resident": "Unsupported account"
     }
+  },
+  "ota": {
+    "nav": { "firmware": "Firmware" },
+    "rollout": {
+      "nav": { "rollouts": "Rollouts" },
+      "pageTitle": "OTA Rollouts",
+      "list": {
+        "title": "Rollout History",
+        "description": "All OTA rollouts for this tenant.",
+        "loading": "Loading…",
+        "empty": "No rollouts yet.",
+        "colFirmware": "Firmware",
+        "colTarget": "Target",
+        "colState": "State",
+        "colPhase": "Phase",
+        "colCreated": "Created"
+      },
+      "state": {
+        "active": "Active",
+        "completed": "Completed",
+        "failed": "Failed",
+        "paused": "Paused",
+        "awaiting_approval": "Awaiting Approval",
+        "scheduled": "Scheduled",
+        "pending": "Pending",
+        "aborted": "Aborted"
+      },
+      "errors": { "generic": "Something went wrong." },
+      "targetSummary": { "all": "All gateways", "building": "Building {{id}}", "gateways": "{{count}} gateways" },
+      "create": {
+        "title": "Create Rollout",
+        "description": "Roll out a firmware version to a set of gateways in phases.",
+        "firmwarePlaceholder": "Select firmware version",
+        "targetAll": "All gateways",
+        "targetBuilding": "By building",
+        "targetGateways": "Specific gateways",
+        "buildingPlaceholder": "Select building",
+        "phases": "Phases (cumulative %, last must be 100)",
+        "requiresApproval": "Requires approval",
+        "addPhase": "Add phase",
+        "removePhase": "Remove",
+        "failureThreshold": "Failure threshold %",
+        "scheduleSection": "Schedule (optional)",
+        "timezonePlaceholder": "Timezone",
+        "submit": "Create",
+        "submitting": "Creating…",
+        "validation": {
+          "firmwareRequired": "Select a firmware version",
+          "phasesInvalid": "Phases must be strictly increasing percentages ending at 100",
+          "buildingRequired": "Select a building",
+          "gatewaysRequired": "Select at least one gateway",
+          "hhmm": "Use HH:MM (24h)"
+        }
+      },
+      "detail": {
+        "pageTitle": "Rollout",
+        "title": "Rollout",
+        "loading": "Loading…",
+        "firmware": "Firmware",
+        "target": "Target",
+        "phase": "Phase",
+        "threshold": "Failure threshold",
+        "schedule": "Schedule",
+        "gatewaysTitle": "Per-gateway progress",
+        "colGateway": "Gateway",
+        "colPhase": "Phase",
+        "colStatus": "Status",
+        "colVersion": "Current version",
+        "actions": {
+          "approve": "Approve",
+          "pause": "Pause",
+          "resume": "Resume",
+          "abort": "Abort"
+        },
+        "confirmAbortTitle": "Abort rollout?",
+        "confirmAbortBody": "This stops the rollout. Gateways already updated keep the new firmware.",
+        "cancel": "Cancel"
+      }
+    },
+    "firmware": {
+      "pageTitle": "Firmware Management",
+      "summary": {
+        "title": "Fleet Firmware Versions",
+        "description": "Firmware version distribution across this tenant's gateways.",
+        "loading": "Loading…",
+        "empty": "No gateways have reported a firmware version yet.",
+        "fleet": "{{reported}} of {{total}} gateways have reported a version."
+      },
+      "upload": {
+        "title": "Upload Firmware",
+        "description": "Upload a signed firmware binary. Sign offline with ota-sign; the private key never enters the browser.",
+        "versionPlaceholder": "Version (e.g. 1.4.0)",
+        "channelPlaceholder": "Channel (optional: stable / beta)",
+        "signaturePlaceholder": "Ed25519 signature (hex, from ota-sign)",
+        "submit": "Upload",
+        "submitting": "Uploading…",
+        "cryptoUnavailable": "Firmware upload requires a secure context (HTTPS).",
+        "validation": {
+          "versionRequired": "Version is required",
+          "versionMax": "Version too long",
+          "signatureHex": "Signature must be 128 hex characters (Ed25519)",
+          "fileRequired": "Select a firmware file"
+        }
+      },
+      "list": {
+        "title": "Firmware Registry",
+        "description": "Uploaded firmware versions for this tenant.",
+        "loading": "Loading…",
+        "empty": "No firmware uploaded yet.",
+        "channelAll": "All channels",
+        "colVersion": "Version",
+        "colChannel": "Channel",
+        "colSha": "SHA-256",
+        "colSize": "Size",
+        "colUploadedBy": "Uploaded by",
+        "colCreated": "Created"
+      },
+      "errors": { "generic": "Something went wrong." }
+    }
   }
 }
