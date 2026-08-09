@@ -15,7 +15,7 @@ require (
 	github.com/nats-io/nats.go v1.52.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.20.1
-	github.com/russellhaering/goxmldsig v1.6.0
+	github.com/russellhaering/goxmldsig v1.6.1
 	github.com/sqlc-dev/pqtype v0.3.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0
@@ -29,7 +29,7 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	github.com/beevik/etree v1.6.0 // indirect
+	github.com/beevik/etree v1.7.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
